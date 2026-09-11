@@ -1,2009 +1,1394 @@
 import os
-import secrets
+import uuid
 import sqlite3
 from datetime import datetime, timezone
+from functools import wraps
 
-from flask import Flask, jsonify, request, session, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, session
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 
-# =========================================================
-# OPTIONAL PRODUCTION PACKAGES
-# =========================================================
+# ============================================================
+# MSAFIRI GLOBAL MEDIA
+# V3 FULL CLEAN
+# Flask + PostgreSQL/SQLite + LiveKit
+# ============================================================
 
-try:
-    import psycopg
-    from psycopg.rows import dict_row
-except Exception:
-    psycopg = None
-    dict_row = None
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+INDEX_FILE = os.path.join(BASE_DIR, "index.html")
+MEDIA_DIR = os.path.join(BASE_DIR, "media")
 
-try:
-    from livekit import api as livekit_api
-except Exception:
-    livekit_api = None
-
-
-# =========================================================
-# APP CONFIG
-# =========================================================
-
-BASE = os.path.dirname(os.path.abspath(__file__))
-SQLITE_DB = os.path.join(BASE, "msafiri_local.db")
+os.makedirs(MEDIA_DIR, exist_ok=True)
 
 app = Flask(__name__, static_folder=None)
 
-SECRET_KEY = os.getenv("SECRET_KEY", "").strip()
+app.secret_key = os.environ.get(
+    "SECRET_KEY",
+    "change-this-secret-in-render"
+)
 
-if not SECRET_KEY:
-    # Local development fallback only.
-    # On Render, SECRET_KEY MUST be configured.
-    SECRET_KEY = secrets.token_hex(32)
+app.config["MAX_CONTENT_LENGTH"] = 100 * 1024 * 1024
 
-app.secret_key = SECRET_KEY
+DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
 
-app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024
-app.config["SESSION_COOKIE_HTTPONLY"] = True
-app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
-
-# Render normally uses HTTPS.
-# Local HTTP development can override with:
-# SESSION_COOKIE_SECURE=0
-secure_cookie = os.getenv("SESSION_COOKIE_SECURE")
-
-if secure_cookie is None:
-    app.config["SESSION_COOKIE_SECURE"] = bool(
-        os.getenv("RENDER", "").strip()
-    )
-else:
-    app.config["SESSION_COOKIE_SECURE"] = secure_cookie == "1"
+LIVEKIT_URL = os.environ.get("LIVEKIT_URL", "").strip()
+LIVEKIT_API_KEY = os.environ.get("LIVEKIT_API_KEY", "").strip()
+LIVEKIT_API_SECRET = os.environ.get("LIVEKIT_API_SECRET", "").strip()
 
 
-# =========================================================
+# ============================================================
 # DATABASE
-# =========================================================
-
-DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
-
-# Render/Postgres compatibility
-if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = "postgresql://" + DATABASE_URL[len("postgres://"):]
+# ============================================================
 
 USE_POSTGRES = bool(DATABASE_URL)
+
+if USE_POSTGRES:
+    try:
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+    except Exception:
+        USE_POSTGRES = False
 
 
 def now_iso():
     return datetime.now(timezone.utc).isoformat()
 
 
-def db():
-    """
-    PostgreSQL on Render.
-    SQLite for local Pydroid testing.
-    """
-
+def db_connect():
     if USE_POSTGRES:
-
-        if psycopg is None:
-            raise RuntimeError(
-                "psycopg haijawekwa. "
-                "Weka psycopg[binary] kwenye requirements.txt."
-            )
-
-        return psycopg.connect(
+        conn = psycopg2.connect(
             DATABASE_URL,
-            row_factory=dict_row
+            cursor_factory=RealDictCursor
         )
+        return conn
 
-    connection = sqlite3.connect(SQLITE_DB)
-    connection.row_factory = sqlite3.Row
-
-    return connection
-
-
-# =========================================================
-# DATABASE INITIALIZATION
-# =========================================================
-
-def init_postgres():
-
-    statements = [
-
-        """
-        CREATE TABLE IF NOT EXISTS users(
-            id BIGSERIAL PRIMARY KEY,
-            name TEXT NOT NULL,
-            email TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        )
-        """,
-
-        """
-        CREATE TABLE IF NOT EXISTS posts(
-            id BIGSERIAL PRIMARY KEY,
-            user_id BIGINT NOT NULL
-                REFERENCES users(id)
-                ON DELETE CASCADE,
-            caption TEXT NOT NULL DEFAULT '',
-            media_url TEXT NOT NULL DEFAULT '',
-            media_type TEXT NOT NULL DEFAULT '',
-            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        )
-        """,
-
-        """
-        CREATE TABLE IF NOT EXISTS messages(
-            id BIGSERIAL PRIMARY KEY,
-            sender_id BIGINT NOT NULL
-                REFERENCES users(id)
-                ON DELETE CASCADE,
-            receiver_id BIGINT NOT NULL
-                REFERENCES users(id)
-                ON DELETE CASCADE,
-            body TEXT NOT NULL,
-            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        )
-        """,
-
-        """
-        CREATE TABLE IF NOT EXISTS calls(
-            id BIGSERIAL PRIMARY KEY,
-            caller_id BIGINT NOT NULL
-                REFERENCES users(id)
-                ON DELETE CASCADE,
-            receiver_id BIGINT NOT NULL
-                REFERENCES users(id)
-                ON DELETE CASCADE,
-            room_name TEXT NOT NULL,
-            call_type TEXT NOT NULL DEFAULT 'video',
-            status TEXT NOT NULL DEFAULT 'started',
-            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-            ended_at TIMESTAMPTZ
-        )
-        """,
-
-        """
-        CREATE INDEX IF NOT EXISTS idx_posts_created
-        ON posts(created_at DESC)
-        """,
-
-        """
-        CREATE INDEX IF NOT EXISTS idx_messages_pair
-        ON messages(sender_id, receiver_id, created_at)
-        """,
-
-        """
-        CREATE INDEX IF NOT EXISTS idx_calls_receiver
-        ON calls(receiver_id, created_at DESC)
-        """
-    ]
-
-    with db() as conn:
-
-        for sql in statements:
-            conn.execute(sql)
+    conn = sqlite3.connect(
+        os.path.join(BASE_DIR, "msafiri.db"),
+        check_same_thread=False
+    )
+    conn.row_factory = sqlite3.Row
+    return conn
 
 
-def init_sqlite():
+def execute(sql, params=(), fetchone=False, fetchall=False, commit=False):
+    conn = db_connect()
 
-    with db() as conn:
+    try:
+        cur = conn.cursor()
 
-        conn.executescript("""
+        if USE_POSTGRES:
+            sql = sql.replace("?", "%s")
 
-        CREATE TABLE IF NOT EXISTS users(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            email TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            created_at TEXT NOT NULL
-        );
+        cur.execute(sql, params)
 
-        CREATE TABLE IF NOT EXISTS posts(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            caption TEXT NOT NULL DEFAULT '',
-            media_url TEXT NOT NULL DEFAULT '',
-            media_type TEXT NOT NULL DEFAULT '',
-            created_at TEXT NOT NULL
-        );
+        result = None
 
-        CREATE TABLE IF NOT EXISTS messages(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            sender_id INTEGER NOT NULL,
-            receiver_id INTEGER NOT NULL,
-            body TEXT NOT NULL,
-            created_at TEXT NOT NULL
-        );
+        if fetchone:
+            result = cur.fetchone()
 
-        CREATE TABLE IF NOT EXISTS calls(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            caller_id INTEGER NOT NULL,
-            receiver_id INTEGER NOT NULL,
-            room_name TEXT NOT NULL,
-            call_type TEXT NOT NULL DEFAULT 'video',
-            status TEXT NOT NULL DEFAULT 'started',
-            created_at TEXT NOT NULL,
-            ended_at TEXT
-        );
+        elif fetchall:
+            result = cur.fetchall()
 
-        CREATE INDEX IF NOT EXISTS idx_posts_created
-        ON posts(created_at);
+        if commit:
+            conn.commit()
 
-        CREATE INDEX IF NOT EXISTS idx_messages_pair
-        ON messages(sender_id, receiver_id, created_at);
+        return result
 
-        """)
+    finally:
+        conn.close()
 
 
 def init_db():
 
+    conn = db_connect()
+
     try:
+        cur = conn.cursor()
 
         if USE_POSTGRES:
-            init_postgres()
+
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id SERIAL PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    email TEXT UNIQUE NOT NULL,
+                    password_hash TEXT NOT NULL,
+                    avatar TEXT DEFAULT '',
+                    created_at TEXT NOT NULL
+                )
+            """)
+
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS posts (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER NOT NULL,
+                    caption TEXT DEFAULT '',
+                    media_url TEXT DEFAULT '',
+                    media_type TEXT DEFAULT '',
+                    created_at TEXT NOT NULL
+                )
+            """)
+
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS messages (
+                    id SERIAL PRIMARY KEY,
+                    sender_id INTEGER NOT NULL,
+                    receiver_id INTEGER NOT NULL,
+                    text TEXT DEFAULT '',
+                    media_url TEXT DEFAULT '',
+                    created_at TEXT NOT NULL
+                )
+            """)
+
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS calls (
+                    id SERIAL PRIMARY KEY,
+                    caller_id INTEGER NOT NULL,
+                    receiver_id INTEGER NOT NULL,
+                    room_name TEXT NOT NULL,
+                    call_type TEXT DEFAULT 'video',
+                    status TEXT DEFAULT 'started',
+                    created_at TEXT NOT NULL,
+                    ended_at TEXT DEFAULT ''
+                )
+            """)
+
         else:
-            init_sqlite()
 
-        app.logger.info(
-            "Database initialized: %s",
-            "PostgreSQL" if USE_POSTGRES else "SQLite"
-        )
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    email TEXT UNIQUE NOT NULL,
+                    password_hash TEXT NOT NULL,
+                    avatar TEXT DEFAULT '',
+                    created_at TEXT NOT NULL
+                )
+            """)
 
-    except Exception:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS posts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    caption TEXT DEFAULT '',
+                    media_url TEXT DEFAULT '',
+                    media_type TEXT DEFAULT '',
+                    created_at TEXT NOT NULL
+                )
+            """)
 
-        app.logger.exception(
-            "Database initialization failed"
-        )
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS messages (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    sender_id INTEGER NOT NULL,
+                    receiver_id INTEGER NOT NULL,
+                    text TEXT DEFAULT '',
+                    media_url TEXT DEFAULT '',
+                    created_at TEXT NOT NULL
+                )
+            """)
 
-        raise
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS calls (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    caller_id INTEGER NOT NULL,
+                    receiver_id INTEGER NOT NULL,
+                    room_name TEXT NOT NULL,
+                    call_type TEXT DEFAULT 'video',
+                    status TEXT DEFAULT 'started',
+                    created_at TEXT NOT NULL,
+                    ended_at TEXT DEFAULT ''
+                )
+            """)
+
+        conn.commit()
+
+    finally:
+        conn.close()
 
 
-# =========================================================
-# AUTH HELPERS
-# =========================================================
+# ============================================================
+# HELPERS
+# ============================================================
 
-def me():
+def row_to_dict(row):
+    if row is None:
+        return None
 
-    uid = session.get("uid")
+    if isinstance(row, dict):
+        return dict(row)
+
+    return dict(row)
+
+
+def current_user():
+    uid = session.get("user_id")
 
     if not uid:
         return None
 
-    try:
+    row = execute(
+        """
+        SELECT id, name, email, avatar, created_at
+        FROM users
+        WHERE id = ?
+        """,
+        (uid,),
+        fetchone=True
+    )
 
-        with db() as conn:
-
-            if USE_POSTGRES:
-
-                row = conn.execute(
-                    """
-                    SELECT id, name, email, created_at
-                    FROM users
-                    WHERE id=%s
-                    """,
-                    (uid,)
-                ).fetchone()
-
-            else:
-
-                row = conn.execute(
-                    """
-                    SELECT id, name, email, created_at
-                    FROM users
-                    WHERE id=?
-                    """,
-                    (uid,)
-                ).fetchone()
-
-        return dict(row) if row else None
-
-    except Exception:
-
-        app.logger.exception("me() failed")
-        return None
+    return row_to_dict(row)
 
 
-def require_login():
+def login_required(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        if not current_user():
+            return jsonify({
+                "ok": False,
+                "error": "Ingia kwanza."
+            }), 401
 
-    user = me()
+        return fn(*args, **kwargs)
 
-    if not user:
-        return None
-
-    return user
+    return wrapper
 
 
-# =========================================================
-# HOME
-# =========================================================
+def clean_text(value, max_length=5000):
+    if value is None:
+        return ""
 
-@app.get("/")
+    return str(value).strip()[:max_length]
+
+
+# ============================================================
+# FRONTEND
+# ============================================================
+
+@app.route("/", methods=["GET"])
 def home():
+    """
+    IMPORTANT:
+    Serve index.html directly from the same directory as main.py.
+    This fixes the Render 200 0 problem caused by an empty response.
+    """
 
-    return send_from_directory(
-        BASE,
-        "index.html"
-    )
+    if not os.path.isfile(INDEX_FILE):
+        return """
+        <h1>MSAFIRI GLOBAL MEDIA</h1>
+        <p>index.html haipo kwenye root ya project.</p>
+        """, 500
+
+    return send_from_directory(BASE_DIR, "index.html")
 
 
-# =========================================================
+@app.route("/index.html", methods=["GET"])
+def index_html():
+    return home()
+
+
+@app.route("/media/<path:filename>")
+def media_file(filename):
+    return send_from_directory(MEDIA_DIR, filename)
+
+
+@app.route("/favicon.ico")
+def favicon():
+    return ("", 204)
+
+
+# ============================================================
 # HEALTH
-# =========================================================
+# ============================================================
 
-@app.get("/api/health")
+@app.route("/api/health", methods=["GET"])
 def health():
+    database = "postgresql" if USE_POSTGRES else "sqlite"
 
-    postgres_ok = False
-
-    if USE_POSTGRES:
-
-        try:
-
-            with db() as conn:
-                conn.execute("SELECT 1")
-
-            postgres_ok = True
-
-        except Exception:
-
-            postgres_ok = False
-
-    else:
-
-        postgres_ok = True
-
-    livekit_ok = bool(
-        os.getenv("LIVEKIT_URL", "").strip()
-        and
-        os.getenv("LIVEKIT_API_KEY", "").strip()
-        and
-        os.getenv("LIVEKIT_API_SECRET", "").strip()
-    )
-
-    return jsonify(
-        ok=True,
-        service="MSAFIRI GLOBAL MEDIA V3",
-        database="postgresql" if USE_POSTGRES else "sqlite-local",
-        database_connected=postgres_ok,
-        livekit=livekit_ok
-    )
+    return jsonify({
+        "ok": True,
+        "app": "MSAFIRI GLOBAL MEDIA",
+        "version": "V3 FULL CLEAN",
+        "database": database,
+        "livekit": bool(
+            LIVEKIT_URL and
+            LIVEKIT_API_KEY and
+            LIVEKIT_API_SECRET
+        ),
+        "time": now_iso()
+    })
 
 
-# =========================================================
-# CURRENT USER
-# =========================================================
+# ============================================================
+# AUTH
+# ============================================================
 
-@app.get("/api/me")
-def api_me():
+@app.route("/api/me", methods=["GET"])
+def me():
+    user = current_user()
 
-    return jsonify(
-        ok=True,
-        user=me()
-    )
+    return jsonify({
+        "ok": True,
+        "user": user
+    })
 
 
-# =========================================================
-# REGISTER
-# =========================================================
-
-@app.post("/api/register")
+@app.route("/api/register", methods=["POST"])
 def register():
 
     data = request.get_json(silent=True) or {}
 
-    name = str(
-        data.get("name", "")
-    ).strip()
+    name = clean_text(data.get("name"), 100)
+    email = clean_text(data.get("email"), 200).lower()
+    password = str(data.get("password") or "")
 
-    email = str(
-        data.get("email", "")
-    ).strip().lower()
+    if not name:
+        return jsonify({
+            "ok": False,
+            "error": "Weka jina."
+        }), 400
 
-    password = str(
-        data.get("password", "")
-    )
-
-    if len(name) < 2:
-
-        return jsonify(
-            ok=False,
-            error="Weka jina lako."
-        ), 400
-
-    if len(name) > 80:
-
-        return jsonify(
-            ok=False,
-            error="Jina ni refu sana."
-        ), 400
-
-    if "@" not in email or "." not in email:
-
-        return jsonify(
-            ok=False,
-            error="Email si sahihi."
-        ), 400
-
-    if len(email) > 180:
-
-        return jsonify(
-            ok=False,
-            error="Email ni ndefu sana."
-        ), 400
+    if not email or "@" not in email:
+        return jsonify({
+            "ok": False,
+            "error": "Weka email sahihi."
+        }), 400
 
     if len(password) < 6:
+        return jsonify({
+            "ok": False,
+            "error": "Password iwe na angalau characters 6."
+        }), 400
 
-        return jsonify(
-            ok=False,
-            error="Password iwe angalau herufi 6."
-        ), 400
-
-    password_hash = generate_password_hash(
-        password
+    existing = execute(
+        "SELECT id FROM users WHERE email = ?",
+        (email,),
+        fetchone=True
     )
 
+    if existing:
+        return jsonify({
+            "ok": False,
+            "error": "Email tayari imesajiliwa."
+        }), 409
+
+    password_hash = generate_password_hash(password)
+    created = now_iso()
+
+    conn = db_connect()
+
     try:
+        cur = conn.cursor()
 
-        with db() as conn:
+        if USE_POSTGRES:
 
-            if USE_POSTGRES:
+            cur.execute(
+                """
+                INSERT INTO users
+                (name, email, password_hash, created_at)
+                VALUES (%s, %s, %s, %s)
+                RETURNING id
+                """,
+                (name, email, password_hash, created)
+            )
 
-                row = conn.execute(
-                    """
-                    INSERT INTO users
-                    (name, email, password_hash, created_at)
-                    VALUES
-                    (%s, %s, %s, NOW())
-                    RETURNING id
-                    """,
-                    (
-                        name,
-                        email,
-                        password_hash
-                    )
-                ).fetchone()
+            uid = cur.fetchone()["id"]
 
-                uid = row["id"]
+        else:
 
-            else:
+            cur.execute(
+                """
+                INSERT INTO users
+                (name, email, password_hash, created_at)
+                VALUES (?, ?, ?, ?)
+                """,
+                (name, email, password_hash, created)
+            )
 
-                cur = conn.execute(
-                    """
-                    INSERT INTO users
-                    (name, email, password_hash, created_at)
-                    VALUES (?, ?, ?, ?)
-                    """,
-                    (
-                        name,
-                        email,
-                        password_hash,
-                        now_iso()
-                    )
-                )
+            uid = cur.lastrowid
 
-                uid = cur.lastrowid
+        conn.commit()
 
-        session.clear()
-        session["uid"] = uid
-        session.permanent = True
+    finally:
+        conn.close()
 
-        return jsonify(
-            ok=True,
-            user=me()
-        )
+    session["user_id"] = uid
 
-    except Exception as e:
-
-        message = str(e).lower()
-
-        if (
-            "unique" in message
-            or
-            "duplicate" in message
-        ):
-
-            return jsonify(
-                ok=False,
-                error="Email hii tayari ina account."
-            ), 409
-
-        app.logger.exception(
-            "Registration failed"
-        )
-
-        return jsonify(
-            ok=False,
-            error="Account haikuweza kutengenezwa."
-        ), 500
+    return jsonify({
+        "ok": True,
+        "user": current_user()
+    })
 
 
-# =========================================================
-# LOGIN
-# =========================================================
-
-@app.post("/api/login")
+@app.route("/api/login", methods=["POST"])
 def login():
 
     data = request.get_json(silent=True) or {}
 
-    email = str(
-        data.get("email", "")
-    ).strip().lower()
+    email = clean_text(data.get("email"), 200).lower()
+    password = str(data.get("password") or "")
 
-    password = str(
-        data.get("password", "")
+    user = execute(
+        """
+        SELECT *
+        FROM users
+        WHERE email = ?
+        """,
+        (email,),
+        fetchone=True
     )
 
-    if not email or not password:
+    if not user:
+        return jsonify({
+            "ok": False,
+            "error": "Email au password si sahihi."
+        }), 401
 
-        return jsonify(
-            ok=False,
-            error="Weka email na password."
-        ), 400
+    user = row_to_dict(user)
 
-    try:
+    if not check_password_hash(
+        user["password_hash"],
+        password
+    ):
+        return jsonify({
+            "ok": False,
+            "error": "Email au password si sahihi."
+        }), 401
 
-        with db() as conn:
+    session["user_id"] = user["id"]
 
-            if USE_POSTGRES:
+    user.pop("password_hash", None)
 
-                user = conn.execute(
-                    """
-                    SELECT *
-                    FROM users
-                    WHERE email=%s
-                    """,
-                    (email,)
-                ).fetchone()
-
-            else:
-
-                user = conn.execute(
-                    """
-                    SELECT *
-                    FROM users
-                    WHERE email=?
-                    """,
-                    (email,)
-                ).fetchone()
-
-        if not user:
-
-            return jsonify(
-                ok=False,
-                error="Email au password si sahihi."
-            ), 401
-
-        if not check_password_hash(
-            user["password_hash"],
-            password
-        ):
-
-            return jsonify(
-                ok=False,
-                error="Email au password si sahihi."
-            ), 401
-
-        session.clear()
-        session["uid"] = user["id"]
-        session.permanent = True
-
-        return jsonify(
-            ok=True,
-            user=me()
-        )
-
-    except Exception:
-
-        app.logger.exception(
-            "Login failed"
-        )
-
-        return jsonify(
-            ok=False,
-            error="Tatizo la server wakati wa login."
-        ), 500
+    return jsonify({
+        "ok": True,
+        "user": user
+    })
 
 
-# =========================================================
-# LOGOUT
-# =========================================================
-
-@app.post("/api/logout")
+@app.route("/api/logout", methods=["POST"])
 def logout():
-
     session.clear()
 
-    return jsonify(
-        ok=True
+    return jsonify({
+        "ok": True
+    })
+
+
+# ============================================================
+# USERS
+# ============================================================
+
+@app.route("/api/users", methods=["GET"])
+@login_required
+def users():
+
+    rows = execute(
+        """
+        SELECT id, name, email, avatar, created_at
+        FROM users
+        ORDER BY id DESC
+        LIMIT 100
+        """,
+        fetchall=True
     )
 
+    return jsonify({
+        "ok": True,
+        "users": [
+            row_to_dict(x)
+            for x in rows
+        ]
+    })
 
-# =========================================================
+
+# ============================================================
 # POSTS
-# =========================================================
+# ============================================================
 
-@app.get("/api/posts")
+@app.route("/api/posts", methods=["GET"])
 def get_posts():
 
-    try:
+    rows = execute(
+        """
+        SELECT
+            p.id,
+            p.user_id,
+            p.caption,
+            p.media_url,
+            p.media_type,
+            p.created_at,
+            u.name AS user_name,
+            u.avatar AS user_avatar
+        FROM posts p
+        JOIN users u ON u.id = p.user_id
+        ORDER BY p.id DESC
+        LIMIT 100
+        """,
+        fetchall=True
+    )
 
-        with db() as conn:
-
-            if USE_POSTGRES:
-
-                rows = conn.execute(
-                    """
-                    SELECT
-                        p.id,
-                        p.user_id,
-                        p.caption,
-                        p.media_url,
-                        p.media_type,
-                        p.created_at,
-                        u.name,
-                        u.email
-                    FROM posts p
-                    JOIN users u
-                    ON u.id = p.user_id
-                    ORDER BY p.created_at DESC
-                    LIMIT 100
-                    """
-                ).fetchall()
-
-            else:
-
-                rows = conn.execute(
-                    """
-                    SELECT
-                        p.id,
-                        p.user_id,
-                        p.caption,
-                        p.media_url,
-                        p.media_type,
-                        p.created_at,
-                        u.name,
-                        u.email
-                    FROM posts p
-                    JOIN users u
-                    ON u.id = p.user_id
-                    ORDER BY p.id DESC
-                    LIMIT 100
-                    """
-                ).fetchall()
-
-        return jsonify(
-            ok=True,
-            posts=[dict(row) for row in rows]
-        )
-
-    except Exception:
-
-        app.logger.exception(
-            "Loading posts failed"
-        )
-
-        return jsonify(
-            ok=False,
-            error="Posts hazikuweza kupakiwa.",
-            posts=[]
-        ), 500
+    return jsonify({
+        "ok": True,
+        "posts": [
+            row_to_dict(x)
+            for x in rows
+        ]
+    })
 
 
-@app.post("/api/posts")
-def add_post():
+@app.route("/api/posts", methods=["POST"])
+@login_required
+def create_post():
 
-    user = require_login()
-
-    if not user:
-
-        return jsonify(
-            ok=False,
-            error="Login required"
-        ), 401
-
+    user = current_user()
     data = request.get_json(silent=True) or {}
 
-    caption = str(
-        data.get("caption", "")
-    ).strip()
-
-    media_url = str(
-        data.get("media_url", "")
-    ).strip()
-
-    media_type = str(
-        data.get("media_type", "")
-    ).strip().lower()
-
-    if len(caption) > 5000:
-
-        return jsonify(
-            ok=False,
-            error="Caption ni ndefu sana."
-        ), 400
-
-    if len(media_url) > 2000:
-
-        return jsonify(
-            ok=False,
-            error="Media URL ni ndefu sana."
-        ), 400
-
-    if media_type not in {
-        "",
-        "image",
-        "video"
-    }:
-
-        media_type = ""
+    caption = clean_text(data.get("caption"), 5000)
+    media_url = clean_text(data.get("media_url"), 1000)
+    media_type = clean_text(data.get("media_type"), 50)
 
     if not caption and not media_url:
+        return jsonify({
+            "ok": False,
+            "error": "Weka caption au media."
+        }), 400
 
-        return jsonify(
-            ok=False,
-            error="Weka caption au media URL."
-        ), 400
+    created = now_iso()
+
+    conn = db_connect()
 
     try:
+        cur = conn.cursor()
 
-        with db() as conn:
+        if USE_POSTGRES:
 
-            if USE_POSTGRES:
-
-                row = conn.execute(
-                    """
-                    INSERT INTO posts
-                    (
-                        user_id,
-                        caption,
-                        media_url,
-                        media_type,
-                        created_at
-                    )
-                    VALUES
-                    (%s, %s, %s, %s, NOW())
-                    RETURNING id
-                    """,
-                    (
-                        user["id"],
-                        caption,
-                        media_url,
-                        media_type
-                    )
-                ).fetchone()
-
-                post_id = row["id"]
-
-            else:
-
-                cur = conn.execute(
-                    """
-                    INSERT INTO posts
-                    (
-                        user_id,
-                        caption,
-                        media_url,
-                        media_type,
-                        created_at
-                    )
-                    VALUES (?, ?, ?, ?, ?)
-                    """,
-                    (
-                        user["id"],
-                        caption,
-                        media_url,
-                        media_type,
-                        now_iso()
-                    )
+            cur.execute(
+                """
+                INSERT INTO posts
+                (user_id, caption, media_url, media_type, created_at)
+                VALUES (%s, %s, %s, %s, %s)
+                RETURNING id
+                """,
+                (
+                    user["id"],
+                    caption,
+                    media_url,
+                    media_type,
+                    created
                 )
+            )
 
-                post_id = cur.lastrowid
+            pid = cur.fetchone()["id"]
 
-        return jsonify(
-            ok=True,
-            id=post_id
-        )
+        else:
 
-    except Exception:
+            cur.execute(
+                """
+                INSERT INTO posts
+                (user_id, caption, media_url, media_type, created_at)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    user["id"],
+                    caption,
+                    media_url,
+                    media_type,
+                    created
+                )
+            )
 
-        app.logger.exception(
-            "Creating post failed"
-        )
+            pid = cur.lastrowid
 
-        return jsonify(
-            ok=False,
-            error="Post haikuweza kuwekwa."
-        ), 500
+        conn.commit()
+
+    finally:
+        conn.close()
+
+    return jsonify({
+        "ok": True,
+        "post_id": pid
+    })
 
 
-# =========================================================
-# DELETE POST
-# =========================================================
-
-@app.delete("/api/posts/<int:post_id>")
+@app.route("/api/posts/<int:post_id>", methods=["DELETE"])
+@login_required
 def delete_post(post_id):
 
-    user = require_login()
+    user = current_user()
 
-    if not user:
+    post = execute(
+        """
+        SELECT id, user_id
+        FROM posts
+        WHERE id = ?
+        """,
+        (post_id,),
+        fetchone=True
+    )
 
-        return jsonify(
-            ok=False,
-            error="Login required"
-        ), 401
+    if not post:
+        return jsonify({
+            "ok": False,
+            "error": "Post haipo."
+        }), 404
 
-    try:
+    post = row_to_dict(post)
 
-        with db() as conn:
+    if int(post["user_id"]) != int(user["id"]):
+        return jsonify({
+            "ok": False,
+            "error": "Huna ruhusa kufuta post hii."
+        }), 403
 
-            if USE_POSTGRES:
+    execute(
+        "DELETE FROM posts WHERE id = ?",
+        (post_id,),
+        commit=True
+    )
 
-                row = conn.execute(
-                    """
-                    DELETE FROM posts
-                    WHERE id=%s
-                    AND user_id=%s
-                    RETURNING id
-                    """,
-                    (
-                        post_id,
-                        user["id"]
-                    )
-                ).fetchone()
-
-            else:
-
-                cur = conn.execute(
-                    """
-                    DELETE FROM posts
-                    WHERE id=?
-                    AND user_id=?
-                    """,
-                    (
-                        post_id,
-                        user["id"]
-                    )
-                )
-
-                row = (
-                    {"id": post_id}
-                    if cur.rowcount
-                    else None
-                )
-
-        if not row:
-
-            return jsonify(
-                ok=False,
-                error="Post haipo au si yako."
-            ), 404
-
-        return jsonify(
-            ok=True
-        )
-
-    except Exception:
-
-        app.logger.exception(
-            "Delete post failed"
-        )
-
-        return jsonify(
-            ok=False,
-            error="Post haikuweza kufutwa."
-        ), 500
+    return jsonify({
+        "ok": True
+    })
 
 
-# =========================================================
-# USERS
-# =========================================================
+# ============================================================
+# MESSAGES / CHAT
+# ============================================================
 
-@app.get("/api/users")
-def get_users():
+@app.route("/api/messages", methods=["GET"])
+@login_required
+def get_messages():
 
-    user = require_login()
-
-    if not user:
-
-        return jsonify(
-            ok=False,
-            error="Login required"
-        ), 401
+    user = current_user()
 
     try:
+        other_id = int(request.args.get("user_id", "0"))
+    except ValueError:
+        other_id = 0
 
-        with db() as conn:
+    if other_id <= 0:
+        return jsonify({
+            "ok": False,
+            "error": "user_id haipo."
+        }), 400
 
-            if USE_POSTGRES:
+    rows = execute(
+        """
+        SELECT
+            m.id,
+            m.sender_id,
+            m.receiver_id,
+            m.text,
+            m.media_url,
+            m.created_at,
+            u.name AS sender_name
+        FROM messages m
+        JOIN users u ON u.id = m.sender_id
+        WHERE
+            (m.sender_id = ? AND m.receiver_id = ?)
+            OR
+            (m.sender_id = ? AND m.receiver_id = ?)
+        ORDER BY m.id ASC
+        LIMIT 500
+        """,
+        (
+            user["id"],
+            other_id,
+            other_id,
+            user["id"]
+        ),
+        fetchall=True
+    )
 
-                rows = conn.execute(
-                    """
-                    SELECT id, name, email
-                    FROM users
-                    WHERE id<>%s
-                    ORDER BY name
-                    """,
-                    (user["id"],)
-                ).fetchall()
-
-            else:
-
-                rows = conn.execute(
-                    """
-                    SELECT id, name, email
-                    FROM users
-                    WHERE id<>?
-                    ORDER BY name
-                    """,
-                    (user["id"],)
-                ).fetchall()
-
-        return jsonify(
-            ok=True,
-            users=[dict(row) for row in rows]
-        )
-
-    except Exception:
-
-        app.logger.exception(
-            "Loading users failed"
-        )
-
-        return jsonify(
-            ok=False,
-            error="Users hawakuweza kupakiwa."
-        ), 500
+    return jsonify({
+        "ok": True,
+        "messages": [
+            row_to_dict(x)
+            for x in rows
+        ]
+    })
 
 
-# =========================================================
-# MESSAGES
-# =========================================================
-
-@app.post("/api/messages")
+@app.route("/api/messages", methods=["POST"])
+@login_required
 def send_message():
 
-    user = require_login()
-
-    if not user:
-
-        return jsonify(
-            ok=False,
-            error="Login required"
-        ), 401
-
+    user = current_user()
     data = request.get_json(silent=True) or {}
 
-    receiver_id = data.get(
-        "receiver_id"
-    )
-
-    body = str(
-        data.get("body", "")
-    ).strip()
-
-    if not receiver_id or not body:
-
-        return jsonify(
-            ok=False,
-            error="Message haijakamilika."
-        ), 400
-
-    if len(body) > 5000:
-
-        return jsonify(
-            ok=False,
-            error="Message ni ndefu sana."
-        ), 400
-
     try:
+        receiver_id = int(data.get("receiver_id"))
+    except (TypeError, ValueError):
+        return jsonify({
+            "ok": False,
+            "error": "receiver_id si sahihi."
+        }), 400
 
-        receiver_id = int(
-            receiver_id
-        )
-
-    except Exception:
-
-        return jsonify(
-            ok=False,
-            error="Receiver si sahihi."
-        ), 400
+    text = clean_text(data.get("text"), 5000)
+    media_url = clean_text(data.get("media_url"), 1000)
 
     if receiver_id == user["id"]:
+        return jsonify({
+            "ok": False,
+            "error": "Huwezi kujitumia message."
+        }), 400
 
-        return jsonify(
-            ok=False,
-            error="Huwezi kutuma message kwako mwenyewe."
-        ), 400
+    if not text and not media_url:
+        return jsonify({
+            "ok": False,
+            "error": "Message iko tupu."
+        }), 400
 
-    try:
+    receiver = execute(
+        "SELECT id FROM users WHERE id = ?",
+        (receiver_id,),
+        fetchone=True
+    )
 
-        with db() as conn:
+    if not receiver:
+        return jsonify({
+            "ok": False,
+            "error": "Mtumiaji huyo hayupo."
+        }), 404
 
-            if USE_POSTGRES:
+    execute(
+        """
+        INSERT INTO messages
+        (sender_id, receiver_id, text, media_url, created_at)
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        (
+            user["id"],
+            receiver_id,
+            text,
+            media_url,
+            now_iso()
+        ),
+        commit=True
+    )
 
-                exists = conn.execute(
-                    """
-                    SELECT id
-                    FROM users
-                    WHERE id=%s
-                    """,
-                    (receiver_id,)
-                ).fetchone()
-
-            else:
-
-                exists = conn.execute(
-                    """
-                    SELECT id
-                    FROM users
-                    WHERE id=?
-                    """,
-                    (receiver_id,)
-                ).fetchone()
-
-            if not exists:
-
-                return jsonify(
-                    ok=False,
-                    error="User hayupo."
-                ), 404
-
-            if USE_POSTGRES:
-
-                row = conn.execute(
-                    """
-                    INSERT INTO messages
-                    (
-                        sender_id,
-                        receiver_id,
-                        body,
-                        created_at
-                    )
-                    VALUES
-                    (%s, %s, %s, NOW())
-                    RETURNING id
-                    """,
-                    (
-                        user["id"],
-                        receiver_id,
-                        body
-                    )
-                ).fetchone()
-
-                message_id = row["id"]
-
-            else:
-
-                cur = conn.execute(
-                    """
-                    INSERT INTO messages
-                    (
-                        sender_id,
-                        receiver_id,
-                        body,
-                        created_at
-                    )
-                    VALUES (?, ?, ?, ?)
-                    """,
-                    (
-                        user["id"],
-                        receiver_id,
-                        body,
-                        now_iso()
-                    )
-                )
-
-                message_id = cur.lastrowid
-
-        return jsonify(
-            ok=True,
-            id=message_id
-        )
-
-    except Exception:
-
-        app.logger.exception(
-            "Sending message failed"
-        )
-
-        return jsonify(
-            ok=False,
-            error="Message haikutumwa."
-        ), 500
+    return jsonify({
+        "ok": True
+    })
 
 
-@app.get("/api/messages/<int:user_id>")
-def get_messages(user_id):
-
-    user = require_login()
-
-    if not user:
-
-        return jsonify(
-            ok=False,
-            error="Login required"
-        ), 401
-
-    if user_id == user["id"]:
-
-        return jsonify(
-            ok=True,
-            messages=[]
-        )
-
-    try:
-
-        with db() as conn:
-
-            if USE_POSTGRES:
-
-                rows = conn.execute(
-                    """
-                    SELECT
-                        m.id,
-                        m.sender_id,
-                        m.receiver_id,
-                        m.body,
-                        m.created_at,
-                        u.name AS sender_name
-                    FROM messages m
-                    JOIN users u
-                    ON u.id=m.sender_id
-                    WHERE
-                    (
-                        m.sender_id=%s
-                        AND
-                        m.receiver_id=%s
-                    )
-                    OR
-                    (
-                        m.sender_id=%s
-                        AND
-                        m.receiver_id=%s
-                    )
-                    ORDER BY m.created_at ASC
-                    LIMIT 500
-                    """,
-                    (
-                        user["id"],
-                        user_id,
-                        user_id,
-                        user["id"]
-                    )
-                ).fetchall()
-
-            else:
-
-                rows = conn.execute(
-                    """
-                    SELECT
-                        m.id,
-                        m.sender_id,
-                        m.receiver_id,
-                        m.body,
-                        m.created_at,
-                        u.name AS sender_name
-                    FROM messages m
-                    JOIN users u
-                    ON u.id=m.sender_id
-                    WHERE
-                    (
-                        m.sender_id=?
-                        AND
-                        m.receiver_id=?
-                    )
-                    OR
-                    (
-                        m.sender_id=?
-                        AND
-                        m.receiver_id=?
-                    )
-                    ORDER BY m.id ASC
-                    LIMIT 500
-                    """,
-                    (
-                        user["id"],
-                        user_id,
-                        user_id,
-                        user["id"]
-                    )
-                ).fetchall()
-
-        return jsonify(
-            ok=True,
-            messages=[dict(row) for row in rows]
-        )
-
-    except Exception:
-
-        app.logger.exception(
-            "Loading messages failed"
-        )
-
-        return jsonify(
-            ok=False,
-            error="Messages hazikuweza kupakiwa.",
-            messages=[]
-        ), 500
-
-
-# =========================================================
+# ============================================================
 # LIVEKIT
-# =========================================================
+# ============================================================
 
-def livekit_credentials():
-
-    url = os.getenv(
-        "LIVEKIT_URL",
-        ""
-    ).strip()
-
-    key = os.getenv(
-        "LIVEKIT_API_KEY",
-        ""
-    ).strip()
-
-    secret = os.getenv(
-        "LIVEKIT_API_SECRET",
-        ""
-    ).strip()
-
-    return url, key, secret
-
-
-def valid_room(room):
-
-    if not room:
-        return False
-
-    if len(room) > 120:
-        return False
-
-    allowed = (
-        "abcdefghijklmnopqrstuvwxyz"
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-        "0123456789-_"
-    )
-
-    return all(
-        char in allowed
-        for char in room
+def livekit_available():
+    return bool(
+        LIVEKIT_URL and
+        LIVEKIT_API_KEY and
+        LIVEKIT_API_SECRET
     )
 
 
-@app.post("/api/call/token")
+@app.route("/api/call/token", methods=["POST"])
+@login_required
 def call_token():
 
-    user = require_login()
+    if not livekit_available():
+        return jsonify({
+            "ok": False,
+            "error": "LiveKit environment variables hazijawekwa vizuri kwenye Render."
+        }), 500
 
-    if not user:
+    try:
+        from livekit import api
+    except Exception:
+        return jsonify({
+            "ok": False,
+            "error": "livekit package haipo kwenye requirements.txt."
+        }), 500
 
-        return jsonify(
-            ok=False,
-            error="Login required"
-        ), 401
+    user = current_user()
+    data = request.get_json(silent=True) or {}
 
-    if livekit_api is None:
-
-        return jsonify(
-            ok=False,
-            error="LiveKit SDK haijawekwa kwenye server."
-        ), 503
-
-    livekit_url, api_key, api_secret = (
-        livekit_credentials()
+    room = clean_text(data.get("room"), 200)
+    call_type = clean_text(
+        data.get("call_type", "video"),
+        20
     )
 
-    if not livekit_url or not api_key or not api_secret:
+    try:
+        receiver_id = int(data.get("receiver_id", 0))
+    except (TypeError, ValueError):
+        receiver_id = 0
 
-        return jsonify(
-            ok=False,
-            error=(
-                "LiveKit credentials hazijawekwa "
-                "Render Environment Variables."
-            )
-        ), 503
+    if not room:
+        return jsonify({
+            "ok": False,
+            "error": "Room name haipo."
+        }), 400
 
-    data = request.get_json(
-        silent=True
-    ) or {}
-
-    room = str(
-        data.get("room", "")
-    ).strip()
-
-    call_type = str(
-        data.get("call_type", "video")
-    ).strip().lower()
-
-    receiver_id = data.get(
-        "receiver_id"
-    )
-
-    if not valid_room(room):
-
-        return jsonify(
-            ok=False,
-            error="Room ya call si sahihi."
-        ), 400
-
-    if call_type not in {
-        "audio",
-        "video"
-    }:
-
+    if call_type not in ("video", "voice"):
         call_type = "video"
 
-    identity = f"user-{user['id']}"
+    # --------------------------------------------------------
+    # START CALL
+    # receiver_id ikiwa imeletwa = caller anaanzisha call
+    # --------------------------------------------------------
+
+    if receiver_id:
+
+        if receiver_id == user["id"]:
+            return jsonify({
+                "ok": False,
+                "error": "Huwezi kumpigia simu mwenyewe."
+            }), 400
+
+        receiver = execute(
+            "SELECT id FROM users WHERE id = ?",
+            (receiver_id,),
+            fetchone=True
+        )
+
+        if not receiver:
+            return jsonify({
+                "ok": False,
+                "error": "Mpokeaji wa call hayupo."
+            }), 404
+
+        # Prevent duplicate active call for same room
+        active = execute(
+            """
+            SELECT id
+            FROM calls
+            WHERE room_name = ?
+            AND status = 'started'
+            """,
+            (room,),
+            fetchone=True
+        )
+
+        if not active:
+
+            execute(
+                """
+                INSERT INTO calls
+                (caller_id, receiver_id, room_name, call_type, status, created_at)
+                VALUES (?, ?, ?, ?, 'started', ?)
+                """,
+                (
+                    user["id"],
+                    receiver_id,
+                    room,
+                    call_type,
+                    now_iso()
+                ),
+                commit=True
+            )
+
+    # --------------------------------------------------------
+    # LIVEKIT ACCESS TOKEN
+    # --------------------------------------------------------
 
     try:
 
         token = (
-            livekit_api.AccessToken(
-                api_key,
-                api_secret
+            api.AccessToken(
+                LIVEKIT_API_KEY,
+                LIVEKIT_API_SECRET
             )
-            .with_identity(identity)
-            .with_name(user["name"])
+            .with_identity(
+                str(user["id"])
+            )
+            .with_name(
+                user["name"]
+            )
             .with_grants(
-                livekit_api.VideoGrants(
+                api.VideoGrants(
                     room_join=True,
                     room=room,
                     can_publish=True,
-                    can_subscribe=True,
-                    can_publish_data=True
+                    can_subscribe=True
                 )
             )
-            .to_jwt()
         )
 
-    except Exception:
+        jwt_token = token.to_jwt()
 
-        app.logger.exception(
-            "LiveKit token generation failed"
-        )
+    except Exception as e:
 
-        return jsonify(
-            ok=False,
-            error="LiveKit token haikuweza kutengenezwa."
-        ), 500
+        return jsonify({
+            "ok": False,
+            "error": f"LiveKit token error: {str(e)}"
+        }), 500
 
-    # -----------------------------------------------------
-    # SAVE CALL RECORD
-    # -----------------------------------------------------
+    return jsonify({
+        "ok": True,
+        "token": jwt_token,
+        "server_url": LIVEKIT_URL,
+        "room": room,
+        "call_type": call_type
+    })
 
-    if receiver_id:
 
-        try:
+# ============================================================
+# CALLS
+# ============================================================
 
-            receiver_id = int(
-                receiver_id
-            )
+@app.route("/api/calls", methods=["GET"])
+@login_required
+def calls():
 
-            if receiver_id != user["id"]:
+    user = current_user()
 
-                with db() as conn:
-
-                    if USE_POSTGRES:
-
-                        exists = conn.execute(
-                            """
-                            SELECT id
-                            FROM users
-                            WHERE id=%s
-                            """,
-                            (receiver_id,)
-                        ).fetchone()
-
-                        if exists:
-
-                            conn.execute(
-                                """
-                                INSERT INTO calls
-                                (
-                                    caller_id,
-                                    receiver_id,
-                                    room_name,
-                                    call_type,
-                                    status,
-                                    created_at
-                                )
-                                VALUES
-                                (
-                                    %s,
-                                    %s,
-                                    %s,
-                                    %s,
-                                    'started',
-                                    NOW()
-                                )
-                                """,
-                                (
-                                    user["id"],
-                                    receiver_id,
-                                    room,
-                                    call_type
-                                )
-                            )
-
-                    else:
-
-                        exists = conn.execute(
-                            """
-                            SELECT id
-                            FROM users
-                            WHERE id=?
-                            """,
-                            (receiver_id,)
-                        ).fetchone()
-
-                        if exists:
-
-                            conn.execute(
-                                """
-                                INSERT INTO calls
-                                (
-                                    caller_id,
-                                    receiver_id,
-                                    room_name,
-                                    call_type,
-                                    status,
-                                    created_at
-                                )
-                                VALUES (?, ?, ?, ?, ?, ?)
-                                """,
-                                (
-                                    user["id"],
-                                    receiver_id,
-                                    room,
-                                    call_type,
-                                    "started",
-                                    now_iso()
-                                )
-                            )
-
-        except Exception:
-
-            # Call should still work even if logging fails.
-            app.logger.exception(
-                "Call logging failed"
-            )
-
-    return jsonify(
-        ok=True,
-        server_url=livekit_url,
-        token=token,
-        room=room,
-        call_type=call_type
+    rows = execute(
+        """
+        SELECT
+            c.id,
+            c.caller_id,
+            c.receiver_id,
+            c.room_name,
+            c.call_type,
+            c.status,
+            c.created_at,
+            c.ended_at,
+            caller.name AS caller_name,
+            receiver.name AS receiver_name
+        FROM calls c
+        JOIN users caller
+            ON caller.id = c.caller_id
+        JOIN users receiver
+            ON receiver.id = c.receiver_id
+        WHERE
+            c.caller_id = ?
+            OR c.receiver_id = ?
+        ORDER BY c.id DESC
+        LIMIT 100
+        """,
+        (
+            user["id"],
+            user["id"]
+        ),
+        fetchall=True
     )
 
+    return jsonify({
+        "ok": True,
+        "calls": [
+            row_to_dict(x)
+            for x in rows
+        ]
+    })
 
-# =========================================================
-# INCOMING / ACTIVE CALLS
-# =========================================================
 
-@app.get("/api/calls/incoming")
+@app.route("/api/calls/incoming", methods=["GET"])
+@login_required
 def incoming_calls():
 
-    user = require_login()
+    user = current_user()
 
-    if not user:
+    rows = execute(
+        """
+        SELECT
+            c.id,
+            c.caller_id,
+            c.receiver_id,
+            c.room_name,
+            c.call_type,
+            c.status,
+            c.created_at,
+            caller.name AS caller_name
+        FROM calls c
+        JOIN users caller
+            ON caller.id = c.caller_id
+        WHERE
+            c.receiver_id = ?
+            AND c.status = 'started'
+        ORDER BY c.id DESC
+        LIMIT 20
+        """,
+        (user["id"],),
+        fetchall=True
+    )
 
-        return jsonify(
-            ok=False,
-            error="Login required"
-        ), 401
-
-    try:
-
-        with db() as conn:
-
-            if USE_POSTGRES:
-
-                rows = conn.execute(
-                    """
-                    SELECT
-                        c.id,
-                        c.caller_id,
-                        c.receiver_id,
-                        c.room_name,
-                        c.call_type,
-                        c.status,
-                        c.created_at,
-                        u.name AS caller_name
-                    FROM calls c
-                    JOIN users u
-                    ON u.id=c.caller_id
-                    WHERE
-                        c.receiver_id=%s
-                        AND
-                        c.status='started'
-                        AND
-                        c.ended_at IS NULL
-                    ORDER BY c.created_at DESC
-                    LIMIT 20
-                    """,
-                    (user["id"],)
-                ).fetchall()
-
-            else:
-
-                rows = conn.execute(
-                    """
-                    SELECT
-                        c.id,
-                        c.caller_id,
-                        c.receiver_id,
-                        c.room_name,
-                        c.call_type,
-                        c.status,
-                        c.created_at,
-                        u.name AS caller_name
-                    FROM calls c
-                    JOIN users u
-                    ON u.id=c.caller_id
-                    WHERE
-                        c.receiver_id=?
-                        AND
-                        c.status='started'
-                        AND
-                        c.ended_at IS NULL
-                    ORDER BY c.id DESC
-                    LIMIT 20
-                    """,
-                    (user["id"],)
-                ).fetchall()
-
-        return jsonify(
-            ok=True,
-            calls=[dict(row) for row in rows]
-        )
-
-    except Exception:
-
-        app.logger.exception(
-            "Incoming calls failed"
-        )
-
-        return jsonify(
-            ok=False,
-            calls=[]
-        ), 500
+    return jsonify({
+        "ok": True,
+        "calls": [
+            row_to_dict(x)
+            for x in rows
+        ]
+    })
 
 
-# =========================================================
-# END CALL
-# =========================================================
+@app.route("/api/calls/<int:call_id>/accept", methods=["POST"])
+@login_required
+def accept_call(call_id):
 
-@app.post("/api/call/end")
+    user = current_user()
+
+    call = execute(
+        """
+        SELECT *
+        FROM calls
+        WHERE id = ?
+        """,
+        (call_id,),
+        fetchone=True
+    )
+
+    if not call:
+        return jsonify({
+            "ok": False,
+            "error": "Call haipo."
+        }), 404
+
+    call = row_to_dict(call)
+
+    if int(call["receiver_id"]) != int(user["id"]):
+        return jsonify({
+            "ok": False,
+            "error": "Huna ruhusa."
+        }), 403
+
+    if call["status"] != "started":
+        return jsonify({
+            "ok": False,
+            "error": "Call hii haipo active."
+        }), 400
+
+    execute(
+        """
+        UPDATE calls
+        SET status = 'accepted'
+        WHERE id = ?
+        """,
+        (call_id,),
+        commit=True
+    )
+
+    return jsonify({
+        "ok": True,
+        "call": call
+    })
+
+
+@app.route("/api/calls/<int:call_id>/reject", methods=["POST"])
+@login_required
+def reject_call(call_id):
+
+    user = current_user()
+
+    call = execute(
+        """
+        SELECT *
+        FROM calls
+        WHERE id = ?
+        """,
+        (call_id,),
+        fetchone=True
+    )
+
+    if not call:
+        return jsonify({
+            "ok": False,
+            "error": "Call haipo."
+        }), 404
+
+    call = row_to_dict(call)
+
+    if int(call["receiver_id"]) != int(user["id"]):
+        return jsonify({
+            "ok": False,
+            "error": "Huna ruhusa."
+        }), 403
+
+    execute(
+        """
+        UPDATE calls
+        SET status = 'rejected',
+            ended_at = ?
+        WHERE id = ?
+        """,
+        (
+            now_iso(),
+            call_id
+        ),
+        commit=True
+    )
+
+    return jsonify({
+        "ok": True
+    })
+
+
+@app.route("/api/call/end", methods=["POST"])
+@login_required
 def end_call():
 
-    user = require_login()
+    user = current_user()
+    data = request.get_json(silent=True) or {}
 
-    if not user:
-
-        return jsonify(
-            ok=False,
-            error="Login required"
-        ), 401
-
-    data = request.get_json(
-        silent=True
-    ) or {}
-
-    room = str(
-        data.get("room", "")
-    ).strip()
+    room = clean_text(data.get("room"), 200)
 
     if not room:
+        return jsonify({
+            "ok": False,
+            "error": "Room haipo."
+        }), 400
 
-        return jsonify(
-            ok=False,
-            error="Room haipo."
-        ), 400
+    execute(
+        """
+        UPDATE calls
+        SET status = 'ended',
+            ended_at = ?
+        WHERE
+            room_name = ?
+            AND
+            (caller_id = ? OR receiver_id = ?)
+            AND
+            status IN ('started', 'accepted')
+        """,
+        (
+            now_iso(),
+            room,
+            user["id"],
+            user["id"]
+        ),
+        commit=True
+    )
 
-    try:
-
-        with db() as conn:
-
-            if USE_POSTGRES:
-
-                conn.execute(
-                    """
-                    UPDATE calls
-                    SET
-                        status='ended',
-                        ended_at=NOW()
-                    WHERE
-                        room_name=%s
-                        AND
-                        (
-                            caller_id=%s
-                            OR
-                            receiver_id=%s
-                        )
-                        AND
-                        ended_at IS NULL
-                    """,
-                    (
-                        room,
-                        user["id"],
-                        user["id"]
-                    )
-                )
-
-            else:
-
-                conn.execute(
-                    """
-                    UPDATE calls
-                    SET
-                        status='ended',
-                        ended_at=?
-                    WHERE
-                        room_name=?
-                        AND
-                        (
-                            caller_id=?
-                            OR
-                            receiver_id=?
-                        )
-                        AND
-                        ended_at IS NULL
-                    """,
-                    (
-                        now_iso(),
-                        room,
-                        user["id"],
-                        user["id"]
-                    )
-                )
-
-        return jsonify(
-            ok=True
-        )
-
-    except Exception:
-
-        app.logger.exception(
-            "Ending call failed"
-        )
-
-        return jsonify(
-            ok=False,
-            error="Call haikuweza kufungwa."
-        ), 500
+    return jsonify({
+        "ok": True
+    })
 
 
-# =========================================================
-# CALL HISTORY
-# =========================================================
+# ============================================================
+# FILE UPLOAD
+# ============================================================
 
-@app.get("/api/calls")
-def call_history():
-
-    user = require_login()
-
-    if not user:
-
-        return jsonify(
-            ok=False,
-            error="Login required"
-        ), 401
-
-    try:
-
-        with db() as conn:
-
-            if USE_POSTGRES:
-
-                rows = conn.execute(
-                    """
-                    SELECT
-                        c.*,
-                        cu.name AS caller_name,
-                        ru.name AS receiver_name
-                    FROM calls c
-                    JOIN users cu
-                    ON cu.id=c.caller_id
-                    JOIN users ru
-                    ON ru.id=c.receiver_id
-                    WHERE
-                        c.caller_id=%s
-                        OR
-                        c.receiver_id=%s
-                    ORDER BY c.created_at DESC
-                    LIMIT 50
-                    """,
-                    (
-                        user["id"],
-                        user["id"]
-                    )
-                ).fetchall()
-
-            else:
-
-                rows = conn.execute(
-                    """
-                    SELECT
-                        c.*,
-                        cu.name AS caller_name,
-                        ru.name AS receiver_name
-                    FROM calls c
-                    JOIN users cu
-                    ON cu.id=c.caller_id
-                    JOIN users ru
-                    ON ru.id=c.receiver_id
-                    WHERE
-                        c.caller_id=?
-                        OR
-                        c.receiver_id=?
-                    ORDER BY c.id DESC
-                    LIMIT 50
-                    """,
-                    (
-                        user["id"],
-                        user["id"]
-                    )
-                ).fetchall()
-
-        return jsonify(
-            ok=True,
-            calls=[dict(row) for row in rows]
-        )
-
-    except Exception:
-
-        app.logger.exception(
-            "Call history failed"
-        )
-
-        return jsonify(
-            ok=False,
-            calls=[]
-        ), 500
+ALLOWED_EXTENSIONS = {
+    "jpg", "jpeg", "png", "gif",
+    "webp", "mp4", "webm",
+    "mp3", "wav", "m4a",
+    "pdf", "doc", "docx"
+}
 
 
-# =========================================================
+def allowed_file(filename):
+
+    if "." not in filename:
+        return False
+
+    ext = filename.rsplit(".", 1)[1].lower()
+
+    return ext in ALLOWED_EXTENSIONS
+
+
+@app.route("/api/upload", methods=["POST"])
+@login_required
+def upload_file():
+
+    if "file" not in request.files:
+        return jsonify({
+            "ok": False,
+            "error": "File haijatumwa."
+        }), 400
+
+    file = request.files["file"]
+
+    if not file.filename:
+        return jsonify({
+            "ok": False,
+            "error": "Chagua file."
+        }), 400
+
+    if not allowed_file(file.filename):
+        return jsonify({
+            "ok": False,
+            "error": "Aina ya file hairuhusiwi."
+        }), 400
+
+    original = secure_filename(file.filename)
+
+    ext = ""
+
+    if "." in original:
+        ext = "." + original.rsplit(".", 1)[1].lower()
+
+    filename = (
+        uuid.uuid4().hex +
+        ext
+    )
+
+    path = os.path.join(
+        MEDIA_DIR,
+        filename
+    )
+
+    file.save(path)
+
+    return jsonify({
+        "ok": True,
+        "url": "/media/" + filename,
+        "filename": filename
+    })
+
+
+# ============================================================
 # MARKET
-# =========================================================
+# ============================================================
 
-@app.get("/api/market")
+@app.route("/api/market", methods=["GET"])
 def market():
 
-    return jsonify(
-        ok=True,
-        items=[
+    return jsonify({
+        "ok": True,
+        "items": [
             {
-                "title": "Smart Phone",
-                "category": "Electronics",
-                "price": "TZS 450,000",
-                "icon": "📱"
+                "id": 1,
+                "name": "Digital Services",
+                "category": "Services",
+                "price": "TZS 10,000"
             },
             {
-                "title": "Laptop Pro",
-                "category": "Electronics",
-                "price": "TZS 1,850,000",
-                "icon": "💻"
+                "id": 2,
+                "name": "Creative Studio",
+                "category": "Digital",
+                "price": "TZS 15,000"
             },
             {
-                "title": "Solar Power Kit",
-                "category": "Energy",
-                "price": "TZS 280,000",
-                "icon": "☀️"
-            },
-            {
-                "title": "Study Tablet",
+                "id": 3,
+                "name": "Education Materials",
                 "category": "Education",
-                "price": "TZS 520,000",
-                "icon": "📚"
-            },
-            {
-                "title": "Agro Sensor",
-                "category": "Agriculture",
-                "price": "TZS 160,000",
-                "icon": "🌱"
-            },
-            {
-                "title": "Headphones",
-                "category": "Tech",
-                "price": "TZS 95,000",
-                "icon": "🎧"
+                "price": "TZS 5,000"
             }
         ]
+    })
+
+
+# ============================================================
+# AI COUNCIL
+# ============================================================
+
+@app.route("/api/ai", methods=["POST"])
+@login_required
+def ai():
+
+    data = request.get_json(silent=True) or {}
+
+    council = clean_text(
+        data.get("council", "Education AI"),
+        100
     )
 
+    prompt = clean_text(
+        data.get("prompt") or data.get("message"),
+        5000
+    )
 
-# =========================================================
-# AI COUNCIL FOUNDATION
-# =========================================================
+    if not prompt:
+        return jsonify({
+            "ok": False,
+            "error": "Andika swali kwanza."
+        }), 400
 
-@app.post("/api/ai")
-def ai_council():
+    # --------------------------------------------------------
+    # V3 foundation.
+    # Hapa tunaweza kuunganisha AI provider baadaye.
+    # --------------------------------------------------------
 
-    user = require_login()
-
-    if not user:
-
-        return jsonify(
-            ok=False,
-            error="Login required"
-        ), 401
-
-    data = request.get_json(
-        silent=True
-    ) or {}
-
-    council = str(
-        data.get(
-            "council",
-            "Education AI"
+    return jsonify({
+        "ok": True,
+        "council": council,
+        "answer": (
+            f"{council} imepokea swali lako. "
+            "AI engine inaweza kuunganishwa hapa "
+            "na provider wako wa AI."
         )
-    ).strip()
-
-    question = str(
-        data.get(
-            "question",
-            ""
-        )
-    ).strip()
-
-    if not question:
-
-        return jsonify(
-            ok=False,
-            error="Andika swali kwanza."
-        ), 400
-
-    if len(question) > 5000:
-
-        return jsonify(
-            ok=False,
-            error="Swali ni refu sana."
-        ), 400
-
-    answers = {
-
-        "Education AI":
-            "Education AI foundation iko tayari. "
-            "Kwa jibu la kina, taja nchi, level ya elimu, "
-            "subject na topic.",
-
-        "Health AI":
-            "Health AI inatoa taarifa za kielimu tu. "
-            "Haiwezi kuchukua nafasi ya mtaalamu wa afya. "
-            "Kwa hali ya dharura, tafuta msaada wa kitaalamu.",
-
-        "AgroAI":
-            "AgroAI foundation iko tayari. "
-            "Taja zao, eneo, msimu, udongo na tatizo "
-            "ili kuandaa uchambuzi wa kilimo.",
-
-        "Business AI":
-            "Business AI inaweza kuchambua customer, "
-            "tatizo, value proposition, gharama, mapato, "
-            "ushindani na business model.",
-
-        "ResearchAI":
-            "ResearchAI foundation iko tayari. "
-            "Tunaweza kupanga research question, "
-            "hypothesis, methodology, analysis na conclusion.",
-
-        "Tech AI":
-            "Tech AI foundation iko tayari. "
-            "Inaweza kusaidia architecture, coding, "
-            "security, testing na deployment.",
-
-        "Vision AI":
-            "Vision AI UI iko tayari. "
-            "Vision model halisi itaunganishwa kupitia "
-            "vision API."
-    }
-
-    answer = answers.get(
-        council,
-        answers["Education AI"]
-    )
-
-    return jsonify(
-        ok=True,
-        council=council,
-        answer=answer,
-        question=question
-    )
+    })
 
 
-# =========================================================
-# REALITY LAB FOUNDATION
-# =========================================================
+# ============================================================
+# REALITY LAB
+# ============================================================
 
-@app.post("/api/reality")
+@app.route("/api/reality", methods=["POST"])
+@login_required
 def reality():
 
-    user = require_login()
+    data = request.get_json(silent=True) or {}
 
-    if not user:
-
-        return jsonify(
-            ok=False,
-            error="Login required"
-        ), 401
-
-    data = request.get_json(
-        silent=True
-    ) or {}
-
-    tool = str(
-        data.get(
-            "tool",
-            "Reality Lab"
-        )
-    ).strip()
-
-    return jsonify(
-        ok=True,
-        result=(
-            f"{tool}: foundation iko tayari. "
-            "Vision/AR engine halisi itaunganishwa "
-            "katika production."
-        )
+    mode = clean_text(
+        data.get("mode", "object_counter"),
+        100
     )
 
+    return jsonify({
+        "ok": True,
+        "mode": mode,
+        "result": {
+            "message": "Reality Lab engine iko tayari kupokea image/camera input."
+        }
+    })
 
-# =========================================================
+
+# ============================================================
 # ERROR HANDLERS
-# =========================================================
-
-@app.errorhandler(413)
-def too_large(_):
-
-    return jsonify(
-        ok=False,
-        error="File/request ni kubwa sana."
-    ), 413
-
+# ============================================================
 
 @app.errorhandler(404)
-def not_found(_):
+def not_found(error):
 
     if request.path.startswith("/api/"):
+        return jsonify({
+            "ok": False,
+            "error": "API endpoint haipo.",
+            "path": request.path
+        }), 404
 
-        return jsonify(
-            ok=False,
-            error="API endpoint haipo."
-        ), 404
+    return home()
 
-    return send_from_directory(
-        BASE,
-        "index.html"
-    )
+
+@app.errorhandler(413)
+def too_large(error):
+
+    return jsonify({
+        "ok": False,
+        "error": "File ni kubwa sana. Maximum ni 100MB."
+    }), 413
 
 
 @app.errorhandler(500)
-def server_error(_):
+def internal_error(error):
 
-    app.logger.exception(
-        "Internal server error"
-    )
-
-    return jsonify(
-        ok=False,
-        error="Internal server error."
-    ), 500
+    return jsonify({
+        "ok": False,
+        "error": "Server error."
+    }), 500
 
 
-# =========================================================
-# STARTUP
-# =========================================================
+# ============================================================
+# INITIALIZE DATABASE
+# ============================================================
 
-init_db()
+try:
+    init_db()
+    print("==========================================")
+    print("MSAFIRI GLOBAL MEDIA V3")
+    print("Database initialized")
+    print("Database:", "PostgreSQL" if USE_POSTGRES else "SQLite")
+    print("LiveKit:", "READY" if livekit_available() else "NOT CONFIGURED")
+    print("Index:", INDEX_FILE)
+    print("Index exists:", os.path.isfile(INDEX_FILE))
+    print("==========================================")
 
+except Exception as e:
+    print("DATABASE INITIALIZATION ERROR:", repr(e))
+
+
+# ============================================================
+# LOCAL RUN
+# Render uses: gunicorn main:app
+# ============================================================
 
 if __name__ == "__main__":
 
     port = int(
-        os.getenv(
+        os.environ.get(
             "PORT",
             "5000"
         )

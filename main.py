@@ -1,62 +1,98 @@
+# ============================================================
+# MSAFIRI GLOBAL MEDIA V4
+# FastAPI + PostgreSQL + LiveKit
+# ============================================================
+
 import os
+import re
 import uuid
-import sqlite3
 import hashlib
 import secrets
-from datetime import datetime, timedelta
+import mimetypes
 from pathlib import Path
-from typing import Optional
+from datetime import datetime, timezone
+
+import psycopg
+from psycopg.rows import dict_row
 
 from fastapi import (
     FastAPI,
+    HTTPException,
     UploadFile,
     File,
     Form,
-    HTTPException,
-    Request,
+    Header,
+    Cookie,
+    Query,
 )
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
+
+from livekit import api
 
 
-# =========================================================
-# MSAFIRI GLOBAL MEDIA V3
-# Backend API
-# =========================================================
+# ============================================================
+# CONFIG
+# ============================================================
+
+APP_NAME = "MSAFIRI GLOBAL MEDIA V4"
 
 BASE_DIR = Path(__file__).resolve().parent
-DB_FILE = BASE_DIR / "msafiri.db"
 UPLOAD_DIR = BASE_DIR / "uploads"
+POST_UPLOAD_DIR = UPLOAD_DIR / "posts"
+AVATAR_UPLOAD_DIR = UPLOAD_DIR / "avatars"
+WALLPAPER_UPLOAD_DIR = UPLOAD_DIR / "wallpapers"
+VOICE_UPLOAD_DIR = UPLOAD_DIR / "voice"
 
-UPLOAD_DIR.mkdir(exist_ok=True)
+for folder in [
+    UPLOAD_DIR,
+    POST_UPLOAD_DIR,
+    AVATAR_UPLOAD_DIR,
+    WALLPAPER_UPLOAD_DIR,
+    VOICE_UPLOAD_DIR,
+]:
+    folder.mkdir(parents=True, exist_ok=True)
 
-MAX_UPLOAD_SIZE = 100 * 1024 * 1024  # 100 MB
+
+DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
+
+LIVEKIT_URL = os.getenv("LIVEKIT_URL", "").strip()
+LIVEKIT_API_KEY = os.getenv("LIVEKIT_API_KEY", "").strip()
+LIVEKIT_API_SECRET = os.getenv("LIVEKIT_API_SECRET", "").strip()
+
+
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace(
+        "postgres://",
+        "postgresql://",
+        1,
+    )
+
+
+# ============================================================
+# APP
+# ============================================================
 
 app = FastAPI(
-    title="MSAFIRI GLOBAL MEDIA V3 API",
-    version="3.0.0",
-    description="Backend API for MSAFIRI GLOBAL MEDIA",
+    title=APP_NAME,
+    version="4.0.0",
+    description="MSAFIRI GLOBAL MEDIA V4 Backend",
 )
 
-
-# =========================================================
-# CORS
-# =========================================================
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=False,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-# =========================================================
-# STATIC UPLOADS
-# =========================================================
+# ============================================================
+# STATIC FILES
+# ============================================================
 
 app.mount(
     "/uploads",
@@ -65,1331 +101,3175 @@ app.mount(
 )
 
 
-# =========================================================
-# DATABASE
-# =========================================================
+# ============================================================
+# HELPERS
+# ============================================================
+
+def now_utc():
+    return datetime.now(timezone.utc)
+
 
 def db():
-    conn = sqlite3.connect(DB_FILE)
-    conn.row_factory = sqlite3.Row
-    return conn
+    if not DATABASE_URL:
+        raise RuntimeError("DATABASE_URL is not configured")
 
-
-def now():
-    return datetime.utcnow().isoformat()
-
-
-def init_db():
-
-    conn = db()
-    cur = conn.cursor()
-
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        email TEXT UNIQUE NOT NULL,
-        password_hash TEXT,
-        bio TEXT DEFAULT '',
-        avatar TEXT DEFAULT '',
-        followers_count INTEGER DEFAULT 0,
-        following_count INTEGER DEFAULT 0,
-        likes_count INTEGER DEFAULT 0,
-        posts_count INTEGER DEFAULT 0,
-        created_at TEXT NOT NULL
+    return psycopg.connect(
+        DATABASE_URL,
+        row_factory=dict_row,
     )
-    """)
-
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS sessions (
-        token TEXT PRIMARY KEY,
-        user_id INTEGER NOT NULL,
-        created_at TEXT NOT NULL,
-        FOREIGN KEY(user_id) REFERENCES users(id)
-    )
-    """)
-
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS posts (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        caption TEXT DEFAULT '',
-        media_url TEXT DEFAULT '',
-        media_type TEXT DEFAULT '',
-        created_at TEXT NOT NULL,
-        FOREIGN KEY(user_id) REFERENCES users(id)
-    )
-    """)
-
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS likes (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        post_id INTEGER NOT NULL,
-        UNIQUE(user_id, post_id)
-    )
-    """)
-
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS comments (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        post_id INTEGER NOT NULL,
-        text TEXT NOT NULL,
-        created_at TEXT NOT NULL
-    )
-    """)
-
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS saved_posts (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        post_id INTEGER NOT NULL,
-        UNIQUE(user_id, post_id)
-    )
-    """)
-
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS reshares (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        post_id INTEGER NOT NULL,
-        created_at TEXT NOT NULL,
-        UNIQUE(user_id, post_id)
-    )
-    """)
-
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS messages (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        sender_id INTEGER NOT NULL,
-        receiver_id INTEGER NOT NULL,
-        text TEXT DEFAULT '',
-        media_url TEXT DEFAULT '',
-        voice_url TEXT DEFAULT '',
-        created_at TEXT NOT NULL,
-        read INTEGER DEFAULT 0
-    )
-    """)
-
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS statuses (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        text TEXT DEFAULT '',
-        media_url TEXT DEFAULT '',
-        media_type TEXT DEFAULT '',
-        audio_url TEXT DEFAULT '',
-        created_at TEXT NOT NULL
-    )
-    """)
-
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS followers (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        follower_id INTEGER NOT NULL,
-        following_id INTEGER NOT NULL,
-        UNIQUE(follower_id, following_id)
-    )
-    """)
-
-    conn.commit()
-    conn.close()
 
 
-init_db()
+def hash_token(token: str):
+    return hashlib.sha256(
+        token.encode("utf-8")
+    ).hexdigest()
 
 
-# =========================================================
-# SECURITY HELPERS
-# =========================================================
+def generate_token():
+    return secrets.token_urlsafe(48)
 
-def hash_password(password: str):
-    salt = secrets.token_bytes(16)
 
-    key = hashlib.pbkdf2_hmac(
+def normalize_email(email: str):
+    return email.strip().lower()
+
+
+def clean_text(value: str, max_length: int = 5000):
+    if value is None:
+        return ""
+
+    value = value.strip()
+
+    if len(value) > max_length:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Text is too long. Maximum {max_length} characters.",
+        )
+
+    return value
+
+
+def valid_password(password: str):
+    if len(password) < 6:
+        raise HTTPException(
+            status_code=400,
+            detail="Password must contain at least 6 characters.",
+        )
+
+
+def password_hash(password: str):
+    """
+    Compatible PBKDF2 password format.
+    """
+    salt = secrets.token_hex(16)
+
+    iterations = 120000
+
+    digest = hashlib.pbkdf2_hmac(
         "sha256",
-        password.encode(),
-        salt,
-        120000,
+        password.encode("utf-8"),
+        salt.encode("utf-8"),
+        iterations,
     )
 
-    return salt.hex() + ":" + key.hex()
+    return (
+        f"pbkdf2_sha256${iterations}$"
+        f"{salt}${digest.hex()}"
+    )
 
 
-def verify_password(password: str, stored: str):
-
+def password_verify(password: str, stored: str):
     try:
+        algorithm, iterations, salt, stored_hash = stored.split(
+            "$",
+            3,
+        )
 
-        salt_hex, key_hex = stored.split(":")
+        if algorithm != "pbkdf2_sha256":
+            return False
 
-        salt = bytes.fromhex(salt_hex)
+        iterations = int(iterations)
 
-        new_key = hashlib.pbkdf2_hmac(
+        digest = hashlib.pbkdf2_hmac(
             "sha256",
-            password.encode(),
-            salt,
-            120000,
+            password.encode("utf-8"),
+            salt.encode("utf-8"),
+            iterations,
         )
 
         return secrets.compare_digest(
-            new_key.hex(),
-            key_hex,
+            digest.hex(),
+            stored_hash,
         )
 
     except Exception:
         return False
 
 
-def create_session(user_id: int):
+def safe_filename(filename: str):
+    ext = Path(filename or "").suffix.lower()
 
-    token = secrets.token_urlsafe(48)
+    allowed = {
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".gif",
+        ".webp",
+        ".mp4",
+        ".webm",
+        ".mov",
+        ".mp3",
+        ".wav",
+        ".m4a",
+        ".ogg",
+    }
 
-    conn = db()
+    if ext not in allowed:
+        ext = ""
 
-    conn.execute(
-        """
-        INSERT INTO sessions(token,user_id,created_at)
-        VALUES(?,?,?)
-        """,
-        (token, user_id, now()),
+    return f"{uuid.uuid4().hex}{ext}"
+
+
+def get_bearer_token(
+    authorization: str | None,
+    token_cookie: str | None,
+):
+    if authorization:
+        if authorization.lower().startswith("bearer "):
+            return authorization[7:].strip()
+
+    if token_cookie:
+        return token_cookie.strip()
+
+    return None
+
+
+def require_user(
+    authorization: str | None = None,
+    token_cookie: str | None = None,
+):
+    token = get_bearer_token(
+        authorization,
+        token_cookie,
     )
 
-    conn.commit()
-    conn.close()
-
-    return token
-
-
-def get_token(request: Request):
-
-    auth = request.headers.get("Authorization", "")
-
-    if auth.startswith("Bearer "):
-        return auth[7:]
-
-    return request.cookies.get("session")
-
-
-def current_user(request: Request):
-
-    token = get_token(request)
-
     if not token:
-        return None
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication required.",
+        )
 
-    conn = db()
+    token_hash = hash_token(token)
 
-    row = conn.execute(
-        """
-        SELECT users.*
-        FROM users
-        JOIN sessions
-        ON users.id=sessions.user_id
-        WHERE sessions.token=?
-        """,
-        (token,),
-    ).fetchone()
-
-    conn.close()
-
-    return dict(row) if row else None
-
-
-def require_user(request: Request):
-
-    user = current_user(request)
+    with db() as conn:
+        user = conn.execute(
+            """
+            SELECT
+                u.id,
+                u.name,
+                u.email,
+                u.bio,
+                u.avatar,
+                u.created_at,
+                u.updated_at
+            FROM sessions s
+            JOIN users u
+                ON u.id = s.user_id
+            WHERE s.token_hash = %s
+              AND s.revoked = FALSE
+              AND u.deleted_at IS NULL
+            LIMIT 1
+            """,
+            (token_hash,),
+        ).fetchone()
 
     if not user:
         raise HTTPException(
             status_code=401,
-            detail="Authentication required",
+            detail="Invalid or logged-out session.",
         )
 
     return user
 
 
-# =========================================================
-# FILE HELPERS
-# =========================================================
+def user_dict(user):
+    if not user:
+        return None
 
-ALLOWED_IMAGE = {
-    "image/jpeg",
-    "image/png",
-    "image/webp",
-    "image/gif",
-}
-
-ALLOWED_VIDEO = {
-    "video/mp4",
-    "video/webm",
-    "video/ogg",
-}
-
-ALLOWED_AUDIO = {
-    "audio/webm",
-    "audio/ogg",
-    "audio/mpeg",
-    "audio/wav",
-}
+    return {
+        "id": user["id"],
+        "name": user["name"],
+        "email": user["email"],
+        "bio": user.get("bio"),
+        "avatar": user.get("avatar"),
+        "created_at": user.get("created_at"),
+        "updated_at": user.get("updated_at"),
+    }
 
 
-async def save_upload(
-    file: UploadFile,
-    folder: str,
-    allowed_types=None,
-):
+# ============================================================
+# DATABASE INITIALIZATION
+# ============================================================
 
-    if not file:
-        return None, None
+def init_db():
 
-    if allowed_types and file.content_type not in allowed_types:
-        raise HTTPException(
-            status_code=400,
-            detail="Unsupported file type",
+    with db() as conn:
+
+        # ----------------------------------------------------
+        # USERS
+        # ----------------------------------------------------
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS users (
+                id BIGSERIAL PRIMARY KEY,
+
+                name TEXT NOT NULL,
+
+                email TEXT NOT NULL UNIQUE,
+
+                password_hash TEXT NOT NULL,
+
+                bio TEXT DEFAULT '',
+
+                avatar TEXT,
+
+                deleted_at TIMESTAMPTZ,
+
+                created_at TIMESTAMPTZ NOT NULL
+                    DEFAULT CURRENT_TIMESTAMP,
+
+                updated_at TIMESTAMPTZ NOT NULL
+                    DEFAULT CURRENT_TIMESTAMP
+            )
+            """
         )
 
-    data = await file.read()
 
-    if len(data) > MAX_UPLOAD_SIZE:
-        raise HTTPException(
-            status_code=413,
-            detail="File is too large",
+        # ----------------------------------------------------
+        # SESSIONS
+        # ----------------------------------------------------
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS sessions (
+                id BIGSERIAL PRIMARY KEY,
+
+                user_id BIGINT NOT NULL
+                    REFERENCES users(id)
+                    ON DELETE CASCADE,
+
+                token_hash TEXT NOT NULL UNIQUE,
+
+                revoked BOOLEAN NOT NULL DEFAULT FALSE,
+
+                created_at TIMESTAMPTZ NOT NULL
+                    DEFAULT CURRENT_TIMESTAMP
+            )
+            """
         )
 
-    extension = Path(file.filename or "").suffix.lower()
 
-    filename = (
-        f"{uuid.uuid4().hex}"
-        f"{extension}"
-    )
+        # ----------------------------------------------------
+        # POSTS
+        # ----------------------------------------------------
 
-    folder_path = UPLOAD_DIR / folder
-    folder_path.mkdir(exist_ok=True)
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS posts (
+                id BIGSERIAL PRIMARY KEY,
 
-    destination = folder_path / filename
+                user_id BIGINT NOT NULL
+                    REFERENCES users(id)
+                    ON DELETE CASCADE,
 
-    destination.write_bytes(data)
+                caption TEXT DEFAULT '',
 
-    url = f"/uploads/{folder}/{filename}"
+                media_url TEXT,
 
-    return url, file.content_type
+                media_type TEXT,
+
+                deleted_at TIMESTAMPTZ,
+
+                created_at TIMESTAMPTZ NOT NULL
+                    DEFAULT CURRENT_TIMESTAMP,
+
+                updated_at TIMESTAMPTZ NOT NULL
+                    DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
 
 
-# =========================================================
-# BASIC
-# =========================================================
+        # ----------------------------------------------------
+        # LIKES
+        # ----------------------------------------------------
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS likes (
+                id BIGSERIAL PRIMARY KEY,
+
+                user_id BIGINT NOT NULL
+                    REFERENCES users(id)
+                    ON DELETE CASCADE,
+
+                post_id BIGINT NOT NULL
+                    REFERENCES posts(id)
+                    ON DELETE CASCADE,
+
+                created_at TIMESTAMPTZ NOT NULL
+                    DEFAULT CURRENT_TIMESTAMP,
+
+                UNIQUE(user_id, post_id)
+            )
+            """
+        )
+
+
+        # ----------------------------------------------------
+        # COMMENTS
+        # ----------------------------------------------------
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS comments (
+                id BIGSERIAL PRIMARY KEY,
+
+                user_id BIGINT NOT NULL
+                    REFERENCES users(id)
+                    ON DELETE CASCADE,
+
+                post_id BIGINT NOT NULL
+                    REFERENCES posts(id)
+                    ON DELETE CASCADE,
+
+                text TEXT NOT NULL,
+
+                created_at TIMESTAMPTZ NOT NULL
+                    DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+
+
+        # ----------------------------------------------------
+        # SAVED POSTS
+        # ----------------------------------------------------
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS saved_posts (
+                id BIGSERIAL PRIMARY KEY,
+
+                user_id BIGINT NOT NULL
+                    REFERENCES users(id)
+                    ON DELETE CASCADE,
+
+                post_id BIGINT NOT NULL
+                    REFERENCES posts(id)
+                    ON DELETE CASCADE,
+
+                created_at TIMESTAMPTZ NOT NULL
+                    DEFAULT CURRENT_TIMESTAMP,
+
+                UNIQUE(user_id, post_id)
+            )
+            """
+        )
+
+
+        # ----------------------------------------------------
+        # RESHARES
+        # ----------------------------------------------------
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS reshares (
+                id BIGSERIAL PRIMARY KEY,
+
+                user_id BIGINT NOT NULL
+                    REFERENCES users(id)
+                    ON DELETE CASCADE,
+
+                post_id BIGINT NOT NULL
+                    REFERENCES posts(id)
+                    ON DELETE CASCADE,
+
+                created_at TIMESTAMPTZ NOT NULL
+                    DEFAULT CURRENT_TIMESTAMP,
+
+                UNIQUE(user_id, post_id)
+            )
+            """
+        )
+
+
+        # ----------------------------------------------------
+        # MESSAGES
+        # ----------------------------------------------------
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS messages (
+                id BIGSERIAL PRIMARY KEY,
+
+                sender_id BIGINT NOT NULL
+                    REFERENCES users(id)
+                    ON DELETE CASCADE,
+
+                receiver_id BIGINT NOT NULL
+                    REFERENCES users(id)
+                    ON DELETE CASCADE,
+
+                text TEXT DEFAULT '',
+
+                media_url TEXT,
+
+                media_type TEXT,
+
+                voice_url TEXT,
+
+                read BOOLEAN NOT NULL DEFAULT FALSE,
+
+                deleted_for_sender BOOLEAN NOT NULL DEFAULT FALSE,
+
+                deleted_for_receiver BOOLEAN NOT NULL DEFAULT FALSE,
+
+                created_at TIMESTAMPTZ NOT NULL
+                    DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+
+
+        # ----------------------------------------------------
+        # CHAT SETTINGS
+        # ----------------------------------------------------
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS chat_settings (
+                id BIGSERIAL PRIMARY KEY,
+
+                user_id BIGINT NOT NULL
+                    REFERENCES users(id)
+                    ON DELETE CASCADE,
+
+                chat_user_id BIGINT NOT NULL
+                    REFERENCES users(id)
+                    ON DELETE CASCADE,
+
+                wallpaper_url TEXT,
+
+                muted BOOLEAN NOT NULL DEFAULT FALSE,
+
+                pinned BOOLEAN NOT NULL DEFAULT FALSE,
+
+                blocked BOOLEAN NOT NULL DEFAULT FALSE,
+
+                updated_at TIMESTAMPTZ NOT NULL
+                    DEFAULT CURRENT_TIMESTAMP,
+
+                UNIQUE(user_id, chat_user_id)
+            )
+            """
+        )
+
+
+        # ----------------------------------------------------
+        # FOLLOWERS
+        # ----------------------------------------------------
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS followers (
+                id BIGSERIAL PRIMARY KEY,
+
+                follower_id BIGINT NOT NULL
+                    REFERENCES users(id)
+                    ON DELETE CASCADE,
+
+                following_id BIGINT NOT NULL
+                    REFERENCES users(id)
+                    ON DELETE CASCADE,
+
+                created_at TIMESTAMPTZ NOT NULL
+                    DEFAULT CURRENT_TIMESTAMP,
+
+                UNIQUE(follower_id, following_id),
+
+                CHECK(follower_id <> following_id)
+            )
+            """
+        )
+
+
+        # ----------------------------------------------------
+        # STATUSES
+        # ----------------------------------------------------
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS statuses (
+                id BIGSERIAL PRIMARY KEY,
+
+                user_id BIGINT NOT NULL
+                    REFERENCES users(id)
+                    ON DELETE CASCADE,
+
+                media_url TEXT,
+
+                media_type TEXT,
+
+                text TEXT DEFAULT '',
+
+                expires_at TIMESTAMPTZ,
+
+                created_at TIMESTAMPTZ NOT NULL
+                    DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+
+
+        # ----------------------------------------------------
+        # CALL SESSIONS
+        # ----------------------------------------------------
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS call_sessions (
+                id UUID PRIMARY KEY,
+
+                caller_id BIGINT NOT NULL
+                    REFERENCES users(id)
+                    ON DELETE CASCADE,
+
+                receiver_id BIGINT NOT NULL
+                    REFERENCES users(id)
+                    ON DELETE CASCADE,
+
+                room_name TEXT NOT NULL UNIQUE,
+
+                call_type TEXT NOT NULL,
+
+                status TEXT NOT NULL DEFAULT 'calling',
+
+                started_at TIMESTAMPTZ,
+
+                ended_at TIMESTAMPTZ,
+
+                created_at TIMESTAMPTZ NOT NULL
+                    DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+
+
+        # ----------------------------------------------------
+        # BLOCKS
+        # ----------------------------------------------------
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS blocks (
+                id BIGSERIAL PRIMARY KEY,
+
+                blocker_id BIGINT NOT NULL
+                    REFERENCES users(id)
+                    ON DELETE CASCADE,
+
+                blocked_id BIGINT NOT NULL
+                    REFERENCES users(id)
+                    ON DELETE CASCADE,
+
+                created_at TIMESTAMPTZ NOT NULL
+                    DEFAULT CURRENT_TIMESTAMP,
+
+                UNIQUE(blocker_id, blocked_id),
+
+                CHECK(blocker_id <> blocked_id)
+            )
+            """
+        )
+
+
+        # ----------------------------------------------------
+        # REPORTS
+        # ----------------------------------------------------
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS reports (
+                id BIGSERIAL PRIMARY KEY,
+
+                reporter_id BIGINT NOT NULL
+                    REFERENCES users(id)
+                    ON DELETE CASCADE,
+
+                reported_user_id BIGINT
+                    REFERENCES users(id)
+                    ON DELETE SET NULL,
+
+                post_id BIGINT
+                    REFERENCES posts(id)
+                    ON DELETE SET NULL,
+
+                message_id BIGINT
+                    REFERENCES messages(id)
+                    ON DELETE SET NULL,
+
+                reason TEXT NOT NULL,
+
+                created_at TIMESTAMPTZ NOT NULL
+                    DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+
+
+        # ----------------------------------------------------
+        # INDEXES
+        # ----------------------------------------------------
+
+        indexes = [
+
+            """
+            CREATE INDEX IF NOT EXISTS idx_users_email
+            ON users(email)
+            """,
+
+            """
+            CREATE INDEX IF NOT EXISTS idx_sessions_user
+            ON sessions(user_id)
+            """,
+
+            """
+            CREATE INDEX IF NOT EXISTS idx_sessions_token
+            ON sessions(token_hash)
+            """,
+
+            """
+            CREATE INDEX IF NOT EXISTS idx_posts_user
+            ON posts(user_id)
+            """,
+
+            """
+            CREATE INDEX IF NOT EXISTS idx_posts_created
+            ON posts(created_at DESC)
+            """,
+
+            """
+            CREATE INDEX IF NOT EXISTS idx_likes_post
+            ON likes(post_id)
+            """,
+
+            """
+            CREATE INDEX IF NOT EXISTS idx_comments_post
+            ON comments(post_id)
+            """,
+
+            """
+            CREATE INDEX IF NOT EXISTS idx_messages_sender
+            ON messages(sender_id)
+            """,
+
+            """
+            CREATE INDEX IF NOT EXISTS idx_messages_receiver
+            ON messages(receiver_id)
+            """,
+
+            """
+            CREATE INDEX IF NOT EXISTS idx_messages_created
+            ON messages(created_at DESC)
+            """,
+
+            """
+            CREATE INDEX IF NOT EXISTS idx_followers_following
+            ON followers(following_id)
+            """,
+
+            """
+            CREATE INDEX IF NOT EXISTS idx_followers_follower
+            ON followers(follower_id)
+            """,
+        ]
+
+        for statement in indexes:
+            conn.execute(statement)
+
+        conn.commit()
+
+
+# ============================================================
+# STARTUP
+# ============================================================
+
+@app.on_event("startup")
+def startup():
+    init_db()
+
+
+# ============================================================
+# ROOT
+# ============================================================
 
 @app.get("/")
 def root():
-
-    index = BASE_DIR / "index.html"
-
-    if index.exists():
-        return FileResponse(index)
-
     return {
-        "name": "MSAFIRI GLOBAL MEDIA V3",
+        "app": APP_NAME,
+        "version": "4.0.0",
         "status": "online",
+        "database": "postgresql",
+        "livekit": bool(
+            LIVEKIT_URL
+            and LIVEKIT_API_KEY
+            and LIVEKIT_API_SECRET
+        ),
     }
 
+
+# ============================================================
+# HEALTH
+# ============================================================
 
 @app.get("/api/health")
 def health():
-
     return {
-        "status": "online",
-        "service": "MSAFIRI GLOBAL MEDIA V3",
-        "time": now(),
+        "status": "ok",
+        "app": APP_NAME,
+        "version": "4.0.0",
     }
 
 
-# =========================================================
-# AUTH
-# =========================================================
+@app.get("/api/health/db")
+def database_health():
+
+    try:
+        with db() as conn:
+
+            row = conn.execute(
+                "SELECT NOW() AS server_time"
+            ).fetchone()
+
+        return {
+            "status": "ok",
+            "database": "postgresql",
+            "server_time": row["server_time"],
+        }
+
+    except Exception as e:
+
+        return {
+            "status": "error",
+            "database": "postgresql",
+            "error": str(e),
+        }
+
+
+# ============================================================
+# AUTH MODELS
+# ============================================================
 
 class RegisterRequest(BaseModel):
-
     name: str
-    email: str
+    email: EmailStr
     password: str
 
 
 class LoginRequest(BaseModel):
-
-    email: str
+    email: EmailStr
     password: str
 
 
-@app.post("/api/register")
-def register(data: RegisterRequest):
+class ProfileUpdateRequest(BaseModel):
+    name: str | None = None
+    bio: str | None = None
 
-    name = data.name.strip()
-    email = data.email.strip().lower()
-    password = data.password
-
-    if not name or not email or not password:
-        raise HTTPException(
-            400,
-            "All fields are required",
-        )
-
-    if len(password) < 6:
-        raise HTTPException(
-            400,
-            "Password must contain at least 6 characters",
-        )
-
-    conn = db()
-
-    existing = conn.execute(
-        "SELECT id FROM users WHERE email=?",
-        (email,),
-    ).fetchone()
-
-    if existing:
-        conn.close()
-
-        raise HTTPException(
-            409,
-            "Email already registered",
-        )
-
-    password_hash = hash_password(password)
-
-    cur = conn.execute(
-        """
-        INSERT INTO users
-        (name,email,password_hash,created_at)
-        VALUES(?,?,?,?)
-        """,
-        (
-            name,
-            email,
-            password_hash,
-            now(),
-        ),
-    )
-
-    user_id = cur.lastrowid
-
-    conn.commit()
-    conn.close()
-
-    token = create_session(user_id)
-
-    return {
-        "message": "Account created successfully",
-        "token": token,
-        "user": {
-            "id": user_id,
-            "name": name,
-            "email": email,
-        },
-    }
-
-
-@app.post("/api/login")
-def login(data: LoginRequest):
-
-    email = data.email.strip().lower()
-
-    conn = db()
-
-    user = conn.execute(
-        "SELECT * FROM users WHERE email=?",
-        (email,),
-    ).fetchone()
-
-    conn.close()
-
-    if not user:
-        raise HTTPException(
-            401,
-            "Invalid email or password",
-        )
-
-    if not verify_password(
-        data.password,
-        user["password_hash"],
-    ):
-        raise HTTPException(
-            401,
-            "Invalid email or password",
-        )
-
-    token = create_session(user["id"])
-
-    return {
-        "message": "Login successful",
-        "token": token,
-        "user": dict(user),
-    }
-
-
-@app.post("/api/logout")
-def logout(request: Request):
-
-    token = get_token(request)
-
-    if token:
-
-        conn = db()
-
-        conn.execute(
-            "DELETE FROM sessions WHERE token=?",
-            (token,),
-        )
-
-        conn.commit()
-        conn.close()
-
-    return {
-        "message": "Logged out",
-    }
-
-
-@app.get("/api/me")
-def me(request: Request):
-
-    user = require_user(request)
-
-    return user
-
-
-# =========================================================
-# USERS
-# =========================================================
-
-@app.get("/api/users")
-def users(request: Request):
-
-    user = require_user(request)
-
-    conn = db()
-
-    rows = conn.execute(
-        """
-        SELECT id,name,bio,avatar
-        FROM users
-        WHERE id != ?
-        ORDER BY name
-        """,
-        (user["id"],),
-    ).fetchall()
-
-    conn.close()
-
-    return [dict(row) for row in rows]
-
-
-# =========================================================
-# POSTS
-# =========================================================
-
-@app.get("/api/posts")
-def get_posts():
-
-    conn = db()
-
-    rows = conn.execute(
-        """
-        SELECT
-            posts.*,
-            users.name AS user_name,
-            users.avatar AS avatar
-        FROM posts
-        JOIN users
-        ON posts.user_id=users.id
-        ORDER BY posts.id DESC
-        """
-    ).fetchall()
-
-    conn.close()
-
-    result = []
-
-    for row in rows:
-
-        item = dict(row)
-
-        item["likes"] = get_post_count(
-            "likes",
-            row["id"],
-        )
-
-        item["comments"] = get_post_count(
-            "comments",
-            row["id"],
-        )
-
-        result.append(item)
-
-    return result
-
-
-def get_post_count(table, post_id):
-
-    conn = db()
-
-    row = conn.execute(
-        f"SELECT COUNT(*) AS count FROM {table} WHERE post_id=?",
-        (post_id,),
-    ).fetchone()
-
-    conn.close()
-
-    return row["count"]
-
-
-@app.post("/api/posts")
-async def create_post(
-    request: Request,
-    caption: str = Form(""),
-    media: Optional[UploadFile] = File(None),
-):
-
-    user = require_user(request)
-
-    media_url = ""
-    media_type = ""
-
-    if media:
-
-        media_url, media_type = await save_upload(
-            media,
-            "posts",
-            ALLOWED_IMAGE | ALLOWED_VIDEO,
-        )
-
-    conn = db()
-
-    cur = conn.execute(
-        """
-        INSERT INTO posts
-        (user_id,caption,media_url,media_type,created_at)
-        VALUES(?,?,?,?,?)
-        """,
-        (
-            user["id"],
-            caption.strip(),
-            media_url or "",
-            media_type or "",
-            now(),
-        ),
-    )
-
-    post_id = cur.lastrowid
-
-    conn.execute(
-        """
-        UPDATE users
-        SET posts_count=posts_count+1
-        WHERE id=?
-        """,
-        (user["id"],),
-    )
-
-    conn.commit()
-    conn.close()
-
-    return {
-        "message": "Post published",
-        "id": post_id,
-        "media_url": media_url,
-        "media_type": media_type,
-    }
-
-
-# =========================================================
-# LIKE
-# =========================================================
-
-@app.post("/api/posts/{post_id}/like")
-def like_post(
-    post_id: int,
-    request: Request,
-):
-
-    user = require_user(request)
-
-    conn = db()
-
-    exists = conn.execute(
-        """
-        SELECT id
-        FROM likes
-        WHERE user_id=? AND post_id=?
-        """,
-        (
-            user["id"],
-            post_id,
-        ),
-    ).fetchone()
-
-    if exists:
-
-        conn.execute(
-            "DELETE FROM likes WHERE id=?",
-            (exists["id"],),
-        )
-
-        liked = False
-
-    else:
-
-        conn.execute(
-            """
-            INSERT INTO likes(user_id,post_id)
-            VALUES(?,?)
-            """,
-            (
-                user["id"],
-                post_id,
-            ),
-        )
-
-        liked = True
-
-    conn.commit()
-    conn.close()
-
-    return {
-        "liked": liked,
-        "likes": get_post_count(
-            "likes",
-            post_id,
-        ),
-    }
-
-
-# =========================================================
-# COMMENTS
-# =========================================================
-
-class CommentRequest(BaseModel):
-
-    text: str
-
-
-@app.post("/api/posts/{post_id}/comments")
-def comment_post(
-    post_id: int,
-    data: CommentRequest,
-    request: Request,
-):
-
-    user = require_user(request)
-
-    text = data.text.strip()
-
-    if not text:
-        raise HTTPException(
-            400,
-            "Comment cannot be empty",
-        )
-
-    conn = db()
-
-    cur = conn.execute(
-        """
-        INSERT INTO comments
-        (user_id,post_id,text,created_at)
-        VALUES(?,?,?,?)
-        """,
-        (
-            user["id"],
-            post_id,
-            text,
-            now(),
-        ),
-    )
-
-    conn.commit()
-    conn.close()
-
-    return {
-        "message": "Comment added",
-        "id": cur.lastrowid,
-    }
-
-
-@app.get("/api/posts/{post_id}/comments")
-def get_comments(post_id: int):
-
-    conn = db()
-
-    rows = conn.execute(
-        """
-        SELECT
-            comments.*,
-            users.name,
-            users.avatar
-        FROM comments
-        JOIN users
-        ON comments.user_id=users.id
-        WHERE post_id=?
-        ORDER BY comments.id ASC
-        """,
-        (post_id,),
-    ).fetchall()
-
-    conn.close()
-
-    return [dict(row) for row in rows]
-
-
-# =========================================================
-# SAVE
-# =========================================================
-
-@app.post("/api/posts/{post_id}/save")
-def save_post(
-    post_id: int,
-    request: Request,
-):
-
-    user = require_user(request)
-
-    conn = db()
-
-    exists = conn.execute(
-        """
-        SELECT id
-        FROM saved_posts
-        WHERE user_id=? AND post_id=?
-        """,
-        (
-            user["id"],
-            post_id,
-        ),
-    ).fetchone()
-
-    if exists:
-
-        conn.execute(
-            "DELETE FROM saved_posts WHERE id=?",
-            (exists["id"],),
-        )
-
-        saved = False
-
-    else:
-
-        conn.execute(
-            """
-            INSERT INTO saved_posts(user_id,post_id)
-            VALUES(?,?)
-            """,
-            (
-                user["id"],
-                post_id,
-            ),
-        )
-
-        saved = True
-
-    conn.commit()
-    conn.close()
-
-    return {
-        "saved": saved,
-    }
-
-
-@app.get("/api/saved")
-def saved_posts(request: Request):
-
-    user = require_user(request)
-
-    conn = db()
-
-    rows = conn.execute(
-        """
-        SELECT
-            posts.*,
-            users.name AS user_name,
-            users.avatar
-        FROM saved_posts
-        JOIN posts
-        ON saved_posts.post_id=posts.id
-        JOIN users
-        ON posts.user_id=users.id
-        WHERE saved_posts.user_id=?
-        ORDER BY saved_posts.id DESC
-        """,
-        (user["id"],),
-    ).fetchall()
-
-    conn.close()
-
-    return [dict(row) for row in rows]
-
-
-# =========================================================
-# RESHARE
-# =========================================================
-
-@app.post("/api/posts/{post_id}/reshare")
-def reshare_post(
-    post_id: int,
-    request: Request,
-):
-
-    user = require_user(request)
-
-    conn = db()
-
-    exists = conn.execute(
-        """
-        SELECT id
-        FROM reshares
-        WHERE user_id=? AND post_id=?
-        """,
-        (
-            user["id"],
-            post_id,
-        ),
-    ).fetchone()
-
-    if not exists:
-
-        conn.execute(
-            """
-            INSERT INTO reshares
-            (user_id,post_id,created_at)
-            VALUES(?,?,?)
-            """,
-            (
-                user["id"],
-                post_id,
-                now(),
-            ),
-        )
-
-        conn.commit()
-
-    conn.close()
-
-    return {
-        "message": "Post reshared",
-    }
-
-
-# =========================================================
-# PROFILE
-# =========================================================
-
-@app.put("/api/profile")
-async def update_profile(
-    request: Request,
-    name: str = Form(""),
-    bio: str = Form(""),
-    avatar: Optional[UploadFile] = File(None),
-):
-
-    user = require_user(request)
-
-    avatar_url = None
-
-    if avatar:
-
-        avatar_url, _ = await save_upload(
-            avatar,
-            "avatars",
-            ALLOWED_IMAGE,
-        )
-
-    conn = db()
-
-    if avatar_url:
-
-        conn.execute(
-            """
-            UPDATE users
-            SET name=?,bio=?,avatar=?
-            WHERE id=?
-            """,
-            (
-                name.strip(),
-                bio.strip(),
-                avatar_url,
-                user["id"],
-            ),
-        )
-
-    else:
-
-        conn.execute(
-            """
-            UPDATE users
-            SET name=?,bio=?
-            WHERE id=?
-            """,
-            (
-                name.strip(),
-                bio.strip(),
-                user["id"],
-            ),
-        )
-
-    conn.commit()
-    conn.close()
-
-    return {
-        "message": "Profile updated",
-    }
-
-
-# =========================================================
-# STATUS
-# =========================================================
-
-@app.get("/api/status")
-def get_status():
-
-    conn = db()
-
-    rows = conn.execute(
-        """
-        SELECT
-            statuses.*,
-            users.name,
-            users.avatar
-        FROM statuses
-        JOIN users
-        ON statuses.user_id=users.id
-        ORDER BY statuses.id DESC
-        """
-    ).fetchall()
-
-    conn.close()
-
-    return [dict(row) for row in rows]
-
-
-@app.post("/api/status")
-async def create_status(
-    request: Request,
-    text: str = Form(""),
-    media: Optional[UploadFile] = File(None),
-    audio: Optional[UploadFile] = File(None),
-):
-
-    user = require_user(request)
-
-    media_url = ""
-    media_type = ""
-    audio_url = ""
-
-    if media:
-
-        media_url, media_type = await save_upload(
-            media,
-            "status",
-            ALLOWED_IMAGE | ALLOWED_VIDEO,
-        )
-
-    if audio:
-
-        audio_url, _ = await save_upload(
-            audio,
-            "status_audio",
-            ALLOWED_AUDIO,
-        )
-
-    conn = db()
-
-    cur = conn.execute(
-        """
-        INSERT INTO statuses
-        (user_id,text,media_url,media_type,audio_url,created_at)
-        VALUES(?,?,?,?,?,?)
-        """,
-        (
-            user["id"],
-            text.strip(),
-            media_url or "",
-            media_type or "",
-            audio_url or "",
-            now(),
-        ),
-    )
-
-    conn.commit()
-    conn.close()
-
-    return {
-        "message": "Status published",
-        "id": cur.lastrowid,
-    }
-
-
-# =========================================================
-# CHAT
-# =========================================================
 
 class MessageRequest(BaseModel):
-
     receiver_id: int
     text: str
 
 
-@app.get("/api/messages/{user_id}")
-def get_messages(
-    user_id: int,
-    request: Request,
+class CommentRequest(BaseModel):
+    text: str
+
+
+class CallRequest(BaseModel):
+    receiver_id: int
+    call_type: str
+
+
+class ChatSettingsRequest(BaseModel):
+    muted: bool | None = None
+    pinned: bool | None = None
+    blocked: bool | None = None
+
+
+class ReportRequest(BaseModel):
+    reason: str
+
+
+# ============================================================
+# REGISTER
+# ============================================================
+
+@app.post("/api/register")
+def register(data: RegisterRequest):
+
+    name = clean_text(data.name, 100)
+    email = normalize_email(data.email)
+    password = data.password
+
+    if len(name) < 2:
+        raise HTTPException(
+            status_code=400,
+            detail="Name is too short.",
+        )
+
+    valid_password(password)
+
+    password_h = password_hash(password)
+
+    with db() as conn:
+
+        existing = conn.execute(
+            """
+            SELECT id, deleted_at
+            FROM users
+            WHERE email = %s
+            LIMIT 1
+            """,
+            (email,),
+        ).fetchone()
+
+        if existing:
+            raise HTTPException(
+                status_code=409,
+                detail="An account with this email already exists.",
+            )
+
+        user = conn.execute(
+            """
+            INSERT INTO users
+                (name, email, password_hash)
+            VALUES
+                (%s, %s, %s)
+            RETURNING
+                id,
+                name,
+                email,
+                bio,
+                avatar,
+                created_at,
+                updated_at
+            """,
+            (
+                name,
+                email,
+                password_h,
+            ),
+        ).fetchone()
+
+        conn.commit()
+
+    return {
+        "ok": True,
+        "message": "Account created successfully.",
+        "user": user_dict(user),
+    }
+
+
+# ============================================================
+# LOGIN
+# ============================================================
+
+@app.post("/api/login")
+def login(data: LoginRequest):
+
+    email = normalize_email(data.email)
+
+    with db() as conn:
+
+        user = conn.execute(
+            """
+            SELECT *
+            FROM users
+            WHERE email = %s
+              AND deleted_at IS NULL
+            LIMIT 1
+            """,
+            (email,),
+        ).fetchone()
+
+        if not user:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid email or password.",
+            )
+
+        if not password_verify(
+            data.password,
+            user["password_hash"],
+        ):
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid email or password.",
+            )
+
+        raw_token = generate_token()
+
+        conn.execute(
+            """
+            INSERT INTO sessions
+                (user_id, token_hash)
+            VALUES
+                (%s, %s)
+            """,
+            (
+                user["id"],
+                hash_token(raw_token),
+            ),
+        )
+
+        conn.commit()
+
+    return {
+        "ok": True,
+        "token": raw_token,
+        "user": user_dict(user),
+    }
+
+
+# ============================================================
+# ME
+# ============================================================
+
+@app.get("/api/me")
+def me(
+    authorization: str | None = Header(default=None),
+    msafiri_token: str | None = Cookie(default=None),
 ):
 
-    user = require_user(request)
+    user = require_user(
+        authorization,
+        msafiri_token,
+    )
 
-    conn = db()
+    return {
+        "ok": True,
+        "user": user_dict(user),
+    }
 
-    rows = conn.execute(
-        """
-        SELECT *
-        FROM messages
-        WHERE
-        (sender_id=? AND receiver_id=?)
-        OR
-        (sender_id=? AND receiver_id=?)
-        ORDER BY id ASC
-        """,
-        (
-            user["id"],
-            user_id,
-            user_id,
-            user["id"],
-        ),
-    ).fetchall()
 
-    conn.close()
+# ============================================================
+# LOGOUT
+# ============================================================
 
-    return [dict(row) for row in rows]
+@app.post("/api/logout")
+def logout(
+    authorization: str | None = Header(default=None),
+    msafiri_token: str | None = Cookie(default=None),
+):
 
+    token = get_bearer_token(
+        authorization,
+        msafiri_token,
+    )
+
+    if not token:
+        return {
+            "ok": True,
+            "message": "Already logged out.",
+        }
+
+    with db() as conn:
+
+        conn.execute(
+            """
+            UPDATE sessions
+            SET revoked = TRUE
+            WHERE token_hash = %s
+            """,
+            (hash_token(token),),
+        )
+
+        conn.commit()
+
+    return {
+        "ok": True,
+        "message": "Logged out successfully.",
+    }
+
+
+# ============================================================
+# DELETE ACCOUNT
+# ============================================================
+
+@app.delete("/api/account")
+def delete_account(
+    authorization: str | None = Header(default=None),
+    msafiri_token: str | None = Cookie(default=None),
+):
+
+    user = require_user(
+        authorization,
+        msafiri_token,
+    )
+
+    with db() as conn:
+
+        conn.execute(
+            """
+            UPDATE users
+            SET
+                deleted_at = CURRENT_TIMESTAMP,
+                updated_at = CURRENT_TIMESTAMP,
+                email = CONCAT(
+                    'deleted_',
+                    id,
+                    '_',
+                    EXTRACT(EPOCH FROM CURRENT_TIMESTAMP),
+                    '@deleted.local'
+                )
+            WHERE id = %s
+            """,
+            (user["id"],),
+        )
+
+        conn.execute(
+            """
+            UPDATE sessions
+            SET revoked = TRUE
+            WHERE user_id = %s
+            """,
+            (user["id"],),
+        )
+
+        conn.commit()
+
+    return {
+        "ok": True,
+        "message": "Account deleted.",
+    }
+
+
+# ============================================================
+# PROFILE
+# ============================================================
+
+@app.get("/api/profile/{user_id}")
+def get_profile(user_id: int):
+
+    with db() as conn:
+
+        user = conn.execute(
+            """
+            SELECT
+                id,
+                name,
+                email,
+                bio,
+                avatar,
+                created_at
+            FROM users
+            WHERE id = %s
+              AND deleted_at IS NULL
+            """,
+            (user_id,),
+        ).fetchone()
+
+        if not user:
+            raise HTTPException(
+                status_code=404,
+                detail="User not found.",
+            )
+
+        followers = conn.execute(
+            """
+            SELECT COUNT(*) AS count
+            FROM followers
+            WHERE following_id = %s
+            """,
+            (user_id,),
+        ).fetchone()["count"]
+
+        following = conn.execute(
+            """
+            SELECT COUNT(*) AS count
+            FROM followers
+            WHERE follower_id = %s
+            """,
+            (user_id,),
+        ).fetchone()["count"]
+
+    return {
+        "ok": True,
+        "user": user,
+        "followers": followers,
+        "following": following,
+    }
+
+
+@app.patch("/api/profile")
+def update_profile(
+    data: ProfileUpdateRequest,
+    authorization: str | None = Header(default=None),
+    msafiri_token: str | None = Cookie(default=None),
+):
+
+    user = require_user(
+        authorization,
+        msafiri_token,
+    )
+
+    name = (
+        clean_text(data.name, 100)
+        if data.name is not None
+        else user["name"]
+    )
+
+    bio = (
+        clean_text(data.bio, 1000)
+        if data.bio is not None
+        else user["bio"]
+    )
+
+    with db() as conn:
+
+        updated = conn.execute(
+            """
+            UPDATE users
+            SET
+                name = %s,
+                bio = %s,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s
+            RETURNING
+                id,
+                name,
+                email,
+                bio,
+                avatar,
+                created_at,
+                updated_at
+            """,
+            (
+                name,
+                bio,
+                user["id"],
+            ),
+        ).fetchone()
+
+        conn.commit()
+
+    return {
+        "ok": True,
+        "user": updated,
+    }
+
+
+# ============================================================
+# PROFILE PICTURE
+# ============================================================
+
+@app.post("/api/profile/avatar")
+def upload_avatar(
+    file: UploadFile = File(...),
+    authorization: str | None = Header(default=None),
+    msafiri_token: str | None = Cookie(default=None),
+):
+
+    user = require_user(
+        authorization,
+        msafiri_token,
+    )
+
+    content_type = file.content_type or ""
+
+    if not content_type.startswith("image/"):
+        raise HTTPException(
+            status_code=400,
+            detail="Profile picture must be an image.",
+        )
+
+    filename = safe_filename(
+        file.filename or ""
+    )
+
+    destination = AVATAR_UPLOAD_DIR / filename
+
+    content = await file.read()
+
+    if len(content) > 10 * 1024 * 1024:
+        raise HTTPException(
+            status_code=400,
+            detail="Image is too large. Maximum 10MB.",
+        )
+
+    destination.write_bytes(content)
+
+    avatar_url = f"/uploads/avatars/{filename}"
+
+    with db() as conn:
+
+        updated = conn.execute(
+            """
+            UPDATE users
+            SET
+                avatar = %s,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s
+            RETURNING
+                id,
+                name,
+                email,
+                bio,
+                avatar,
+                created_at,
+                updated_at
+            """,
+            (
+                avatar_url,
+                user["id"],
+            ),
+        ).fetchone()
+
+        conn.commit()
+
+    return {
+        "ok": True,
+        "avatar": avatar_url,
+        "user": updated,
+    }
+
+
+# ============================================================
+# CREATE POST
+# ============================================================
+
+@app.post("/api/posts")
+async def create_post(
+    caption: str = Form(default=""),
+    media: UploadFile | None = File(default=None),
+    authorization: str | None = Header(default=None),
+    msafiri_token: str | None = Cookie(default=None),
+):
+
+    user = require_user(
+        authorization,
+        msafiri_token,
+    )
+
+    caption = clean_text(caption, 5000)
+
+    media_url = None
+    media_type = None
+
+    if media:
+
+        content_type = media.content_type or ""
+
+        if not (
+            content_type.startswith("image/")
+            or content_type.startswith("video/")
+            or content_type.startswith("audio/")
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="Unsupported media type.",
+            )
+
+        filename = safe_filename(
+            media.filename or ""
+        )
+
+        destination = POST_UPLOAD_DIR / filename
+
+        content = await media.read()
+
+        if len(content) > 100 * 1024 * 1024:
+            raise HTTPException(
+                status_code=400,
+                detail="Media is too large. Maximum 100MB.",
+            )
+
+        destination.write_bytes(content)
+
+        media_url = f"/uploads/posts/{filename}"
+
+        if content_type.startswith("image/"):
+            media_type = "image"
+
+        elif content_type.startswith("video/"):
+            media_type = "video"
+
+        else:
+            media_type = "audio"
+
+    if not caption and not media_url:
+        raise HTTPException(
+            status_code=400,
+            detail="Post must contain text or media.",
+        )
+
+    with db() as conn:
+
+        post = conn.execute(
+            """
+            INSERT INTO posts
+                (
+                    user_id,
+                    caption,
+                    media_url,
+                    media_type
+                )
+            VALUES
+                (%s, %s, %s, %s)
+            RETURNING *
+            """,
+            (
+                user["id"],
+                caption,
+                media_url,
+                media_type,
+            ),
+        ).fetchone()
+
+        conn.commit()
+
+    return {
+        "ok": True,
+        "post": post,
+    }
+
+
+# ============================================================
+# FEED
+# ============================================================
+
+@app.get("/api/posts")
+def get_posts(
+    limit: int = Query(default=30, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+):
+
+    with db() as conn:
+
+        posts = conn.execute(
+            """
+            SELECT
+                p.id,
+                p.user_id,
+                p.caption,
+                p.media_url,
+                p.media_type,
+                p.created_at,
+
+                u.name AS user_name,
+                u.avatar AS user_avatar,
+
+                (
+                    SELECT COUNT(*)
+                    FROM likes l
+                    WHERE l.post_id = p.id
+                ) AS likes_count,
+
+                (
+                    SELECT COUNT(*)
+                    FROM comments c
+                    WHERE c.post_id = p.id
+                ) AS comments_count,
+
+                (
+                    SELECT COUNT(*)
+                    FROM reshares r
+                    WHERE r.post_id = p.id
+                ) AS reshares_count
+
+            FROM posts p
+
+            JOIN users u
+                ON u.id = p.user_id
+
+            WHERE p.deleted_at IS NULL
+              AND u.deleted_at IS NULL
+
+            ORDER BY p.created_at DESC
+
+            LIMIT %s
+            OFFSET %s
+            """,
+            (
+                limit,
+                offset,
+            ),
+        ).fetchall()
+
+    return {
+        "ok": True,
+        "posts": posts,
+        "limit": limit,
+        "offset": offset,
+    }
+
+
+# ============================================================
+# DELETE POST
+# ============================================================
+
+@app.delete("/api/posts/{post_id}")
+def delete_post(
+    post_id: int,
+    authorization: str | None = Header(default=None),
+    msafiri_token: str | None = Cookie(default=None),
+):
+
+    user = require_user(
+        authorization,
+        msafiri_token,
+    )
+
+    with db() as conn:
+
+        post = conn.execute(
+            """
+            SELECT id
+            FROM posts
+            WHERE id = %s
+              AND user_id = %s
+              AND deleted_at IS NULL
+            """,
+            (
+                post_id,
+                user["id"],
+            ),
+        ).fetchone()
+
+        if not post:
+            raise HTTPException(
+                status_code=404,
+                detail="Post not found.",
+            )
+
+        conn.execute(
+            """
+            UPDATE posts
+            SET
+                deleted_at = CURRENT_TIMESTAMP,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s
+            """,
+            (post_id,),
+        )
+
+        conn.commit()
+
+    return {
+        "ok": True,
+        "message": "Post deleted.",
+    }
+
+
+# ============================================================
+# LIKE / UNLIKE
+# ============================================================
+
+@app.post("/api/posts/{post_id}/like")
+def like_post(
+    post_id: int,
+    authorization: str | None = Header(default=None),
+    msafiri_token: str | None = Cookie(default=None),
+):
+
+    user = require_user(
+        authorization,
+        msafiri_token,
+    )
+
+    with db() as conn:
+
+        post = conn.execute(
+            """
+            SELECT id
+            FROM posts
+            WHERE id = %s
+              AND deleted_at IS NULL
+            """,
+            (post_id,),
+        ).fetchone()
+
+        if not post:
+            raise HTTPException(
+                status_code=404,
+                detail="Post not found.",
+            )
+
+        conn.execute(
+            """
+            INSERT INTO likes
+                (user_id, post_id)
+            VALUES
+                (%s, %s)
+            ON CONFLICT
+                (user_id, post_id)
+            DO NOTHING
+            """,
+            (
+                user["id"],
+                post_id,
+            ),
+        )
+
+        conn.commit()
+
+    return {
+        "ok": True,
+        "liked": True,
+    }
+
+
+@app.delete("/api/posts/{post_id}/like")
+def unlike_post(
+    post_id: int,
+    authorization: str | None = Header(default=None),
+    msafiri_token: str | None = Cookie(default=None),
+):
+
+    user = require_user(
+        authorization,
+        msafiri_token,
+    )
+
+    with db() as conn:
+
+        conn.execute(
+            """
+            DELETE FROM likes
+            WHERE user_id = %s
+              AND post_id = %s
+            """,
+            (
+                user["id"],
+                post_id,
+            ),
+        )
+
+        conn.commit()
+
+    return {
+        "ok": True,
+        "liked": False,
+    }
+
+
+# ============================================================
+# COMMENTS
+# ============================================================
+
+@app.post("/api/posts/{post_id}/comments")
+def add_comment(
+    post_id: int,
+    data: CommentRequest,
+    authorization: str | None = Header(default=None),
+    msafiri_token: str | None = Cookie(default=None),
+):
+
+    user = require_user(
+        authorization,
+        msafiri_token,
+    )
+
+    text = clean_text(data.text, 2000)
+
+    if not text:
+        raise HTTPException(
+            status_code=400,
+            detail="Comment cannot be empty.",
+        )
+
+    with db() as conn:
+
+        post = conn.execute(
+            """
+            SELECT id
+            FROM posts
+            WHERE id = %s
+              AND deleted_at IS NULL
+            """,
+            (post_id,),
+        ).fetchone()
+
+        if not post:
+            raise HTTPException(
+                status_code=404,
+                detail="Post not found.",
+            )
+
+        comment = conn.execute(
+            """
+            INSERT INTO comments
+                (
+                    user_id,
+                    post_id,
+                    text
+                )
+            VALUES
+                (%s, %s, %s)
+            RETURNING *
+            """,
+            (
+                user["id"],
+                post_id,
+                text,
+            ),
+        ).fetchone()
+
+        conn.commit()
+
+    return {
+        "ok": True,
+        "comment": comment,
+    }
+
+
+@app.get("/api/posts/{post_id}/comments")
+def get_comments(
+    post_id: int,
+):
+
+    with db() as conn:
+
+        comments = conn.execute(
+            """
+            SELECT
+                c.id,
+                c.text,
+                c.created_at,
+                c.user_id,
+                u.name AS user_name,
+                u.avatar AS user_avatar
+            FROM comments c
+            JOIN users u
+                ON u.id = c.user_id
+            WHERE c.post_id = %s
+              AND u.deleted_at IS NULL
+            ORDER BY c.created_at ASC
+            """,
+            (post_id,),
+        ).fetchall()
+
+    return {
+        "ok": True,
+        "comments": comments,
+    }
+
+
+# ============================================================
+# SAVE / UNSAVE
+# ============================================================
+
+@app.post("/api/posts/{post_id}/save")
+def save_post(
+    post_id: int,
+    authorization: str | None = Header(default=None),
+    msafiri_token: str | None = Cookie(default=None),
+):
+
+    user = require_user(
+        authorization,
+        msafiri_token,
+    )
+
+    with db() as conn:
+
+        conn.execute(
+            """
+            INSERT INTO saved_posts
+                (user_id, post_id)
+            VALUES
+                (%s, %s)
+            ON CONFLICT
+                (user_id, post_id)
+            DO NOTHING
+            """,
+            (
+                user["id"],
+                post_id,
+            ),
+        )
+
+        conn.commit()
+
+    return {
+        "ok": True,
+        "saved": True,
+    }
+
+
+@app.delete("/api/posts/{post_id}/save")
+def unsave_post(
+    post_id: int,
+    authorization: str | None = Header(default=None),
+    msafiri_token: str | None = Cookie(default=None),
+):
+
+    user = require_user(
+        authorization,
+        msafiri_token,
+    )
+
+    with db() as conn:
+
+        conn.execute(
+            """
+            DELETE FROM saved_posts
+            WHERE user_id = %s
+              AND post_id = %s
+            """,
+            (
+                user["id"],
+                post_id,
+            ),
+        )
+
+        conn.commit()
+
+    return {
+        "ok": True,
+        "saved": False,
+    }
+
+
+# ============================================================
+# RESHARE
+# ============================================================
+
+@app.post("/api/posts/{post_id}/reshare")
+def reshare_post(
+    post_id: int,
+    authorization: str | None = Header(default=None),
+    msafiri_token: str | None = Cookie(default=None),
+):
+
+    user = require_user(
+        authorization,
+        msafiri_token,
+    )
+
+    with db() as conn:
+
+        conn.execute(
+            """
+            INSERT INTO reshares
+                (user_id, post_id)
+            VALUES
+                (%s, %s)
+            ON CONFLICT
+                (user_id, post_id)
+            DO NOTHING
+            """,
+            (
+                user["id"],
+                post_id,
+            ),
+        )
+
+        conn.commit()
+
+    return {
+        "ok": True,
+        "reshared": True,
+    }
+
+
+# ============================================================
+# FOLLOW / UNFOLLOW
+# ============================================================
+
+@app.post("/api/users/{user_id}/follow")
+def follow_user(
+    user_id: int,
+    authorization: str | None = Header(default=None),
+    msafiri_token: str | None = Cookie(default=None),
+):
+
+    user = require_user(
+        authorization,
+        msafiri_token,
+    )
+
+    if user["id"] == user_id:
+        raise HTTPException(
+            status_code=400,
+            detail="You cannot follow yourself.",
+        )
+
+    with db() as conn:
+
+        target = conn.execute(
+            """
+            SELECT id
+            FROM users
+            WHERE id = %s
+              AND deleted_at IS NULL
+            """,
+            (user_id,),
+        ).fetchone()
+
+        if not target:
+            raise HTTPException(
+                status_code=404,
+                detail="User not found.",
+            )
+
+        conn.execute(
+            """
+            INSERT INTO followers
+                (
+                    follower_id,
+                    following_id
+                )
+            VALUES
+                (%s, %s)
+            ON CONFLICT
+                (follower_id, following_id)
+            DO NOTHING
+            """,
+            (
+                user["id"],
+                user_id,
+            ),
+        )
+
+        conn.commit()
+
+    return {
+        "ok": True,
+        "following": True,
+    }
+
+
+@app.delete("/api/users/{user_id}/follow")
+def unfollow_user(
+    user_id: int,
+    authorization: str | None = Header(default=None),
+    msafiri_token: str | None = Cookie(default=None),
+):
+
+    user = require_user(
+        authorization,
+        msafiri_token,
+    )
+
+    with db() as conn:
+
+        conn.execute(
+            """
+            DELETE FROM followers
+            WHERE follower_id = %s
+              AND following_id = %s
+            """,
+            (
+                user["id"],
+                user_id,
+            ),
+        )
+
+        conn.commit()
+
+    return {
+        "ok": True,
+        "following": False,
+    }
+
+
+# ============================================================
+# CHAT USER SEARCH
+# ============================================================
+
+@app.get("/api/users/search")
+def search_users(
+    q: str = Query(min_length=1),
+    limit: int = Query(default=30, ge=1, le=100),
+    authorization: str | None = Header(default=None),
+    msafiri_token: str | None = Cookie(default=None),
+):
+
+    require_user(
+        authorization,
+        msafiri_token,
+    )
+
+    query = q.strip()
+
+    with db() as conn:
+
+        users = conn.execute(
+            """
+            SELECT
+                id,
+                name,
+                email,
+                bio,
+                avatar
+            FROM users
+            WHERE deleted_at IS NULL
+              AND (
+                    name ILIKE %s
+                    OR email ILIKE %s
+              )
+            ORDER BY name ASC
+            LIMIT %s
+            """,
+            (
+                f"%{query}%",
+                f"%{query}%",
+                limit,
+            ),
+        ).fetchall()
+
+    return {
+        "ok": True,
+        "users": users,
+    }
+
+
+# ============================================================
+# SEND MESSAGE
+# ============================================================
 
 @app.post("/api/messages")
 def send_message(
     data: MessageRequest,
-    request: Request,
+    authorization: str | None = Header(default=None),
+    msafiri_token: str | None = Cookie(default=None),
 ):
 
-    user = require_user(request)
-
-    if not data.text.strip():
-        raise HTTPException(
-            400,
-            "Message cannot be empty",
-        )
-
-    conn = db()
-
-    cur = conn.execute(
-        """
-        INSERT INTO messages
-        (sender_id,receiver_id,text,created_at)
-        VALUES(?,?,?,?)
-        """,
-        (
-            user["id"],
-            data.receiver_id,
-            data.text.strip(),
-            now(),
-        ),
+    user = require_user(
+        authorization,
+        msafiri_token,
     )
 
-    conn.commit()
-    conn.close()
+    text = clean_text(data.text, 10000)
+
+    if not text:
+        raise HTTPException(
+            status_code=400,
+            detail="Message cannot be empty.",
+        )
+
+    if user["id"] == data.receiver_id:
+        raise HTTPException(
+            status_code=400,
+            detail="You cannot message yourself.",
+        )
+
+    with db() as conn:
+
+        receiver = conn.execute(
+            """
+            SELECT id
+            FROM users
+            WHERE id = %s
+              AND deleted_at IS NULL
+            """,
+            (data.receiver_id,),
+        ).fetchone()
+
+        if not receiver:
+            raise HTTPException(
+                status_code=404,
+                detail="Receiver not found.",
+            )
+
+        blocked = conn.execute(
+            """
+            SELECT id
+            FROM blocks
+            WHERE
+                (
+                    blocker_id = %s
+                    AND blocked_id = %s
+                )
+                OR
+                (
+                    blocker_id = %s
+                    AND blocked_id = %s
+                )
+            LIMIT 1
+            """,
+            (
+                user["id"],
+                data.receiver_id,
+                data.receiver_id,
+                user["id"],
+            ),
+        ).fetchone()
+
+        if blocked:
+            raise HTTPException(
+                status_code=403,
+                detail="Messaging is blocked.",
+            )
+
+        message = conn.execute(
+            """
+            INSERT INTO messages
+                (
+                    sender_id,
+                    receiver_id,
+                    text
+                )
+            VALUES
+                (%s, %s, %s)
+            RETURNING *
+            """,
+            (
+                user["id"],
+                data.receiver_id,
+                text,
+            ),
+        ).fetchone()
+
+        conn.commit()
 
     return {
-        "message": "Message sent",
-        "id": cur.lastrowid,
+        "ok": True,
+        "message": message,
     }
 
 
-# =========================================================
-# VOICE MESSAGE
-# =========================================================
+# ============================================================
+# CHAT HISTORY
+# ============================================================
+
+@app.get("/api/messages/{other_user_id}")
+def get_messages(
+    other_user_id: int,
+    limit: int = Query(default=100, ge=1, le=200),
+    before_id: int | None = Query(default=None),
+    authorization: str | None = Header(default=None),
+    msafiri_token: str | None = Cookie(default=None),
+):
+
+    user = require_user(
+        authorization,
+        msafiri_token,
+    )
+
+    with db() as conn:
+
+        if before_id:
+
+            messages = conn.execute(
+                """
+                SELECT *
+                FROM messages
+                WHERE
+                    (
+                        sender_id = %s
+                        AND receiver_id = %s
+                    )
+                    OR
+                    (
+                        sender_id = %s
+                        AND receiver_id = %s
+                    )
+                AND id < %s
+                ORDER BY id DESC
+                LIMIT %s
+                """,
+                (
+                    user["id"],
+                    other_user_id,
+                    other_user_id,
+                    user["id"],
+                    before_id,
+                    limit,
+                ),
+            ).fetchall()
+
+        else:
+
+            messages = conn.execute(
+                """
+                SELECT *
+                FROM messages
+                WHERE
+                    (
+                        sender_id = %s
+                        AND receiver_id = %s
+                    )
+                    OR
+                    (
+                        sender_id = %s
+                        AND receiver_id = %s
+                    )
+                ORDER BY id DESC
+                LIMIT %s
+                """,
+                (
+                    user["id"],
+                    other_user_id,
+                    other_user_id,
+                    user["id"],
+                    limit,
+                ),
+            ).fetchall()
+
+        conn.execute(
+            """
+            UPDATE messages
+            SET read = TRUE
+            WHERE sender_id = %s
+              AND receiver_id = %s
+              AND read = FALSE
+            """,
+            (
+                other_user_id,
+                user["id"],
+            ),
+        )
+
+        conn.commit()
+
+    messages.reverse()
+
+    return {
+        "ok": True,
+        "messages": messages,
+    }
+
+
+# ============================================================
+# VOICE NOTE
+# ============================================================
 
 @app.post("/api/messages/voice")
-async def voice_message(
-    request: Request,
+async def send_voice_note(
     receiver_id: int = Form(...),
-    voice: UploadFile = File(...),
+    file: UploadFile = File(...),
+    authorization: str | None = Header(default=None),
+    msafiri_token: str | None = Cookie(default=None),
 ):
 
-    user = require_user(request)
-
-    voice_url, _ = await save_upload(
-        voice,
-        "voice",
-        ALLOWED_AUDIO,
+    user = require_user(
+        authorization,
+        msafiri_token,
     )
 
-    conn = db()
+    content_type = file.content_type or ""
 
-    cur = conn.execute(
-        """
-        INSERT INTO messages
-        (sender_id,receiver_id,voice_url,created_at)
-        VALUES(?,?,?,?)
-        """,
-        (
-            user["id"],
-            int(receiver_id),
-            voice_url,
-            now(),
-        ),
+    allowed_audio = (
+        content_type.startswith("audio/")
+        or content_type in {
+            "application/ogg",
+            "application/octet-stream",
+        }
     )
 
-    conn.commit()
-    conn.close()
-
-    return {
-        "message": "Voice note sent",
-        "voice_url": voice_url,
-        "id": cur.lastrowid,
-    }
-
-
-# =========================================================
-# AI
-# =========================================================
-
-class AIRequest(BaseModel):
-
-    council: str
-    question: str
-    country: Optional[str] = None
-    education_level: Optional[str] = None
-
-
-@app.post("/api/ai")
-def ai(data: AIRequest):
-
-    council = data.council.strip()
-
-    if not data.question.strip():
+    if not allowed_audio:
         raise HTTPException(
-            400,
-            "Question is required",
+            status_code=400,
+            detail="File must be an audio recording.",
         )
 
-    # -----------------------------------------------------
-    # AI PROVIDER CONNECTION
-    # -----------------------------------------------------
-    #
-    # This is intentionally a safe fallback.
-    #
-    # To connect a real AI provider, put its API call here.
-    #
-    # Do NOT put an API secret directly in this file.
-    # Use an environment variable on your hosting service.
-    #
-    # -----------------------------------------------------
+    filename = safe_filename(
+        file.filename or ".webm"
+    )
 
-    if council == "Education AI":
+    destination = VOICE_UPLOAD_DIR / filename
 
-        answer = (
-            "Education AI is ready. "
-            f"Curriculum: {data.country or 'Not specified'}. "
-            f"Level: {data.education_level or 'Not specified'}. "
-            f"Question received: {data.question}"
+    content = await file.read()
+
+    if len(content) > 50 * 1024 * 1024:
+        raise HTTPException(
+            status_code=400,
+            detail="Voice note is too large.",
         )
 
-    elif council == "Health AI":
+    destination.write_bytes(content)
 
-        answer = (
-            "Health AI can provide general educational "
-            "health information. It cannot replace a "
-            "qualified healthcare professional. "
-            f"Question received: {data.question}"
-        )
+    voice_url = f"/uploads/voice/{filename}"
 
-    elif council == "Agricultural AI":
+    with db() as conn:
 
-        answer = (
-            "Agricultural AI can provide educational "
-            "information about crops, soil, farming, "
-            "pests, irrigation and agricultural research. "
-            f"Question received: {data.question}"
-        )
+        receiver = conn.execute(
+            """
+            SELECT id
+            FROM users
+            WHERE id = %s
+              AND deleted_at IS NULL
+            """,
+            (receiver_id,),
+        ).fetchone()
 
-    elif council == "Research AI":
+        if not receiver:
+            raise HTTPException(
+                status_code=404,
+                detail="Receiver not found.",
+            )
 
-        answer = (
-            "Research AI can help with research questions, "
-            "study design, literature organization, "
-            "analysis ideas and academic explanations. "
-            f"Question received: {data.question}"
-        )
+        message = conn.execute(
+            """
+            INSERT INTO messages
+                (
+                    sender_id,
+                    receiver_id,
+                    voice_url,
+                    media_type
+                )
+            VALUES
+                (%s, %s, %s, 'voice')
+            RETURNING *
+            """,
+            (
+                user["id"],
+                receiver_id,
+                voice_url,
+            ),
+        ).fetchone()
 
-    else:
-
-        answer = (
-            f"AI Council '{council}' received your question: "
-            f"{data.question}"
-        )
+        conn.commit()
 
     return {
-        "answer": answer,
-        "council": council,
+        "ok": True,
+        "message": message,
+        "voice_url": voice_url,
     }
 
 
-# =========================================================
-# GOOGLE LOGIN FOUNDATION
-# =========================================================
+# ============================================================
+# CHAT WALLPAPER UPLOAD
+# ============================================================
 
-@app.get("/api/auth/google")
-def google_login():
+@app.post("/api/chats/{chat_user_id}/wallpaper")
+async def upload_chat_wallpaper(
+    chat_user_id: int,
+    file: UploadFile = File(...),
+    authorization: str | None = Header(default=None),
+    msafiri_token: str | None = Cookie(default=None),
+):
 
-    google_client_id = os.getenv(
-        "GOOGLE_CLIENT_ID"
+    user = require_user(
+        authorization,
+        msafiri_token,
     )
 
-    if not google_client_id:
+    content_type = file.content_type or ""
 
-        return {
-            "configured": False,
-            "message": (
-                "Google OAuth is not configured yet. "
-                "Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET "
-                "as environment variables."
+    if not content_type.startswith("image/"):
+        raise HTTPException(
+            status_code=400,
+            detail="Wallpaper must be an image.",
+        )
+
+    filename = safe_filename(
+        file.filename or ""
+    )
+
+    destination = WALLPAPER_UPLOAD_DIR / filename
+
+    content = await file.read()
+
+    if len(content) > 15 * 1024 * 1024:
+        raise HTTPException(
+            status_code=400,
+            detail="Wallpaper is too large. Maximum 15MB.",
+        )
+
+    destination.write_bytes(content)
+
+    wallpaper_url = (
+        f"/uploads/wallpapers/{filename}"
+    )
+
+    with db() as conn:
+
+        target = conn.execute(
+            """
+            SELECT id
+            FROM users
+            WHERE id = %s
+              AND deleted_at IS NULL
+            """,
+            (chat_user_id,),
+        ).fetchone()
+
+        if not target:
+            raise HTTPException(
+                status_code=404,
+                detail="Chat user not found.",
+            )
+
+        conn.execute(
+            """
+            INSERT INTO chat_settings
+                (
+                    user_id,
+                    chat_user_id,
+                    wallpaper_url,
+                    updated_at
+                )
+            VALUES
+                (
+                    %s,
+                    %s,
+                    %s,
+                    CURRENT_TIMESTAMP
+                )
+            ON CONFLICT
+                (user_id, chat_user_id)
+            DO UPDATE SET
+                wallpaper_url = EXCLUDED.wallpaper_url,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            (
+                user["id"],
+                chat_user_id,
+                wallpaper_url,
             ),
+        )
+
+        conn.commit()
+
+    return {
+        "ok": True,
+        "wallpaper_url": wallpaper_url,
+    }
+
+
+# ============================================================
+# GET CHAT SETTINGS
+# ============================================================
+
+@app.get("/api/chats/{chat_user_id}/settings")
+def get_chat_settings(
+    chat_user_id: int,
+    authorization: str | None = Header(default=None),
+    msafiri_token: str | None = Cookie(default=None),
+):
+
+    user = require_user(
+        authorization,
+        msafiri_token,
+    )
+
+    with db() as conn:
+
+        settings = conn.execute(
+            """
+            SELECT
+                wallpaper_url,
+                muted,
+                pinned,
+                blocked,
+                updated_at
+            FROM chat_settings
+            WHERE user_id = %s
+              AND chat_user_id = %s
+            LIMIT 1
+            """,
+            (
+                user["id"],
+                chat_user_id,
+            ),
+        ).fetchone()
+
+    if not settings:
+
+        settings = {
+            "wallpaper_url": None,
+            "muted": False,
+            "pinned": False,
+            "blocked": False,
+            "updated_at": None,
         }
 
     return {
-        "configured": True,
-        "message": "Google OAuth configuration detected.",
+        "ok": True,
+        "settings": settings,
     }
 
 
-# =========================================================
-# STARTUP INFO
-# =========================================================
+# ============================================================
+# UPDATE CHAT SETTINGS
+# ============================================================
 
-@app.get("/api")
-def api_info():
+@app.patch("/api/chats/{chat_user_id}/settings")
+def update_chat_settings(
+    chat_user_id: int,
+    data: ChatSettingsRequest,
+    authorization: str | None = Header(default=None),
+    msafiri_token: str | None = Cookie(default=None),
+):
+
+    user = require_user(
+        authorization,
+        msafiri_token,
+    )
+
+    with db() as conn:
+
+        target = conn.execute(
+            """
+            SELECT id
+            FROM users
+            WHERE id = %s
+              AND deleted_at IS NULL
+            """,
+            (chat_user_id,),
+        ).fetchone()
+
+        if not target:
+            raise HTTPException(
+                status_code=404,
+                detail="Chat user not found.",
+            )
+
+        current = conn.execute(
+            """
+            SELECT *
+            FROM chat_settings
+            WHERE user_id = %s
+              AND chat_user_id = %s
+            LIMIT 1
+            """,
+            (
+                user["id"],
+                chat_user_id,
+            ),
+        ).fetchone()
+
+        muted = (
+            data.muted
+            if data.muted is not None
+            else (
+                current["muted"]
+                if current
+                else False
+            )
+        )
+
+        pinned = (
+            data.pinned
+            if data.pinned is not None
+            else (
+                current["pinned"]
+                if current
+                else False
+            )
+        )
+
+        blocked = (
+            data.blocked
+            if data.blocked is not None
+            else (
+                current["blocked"]
+                if current
+                else False
+            )
+        )
+
+        wallpaper = (
+            current["wallpaper_url"]
+            if current
+            else None
+        )
+
+        settings = conn.execute(
+            """
+            INSERT INTO chat_settings
+                (
+                    user_id,
+                    chat_user_id,
+                    wallpaper_url,
+                    muted,
+                    pinned,
+                    blocked,
+                    updated_at
+                )
+            VALUES
+                (%s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+
+            ON CONFLICT
+                (user_id, chat_user_id)
+
+            DO UPDATE SET
+                muted = EXCLUDED.muted,
+                pinned = EXCLUDED.pinned,
+                blocked = EXCLUDED.blocked,
+                updated_at = CURRENT_TIMESTAMP
+
+            RETURNING *
+            """,
+            (
+                user["id"],
+                chat_user_id,
+                wallpaper,
+                muted,
+                pinned,
+                blocked,
+            ),
+        ).fetchone()
+
+        conn.commit()
 
     return {
-        "name": "MSAFIRI GLOBAL MEDIA V3",
-        "version": "3.0.0",
-        "status": "online",
-        "features": [
-            "authentication",
-            "profiles",
-            "posts",
-            "photo_upload",
-            "video_upload",
-            "likes",
-            "comments",
-            "saved_posts",
-            "reshares",
-            "status",
-            "chat",
-            "voice_notes",
-            "AI foundation",
-            "Google OAuth foundation",
-        ],
+        "ok": True,
+        "settings": settings,
     }
+
+
+# ============================================================
+# CLEAR CHAT
+# ============================================================
+
+@app.delete("/api/chats/{chat_user_id}")
+def clear_chat(
+    chat_user_id: int,
+    authorization: str | None = Header(default=None),
+    msafiri_token: str | None = Cookie(default=None),
+):
+
+    user = require_user(
+        authorization,
+        msafiri_token,
+    )
+
+    with db() as conn:
+
+        conn.execute(
+            """
+            UPDATE messages
+            SET deleted_for_sender = TRUE
+            WHERE sender_id = %s
+              AND receiver_id = %s
+            """,
+            (
+                user["id"],
+                chat_user_id,
+            ),
+        )
+
+        conn.execute(
+            """
+            UPDATE messages
+            SET deleted_for_receiver = TRUE
+            WHERE sender_id = %s
+              AND receiver_id = %s
+            """,
+            (
+                chat_user_id,
+                user["id"],
+            ),
+        )
+
+        conn.commit()
+
+    return {
+        "ok": True,
+        "message": "Chat cleared for this account.",
+    }
+
+
+# ============================================================
+# BLOCK USER
+# ============================================================
+
+@app.post("/api/users/{user_id}/block")
+def block_user(
+    user_id: int,
+    authorization: str | None = Header(default=None),
+    msafiri_token: str | None = Cookie(default=None),
+):
+
+    user = require_user(
+        authorization,
+        msafiri_token,
+    )
+
+    if user["id"] == user_id:
+        raise HTTPException(
+            status_code=400,
+            detail="You cannot block yourself.",
+        )
+
+    with db() as conn:
+
+        target = conn.execute(
+            """
+            SELECT id
+            FROM users
+            WHERE id = %s
+              AND deleted_at IS NULL
+            """,
+            (user_id,),
+        ).fetchone()
+
+        if not target:
+            raise HTTPException(
+                status_code=404,
+                detail="User not found.",
+            )
+
+        conn.execute(
+            """
+            INSERT INTO blocks
+                (
+                    blocker_id,
+                    blocked_id
+                )
+            VALUES
+                (%s, %s)
+            ON CONFLICT
+                (blocker_id, blocked_id)
+            DO NOTHING
+            """,
+            (
+                user["id"],
+                user_id,
+            ),
+        )
+
+        conn.commit()
+
+    return {
+        "ok": True,
+        "blocked": True,
+    }
+
+
+# ============================================================
+# UNBLOCK
+# ============================================================
+
+@app.delete("/api/users/{user_id}/block")
+def unblock_user(
+    user_id: int,
+    authorization: str | None = Header(default=None),
+    msafiri_token: str | None = Cookie(default=None),
+):
+
+    user = require_user(
+        authorization,
+        msafiri_token,
+    )
+
+    with db() as conn:
+
+        conn.execute(
+            """
+            DELETE FROM blocks
+            WHERE blocker_id = %s
+              AND blocked_id = %s
+            """,
+            (
+                user["id"],
+                user_id,
+            ),
+        )
+
+        conn.commit()
+
+    return {
+        "ok": True,
+        "blocked": False,
+    }
+
+
+# ============================================================
+# REPORT USER
+# ============================================================
+
+@app.post("/api/users/{user_id}/report")
+def report_user(
+    user_id: int,
+    data: ReportRequest,
+    authorization: str | None = Header(default=None),
+    msafiri_token: str | None = Cookie(default=None),
+):
+
+    user = require_user(
+        authorization,
+        msafiri_token,
+    )
+
+    reason = clean_text(
+        data.reason,
+        1000,
+    )
+
+    if not reason:
+        raise HTTPException(
+            status_code=400,
+            detail="Report reason is required.",
+        )
+
+    with db() as conn:
+
+        conn.execute(
+            """
+            INSERT INTO reports
+                (
+                    reporter_id,
+                    reported_user_id,
+                    reason
+                )
+            VALUES
+                (%s, %s, %s)
+            """,
+            (
+                user["id"],
+                user_id,
+                reason,
+            ),
+        )
+
+        conn.commit()
+
+    return {
+        "ok": True,
+        "message": "Report submitted.",
+    }
+
+
+# ============================================================
+# REPORT POST
+# ============================================================
+
+@app.post("/api/posts/{post_id}/report")
+def report_post(
+    post_id: int,
+    data: ReportRequest,
+    authorization: str | None = Header(default=None),
+    msafiri_token: str | None = Cookie(default=None),
+):
+
+    user = require_user(
+        authorization,
+        msafiri_token,
+    )
+
+    reason = clean_text(
+        data.reason,
+        1000,
+    )
+
+    if not reason:
+        raise HTTPException(
+            status_code=400,
+            detail="Report reason is required.",
+        )
+
+    with db() as conn:
+
+        conn.execute(
+            """
+            INSERT INTO reports
+                (
+                    reporter_id,
+                    post_id,
+                    reason
+                )
+            VALUES
+                (%s, %s, %s)
+            """,
+            (
+                user["id"],
+                post_id,
+                reason,
+            ),
+        )
+
+        conn.commit()
+
+    return {
+        "ok": True,
+        "message": "Report submitted.",
+    }
+
+
+# ============================================================
+# LIVEKIT CALL TOKEN
+# ============================================================
+
+@app.post("/api/calls/token")
+def create_call_token(
+    data: CallRequest,
+    authorization: str | None = Header(default=None),
+    msafiri_token: str | None = Cookie(default=None),
+):
+
+    user = require_user(
+        authorization,
+        msafiri_token,
+    )
+
+    call_type = data.call_type.lower().strip()
+
+    if call_type not in {
+        "voice",
+        "video",
+    }:
+        raise HTTPException(
+            status_code=400,
+            detail="call_type must be voice or video.",
+        )
+
+    if not (
+        LIVEKIT_URL
+        and LIVEKIT_API_KEY
+        and LIVEKIT_API_SECRET
+    ):
+        raise HTTPException(
+            status_code=503,
+            detail="LiveKit is not configured on the server.",
+        )
+
+    if user["id"] == data.receiver_id:
+        raise HTTPException(
+            status_code=400,
+            detail="You cannot call yourself.",
+        )
+
+    with db() as conn:
+
+        receiver = conn.execute(
+            """
+            SELECT
+                id,
+                name,
+                avatar
+            FROM users
+            WHERE id = %s
+              AND deleted_at IS NULL
+            """,
+            (data.receiver_id,),
+        ).fetchone()
+
+        if not receiver:
+            raise HTTPException(
+                status_code=404,
+                detail="Receiver not found.",
+            )
+
+        blocked = conn.execute(
+            """
+            SELECT id
+            FROM blocks
+            WHERE
+                (
+                    blocker_id = %s
+                    AND blocked_id = %s
+                )
+                OR
+                (
+                    blocker_id = %s
+                    AND blocked_id = %s
+                )
+            LIMIT 1
+            """,
+            (
+                user["id"],
+                data.receiver_id,
+                data.receiver_id,
+                user["id"],
+            ),
+        ).fetchone()
+
+        if blocked:
+            raise HTTPException(
+                status_code=403,
+                detail="Calling is blocked.",
+            )
+
+        call_id = uuid.uuid4()
+
+        room_name = (
+            f"msg-{call_id.hex}"
+        )
+
+        conn.execute(
+            """
+            INSERT INTO call_sessions
+                (
+                    id,
+                    caller_id,
+                    receiver_id,
+                    room_name,
+                    call_type,
+                    status
+                )
+            VALUES
+                (
+                    %s,
+                    %s,
+                    %s,
+                    %s,
+                    %s,
+                    'calling'
+                )
+            """,
+            (
+                call_id,
+                user["id"],
+                data.receiver_id,
+                room_name,
+                call_type,
+            ),
+        )
+
+        conn.commit()
+
+    # --------------------------------------------------------
+    # LIVEKIT TOKEN
+    # --------------------------------------------------------
+
+    identity = f"user-{user['id']}"
+
+    token = (
+        api.AccessToken(
+            LIVEKIT_API_KEY,
+            LIVEKIT_API_SECRET,
+        )
+        .with_identity(identity)
+        .with_name(user["name"])
+        .with_grants(
+            api.VideoGrants(
+                room_join=True,
+                room=room_name,
+            )
+        )
+        .to_jwt()
+    )
+
+    return {
+        "ok": True,
+        "call_id": str(call_id),
+        "room": room_name,
+        "token": token,
+        "livekit_url": LIVEKIT_URL,
+        "call_type": call_type,
+        "caller": {
+            "id": user["id"],
+            "name": user["name"],
+            "avatar": user["avatar"],
+        },
+        "receiver": receiver,
+    }
+
+
+# ============================================================
+# UPDATE CALL STATUS
+# ============================================================
+
+@app.patch("/api/calls/{call_id}")
+def update_call(
+    call_id: str,
+    status: str = Query(...),
+    authorization: str | None = Header(default=None),
+    msafiri_token: str | None = Cookie(default=None),
+):
+
+    user = require_user(
+        authorization,
+        msafiri_token,
+    )
+
+    allowed = {
+        "calling",
+        "ringing",
+        "connected",
+        "ended",
+        "rejected",
+        "missed",
+    }
+
+    status = status.lower().strip()
+
+    if status not in allowed:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid call status.",
+        )
+
+    try:
+        call_uuid = uuid.UUID(call_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid call ID.",
+        )
+
+    with db() as conn:
+
+        call = conn.execute(
+            """
+            SELECT *
+            FROM call_sessions
+            WHERE id = %s
+              AND (
+                    caller_id = %s
+                    OR receiver_id = %s
+                  )
+            LIMIT 1
+            """,
+            (
+                call_uuid,
+                user["id"],
+                user["id"],
+            ),
+        ).fetchone()
+
+        if not call:
+            raise HTTPException(
+                status_code=404,
+                detail="Call not found.",
+            )
+
+        if status == "connected":
+
+            updated = conn.execute(
+                """
+                UPDATE call_sessions
+                SET
+                    status = %s,
+                    started_at = COALESCE(
+                        started_at,
+                        CURRENT_TIMESTAMP
+                    )
+                WHERE id = %s
+                RETURNING *
+                """,
+                (
+                    status,
+                    call_uuid,
+                ),
+            ).fetchone()
+
+        elif status in {
+            "ended",
+            "rejected",
+            "missed",
+        }:
+
+            updated = conn.execute(
+                """
+                UPDATE call_sessions
+                SET
+                    status = %s,
+                    ended_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+                RETURNING *
+                """,
+                (
+                    status,
+                    call_uuid,
+                ),
+            ).fetchone()
+
+        else:
+
+            updated = conn.execute(
+                """
+                UPDATE call_sessions
+                SET status = %s
+                WHERE id = %s
+                RETURNING *
+                """,
+                (
+                    status,
+                    call_uuid,
+                ),
+            ).fetchone()
+
+        conn.commit()
+
+    return {
+        "ok": True,
+        "call": updated,
+    }
+
+
+# ============================================================
+# CALL HISTORY
+# ============================================================
+
+@app.get("/api/calls/history")
+def call_history(
+    limit: int = Query(default=50, ge=1, le=100),
+    authorization: str | None = Header(default=None),
+    msafiri_token: str | None = Cookie(default=None),
+):
+
+    user = require_user(
+        authorization,
+        msafiri_token,
+    )
+
+    with db() as conn:
+
+        calls = conn.execute(
+            """
+            SELECT
+                c.*,
+
+                caller.name AS caller_name,
+                caller.avatar AS caller_avatar,
+
+                receiver.name AS receiver_name,
+                receiver.avatar AS receiver_avatar
+
+            FROM call_sessions c
+
+            JOIN users caller
+                ON caller.id = c.caller_id
+
+            JOIN users receiver
+                ON receiver.id = c.receiver_id
+
+            WHERE
+                c.caller_id = %s
+                OR c.receiver_id = %s
+
+            ORDER BY c.created_at DESC
+
+            LIMIT %s
+            """,
+            (
+                user["id"],
+                user["id"],
+                limit,
+            ),
+        ).fetchall()
+
+    return {
+        "ok": True,
+        "calls": calls,
+    }
+
+
+# ============================================================
+# RUN DIRECTLY
+# ============================================================
+
+if __name__ == "__main__":
+
+    import uvicorn
+
+    port = int(
+        os.getenv(
+            "PORT",
+            "8000",
+        )
+    )
+
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=port,
+        reload=False,
+    )

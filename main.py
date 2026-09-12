@@ -1275,7 +1275,7 @@ def update_profile(
 # ============================================================
 
 @app.post("/api/profile/avatar")
-def upload_avatar(
+async def upload_avatar(
     file: UploadFile = File(...),
     authorization: str | None = Header(default=None),
     msafiri_token: str | None = Cookie(default=None),

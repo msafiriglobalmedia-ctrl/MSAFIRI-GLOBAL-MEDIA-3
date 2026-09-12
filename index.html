@@ -4,23 +4,23 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#050817">
-<meta name="description" content="MSAFIRI GLOBAL MEDIA V4">
+<meta name="description" content="MSAFIRI GLOBAL MEDIA V4 - Connect Beyond">
 <title>MSAFIRI GLOBAL MEDIA V4</title>
 
 <style>
 :root{
   --bg:#050817;
   --card:#0b1227;
-  --card2:#101a34;
-  --line:#243252;
-  --text:#f4f7ff;
+  --card2:#101a35;
+  --line:#26375f;
+  --text:#f5f7ff;
   --muted:#9ca8c7;
-  --accent:#ff8a00;
-  --accent2:#ff4d3d;
-  --green:#20d37a;
-  --danger:#ff4d5e;
-  --blue:#3d8bff;
-  --shadow:0 10px 30px rgba(0,0,0,.25);
+  --primary:#ff7a18;
+  --primary2:#e94d3d;
+  --green:#22c55e;
+  --danger:#ef4444;
+  --blue:#3b82f6;
+  --shadow:0 10px 35px rgba(0,0,0,.25);
   --radius:18px;
 }
 
@@ -32,7 +32,6 @@
 html,body{
   margin:0;
   padding:0;
-  width:100%;
   min-height:100%;
   background:var(--bg);
   color:var(--text);
@@ -45,7 +44,8 @@ body{
 
 button,
 input,
-textarea{
+textarea,
+select{
   font:inherit;
 }
 
@@ -61,540 +61,700 @@ button{
   min-height:100vh;
 }
 
-.auth{
-  min-height:100vh;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding:20px;
-  background:
-    radial-gradient(circle at top left,rgba(255,138,0,.12),transparent 35%),
-    radial-gradient(circle at bottom right,rgba(61,139,255,.12),transparent 35%),
-    var(--bg);
-}
-
-.auth-card{
-  width:min(430px,100%);
-  background:var(--card);
-  border:1px solid var(--line);
-  border-radius:24px;
-  padding:25px;
-  box-shadow:var(--shadow);
-}
-
-.brand{
-  text-align:center;
-  margin-bottom:25px;
-}
-
-.brand-logo{
-  width:68px;
-  height:68px;
+.container{
+  width:min(100%,1100px);
   margin:auto;
-  border-radius:20px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-size:32px;
-  font-weight:900;
-  background:linear-gradient(135deg,var(--accent),var(--accent2));
-  color:white;
+  padding:14px;
 }
 
-.brand h1{
-  margin:14px 0 5px;
-  font-size:25px;
-}
-
-.brand p{
-  margin:0;
-  color:var(--muted);
-  font-size:13px;
-}
-
-.tabs{
-  display:flex;
-  gap:8px;
-  margin-bottom:18px;
-}
-
-.tab{
-  flex:1;
-  border:1px solid var(--line);
-  background:var(--card2);
-  color:var(--muted);
-  padding:11px;
-  border-radius:12px;
-}
-
-.tab.active{
-  color:white;
-  background:linear-gradient(135deg,var(--accent),var(--accent2));
-  border-color:transparent;
-}
-
-.form{
-  display:flex;
-  flex-direction:column;
-  gap:12px;
-}
-
-.input,
-.textarea{
-  width:100%;
-  border:1px solid var(--line);
-  outline:none;
-  background:#071025;
-  color:white;
-  border-radius:12px;
-  padding:13px 14px;
-}
-
-.textarea{
-  resize:vertical;
-  min-height:90px;
-}
-
-.input:focus,
-.textarea:focus{
-  border-color:var(--accent);
-}
-
-.primary{
-  border:0;
-  color:white;
-  padding:13px 16px;
-  border-radius:12px;
-  font-weight:700;
-  background:linear-gradient(135deg,var(--accent),var(--accent2));
-}
-
-.secondary{
-  border:1px solid var(--line);
-  color:white;
-  background:var(--card2);
-  padding:11px 14px;
-  border-radius:12px;
-}
-
-.danger{
-  border:1px solid rgba(255,77,94,.4);
-  color:#ff7c89;
-  background:rgba(255,77,94,.08);
-  padding:11px 14px;
-  border-radius:12px;
-}
-
-.small{
-  font-size:12px;
-}
-
-.muted{
-  color:var(--muted);
-}
-
-.app-shell{
-  min-height:100vh;
-}
+/* =========================
+   HEADER
+========================= */
 
 .topbar{
   position:sticky;
   top:0;
-  z-index:50;
-  height:62px;
+  z-index:100;
   background:rgba(5,8,23,.96);
   border-bottom:1px solid var(--line);
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:0 15px;
+  backdrop-filter:blur(12px);
 }
 
-.top-brand{
+.topbar-inner{
+  width:min(100%,1100px);
+  margin:auto;
+  min-height:62px;
+  padding:10px 14px;
   display:flex;
   align-items:center;
-  gap:10px;
+  gap:12px;
+}
+
+.brand{
+  display:flex;
+  align-items:center;
+  gap:9px;
   font-weight:800;
+  white-space:nowrap;
 }
 
-.top-logo{
+.brand-icon{
   width:38px;
   height:38px;
-  border-radius:11px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  border-radius:12px;
+  display:grid;
+  place-items:center;
+  background:linear-gradient(135deg,var(--primary),var(--primary2));
+  color:#fff;
+  font-size:20px;
   font-weight:900;
 }
 
+.brand-text{
+  font-size:15px;
+}
+
+.search{
+  flex:1;
+  min-width:80px;
+}
+
+.search input{
+  width:100%;
+  background:#0d1530;
+  border:1px solid var(--line);
+  color:var(--text);
+  border-radius:14px;
+  padding:11px 13px;
+  outline:none;
+}
+
+.search input:focus{
+  border-color:var(--primary);
+}
+
 .icon-btn{
+  border:1px solid var(--line);
+  background:#0d1530;
+  color:var(--text);
+  width:42px;
+  height:42px;
+  border-radius:13px;
+  display:grid;
+  place-items:center;
+}
+
+.avatar-small{
   width:40px;
   height:40px;
   border-radius:50%;
+  object-fit:cover;
+  background:#182342;
   border:1px solid var(--line);
-  background:var(--card2);
+}
+
+/* =========================
+   AUTH
+========================= */
+
+.auth-wrap{
+  min-height:100vh;
+  display:grid;
+  place-items:center;
+  padding:20px;
+}
+
+.auth-card{
+  width:min(100%,430px);
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:24px;
+  padding:24px;
+  box-shadow:var(--shadow);
+}
+
+.auth-logo{
+  width:72px;
+  height:72px;
+  border-radius:22px;
+  display:grid;
+  place-items:center;
+  margin:0 auto 15px;
+  font-size:35px;
+  font-weight:900;
+  background:linear-gradient(135deg,var(--primary),var(--primary2));
+}
+
+.auth-title{
+  text-align:center;
+  margin:0 0 7px;
+  font-size:25px;
+}
+
+.auth-subtitle{
+  text-align:center;
+  color:var(--muted);
+  margin:0 0 22px;
+  font-size:14px;
+}
+
+.tabs{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  background:#080e22;
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:4px;
+  margin-bottom:18px;
+}
+
+.tab{
+  border:0;
+  background:transparent;
+  color:var(--muted);
+  padding:10px;
+  border-radius:10px;
+}
+
+.tab.active{
+  background:linear-gradient(135deg,var(--primary),var(--primary2));
   color:white;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-size:18px;
+  font-weight:700;
+}
+
+.field{
+  margin-bottom:13px;
+}
+
+.field label{
+  display:block;
+  color:#cdd5ec;
+  font-size:13px;
+  margin-bottom:7px;
+}
+
+.field input,
+.field textarea,
+.field select{
+  width:100%;
+  border:1px solid var(--line);
+  background:#080e22;
+  color:var(--text);
+  padding:12px;
+  border-radius:13px;
+  outline:none;
+}
+
+.field textarea{
+  min-height:100px;
+  resize:vertical;
+}
+
+.field input:focus,
+.field textarea:focus,
+.field select:focus{
+  border-color:var(--primary);
+}
+
+.primary-btn,
+.secondary-btn,
+.danger-btn{
+  border:0;
+  border-radius:13px;
+  padding:12px 16px;
+  font-weight:700;
+  color:white;
+}
+
+.primary-btn{
+  background:linear-gradient(135deg,var(--primary),var(--primary2));
+}
+
+.secondary-btn{
+  background:#162342;
+  border:1px solid var(--line);
+}
+
+.danger-btn{
+  background:var(--danger);
+}
+
+.full{
+  width:100%;
+}
+
+.auth-message{
+  min-height:20px;
+  color:#ffb4a8;
+  font-size:13px;
+  margin-top:10px;
+  text-align:center;
+}
+
+/* =========================
+   NAVIGATION
+========================= */
+
+.bottom-nav{
+  position:fixed;
+  bottom:0;
+  left:0;
+  right:0;
+  z-index:120;
+  background:rgba(5,8,23,.97);
+  border-top:1px solid var(--line);
+  padding:7px max(7px,env(safe-area-inset-right))
+           calc(7px + env(safe-area-inset-bottom))
+           max(7px,env(safe-area-inset-left));
+}
+
+.bottom-nav-inner{
+  width:min(100%,700px);
+  margin:auto;
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:4px;
+}
+
+.nav-btn{
+  border:0;
+  background:transparent;
+  color:var(--muted);
+  padding:7px 3px;
+  border-radius:12px;
+  font-size:11px;
+}
+
+.nav-btn span{
+  display:block;
+  font-size:19px;
+  margin-bottom:2px;
+}
+
+.nav-btn.active{
+  color:#fff;
+  background:#111d3b;
 }
 
 .main{
-  width:min(1100px,100%);
-  margin:auto;
-  padding:15px 15px 85px;
+  padding-bottom:85px;
 }
 
-.view{
-  display:none;
+/* =========================
+   PAGE
+========================= */
+
+.page-title{
+  font-size:23px;
+  margin:8px 0 15px;
 }
 
-.view.active{
-  display:block;
-}
-
-.section-title{
-  font-size:21px;
-  margin:5px 0 15px;
+.section{
+  margin-bottom:18px;
 }
 
 .card{
   background:var(--card);
   border:1px solid var(--line);
   border-radius:var(--radius);
-  box-shadow:var(--shadow);
-}
-
-.create-post{
   padding:15px;
-  margin-bottom:15px;
+  box-shadow:0 5px 25px rgba(0,0,0,.12);
 }
 
-.create-top{
+.row{
   display:flex;
+  align-items:center;
   gap:10px;
-  align-items:flex-start;
 }
 
-.avatar{
-  width:45px;
-  height:45px;
-  border-radius:50%;
-  object-fit:cover;
-  background:#1c2948;
-  border:1px solid var(--line);
-  flex:none;
+.row-between{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
 }
 
-.avatar.big{
-  width:80px;
-  height:80px;
+.muted{
+  color:var(--muted);
 }
 
-.avatar.small{
-  width:38px;
-  height:38px;
+.small{
+  font-size:12px;
 }
 
-.post-input{
-  flex:1;
-  background:#071025;
+.empty{
+  text-align:center;
+  padding:35px 15px;
+  color:var(--muted);
+}
+
+/* =========================
+   POST CREATOR
+========================= */
+
+.composer textarea{
+  width:100%;
+  min-height:85px;
+  background:#080e22;
+  color:var(--text);
   border:1px solid var(--line);
   border-radius:14px;
   padding:13px;
-  color:var(--muted);
-  cursor:text;
-  min-height:50px;
+  resize:vertical;
+  outline:none;
 }
 
-.file-row{
+.composer-tools{
   display:flex;
-  gap:8px;
   flex-wrap:wrap;
-  margin-top:12px;
+  align-items:center;
+  gap:8px;
+  margin-top:10px;
 }
 
-.file-btn{
+.file-label{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  background:#162342;
   border:1px solid var(--line);
-  background:var(--card2);
-  color:white;
-  border-radius:11px;
-  padding:9px 12px;
+  padding:10px 12px;
+  border-radius:12px;
+  color:#e8edff;
+  font-size:13px;
 }
 
-.file-name{
-  color:var(--muted);
-  font-size:12px;
-  padding:9px 3px;
+.file-label input{
+  display:none;
 }
+
+.preview-box{
+  margin-top:10px;
+  display:none;
+}
+
+.preview-box img,
+.preview-box video{
+  width:100%;
+  max-height:420px;
+  object-fit:contain;
+  background:#02040b;
+  border-radius:14px;
+}
+
+/* =========================
+   POST
+========================= */
 
 .post{
-  padding:15px;
   margin-bottom:14px;
 }
 
 .post-head{
   display:flex;
   align-items:center;
+  justify-content:space-between;
   gap:10px;
 }
 
 .post-user{
-  flex:1;
+  display:flex;
+  align-items:center;
+  gap:10px;
 }
 
-.post-user strong{
-  display:block;
-  font-size:14px;
+.post-avatar{
+  width:44px;
+  height:44px;
+  border-radius:50%;
+  object-fit:cover;
+  background:#182342;
 }
 
-.post-user span{
+.post-name{
+  font-weight:700;
+}
+
+.post-time{
   color:var(--muted);
   font-size:11px;
+  margin-top:3px;
 }
 
 .post-caption{
-  margin:13px 0;
-  line-height:1.5;
   white-space:pre-wrap;
-  overflow-wrap:anywhere;
+  line-height:1.5;
+  margin:13px 0;
 }
 
 .post-media{
   width:100%;
   max-height:600px;
   object-fit:contain;
-  background:#03050d;
-  border-radius:14px;
-  border:1px solid var(--line);
+  background:#02040b;
+  border-radius:15px;
+  display:block;
 }
 
 .post-actions{
   display:flex;
-  gap:5px;
+  gap:4px;
+  flex-wrap:wrap;
   margin-top:10px;
-  overflow-x:auto;
+  padding-top:8px;
+  border-top:1px solid #182645;
 }
 
-.action{
-  flex:1;
-  min-width:65px;
+.action-btn{
   border:0;
   background:transparent;
-  color:var(--muted);
-  padding:9px 5px;
+  color:#b9c4df;
+  padding:8px 9px;
   border-radius:10px;
+  font-size:13px;
 }
 
-.action:hover{
-  background:var(--card2);
-  color:white;
+.action-btn:hover{
+  background:#111d3b;
 }
 
-.action.liked{
-  color:#ff6474;
+.action-btn.active{
+  color:#ff8b70;
 }
 
 .comments{
   margin-top:10px;
-  border-top:1px solid var(--line);
+  border-top:1px solid #182645;
   padding-top:10px;
 }
 
 .comment{
   display:flex;
   gap:8px;
-  margin-bottom:9px;
+  margin:8px 0;
+}
+
+.comment-avatar{
+  width:30px;
+  height:30px;
+  border-radius:50%;
+  object-fit:cover;
 }
 
 .comment-body{
-  background:var(--card2);
+  background:#101a35;
   border-radius:12px;
   padding:8px 10px;
   flex:1;
+}
+
+.comment-name{
+  font-size:12px;
+  font-weight:700;
+}
+
+.comment-text{
   font-size:13px;
+  margin-top:3px;
 }
 
 .comment-form{
   display:flex;
   gap:7px;
-  margin-top:10px;
+  margin-top:9px;
 }
 
 .comment-form input{
   flex:1;
-}
-
-.bottom-nav{
-  position:fixed;
-  z-index:100;
-  bottom:0;
-  left:0;
-  right:0;
-  height:66px;
-  background:rgba(5,8,23,.98);
-  border-top:1px solid var(--line);
-  display:flex;
-  justify-content:center;
-}
-
-.bottom-inner{
-  width:min(600px,100%);
-  display:flex;
-}
-
-.nav-btn{
-  flex:1;
-  border:0;
-  background:transparent;
-  color:var(--muted);
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  gap:3px;
-  font-size:11px;
-}
-
-.nav-btn span:first-child{
-  font-size:20px;
-}
-
-.nav-btn.active{
+  min-width:0;
+  background:#080e22;
+  border:1px solid var(--line);
   color:white;
+  border-radius:12px;
+  padding:10px;
+  outline:none;
 }
+
+/* =========================
+   PROFILE
+========================= */
+
+.profile-cover{
+  height:145px;
+  border-radius:18px;
+  background:
+    radial-gradient(circle at 20% 20%,#ff7a18,transparent 35%),
+    radial-gradient(circle at 80% 80%,#e94d3d,transparent 35%),
+    #111d3b;
+  margin-bottom:-45px;
+}
+
+.profile-info{
+  position:relative;
+  padding:0 5px;
+}
+
+.profile-avatar{
+  width:92px;
+  height:92px;
+  border-radius:50%;
+  object-fit:cover;
+  border:4px solid var(--card);
+  background:#182342;
+}
+
+.profile-name{
+  font-size:22px;
+  font-weight:800;
+  margin-top:8px;
+}
+
+.profile-bio{
+  color:var(--muted);
+  white-space:pre-wrap;
+  margin:7px 0;
+}
+
+.profile-stats{
+  display:flex;
+  gap:22px;
+  margin:15px 0;
+}
+
+.stat{
+  text-align:center;
+}
+
+.stat b{
+  display:block;
+  font-size:18px;
+}
+
+.stat span{
+  color:var(--muted);
+  font-size:12px;
+}
+
+/* =========================
+   CHAT
+========================= */
 
 .chat-layout{
   display:grid;
-  grid-template-columns:330px 1fr;
-  min-height:calc(100vh - 100px);
+  grid-template-columns:300px 1fr;
+  min-height:calc(100vh - 160px);
   gap:12px;
 }
 
 .chat-list{
-  overflow:hidden;
+  overflow:auto;
+  max-height:calc(100vh - 180px);
 }
 
-.chat-search{
-  padding:12px;
-  border-bottom:1px solid var(--line);
-}
-
-.chat-items{
-  max-height:calc(100vh - 190px);
-  overflow-y:auto;
-}
-
-.chat-item{
+.chat-user{
+  width:100%;
   display:flex;
   align-items:center;
   gap:10px;
-  padding:12px;
-  border-bottom:1px solid rgba(36,50,82,.5);
-  cursor:pointer;
+  border:0;
+  border-bottom:1px solid #182645;
+  background:transparent;
+  color:white;
+  text-align:left;
+  padding:12px 4px;
 }
 
-.chat-item:hover,
-.chat-item.active{
-  background:var(--card2);
+.chat-user:hover,
+.chat-user.active{
+  background:#111d3b;
 }
 
-.chat-info{
-  min-width:0;
+.chat-avatar{
+  width:45px;
+  height:45px;
+  border-radius:50%;
+  object-fit:cover;
+}
+
+.chat-user-info{
   flex:1;
+  min-width:0;
 }
 
-.chat-info strong{
-  display:block;
+.chat-user-name{
+  font-weight:700;
+}
+
+.chat-preview{
+  color:var(--muted);
+  font-size:12px;
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
 }
 
-.chat-info small{
-  color:var(--muted);
-}
-
 .chat-window{
+  min-width:0;
   display:flex;
   flex-direction:column;
-  min-height:calc(100vh - 100px);
-  overflow:hidden;
+  min-height:calc(100vh - 180px);
 }
 
-.chat-header{
-  height:64px;
+.chat-head{
+  padding:10px;
+  border-bottom:1px solid var(--line);
   display:flex;
   align-items:center;
   gap:10px;
-  padding:8px 10px;
-  border-bottom:1px solid var(--line);
-  background:var(--card);
 }
 
-.chat-header-info{
+.chat-head-info{
   flex:1;
   min-width:0;
 }
 
-.chat-header-info strong{
-  display:block;
-}
-
-.chat-header-info small{
-  color:var(--green);
-}
-
-.chat-header-actions{
+.chat-head-actions{
   display:flex;
-  gap:4px;
+  gap:5px;
 }
 
-.chat-header-actions .icon-btn{
-  width:36px;
-  height:36px;
-  font-size:16px;
-  border:0;
-}
-
-.messages{
+.chat-messages{
   flex:1;
-  min-height:350px;
   overflow-y:auto;
-  padding:15px;
+  padding:15px 5px;
+  display:flex;
+  flex-direction:column;
+  gap:7px;
   background-size:cover;
   background-position:center;
+  border-radius:12px;
 }
 
 .message{
-  display:flex;
-  margin-bottom:8px;
+  max-width:78%;
+  padding:9px 11px;
+  border-radius:14px;
+  word-break:break-word;
+  line-height:1.4;
 }
 
 .message.mine{
-  justify-content:flex-end;
+  align-self:flex-end;
+  background:#164f3c;
+  border-bottom-right-radius:4px;
 }
 
-.bubble{
-  max-width:min(75%,520px);
-  padding:9px 11px;
-  border-radius:15px;
-  background:#172442;
-  overflow-wrap:anywhere;
-}
-
-.mine .bubble{
-  background:#075e54;
+.message.theirs{
+  align-self:flex-start;
+  background:#17223e;
+  border-bottom-left-radius:4px;
 }
 
 .message-time{
-  display:block;
-  text-align:right;
   font-size:9px;
-  color:#b8c3da;
-  margin-top:3px;
+  color:#aeb9d4;
+  text-align:right;
+  margin-top:4px;
 }
 
 .voice-message{
@@ -605,335 +765,239 @@ button{
 
 .voice-message audio{
   max-width:210px;
-  height:35px;
 }
 
-.chat-composer{
-  padding:9px;
+.chat-input{
   display:flex;
-  align-items:center;
   gap:7px;
-  background:var(--card);
-  border-top:1px solid var(--line);
+  padding-top:10px;
 }
 
-.chat-composer input{
+.chat-input input{
   flex:1;
   min-width:0;
-  border:1px solid var(--line);
-  background:#071025;
+  background:#080e22;
   color:white;
-  border-radius:22px;
-  padding:11px 14px;
+  border:1px solid var(--line);
+  border-radius:13px;
+  padding:11px;
   outline:none;
 }
 
-.round-btn{
-  width:42px;
-  height:42px;
-  border-radius:50%;
-  border:1px solid var(--line);
-  background:var(--card2);
-  color:white;
+.recording{
+  color:#ff7163;
+  font-weight:700;
 }
 
-.send-btn{
-  background:linear-gradient(135deg,var(--accent),var(--accent2));
-  border:0;
+/* =========================
+   USER SEARCH
+========================= */
+
+.user-result{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:11px 0;
+  border-bottom:1px solid #182645;
 }
 
-.menu{
-  position:fixed;
-  z-index:300;
-  right:15px;
-  top:70px;
-  width:240px;
-  background:var(--card);
-  border:1px solid var(--line);
-  border-radius:15px;
-  box-shadow:var(--shadow);
-  overflow:hidden;
+.user-result:last-child{
+  border-bottom:0;
 }
 
-.menu button{
-  width:100%;
-  padding:13px;
-  text-align:left;
-  border:0;
-  background:transparent;
-  color:white;
+.user-result-info{
+  flex:1;
 }
 
-.menu button:hover{
-  background:var(--card2);
+/* =========================
+   SETTINGS
+========================= */
+
+.settings-item{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:15px 0;
+  border-bottom:1px solid #182645;
 }
 
-.modal-bg{
+.settings-item:last-child{
+  border-bottom:0;
+}
+
+.settings-info b{
+  display:block;
+  margin-bottom:4px;
+}
+
+.settings-info span{
+  color:var(--muted);
+  font-size:12px;
+}
+
+/* =========================
+   MODAL
+========================= */
+
+.modal-backdrop{
   position:fixed;
   inset:0;
   z-index:500;
   background:rgba(0,0,0,.72);
-  display:flex;
+  display:none;
   align-items:center;
   justify-content:center;
-  padding:18px;
+  padding:15px;
+}
+
+.modal-backdrop.show{
+  display:flex;
 }
 
 .modal{
-  width:min(480px,100%);
+  width:min(100%,520px);
   max-height:90vh;
   overflow:auto;
   background:var(--card);
   border:1px solid var(--line);
   border-radius:20px;
   padding:18px;
+  box-shadow:var(--shadow);
 }
 
 .modal-head{
   display:flex;
-  justify-content:space-between;
   align-items:center;
-  margin-bottom:15px;
+  justify-content:space-between;
+  margin-bottom:14px;
 }
 
 .modal-head h3{
   margin:0;
 }
 
-.profile-card{
+/* =========================
+   TOAST
+========================= */
+
+.toast{
+  position:fixed;
+  left:50%;
+  bottom:90px;
+  transform:translateX(-50%);
+  z-index:1000;
+  background:#182342;
+  border:1px solid var(--line);
+  color:white;
+  padding:11px 15px;
+  border-radius:12px;
+  display:none;
+  max-width:90%;
+  text-align:center;
+  box-shadow:var(--shadow);
+}
+
+.toast.show{
+  display:block;
+}
+
+/* =========================
+   CALL
+========================= */
+
+.call-box{
+  text-align:center;
   padding:20px;
 }
 
-.profile-head{
-  display:flex;
-  align-items:center;
-  gap:15px;
-}
-
-.profile-info{
-  flex:1;
-}
-
-.profile-info h2{
-  margin:0 0 4px;
-}
-
-.profile-info p{
-  margin:0;
-  color:var(--muted);
-}
-
-.profile-actions{
-  display:flex;
-  gap:8px;
-  flex-wrap:wrap;
-  margin-top:18px;
-}
-
-.settings-list{
-  margin-top:15px;
-  overflow:hidden;
-}
-
-.setting{
-  width:100%;
-  padding:15px;
-  background:transparent;
-  color:white;
-  border:0;
-  border-bottom:1px solid var(--line);
-  text-align:left;
-}
-
-.setting:last-child{
-  border-bottom:0;
-}
-
-.call-screen{
-  position:fixed;
-  inset:0;
-  z-index:800;
-  background:#03050d;
-  display:flex;
-  flex-direction:column;
-}
-
-.call-top{
-  height:65px;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:10px 15px;
-  background:#070c1b;
-}
-
-.call-user{
-  display:flex;
-  align-items:center;
-  gap:10px;
-}
-
-.call-videos{
-  position:relative;
-  flex:1;
-  overflow:hidden;
-  background:#02040a;
-}
-
-.remote-video{
-  width:100%;
-  height:100%;
-  object-fit:cover;
-}
-
-.local-video{
-  position:absolute;
-  right:12px;
-  top:12px;
-  width:120px;
-  height:170px;
-  object-fit:cover;
-  border-radius:13px;
-  background:#111;
-  border:1px solid #3b4663;
-}
-
 .call-avatar{
-  position:absolute;
-  inset:0;
-  margin:auto;
-  width:110px;
-  height:110px;
+  width:90px;
+  height:90px;
   border-radius:50%;
   object-fit:cover;
+  margin:10px auto;
 }
 
 .call-status{
-  position:absolute;
-  left:0;
-  right:0;
-  bottom:25px;
-  text-align:center;
-  color:white;
+  color:var(--muted);
+  margin:8px 0 20px;
 }
 
 .call-controls{
-  min-height:90px;
   display:flex;
-  align-items:center;
   justify-content:center;
-  gap:12px;
-  background:#070c1b;
+  gap:10px;
+  flex-wrap:wrap;
 }
 
 .call-control{
   width:50px;
   height:50px;
+  border:1px solid var(--line);
   border-radius:50%;
-  border:1px solid var(--line);
-  background:#172039;
+  background:#162342;
   color:white;
 }
 
-.call-end{
-  background:#d92f43;
-  border:0;
+.call-control.end{
+  background:var(--danger);
 }
 
-.empty{
-  padding:35px 15px;
-  text-align:center;
-  color:var(--muted);
-}
-
-.toast{
-  position:fixed;
-  z-index:1000;
-  left:50%;
-  bottom:82px;
-  transform:translateX(-50%);
-  background:#111b31;
-  border:1px solid var(--line);
-  color:white;
-  padding:11px 15px;
-  border-radius:12px;
-  max-width:90%;
-  text-align:center;
-  display:none;
-}
-
-.search-results{
-  margin-top:10px;
-  max-height:300px;
-  overflow:auto;
-}
-
-.search-user{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  padding:10px;
-  border-bottom:1px solid var(--line);
-}
-
-.search-user button{
-  margin-left:auto;
-}
-
-.preview{
-  margin-top:10px;
-  max-width:100%;
-  max-height:300px;
-  border-radius:12px;
-}
+/* =========================
+   RESPONSIVE
+========================= */
 
 @media(max-width:760px){
+  .topbar-inner{
+    padding:8px 10px;
+  }
+
+  .brand-text{
+    display:none;
+  }
+
+  .search{
+    min-width:0;
+  }
+
+  .container{
+    padding:10px;
+  }
+
   .chat-layout{
     display:block;
+    min-height:calc(100vh - 160px);
   }
 
   .chat-list{
-    display:block;
+    max-height:none;
+    margin-bottom:10px;
   }
 
   .chat-window{
+    min-height:calc(100vh - 210px);
+  }
+
+  .chat-window.empty-chat{
     display:none;
   }
 
-  .chat-layout.chat-open .chat-list{
+  .chat-list.mobile-hide{
     display:none;
   }
 
-  .chat-layout.chat-open .chat-window{
-    display:flex;
+  .message{
+    max-width:86%;
   }
 
-  .chat-window{
-    min-height:calc(100vh - 100px);
-  }
-
-  .chat-header{
-    position:sticky;
-    top:0;
-    z-index:20;
-  }
-
-  .back-chat{
-    display:flex!important;
-  }
-
-  .bubble{
-    max-width:85%;
-  }
-
-  .main{
-    padding-left:10px;
-    padding-right:10px;
+  .profile-stats{
+    gap:15px;
   }
 }
 
 @media(min-width:761px){
-  .back-chat{
+  .mobile-only{
     display:none!important;
   }
 }
@@ -942,197 +1006,259 @@ button{
 
 <body>
 
-<!-- AUTH -->
-<section id="authView" class="auth">
+<!-- =========================
+     AUTH
+========================= -->
+
+<section id="authScreen" class="auth-wrap">
   <div class="auth-card">
 
-    <div class="brand">
-      <div class="brand-logo">M</div>
-      <h1>MSAFIRI GLOBAL MEDIA</h1>
-      <p>Connect beyond boundaries.</p>
-    </div>
+    <div class="auth-logo">M</div>
+
+    <h1 class="auth-title">MSAFIRI GLOBAL MEDIA</h1>
+
+    <p class="auth-subtitle">
+      Connect Beyond 🌍
+    </p>
 
     <div class="tabs">
-      <button id="loginTab" class="tab active" onclick="showAuth('login')">Log In</button>
-      <button id="registerTab" class="tab" onclick="showAuth('register')">Create Account</button>
+      <button id="loginTab" class="tab active" onclick="showAuth('login')">
+        Login
+      </button>
+
+      <button id="registerTab" class="tab" onclick="showAuth('register')">
+        Create Account
+      </button>
     </div>
 
-    <form id="loginForm" class="form" onsubmit="login(event)">
-      <input id="loginEmail" class="input" type="email" placeholder="Email" required>
-      <input id="loginPassword" class="input" type="password" placeholder="Password" required>
-      <button class="primary" type="submit">Log In</button>
+    <form id="loginForm" onsubmit="login(event)">
+
+      <div class="field">
+        <label>Email</label>
+        <input id="loginEmail" type="email" autocomplete="email" required>
+      </div>
+
+      <div class="field">
+        <label>Password</label>
+        <input id="loginPassword" type="password" autocomplete="current-password" required>
+      </div>
+
+      <button class="primary-btn full" type="submit">
+        Login
+      </button>
+
     </form>
 
-    <form id="registerForm" class="form hidden" onsubmit="register(event)">
-      <input id="regName" class="input" type="text" placeholder="Full name" required>
-      <input id="regUsername" class="input" type="text" placeholder="Username" required>
-      <input id="regEmail" class="input" type="email" placeholder="Email" required>
-      <input id="regPassword" class="input" type="password" placeholder="Password" required minlength="6">
-      <button class="primary" type="submit">Create Account</button>
+    <form id="registerForm" class="hidden" onsubmit="register(event)">
+
+      <div class="field">
+        <label>Full name</label>
+        <input id="regName" type="text" maxlength="100" required>
+      </div>
+
+      <div class="field">
+        <label>Username</label>
+        <input id="regUsername" type="text" maxlength="50" required>
+      </div>
+
+      <div class="field">
+        <label>Email</label>
+        <input id="regEmail" type="email" autocomplete="email" required>
+      </div>
+
+      <div class="field">
+        <label>Password</label>
+        <input id="regPassword" type="password" autocomplete="new-password" minlength="6" required>
+      </div>
+
+      <button class="primary-btn full" type="submit">
+        Create Account
+      </button>
+
     </form>
 
-    <p id="authMessage" class="muted small" style="margin-top:12px;text-align:center"></p>
+    <div id="authMessage" class="auth-message"></div>
+
   </div>
 </section>
 
 
-<!-- MAIN APP -->
-<section id="appView" class="app-shell hidden">
+<!-- =========================
+     MAIN APP
+========================= -->
+
+<div id="appScreen" class="app hidden">
 
   <header class="topbar">
-    <div class="top-brand">
-      <div class="top-logo">M</div>
-      <span>MSAFIRI GLOBAL MEDIA</span>
+
+    <div class="topbar-inner">
+
+      <div class="brand">
+        <div class="brand-icon">M</div>
+        <div class="brand-text">MSAFIRI GLOBAL MEDIA</div>
+      </div>
+
+      <div class="search">
+        <input
+          id="globalSearch"
+          type="search"
+          placeholder="Search users..."
+          onkeydown="handleSearch(event)"
+        >
+      </div>
+
+      <button class="icon-btn" onclick="openSearch()" title="Search">
+        🔎
+      </button>
+
+      <img
+        id="headerAvatar"
+        class="avatar-small"
+        src=""
+        alt="Profile"
+        onclick="showPage('profile')"
+      >
+
     </div>
 
-    <button class="icon-btn" onclick="openProfile()">👤</button>
   </header>
 
 
   <main class="main">
 
     <!-- HOME -->
-    <section id="homeView" class="view active">
+    <section id="page-home" class="page">
 
-      <h2 class="section-title">Home</h2>
+      <div class="container">
 
-      <div class="card create-post">
+        <div class="row-between">
+          <h2 class="page-title">Home</h2>
 
-        <div class="create-top">
-          <img id="createAvatar" class="avatar" src="" alt="avatar">
+          <button class="secondary-btn" onclick="loadFeed()">
+            ↻ Refresh
+          </button>
+        </div>
 
-          <div id="postCaptionBox"
-               class="post-input"
-               onclick="openPostModal()">
-            Unaweza kuandika nini leo?
+
+        <div class="card composer section">
+
+          <textarea
+            id="postCaption"
+            maxlength="5000"
+            placeholder="What's happening? Andika caption yako..."
+          ></textarea>
+
+          <div class="composer-tools">
+
+            <label class="file-label">
+              🖼️ Image / Video
+              <input
+                id="postFile"
+                type="file"
+                accept="image/*,video/*"
+                onchange="previewPostFile()"
+              >
+            </label>
+
+            <button
+              id="removePostFileBtn"
+              class="secondary-btn hidden"
+              type="button"
+              onclick="removePostFile()"
+            >
+              Remove
+            </button>
+
+            <button
+              class="primary-btn"
+              type="button"
+              onclick="createPost()"
+            >
+              Post
+            </button>
+
           </div>
+
+          <div id="postPreview" class="preview-box"></div>
+
         </div>
 
-        <div class="file-row">
-          <button class="file-btn" onclick="openPostModal('image')">🖼️ Photo</button>
-          <button class="file-btn" onclick="openPostModal('video')">🎥 Video</button>
-          <button class="file-btn" onclick="openPostModal('audio')">🎵 Audio</button>
-        </div>
+
+        <div id="feed"></div>
 
       </div>
-
-      <div id="feed"></div>
 
     </section>
 
 
-    <!-- CHATS -->
-    <section id="chatsView" class="view">
+    <!-- SEARCH -->
+    <section id="page-search" class="page hidden">
 
-      <div id="chatLayout" class="chat-layout">
+      <div class="container">
 
-        <div class="card chat-list">
+        <h2 class="page-title">Search</h2>
 
-          <div class="chat-search">
+        <div class="card">
+
+          <div class="field">
+            <label>Search users</label>
+
             <input
-              id="userSearch"
-              class="input"
-              placeholder="Search users..."
-              oninput="searchUsers(this.value)">
-            <div id="searchResults" class="search-results"></div>
+              id="searchInput"
+              type="search"
+              placeholder="Username, name or email..."
+              oninput="searchUsersDebounced()"
+            >
           </div>
 
-          <div id="chatItems" class="chat-items">
-            <div class="empty">Hakuna chats bado.</div>
-          </div>
+          <div id="searchResults"></div>
 
         </div>
 
+      </div>
 
-        <div class="card chat-window">
+    </section>
 
-          <div id="noChatSelected" class="empty">
-            <h3>Messages</h3>
-            <p>Chagua mtu kuanza chat.</p>
+
+    <!-- CHAT -->
+    <section id="page-chat" class="page hidden">
+
+      <div class="container">
+
+        <div class="chat-layout">
+
+          <div id="chatListPanel" class="card chat-list">
+
+            <div class="row-between" style="margin-bottom:10px">
+              <h3 style="margin:0">Chats</h3>
+
+              <button class="icon-btn" onclick="loadChats()">
+                ↻
+              </button>
+            </div>
+
+            <div class="field">
+              <input
+                id="chatSearch"
+                type="search"
+                placeholder="Search chats..."
+                oninput="filterChats()"
+              >
+            </div>
+
+            <div id="chatList"></div>
+
           </div>
 
 
-          <div id="chatContent" class="hidden" style="height:100%;display:flex;flex-direction:column">
+          <div id="chatWindow" class="card chat-window empty-chat">
 
-            <div class="chat-header">
-
-              <button
-                class="icon-btn back-chat"
-                onclick="closeChat()">
-                ←
-              </button>
-
-              <img id="chatAvatar" class="avatar small" src="" alt="avatar">
-
-              <div class="chat-header-info">
-                <strong id="chatName">User</strong>
-                <small id="chatStatus">online</small>
-              </div>
-
-              <div class="chat-header-actions">
-
-                <button
-                  class="icon-btn"
-                  onclick="startCall('audio')"
-                  title="Voice call">
-                  📞
-                </button>
-
-                <button
-                  class="icon-btn"
-                  onclick="startCall('video')"
-                  title="Video call">
-                  🎥
-                </button>
-
-                <button
-                  class="icon-btn"
-                  onclick="toggleChatMenu()"
-                  title="More">
-                  ⋮
-                </button>
-
-              </div>
-
-            </div>
-
-
-            <div id="messages" class="messages"></div>
-
-
-            <div class="chat-composer">
-
-              <button
-                class="round-btn"
-                onclick="document.getElementById('chatFile').click()">
-                📎
-              </button>
-
-              <input
-                id="chatFile"
-                type="file"
-                class="hidden"
-                onchange="sendChatFile(this.files[0])">
-
-              <input
-                id="messageInput"
-                type="text"
-                placeholder="Andika ujumbe..."
-                onkeydown="if(event.key==='Enter')sendMessage()">
-
-              <button
-                id="recordBtn"
-                class="round-btn"
-                onclick="toggleRecording()">
-                🎙️
-              </button>
-
-              <button
-                class="round-btn send-btn"
-                onclick="sendMessage()">
-                ➤
-              </button>
-
+            <div class="empty">
+              <div style="font-size:45px">💬</div>
+              <h3>Messages</h3>
+              <p>
+                Chagua mtu kwenye chat list kuanza mazungumzo.
+              </p>
             </div>
 
           </div>
@@ -1145,67 +1271,185 @@ button{
 
 
     <!-- PROFILE -->
-    <section id="profileView" class="view">
+    <section id="page-profile" class="page hidden">
 
-      <h2 class="section-title">Profile</h2>
+      <div class="container">
 
-      <div class="card profile-card">
+        <div class="card">
 
-        <div class="profile-head">
-
-          <img id="profileAvatar" class="avatar big" src="" alt="profile">
+          <div class="profile-cover"></div>
 
           <div class="profile-info">
-            <h2 id="profileName">User</h2>
-            <p id="profileUsername">@username</p>
-            <p id="profileBio"></p>
+
+            <img
+              id="profileAvatar"
+              class="profile-avatar"
+              src=""
+              alt="Profile"
+            >
+
+            <div class="row-between" style="margin-top:8px">
+
+              <div>
+
+                <div id="profileName" class="profile-name">
+                  —
+                </div>
+
+                <div id="profileUsername" class="muted">
+                  @—
+                </div>
+
+              </div>
+
+              <button class="secondary-btn" onclick="openProfileEditor()">
+                Edit Profile
+              </button>
+
+            </div>
+
+            <div id="profileBio" class="profile-bio"></div>
+
+            <div class="profile-stats">
+
+              <div class="stat">
+                <b id="followersCount">0</b>
+                <span>Followers</span>
+              </div>
+
+              <div class="stat">
+                <b id="followingCount">0</b>
+                <span>Following</span>
+              </div>
+
+              <div class="stat">
+                <b id="postsCount">0</b>
+                <span>Posts</span>
+              </div>
+
+            </div>
+
           </div>
 
         </div>
 
-        <div class="profile-actions">
+
+        <div class="card section" style="margin-top:14px">
+
+          <h3 style="margin-top:0">
+            Profile Picture
+          </h3>
+
+          <p class="muted small">
+            Unaweza kubadilisha profile picture mara nyingi.
+          </p>
+
+          <label class="file-label">
+            📷 Choose Picture
+            <input
+              id="avatarFile"
+              type="file"
+              accept="image/*"
+              onchange="changeAvatar()"
+            >
+          </label>
+
+        </div>
+
+
+        <div class="card">
+
+          <h3 style="margin-top:0">
+            Account
+          </h3>
 
           <button
-            class="primary"
-            onclick="document.getElementById('avatarInput').click()">
-            📷 Change Profile Picture
+            class="secondary-btn full"
+            onclick="logout()"
+          >
+            Logout
           </button>
 
-          <input
-            id="avatarInput"
-            type="file"
-            accept="image/*"
-            class="hidden"
-            onchange="changeAvatar(this.files[0])">
-
           <button
-            class="secondary"
-            onclick="openEditProfile()">
-            ✏️ Edit Profile
+            class="danger-btn full"
+            style="margin-top:10px"
+            onclick="deleteAccount()"
+          >
+            Delete Account
           </button>
 
         </div>
 
       </div>
 
+    </section>
 
-      <div class="card settings-list">
 
-        <button class="setting" onclick="openEditProfile()">
-          👤 Edit profile
-        </button>
+    <!-- SETTINGS -->
+    <section id="page-settings" class="page hidden">
 
-        <button class="setting" onclick="showMyPosts()">
-          📝 My posts
-        </button>
+      <div class="container">
 
-        <button class="setting" onclick="logout()">
-          🚪 Log out
-        </button>
+        <h2 class="page-title">Settings</h2>
 
-        <button class="setting" style="color:#ff6978" onclick="deleteAccount()">
-          🗑️ Delete account
-        </button>
+        <div class="card">
+
+          <div class="settings-item">
+
+            <div class="settings-info">
+              <b>Account</b>
+              <span>Manage your account information</span>
+            </div>
+
+            <button class="secondary-btn" onclick="showPage('profile')">
+              Open
+            </button>
+
+          </div>
+
+
+          <div class="settings-item">
+
+            <div class="settings-info">
+              <b>Messages</b>
+              <span>Chat and communication settings</span>
+            </div>
+
+            <button class="secondary-btn" onclick="showPage('chat')">
+              Open
+            </button>
+
+          </div>
+
+
+          <div class="settings-item">
+
+            <div class="settings-info">
+              <b>Refresh Data</b>
+              <span>Reload your profile and feed</span>
+            </div>
+
+            <button class="secondary-btn" onclick="refreshAll()">
+              Refresh
+            </button>
+
+          </div>
+
+
+          <div class="settings-item">
+
+            <div class="settings-info">
+              <b>Logout</b>
+              <span>Sign out from this device</span>
+            </div>
+
+            <button class="secondary-btn" onclick="logout()">
+              Logout
+            </button>
+
+          </div>
+
+        </div>
 
       </div>
 
@@ -1215,263 +1459,103 @@ button{
 
 
   <!-- BOTTOM NAV -->
+
   <nav class="bottom-nav">
 
-    <div class="bottom-inner">
+    <div class="bottom-nav-inner">
 
       <button
-        id="navHome"
+        id="nav-home"
         class="nav-btn active"
-        onclick="switchView('home')">
+        onclick="showPage('home')"
+      >
         <span>🏠</span>
-        <span>Home</span>
+        Home
       </button>
 
       <button
-        id="navChats"
+        id="nav-search"
         class="nav-btn"
-        onclick="switchView('chats')">
+        onclick="showPage('search')"
+      >
+        <span>🔎</span>
+        Search
+      </button>
+
+      <button
+        id="nav-chat"
+        class="nav-btn"
+        onclick="showPage('chat')"
+      >
         <span>💬</span>
-        <span>Chats</span>
+        Chat
       </button>
 
       <button
-        id="navProfile"
+        id="nav-profile"
         class="nav-btn"
-        onclick="switchView('profile')">
+        onclick="showPage('profile')"
+      >
         <span>👤</span>
-        <span>Profile</span>
+        Profile
+      </button>
+
+      <button
+        id="nav-settings"
+        class="nav-btn"
+        onclick="showPage('settings')"
+      >
+        <span>⚙️</span>
+        Settings
       </button>
 
     </div>
 
   </nav>
 
-</section>
-
-
-<!-- CHAT MENU -->
-<div id="chatMenu" class="menu hidden">
-
-  <button onclick="pinChat()">📌 Pin chat</button>
-
-  <button onclick="toggleMute()">🔕 Mute notifications</button>
-
-  <button onclick="openWallpaperPicker()">🖼️ Chat wallpaper</button>
-
-  <button onclick="searchMessages()">🔎 Search messages</button>
-
-  <button onclick="clearCurrentChat()">🗑️ Clear chat</button>
-
-  <button onclick="openCurrentProfile()">👤 View profile</button>
-
-  <button onclick="showChatMedia()">📁 Media, links & files</button>
-
-  <button onclick="blockCurrentUser()">🚫 Block</button>
-
-  <button onclick="reportCurrentUser()">⚠️ Report</button>
-
 </div>
 
 
-<input
-  id="wallpaperInput"
-  type="file"
-  accept="image/*"
-  class="hidden"
-  onchange="uploadWallpaper(this.files[0])">
+<!-- =========================
+     MODAL
+========================= -->
 
+<div id="modalBackdrop" class="modal-backdrop">
 
-<!-- POST MODAL -->
-<div id="postModal" class="modal-bg hidden">
-
-  <div class="modal">
+  <div id="modalBox" class="modal">
 
     <div class="modal-head">
-      <h3>Create Post</h3>
+
+      <h3 id="modalTitle">Modal</h3>
 
       <button
         class="icon-btn"
-        onclick="closeModal('postModal')">
+        onclick="closeModal()"
+      >
         ✕
       </button>
-    </div>
-
-    <textarea
-      id="postCaption"
-      class="textarea"
-      placeholder="Andika caption yako..."></textarea>
-
-    <div class="file-row">
-
-      <button
-        class="file-btn"
-        onclick="document.getElementById('postFile').click()">
-        📎 Choose media
-      </button>
-
-      <input
-        id="postFile"
-        type="file"
-        accept="image/*,video/*,audio/*"
-        class="hidden"
-        onchange="previewPostFile(this.files[0])">
-
-      <span id="postFileName" class="file-name">
-        Hakuna file iliyochaguliwa
-      </span>
 
     </div>
 
-    <div id="postPreview"></div>
-
-    <button
-      class="primary"
-      style="width:100%;margin-top:15px"
-      onclick="createPost()">
-      🚀 Publish
-    </button>
+    <div id="modalContent"></div>
 
   </div>
 
 </div>
 
 
-<!-- EDIT PROFILE MODAL -->
-<div id="editProfileModal" class="modal-bg hidden">
-
-  <div class="modal">
-
-    <div class="modal-head">
-      <h3>Edit Profile</h3>
-
-      <button
-        class="icon-btn"
-        onclick="closeModal('editProfileModal')">
-        ✕
-      </button>
-    </div>
-
-    <div class="form">
-
-      <input
-        id="editName"
-        class="input"
-        placeholder="Full name">
-
-      <input
-        id="editUsername"
-        class="input"
-        placeholder="Username">
-
-      <textarea
-        id="editBio"
-        class="textarea"
-        placeholder="Bio"></textarea>
-
-      <button
-        class="primary"
-        onclick="saveProfile()">
-        Save changes
-      </button>
-
-    </div>
-
-  </div>
-
-</div>
-
-
-<!-- CALL SCREEN -->
-<div id="callScreen" class="call-screen hidden">
-
-  <div class="call-top">
-
-    <div class="call-user">
-      <img id="callAvatar" class="avatar small" src="" alt="">
-      <div>
-        <strong id="callName">Calling...</strong>
-        <div id="callTypeText" class="muted small">Voice call</div>
-      </div>
-    </div>
-
-    <button
-      class="icon-btn"
-      onclick="endCall()">
-      ✕
-    </button>
-
-  </div>
-
-
-  <div id="callVideos" class="call-videos">
-
-    <img
-      id="callCenterAvatar"
-      class="call-avatar"
-      src=""
-      alt="">
-
-    <video
-      id="remoteVideo"
-      class="remote-video"
-      autoplay
-      playsinline></video>
-
-    <video
-      id="localVideo"
-      class="local-video"
-      autoplay
-      muted
-      playsinline></video>
-
-    <div id="callStatus" class="call-status">
-      Connecting...
-    </div>
-
-  </div>
-
-
-  <div class="call-controls">
-
-    <button
-      id="muteCallBtn"
-      class="call-control"
-      onclick="toggleCallMute()">
-      🎙️
-    </button>
-
-    <button
-      id="cameraCallBtn"
-      class="call-control"
-      onclick="toggleCallCamera()">
-      📷
-    </button>
-
-    <button
-      class="call-control"
-      onclick="switchCamera()">
-      🔄
-    </button>
-
-    <button
-      class="call-control call-end"
-      onclick="endCall()">
-      📞
-    </button>
-
-  </div>
-
-</div>
-
+<!-- =========================
+     TOAST
+========================= -->
 
 <div id="toast" class="toast"></div>
 
 
-<!-- LiveKit browser client -->
-<script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
-
 <script>
+/* ============================================================
+   MSAFIRI GLOBAL MEDIA V4
+   FRONTEND
+============================================================ */
 
 const API = "https://msafiri-global-media-3-1.onrender.com";
 
@@ -1479,32 +1563,27 @@ const TOKEN_KEY = "msafiri_token";
 
 let TOKEN = localStorage.getItem(TOKEN_KEY) || "";
 let ME = null;
-
-let currentView = "home";
-let currentChatUser = null;
-let currentMessages = [];
+let CURRENT_PAGE = "home";
+let ACTIVE_CHAT_USER = null;
+let CHAT_USERS = [];
+let CHAT_MESSAGES = [];
+let MEDIA_URL = "";
+let searchTimer = null;
+let recording = false;
 let mediaRecorder = null;
-let recordingChunks = [];
-let recordingStream = null;
-
-let callRoom = null;
-let callId = null;
-let callType = null;
-let callMicTrack = null;
-let callCameraTrack = null;
-let callOtherUser = null;
+let audioChunks = [];
 
 
-/* =========================
+/* ============================================================
    HELPERS
-========================= */
+============================================================ */
 
-function $(id){
-  return document.getElementById(id);
-}
+const $ = id => document.getElementById(id);
 
-function escapeHTML(value){
-  return String(value ?? "")
+function esc(value){
+  if(value === null || value === undefined) return "";
+
+  return String(value)
     .replace(/&/g,"&amp;")
     .replace(/</g,"&lt;")
     .replace(/>/g,"&gt;")
@@ -1512,83 +1591,131 @@ function escapeHTML(value){
     .replace(/'/g,"&#039;");
 }
 
-function fileURL(url){
+function toast(message){
+
+  const box = $("toast");
+
+  if(!box) return;
+
+  box.textContent = message;
+  box.classList.add("show");
+
+  clearTimeout(window.__toastTimer);
+
+  window.__toastTimer = setTimeout(()=>{
+    box.classList.remove("show");
+  },2800);
+}
+
+function avatarURL(user){
+
+  if(!user){
+    return "https://ui-avatars.com/api/?name=M&background=182342&color=fff";
+  }
+
+  const url =
+    user.avatar ||
+    user.avatar_url ||
+    user.profile_picture ||
+    "";
+
+  if(url){
+    return new URL(url,API).href;
+  }
+
+  const name =
+    user.name ||
+    user.full_name ||
+    user.username ||
+    "M";
+
+  return "https://ui-avatars.com/api/?name=" +
+    encodeURIComponent(name) +
+    "&background=182342&color=fff";
+}
+
+function mediaURL(url){
 
   if(!url) return "";
 
-  if(
-    url.startsWith("http://") ||
-    url.startsWith("https://") ||
-    url.startsWith("blob:")
-  ){
+  try{
+    return new URL(url,API).href;
+  }catch{
     return url;
   }
-
-  return new URL(url, API).href;
 }
 
-function avatarURL(url){
+function formatDate(value){
 
-  return fileURL(url) ||
-    "https://ui-avatars.com/api/?name=User&background=172442&color=ffffff";
-}
+  if(!value) return "";
 
-function toast(message){
+  try{
 
-  const t = $("toast");
+    return new Date(value).toLocaleString("sw-TZ",{
+      dateStyle:"short",
+      timeStyle:"short"
+    });
 
-  t.textContent = message;
-  t.style.display = "block";
+  }catch{
 
-  clearTimeout(window.toastTimer);
+    return String(value);
 
-  window.toastTimer = setTimeout(()=>{
-    t.style.display = "none";
-  },2600);
-}
-
-function closeModal(id){
-  $(id).classList.add("hidden");
-}
-
-function authHeaders(json=false){
-
-  const h = {};
-
-  if(json){
-    h["Content-Type"] = "application/json";
   }
-
-  if(TOKEN){
-    h["Authorization"] = "Bearer " + TOKEN;
-  }
-
-  return h;
 }
 
 async function api(path,options={}){
 
-  options.headers = {
-    ...authHeaders(),
-    ...(options.headers || {})
-  };
+  const headers = new Headers(options.headers || {});
 
-  const response = await fetch(API + path,options);
+  if(TOKEN){
+    headers.set("Authorization","Bearer " + TOKEN);
+  }
+
+  if(
+    options.body &&
+    !(options.body instanceof FormData) &&
+    !headers.has("Content-Type")
+  ){
+    headers.set("Content-Type","application/json");
+  }
+
+  const response = await fetch(API + path,{
+    ...options,
+    headers
+  });
 
   let data = null;
 
-  try{
-    data = await response.json();
-  }catch(e){
-    data = {};
+  const type = response.headers.get("content-type") || "";
+
+  if(type.includes("application/json")){
+
+    try{
+      data = await response.json();
+    }catch{
+      data = null;
+    }
+
+  }else{
+
+    try{
+      data = await response.text();
+    }catch{
+      data = null;
+    }
+
   }
 
   if(!response.ok){
 
-    const message =
-      data.detail ||
-      data.message ||
+    let message =
+      data?.detail ||
+      data?.message ||
       "Request failed";
+
+    if(Array.isArray(message)){
+      message = message.map(x=>x.msg || "").join(", ");
+    }
 
     throw new Error(message);
   }
@@ -1597,70 +1724,36 @@ async function api(path,options={}){
 }
 
 
-/* =========================
+/* ============================================================
    AUTH
-========================= */
+============================================================ */
 
 function showAuth(mode){
 
-  const login = mode === "login";
+  const login = $("loginForm");
+  const register = $("registerForm");
+  const loginTab = $("loginTab");
+  const registerTab = $("registerTab");
 
-  $("loginForm").classList.toggle("hidden",!login);
-  $("registerForm").classList.toggle("hidden",login);
+  if(mode === "login"){
 
-  $("loginTab").classList.toggle("active",login);
-  $("registerTab").classList.toggle("active",!login);
+    login.classList.remove("hidden");
+    register.classList.add("hidden");
+
+    loginTab.classList.add("active");
+    registerTab.classList.remove("active");
+
+  }else{
+
+    login.classList.add("hidden");
+    register.classList.remove("hidden");
+
+    loginTab.classList.remove("active");
+    registerTab.classList.add("active");
+
+  }
 
   $("authMessage").textContent = "";
-}
-
-
-async function register(event){
-
-  event.preventDefault();
-
-  const payload = {
-    name:$("regName").value.trim(),
-    username:$("regUsername").value.trim(),
-    email:$("regEmail").value.trim(),
-    password:$("regPassword").value
-  };
-
-  try{
-
-    $("authMessage").textContent = "Creating account...";
-
-    const data = await api("/api/register",{
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json"
-      },
-      body:JSON.stringify(payload)
-    });
-
-    if(data.token){
-
-      TOKEN = data.token;
-
-      localStorage.setItem(TOKEN_KEY,TOKEN);
-
-      await loadMe();
-      openApp();
-
-      toast("Account created successfully.");
-
-    }else{
-
-      $("authMessage").textContent =
-        "Account created. Tafadhali login.";
-
-      showAuth("login");
-    }
-
-  }catch(error){
-
-    $("authMessage").textContent = error.message;
-  }
 }
 
 
@@ -1668,59 +1761,171 @@ async function login(event){
 
   event.preventDefault();
 
+  const message = $("authMessage");
+
+  message.textContent = "Logging in...";
+
   try{
 
-    $("authMessage").textContent = "Logging in...";
+    const body = new URLSearchParams();
+
+    body.set("email",$("loginEmail").value.trim());
+    body.set("password",$("loginPassword").value);
 
     const data = await api("/api/login",{
       method:"POST",
-      headers:{
-        "Content-Type":"application/json"
-      },
-      body:JSON.stringify({
-        email:$("loginEmail").value.trim(),
-        password:$("loginPassword").value
-      })
+      body
     });
 
-    if(!data.token){
-      throw new Error("Login token haijapatikana.");
+    const token =
+      data?.access_token ||
+      data?.token ||
+      data?.msafiri_token;
+
+    if(!token){
+      throw new Error("Server haikurudisha login token.");
     }
 
-    TOKEN = data.token;
+    TOKEN = token;
 
     localStorage.setItem(TOKEN_KEY,TOKEN);
 
-    await loadMe();
+    message.textContent = "";
 
-    openApp();
-
-    toast("Welcome back.");
+    await startApp();
 
   }catch(error){
 
-    $("authMessage").textContent = error.message;
+    message.textContent = error.message;
+
   }
 }
 
 
-async function loadMe(){
+async function register(event){
 
-  ME = await api("/api/me");
+  event.preventDefault();
 
-  updateProfileUI();
+  const message = $("authMessage");
+
+  message.textContent = "Creating account...";
+
+  try{
+
+    const body = new URLSearchParams();
+
+    body.set("name",$("regName").value.trim());
+    body.set("username",$("regUsername").value.trim());
+    body.set("email",$("regEmail").value.trim());
+    body.set("password",$("regPassword").value);
+
+    const data = await api("/api/register",{
+      method:"POST",
+      body
+    });
+
+    const token =
+      data?.access_token ||
+      data?.token ||
+      data?.msafiri_token;
+
+    if(token){
+
+      TOKEN = token;
+
+      localStorage.setItem(TOKEN_KEY,TOKEN);
+
+      await startApp();
+
+    }else{
+
+      message.textContent =
+        "Account imetengenezwa. Sasa login.";
+
+      showAuth("login");
+
+      $("loginEmail").value =
+        $("regEmail").value.trim();
+
+    }
+
+  }catch(error){
+
+    message.textContent = error.message;
+
+  }
 }
 
 
-function openApp(){
+async function checkSession(){
 
-  $("authView").classList.add("hidden");
-  $("appView").classList.remove("hidden");
+  if(!TOKEN){
+    showAuthScreen();
+    return;
+  }
 
-  switchView("home");
+  try{
 
-  loadFeed();
-  loadChats();
+    const data = await api("/api/me");
+
+    ME =
+      data?.user ||
+      data;
+
+    showAppScreen();
+
+    await refreshAll();
+
+  }catch(error){
+
+    localStorage.removeItem(TOKEN_KEY);
+
+    TOKEN = "";
+    ME = null;
+
+    showAuthScreen();
+  }
+}
+
+
+async function startApp(){
+
+  try{
+
+    const data = await api("/api/me");
+
+    ME =
+      data?.user ||
+      data;
+
+    showAppScreen();
+
+    await refreshAll();
+
+  }catch(error){
+
+    localStorage.removeItem(TOKEN_KEY);
+
+    TOKEN = "";
+
+    throw error;
+  }
+}
+
+
+function showAuthScreen(){
+
+  $("authScreen").classList.remove("hidden");
+  $("appScreen").classList.add("hidden");
+}
+
+
+function showAppScreen(){
+
+  $("authScreen").classList.add("hidden");
+  $("appScreen").classList.remove("hidden");
+
+  updateHeader();
 }
 
 
@@ -1734,29 +1939,32 @@ async function logout(){
       });
     }
 
-  }catch(e){}
+  }catch{}
 
   TOKEN = "";
   ME = null;
 
   localStorage.removeItem(TOKEN_KEY);
 
-  $("appView").classList.add("hidden");
-  $("authView").classList.remove("hidden");
+  ACTIVE_CHAT_USER = null;
+
+  showAuthScreen();
 
   showAuth("login");
 
-  toast("Logged out.");
+  $("loginPassword").value = "";
+
+  toast("Ume-logout.");
 }
 
 
 async function deleteAccount(){
 
-  if(!confirm(
-    "Una uhakika unataka kufuta account yako? Hatua hii itafuta access ya account."
-  )){
-    return;
-  }
+  const ok = confirm(
+    "Una uhakika unataka kufuta account yako kabisa?"
+  );
+
+  if(!ok) return;
 
   try{
 
@@ -1769,273 +1977,463 @@ async function deleteAccount(){
 
     localStorage.removeItem(TOKEN_KEY);
 
-    $("appView").classList.add("hidden");
-    $("authView").classList.remove("hidden");
+    showAuthScreen();
 
-    toast("Account deleted.");
+    toast("Account imefutwa.");
 
   }catch(error){
 
     toast(error.message);
+
   }
 }
 
 
-/* =========================
-   VIEWS
-========================= */
+/* ============================================================
+   NAVIGATION
+============================================================ */
 
-function switchView(view){
+function showPage(page){
 
-  currentView = view;
+  CURRENT_PAGE = page;
 
-  document.querySelectorAll(".view")
-    .forEach(v=>v.classList.remove("active"));
+  const pages = [
+    "home",
+    "search",
+    "chat",
+    "profile",
+    "settings"
+  ];
 
-  document.querySelectorAll(".nav-btn")
-    .forEach(v=>v.classList.remove("active"));
+  pages.forEach(name=>{
 
-  if(view === "home"){
+    const element = $("page-" + name);
 
-    $("homeView").classList.add("active");
-    $("navHome").classList.add("active");
+    if(element){
+      element.classList.toggle(
+        "hidden",
+        name !== page
+      );
+    }
 
+    const nav = $("nav-" + name);
+
+    if(nav){
+      nav.classList.toggle(
+        "active",
+        name === page
+      );
+    }
+
+  });
+
+  if(page === "home"){
     loadFeed();
-
   }
 
-  if(view === "chats"){
-
-    $("chatsView").classList.add("active");
-    $("navChats").classList.add("active");
-
+  if(page === "chat"){
     loadChats();
-
   }
 
-  if(view === "profile"){
-
-    $("profileView").classList.add("active");
-    $("navProfile").classList.add("active");
-
-    updateProfileUI();
+  if(page === "profile"){
+    loadProfile();
   }
+
+  if(page === "search"){
+    $("searchInput")?.focus();
+  }
+
+  window.scrollTo({
+    top:0,
+    behavior:"auto"
+  });
 }
 
 
-function openProfile(){
+async function refreshAll(){
 
-  switchView("profile");
+  updateHeader();
+
+  await Promise.allSettled([
+    loadProfile(),
+    loadFeed(),
+    loadChats()
+  ]);
 }
 
 
-/* =========================
-   PROFILE
-========================= */
+/* ============================================================
+   HEADER
+============================================================ */
 
-function updateProfileUI(){
+function updateHeader(){
 
   if(!ME) return;
 
-  const avatar = avatarURL(
-    ME.avatar_url ||
-    ME.profile_picture ||
-    ME.avatar
-  );
+  $("headerAvatar").src = avatarURL(ME);
 
-  $("createAvatar").src = avatar;
-  $("profileAvatar").src = avatar;
+  $("profileAvatar").src = avatarURL(ME);
 
   $("profileName").textContent =
-    ME.name || ME.username || "User";
+    ME.name ||
+    ME.full_name ||
+    ME.username ||
+    "User";
 
   $("profileUsername").textContent =
-    ME.username ? "@" + ME.username : "";
+    "@" + (ME.username || "");
 
   $("profileBio").textContent =
-    ME.bio || "";
+    ME.bio ||
+    "";
 
+  $("followersCount").textContent =
+    ME.followers_count ??
+    ME.followers ??
+    0;
+
+  $("followingCount").textContent =
+    ME.following_count ??
+    ME.following ??
+    0;
 }
 
 
-function openEditProfile(){
-
-  if(!ME) return;
-
-  $("editName").value = ME.name || "";
-  $("editUsername").value = ME.username || "";
-  $("editBio").value = ME.bio || "";
-
-  $("editProfileModal").classList.remove("hidden");
-}
-
-
-async function saveProfile(){
-
-  try{
-
-    const data = await api("/api/profile",{
-      method:"PATCH",
-      headers:{
-        "Content-Type":"application/json"
-      },
-      body:JSON.stringify({
-        name:$("editName").value.trim(),
-        username:$("editUsername").value.trim(),
-        bio:$("editBio").value.trim()
-      })
-    });
-
-    ME = data.user || data;
-
-    updateProfileUI();
-
-    closeModal("editProfileModal");
-
-    toast("Profile updated.");
-
-  }catch(error){
-
-    toast(error.message);
-  }
-}
-
-
-async function changeAvatar(file){
-
-  if(!file) return;
-
-  try{
-
-    const form = new FormData();
-
-    form.append("file",file);
-
-    const data = await api("/api/profile/avatar",{
-      method:"POST",
-      body:form
-    });
-
-    if(data.user){
-      ME = data.user;
-    }
-
-    if(data.avatar_url){
-      ME.avatar_url = data.avatar_url;
-    }
-
-    updateProfileUI();
-
-    toast("Profile picture changed.");
-
-  }catch(error){
-
-    toast(error.message);
-  }
-}
-
-
-function showMyPosts(){
-
-  switchView("home");
-
-  if(ME){
-    loadFeed(ME.id);
-  }
-}
-
-
-/* =========================
+/* ============================================================
    FEED
-========================= */
+============================================================ */
 
-function openPostModal(type=""){
+async function loadFeed(){
 
-  $("postModal").classList.remove("hidden");
+  const feed = $("feed");
 
-  $("postCaption").focus();
+  if(!feed) return;
 
-  if(type){
+  feed.innerHTML =
+    '<div class="card empty">Loading posts...</div>';
 
-    $("postFile").accept =
-      type === "image"
-      ? "image/*"
-      : type === "video"
-      ? "video/*"
-      : "audio/*";
+  try{
 
-    $("postFile").click();
+    const data = await api("/api/posts");
+
+    const posts =
+      Array.isArray(data)
+        ? data
+        : (
+            data?.posts ||
+            data?.items ||
+            data?.data ||
+            []
+          );
+
+    if(!posts.length){
+
+      feed.innerHTML =
+        '<div class="card empty">' +
+        'Hakuna posts bado. Kuwa wa kwanza kupost! 🚀' +
+        '</div>';
+
+      $("postsCount").textContent = "0";
+
+      return;
+    }
+
+    $("postsCount").textContent = posts.length;
+
+    feed.innerHTML =
+      posts.map(renderPost).join("");
+
+  }catch(error){
+
+    feed.innerHTML =
+      '<div class="card empty">' +
+      esc(error.message) +
+      '</div>';
   }
 }
 
 
-function previewPostFile(file){
+function renderPost(post){
 
-  if(!file) return;
+  const id =
+    post.id ||
+    post.post_id;
 
-  $("postFileName").textContent = file.name;
+  const user =
+    post.user ||
+    post.author ||
+    {
+      id:post.user_id,
+      username:post.username,
+      name:post.name,
+      avatar:post.avatar
+    };
+
+  const caption =
+    post.caption ||
+    post.content ||
+    "";
+
+  const media =
+    post.media_url ||
+    post.media ||
+    post.file_url ||
+    "";
+
+  const mediaType =
+    post.media_type ||
+    post.type ||
+    "";
+
+  const likes =
+    post.likes_count ??
+    post.likes ??
+    0;
+
+  const comments =
+    post.comments_count ??
+    post.comments ??
+    0;
+
+  const shares =
+    post.reshares_count ??
+    post.shares ??
+    0;
+
+  const liked =
+    !!(
+      post.liked ||
+      post.is_liked
+    );
+
+  const saved =
+    !!(
+      post.saved ||
+      post.is_saved
+    );
+
+  let mediaHTML = "";
+
+  if(media){
+
+    const src = mediaURL(media);
+
+    if(
+      mediaType.includes("video") ||
+      /\.(mp4|webm|mov|m4v)$/i.test(src)
+    ){
+
+      mediaHTML =
+        `<video
+          class="post-media"
+          src="${esc(src)}"
+          controls
+          preload="metadata"
+        ></video>`;
+
+    }else{
+
+      mediaHTML =
+        `<img
+          class="post-media"
+          src="${esc(src)}"
+          alt="Post media"
+          loading="lazy"
+        >`;
+
+    }
+  }
+
+  return `
+    <article class="card post" data-post-id="${esc(id)}">
+
+      <div class="post-head">
+
+        <div class="post-user">
+
+          <img
+            class="post-avatar"
+            src="${esc(avatarURL(user))}"
+            alt=""
+          >
+
+          <div>
+            <div class="post-name">
+              ${esc(
+                user.name ||
+                user.full_name ||
+                user.username ||
+                "User"
+              )}
+            </div>
+
+            <div class="post-time">
+              @${esc(user.username || "")}
+              ·
+              ${esc(
+                formatDate(
+                  post.created_at ||
+                  post.created
+                )
+              )}
+            </div>
+          </div>
+
+        </div>
+
+        <button
+          class="icon-btn"
+          onclick="postMenu('${esc(id)}')"
+        >
+          ⋯
+        </button>
+
+      </div>
+
+      ${
+        caption
+          ? `<div class="post-caption">${esc(caption)}</div>`
+          : ""
+      }
+
+      ${mediaHTML}
+
+      <div class="post-actions">
+
+        <button
+          class="action-btn ${liked ? "active":""}"
+          onclick="likePost('${esc(id)}',this)"
+        >
+          ❤️ ${likes}
+        </button>
+
+        <button
+          class="action-btn"
+          onclick="toggleComments('${esc(id)}')"
+        >
+          💬 ${comments}
+        </button>
+
+        <button
+          class="action-btn"
+          onclick="resharePost('${esc(id)}')"
+        >
+          🔄 ${shares}
+        </button>
+
+        <button
+          class="action-btn ${saved ? "active":""}"
+          onclick="savePost('${esc(id)}',this)"
+        >
+          🔖
+        </button>
+
+      </div>
+
+      <div
+        id="comments-${esc(id)}"
+        class="comments hidden"
+      >
+
+        <div
+          id="comment-list-${esc(id)}"
+        ></div>
+
+        <div class="comment-form">
+
+          <input
+            id="comment-input-${esc(id)}"
+            placeholder="Andika comment..."
+            maxlength="1000"
+          >
+
+          <button
+            class="primary-btn"
+            onclick="sendComment('${esc(id)}')"
+          >
+            Send
+          </button>
+
+        </div>
+
+      </div>
+
+    </article>
+  `;
+}
+
+
+function previewPostFile(){
+
+  const file = $("postFile").files[0];
 
   const preview = $("postPreview");
 
-  preview.innerHTML = "";
+  if(!file){
+
+    removePostFile();
+
+    return;
+  }
 
   const url = URL.createObjectURL(file);
 
-  if(file.type.startsWith("image/")){
+  preview.style.display = "block";
 
-    const img = document.createElement("img");
+  $("removePostFileBtn").classList.remove("hidden");
 
-    img.src = url;
-    img.className = "preview";
+  if(file.type.startsWith("video/")){
 
-    preview.appendChild(img);
+    preview.innerHTML =
+      `<video src="${url}" controls></video>`;
 
-  }else if(file.type.startsWith("video/")){
+  }else{
 
-    const video = document.createElement("video");
+    preview.innerHTML =
+      `<img src="${url}" alt="Preview">`;
 
-    video.src = url;
-    video.controls = true;
-    video.className = "preview";
-
-    preview.appendChild(video);
-
-  }else if(file.type.startsWith("audio/")){
-
-    const audio = document.createElement("audio");
-
-    audio.src = url;
-    audio.controls = true;
-    audio.style.width = "100%";
-
-    preview.appendChild(audio);
   }
+}
+
+
+function removePostFile(){
+
+  $("postFile").value = "";
+
+  $("postPreview").innerHTML = "";
+
+  $("postPreview").style.display = "none";
+
+  $("removePostFileBtn").classList.add("hidden");
 }
 
 
 async function createPost(){
 
+  const caption =
+    $("postCaption").value.trim();
+
+  const file =
+    $("postFile").files[0];
+
+  if(!caption && !file){
+
+    toast("Andika caption au chagua picha/video.");
+
+    return;
+  }
+
   try{
-
-    const caption = $("postCaption").value.trim();
-    const file = $("postFile").files[0];
-
-    if(!caption && !file){
-
-      toast("Andika caption au chagua media.");
-
-      return;
-    }
 
     const form = new FormData();
 
-    form.append("caption",caption);
+    if(caption){
+      form.append("caption",caption);
+    }
 
     if(file){
       form.append("file",file);
     }
-
-    toast("Publishing...");
 
     await api("/api/posts",{
       method:"POST",
@@ -2043,267 +2441,59 @@ async function createPost(){
     });
 
     $("postCaption").value = "";
-    $("postFile").value = "";
-    $("postFileName").textContent =
-      "Hakuna file iliyochaguliwa";
 
-    $("postPreview").innerHTML = "";
+    removePostFile();
 
-    closeModal("postModal");
+    toast("Post imewekwa 🚀");
 
     await loadFeed();
-
-    toast("Post published.");
 
   }catch(error){
 
     toast(error.message);
+
   }
 }
 
 
-async function loadFeed(userId=null){
-
-  try{
-
-    const path =
-      userId
-      ? "/api/posts?user_id=" + encodeURIComponent(userId)
-      : "/api/posts";
-
-    const data = await api(path);
-
-    const posts =
-      Array.isArray(data)
-      ? data
-      : data.posts || [];
-
-    renderFeed(posts);
-
-  }catch(error){
-
-    $("feed").innerHTML =
-      `<div class="card empty">
-        Imeshindikana kupakia feed.<br>
-        <small>${escapeHTML(error.message)}</small>
-      </div>`;
-  }
-}
-
-
-function renderFeed(posts){
-
-  if(!posts.length){
-
-    $("feed").innerHTML =
-      `<div class="card empty">
-        Hakuna posts bado.
-      </div>`;
-
-    return;
-  }
-
-  $("feed").innerHTML =
-    posts.map(renderPost).join("");
-}
-
-
-function renderPost(post){
-
-  const user = post.user || {};
-
-  const name =
-    post.user_name ||
-    user.name ||
-    post.username ||
-    user.username ||
-    "User";
-
-  const avatar =
-    avatarURL(
-      post.avatar_url ||
-      user.avatar_url ||
-      user.avatar
-    );
-
-  const caption =
-    post.caption || "";
-
-  const media =
-    post.media_url ||
-    post.file_url ||
-    post.url ||
-    "";
-
-  const type =
-    post.media_type ||
-    post.file_type ||
-    "";
-
-  const postId = post.id;
-
-  let mediaHTML = "";
-
-  if(media){
-
-    const url = fileURL(media);
-
-    if(
-      type.includes("image") ||
-      /\.(jpg|jpeg|png|gif|webp)$/i.test(url)
-    ){
-
-      mediaHTML =
-        `<img class="post-media"
-          src="${escapeHTML(url)}"
-          alt="post image"
-          loading="lazy">`;
-
-    }else if(
-      type.includes("video") ||
-      /\.(mp4|webm|mov)$/i.test(url)
-    ){
-
-      mediaHTML =
-        `<video
-          class="post-media"
-          src="${escapeHTML(url)}"
-          controls
-          playsinline></video>`;
-
-    }else if(
-      type.includes("audio") ||
-      /\.(mp3|wav|ogg|m4a)$/i.test(url)
-    ){
-
-      mediaHTML =
-        `<audio
-          src="${escapeHTML(url)}"
-          controls
-          style="width:100%;margin-top:10px"></audio>`;
-    }
-  }
-
-  const liked =
-    post.liked_by_me ||
-    post.liked ||
-    false;
-
-  return `
-  <article class="card post">
-
-    <div class="post-head">
-
-      <img
-        class="avatar small"
-        src="${escapeHTML(avatar)}"
-        alt="avatar">
-
-      <div class="post-user">
-        <strong>${escapeHTML(name)}</strong>
-        <span>${escapeHTML(
-          post.created_at
-          ? formatDate(post.created_at)
-          : ""
-        )}</span>
-      </div>
-
-    </div>
-
-    ${
-      caption
-      ? `<div class="post-caption">
-          ${escapeHTML(caption)}
-         </div>`
-      : ""
-    }
-
-    ${mediaHTML}
-
-    <div class="post-actions">
-
-      <button
-        class="action ${liked ? "liked" : ""}"
-        onclick="likePost('${postId}',this)">
-        ❤️ ${post.likes_count || post.likes || 0}
-      </button>
-
-      <button
-        class="action"
-        onclick="toggleComments('${postId}')">
-        💬 ${post.comments_count || post.comments || 0}
-      </button>
-
-      <button
-        class="action"
-        onclick="savePost('${postId}',this)">
-        🔖 Save
-      </button>
-
-      <button
-        class="action"
-        onclick="resharePost('${postId}')">
-        🔁 Share
-      </button>
-
-      <button
-        class="action"
-        onclick="reportPost('${postId}')">
-        ⋮
-      </button>
-
-    </div>
-
-    <div
-      id="comments-${postId}"
-      class="comments hidden">
-    </div>
-
-  </article>
-  `;
-}
-
-
-function formatDate(value){
-
-  try{
-
-    return new Date(value).toLocaleString();
-
-  }catch(e){
-
-    return "";
-  }
-}
-
+/* ============================================================
+   POST ACTIONS
+============================================================ */
 
 async function likePost(id,button){
 
   try{
 
     const data = await api(
-      `/api/posts/${encodeURIComponent(id)}/like`,
-      {method:"POST"}
+      "/api/posts/" +
+      encodeURIComponent(id) +
+      "/like",
+      {
+        method:"POST"
+      }
     );
 
-    if(data.liked !== undefined){
+    if(data){
 
-      button.classList.toggle("liked",data.liked);
+      const count =
+        data.likes_count ??
+        data.likes ??
+        null;
+
+      if(count !== null){
+
+        button.textContent =
+          "❤️ " + count;
+
+      }
     }
 
-    const count =
-      data.likes_count ??
-      data.count ??
-      "";
-
-    if(count !== ""){
-      button.innerHTML =
-        `❤️ ${count}`;
-    }
+    button.classList.toggle("active");
 
   }catch(error){
 
     toast(error.message);
+
   }
 }
 
@@ -2313,15 +2503,22 @@ async function savePost(id,button){
   try{
 
     await api(
-      `/api/posts/${encodeURIComponent(id)}/save`,
-      {method:"POST"}
+      "/api/posts/" +
+      encodeURIComponent(id) +
+      "/save",
+      {
+        method:"POST"
+      }
     );
 
-    button.textContent = "🔖 Saved";
+    button.classList.toggle("active");
+
+    toast("Saved updated.");
 
   }catch(error){
 
     toast(error.message);
+
   }
 }
 
@@ -2331,24 +2528,30 @@ async function resharePost(id){
   try{
 
     await api(
-      `/api/posts/${encodeURIComponent(id)}/reshare`,
-      {method:"POST"}
+      "/api/posts/" +
+      encodeURIComponent(id) +
+      "/reshare",
+      {
+        method:"POST"
+      }
     );
 
     toast("Post reshared.");
 
-    loadFeed();
+    await loadFeed();
 
   }catch(error){
 
     toast(error.message);
+
   }
 }
 
 
 async function toggleComments(id){
 
-  const box = $(`comments-${id}`);
+  const box =
+    $("comments-" + id);
 
   if(!box) return;
 
@@ -2357,213 +2560,464 @@ async function toggleComments(id){
   if(!box.classList.contains("hidden")){
 
     await loadComments(id);
+
+    $("comment-input-" + id)?.focus();
   }
 }
 
 
 async function loadComments(id){
 
-  const box = $(`comments-${id}`);
+  const list =
+    $("comment-list-" + id);
+
+  if(!list) return;
+
+  list.innerHTML =
+    '<div class="muted small">Loading...</div>';
 
   try{
 
     const data = await api(
-      `/api/posts/${encodeURIComponent(id)}/comments`
+      "/api/posts/" +
+      encodeURIComponent(id) +
+      "/comments"
     );
 
     const comments =
       Array.isArray(data)
-      ? data
-      : data.comments || [];
+        ? data
+        : (
+            data?.comments ||
+            data?.items ||
+            []
+          );
 
-    box.innerHTML = `
+    if(!comments.length){
 
-      <div>
-        ${
-          comments.length
-          ? comments.map(c=>`
+      list.innerHTML =
+        '<div class="muted small">No comments yet.</div>';
 
-            <div class="comment">
+      return;
+    }
 
-              <div class="comment-body">
+    list.innerHTML =
+      comments.map(comment=>{
 
-                <strong>
-                  ${escapeHTML(
-                    c.user_name ||
-                    c.username ||
-                    c.user?.name ||
-                    "User"
-                  )}
-                </strong>
+        const user =
+          comment.user ||
+          comment.author ||
+          {
+            name:comment.username,
+            username:comment.username,
+            avatar:comment.avatar
+          };
 
-                <div>
-                  ${escapeHTML(c.body || c.comment || c.text || "")}
-                </div>
+        return `
+          <div class="comment">
 
+            <img
+              class="comment-avatar"
+              src="${esc(avatarURL(user))}"
+              alt=""
+            >
+
+            <div class="comment-body">
+
+              <div class="comment-name">
+                ${esc(
+                  user.name ||
+                  user.username ||
+                  "User"
+                )}
+              </div>
+
+              <div class="comment-text">
+                ${esc(
+                  comment.text ||
+                  comment.content ||
+                  comment.comment ||
+                  ""
+                )}
               </div>
 
             </div>
 
-          `).join("")
-          : `<div class="muted small">
-              Hakuna comments bado.
-             </div>`
-        }
-      </div>
+          </div>
+        `;
 
-      <div class="comment-form">
-
-        <input
-          id="commentInput-${id}"
-          class="input"
-          placeholder="Andika comment...">
-
-        <button
-          class="primary"
-          onclick="sendComment('${id}')">
-          ➤
-        </button>
-
-      </div>
-    `;
+      }).join("");
 
   }catch(error){
 
-    box.innerHTML =
-      `<div class="muted small">
-        ${escapeHTML(error.message)}
-      </div>`;
+    list.innerHTML =
+      `<div class="muted small">${esc(error.message)}</div>`;
   }
 }
 
 
 async function sendComment(id){
 
-  const input = $(`commentInput-${id}`);
+  const input =
+    $("comment-input-" + id);
 
-  if(!input) return;
+  const text =
+    input.value.trim();
 
-  const body = input.value.trim();
-
-  if(!body) return;
+  if(!text) return;
 
   try{
 
     await api(
-      `/api/posts/${encodeURIComponent(id)}/comments`,
+      "/api/posts/" +
+      encodeURIComponent(id) +
+      "/comments",
       {
         method:"POST",
-        headers:{
-          "Content-Type":"application/json"
-        },
         body:JSON.stringify({
-          body
+          text
         })
       }
     );
 
     input.value = "";
 
-    loadComments(id);
+    await loadComments(id);
 
   }catch(error){
 
     toast(error.message);
+
   }
+}
+
+
+function postMenu(id){
+
+  openModal(
+    "Post",
+    `
+      <button
+        class="secondary-btn full"
+        onclick="reportPost('${esc(id)}')"
+      >
+        🚩 Report
+      </button>
+
+      <button
+        class="secondary-btn full"
+        style="margin-top:8px"
+        onclick="closeModal()"
+      >
+        Close
+      </button>
+    `
+  );
 }
 
 
 async function reportPost(id){
 
-  if(!confirm("Report this post?")) return;
-
   try{
 
     await api(
-      `/api/posts/${encodeURIComponent(id)}/report`,
+      "/api/posts/" +
+      encodeURIComponent(id) +
+      "/report",
       {
         method:"POST",
-        headers:{
-          "Content-Type":"application/json"
-        },
         body:JSON.stringify({
-          reason:"User report"
+          reason:"Reported by user"
         })
       }
     );
 
-    toast("Post reported.");
+    closeModal();
+
+    toast("Report imetumwa.");
 
   }catch(error){
 
     toast(error.message);
+
   }
 }
 
 
-/* =========================
-   USERS / CHAT LIST
-========================= */
+/* ============================================================
+   PROFILE
+============================================================ */
 
-async function searchUsers(value){
+async function loadProfile(){
 
-  const q = value.trim();
+  try{
 
-  const box = $("searchResults");
+    const data = await api("/api/me");
 
-  if(q.length < 2){
+    ME =
+      data?.user ||
+      data;
 
-    box.innerHTML = "";
+    updateHeader();
+
+  }catch(error){
+
+    if(TOKEN){
+      toast(error.message);
+    }
+  }
+}
+
+
+function openProfileEditor(){
+
+  openModal(
+    "Edit Profile",
+    `
+      <div class="field">
+        <label>Name</label>
+        <input
+          id="editName"
+          value="${esc(
+            ME?.name ||
+            ME?.full_name ||
+            ""
+          )}"
+        >
+      </div>
+
+      <div class="field">
+        <label>Username</label>
+        <input
+          id="editUsername"
+          value="${esc(
+            ME?.username ||
+            ""
+          )}"
+        >
+      </div>
+
+      <div class="field">
+        <label>Bio</label>
+        <textarea
+          id="editBio"
+          maxlength="1000"
+        >${esc(ME?.bio || "")}</textarea>
+      </div>
+
+      <button
+        class="primary-btn full"
+        onclick="saveProfile()"
+      >
+        Save Changes
+      </button>
+    `
+  );
+}
+
+
+async function saveProfile(){
+
+  try{
+
+    const body = {
+      name:$("editName").value.trim(),
+      username:$("editUsername").value.trim(),
+      bio:$("editBio").value.trim()
+    };
+
+    const data = await api("/api/profile",{
+      method:"PATCH",
+      body:JSON.stringify(body)
+    });
+
+    ME =
+      data?.user ||
+      data;
+
+    updateHeader();
+
+    closeModal();
+
+    toast("Profile updated.");
+
+  }catch(error){
+
+    toast(error.message);
+
+  }
+}
+
+
+async function changeAvatar(){
+
+  const file =
+    $("avatarFile").files[0];
+
+  if(!file) return;
+
+  try{
+
+    const form = new FormData();
+
+    form.append("file",file);
+
+    const data = await api(
+      "/api/profile/avatar",
+      {
+        method:"POST",
+        body:form
+      }
+    );
+
+    ME =
+      data?.user ||
+      {
+        ...ME,
+        ...(data || {})
+      };
+
+    updateHeader();
+
+    $("profileAvatar").src =
+      avatarURL(ME) +
+      "?t=" +
+      Date.now();
+
+    $("headerAvatar").src =
+      avatarURL(ME) +
+      "?t=" +
+      Date.now();
+
+    $("avatarFile").value = "";
+
+    toast("Profile picture updated.");
+
+  }catch(error){
+
+    toast(error.message);
+
+  }
+}
+
+
+/* ============================================================
+   SEARCH
+============================================================ */
+
+function openSearch(){
+
+  showPage("search");
+
+  $("searchInput").focus();
+}
+
+
+function handleSearch(event){
+
+  if(event.key === "Enter"){
+
+    const value =
+      event.target.value.trim();
+
+    if(value){
+
+      showPage("search");
+
+      $("searchInput").value = value;
+
+      searchUsers(value);
+    }
+  }
+}
+
+
+function searchUsersDebounced(){
+
+  clearTimeout(searchTimer);
+
+  searchTimer = setTimeout(()=>{
+
+    searchUsers(
+      $("searchInput").value.trim()
+    );
+
+  },400);
+}
+
+
+async function searchUsers(query){
+
+  const results =
+    $("searchResults");
+
+  if(!query){
+
+    results.innerHTML =
+      '<div class="empty">Search users.</div>';
 
     return;
   }
 
+  results.innerHTML =
+    '<div class="muted">Searching...</div>';
+
   try{
 
     const data = await api(
-      `/api/users/search?q=${encodeURIComponent(q)}`
+      "/api/users/search?q=" +
+      encodeURIComponent(query)
     );
 
     const users =
       Array.isArray(data)
-      ? data
-      : data.users || [];
+        ? data
+        : (
+            data?.users ||
+            data?.items ||
+            []
+          );
 
-    box.innerHTML =
+    if(!users.length){
+
+      results.innerHTML =
+        '<div class="empty">User hajapatikana.</div>';
+
+      return;
+    }
+
+    results.innerHTML =
       users.map(user=>`
 
-        <div class="search-user">
+        <div class="user-result">
 
           <img
-            class="avatar small"
-            src="${escapeHTML(
-              avatarURL(
-                user.avatar_url ||
-                user.avatar
-              )
-            )}">
+            class="chat-avatar"
+            src="${esc(avatarURL(user))}"
+            alt=""
+          >
 
-          <div>
-            <strong>
-              ${escapeHTML(
+          <div class="user-result-info">
+
+            <b>
+              ${esc(
                 user.name ||
+                user.full_name ||
                 user.username ||
                 "User"
               )}
-            </strong>
+            </b>
 
             <div class="muted small">
-              ${escapeHTML(
-                user.username
-                ? "@" + user.username
-                : ""
-              )}
+              @${esc(user.username || "")}
             </div>
+
           </div>
 
           <button
-            class="secondary"
-            onclick='openChat(${JSON.stringify(user)})'>
+            class="primary-btn"
+            onclick="openChatWithUser('${esc(user.id || user.user_id)}')"
+          >
             Chat
           </button>
 
@@ -2573,305 +3027,492 @@ async function searchUsers(value){
 
   }catch(error){
 
-    box.innerHTML =
-      `<div class="muted small">
-        ${escapeHTML(error.message)}
-      </div>`;
+    results.innerHTML =
+      `<div class="empty">${esc(error.message)}</div>`;
   }
 }
 
+
+/* ============================================================
+   CHAT LIST
+============================================================ */
 
 async function loadChats(){
 
-  /*
-    Backend V4 inaweza kurudisha chat list tofauti
-    kulingana na implementation.
-    Tunajaribu endpoint ya messages na fallback.
-  */
+  const list =
+    $("chatList");
 
-  const box = $("chatItems");
+  if(!list) return;
+
+  list.innerHTML =
+    '<div class="muted small">Loading chats...</div>';
 
   try{
 
-    let data;
+    const data = await api("/api/messages");
 
-    try{
+    let users =
+      data?.users ||
+      data?.chats ||
+      data?.conversations ||
+      data;
 
-      data = await api("/api/messages");
-
-    }catch(e){
-
-      data = [];
+    if(!Array.isArray(users)){
+      users = [];
     }
 
-    const users =
-      Array.isArray(data)
-      ? data
-      : data.chats ||
-        data.users ||
-        [];
+    CHAT_USERS = users;
 
-    const unique = [];
-
-    const seen = new Set();
-
-    for(const item of users){
-
-      const user =
-        item.user ||
-        item.other_user ||
-        item;
-
-      const id = user.id;
-
-      if(!id || seen.has(String(id))) continue;
-
-      if(ME && String(id) === String(ME.id)) continue;
-
-      seen.add(String(id));
-
-      unique.push(user);
-    }
-
-    if(!unique.length){
-
-      box.innerHTML =
-        `<div class="empty">
-          Search user hapo juu kuanza chat.
-        </div>`;
-
-      return;
-    }
-
-    box.innerHTML =
-      unique.map(user=>chatItemHTML(user)).join("");
+    renderChatList();
 
   }catch(error){
 
-    box.innerHTML =
-      `<div class="empty">
-        Search user kuanza chat.
-      </div>`;
+    list.innerHTML =
+      `
+        <div class="empty">
+          <p>${esc(error.message)}</p>
+          <button
+            class="secondary-btn"
+            onclick="showPage('search')"
+          >
+            Search User
+          </button>
+        </div>
+      `;
   }
 }
 
 
-function chatItemHTML(user){
+function renderChatList(){
 
-  return `
+  const list =
+    $("chatList");
 
-  <div
-    class="chat-item"
-    onclick='openChat(${JSON.stringify(user)})'>
+  if(!CHAT_USERS.length){
 
-    <img
-      class="avatar"
-      src="${escapeHTML(
-        avatarURL(
-          user.avatar_url ||
-          user.avatar
-        )
-      )}">
+    list.innerHTML =
+      `
+        <div class="empty">
+          <div style="font-size:35px">💬</div>
+          <p>Hakuna chat bado.</p>
 
-    <div class="chat-info">
+          <button
+            class="primary-btn"
+            onclick="showPage('search')"
+          >
+            Find People
+          </button>
+        </div>
+      `;
 
-      <strong>
-        ${escapeHTML(
-          user.name ||
-          user.username ||
-          "User"
-        )}
-      </strong>
+    return;
+  }
 
-      <small>
-        ${escapeHTML(
-          user.last_message ||
-          "Start conversation"
-        )}
-      </small>
+  list.innerHTML =
+    CHAT_USERS.map(user=>{
 
-    </div>
+      const id =
+        user.id ||
+        user.user_id;
 
-  </div>
+      return `
+        <button
+          class="chat-user ${
+            ACTIVE_CHAT_USER &&
+            String(ACTIVE_CHAT_USER.id) === String(id)
+              ? "active"
+              : ""
+          }"
+          data-chat-name="${esc(
+            user.name ||
+            user.username ||
+            ""
+          ).toLowerCase()}"
+          onclick="openChatWithUser('${esc(id)}')"
+        >
 
-  `;
+          <img
+            class="chat-avatar"
+            src="${esc(avatarURL(user))}"
+            alt=""
+          >
+
+          <div class="chat-user-info">
+
+            <div class="chat-user-name">
+              ${esc(
+                user.name ||
+                user.full_name ||
+                user.username ||
+                "User"
+              )}
+            </div>
+
+            <div class="chat-preview">
+              ${esc(
+                user.last_message ||
+                user.preview ||
+                "@"+(user.username || "")
+              )}
+            </div>
+
+          </div>
+
+        </button>
+      `;
+
+    }).join("");
 }
 
 
-/* =========================
+function filterChats(){
+
+  const q =
+    $("chatSearch").value
+      .trim()
+      .toLowerCase();
+
+  document
+    .querySelectorAll(".chat-user")
+    .forEach(item=>{
+
+      const name =
+        item.dataset.chatName || "";
+
+      item.style.display =
+        !q || name.includes(q)
+          ? "flex"
+          : "none";
+
+    });
+}
+
+
+/* ============================================================
    OPEN CHAT
-========================= */
+============================================================ */
 
-async function openChat(user){
+async function openChatWithUser(id){
 
-  if(!user || !user.id) return;
-
-  currentChatUser = user;
-
-  $("chatLayout").classList.add("chat-open");
-
-  $("noChatSelected").classList.add("hidden");
-
-  $("chatContent").classList.remove("hidden");
-
-  $("chatAvatar").src =
-    avatarURL(
-      user.avatar_url ||
-      user.avatar
+  let user =
+    CHAT_USERS.find(
+      x=>String(x.id || x.user_id) === String(id)
     );
 
-  $("chatName").textContent =
-    user.name ||
-    user.username ||
-    "User";
+  if(!user){
 
-  $("chatStatus").textContent =
-    "online";
+    user = {
+      id:id,
+      username:"User"
+    };
+  }
 
-  $("chatMenu").classList.add("hidden");
+  ACTIVE_CHAT_USER = user;
 
-  await loadChatMessages();
+  renderChatList();
 
-  await loadChatSettings();
+  await renderChatWindow();
 
-  scrollMessages();
+  await loadMessages(id);
+
+  if(window.innerWidth <= 760){
+
+    $("chatListPanel")
+      .classList.add("mobile-hide");
+
+  }
 }
 
 
-function closeChat(){
+async function renderChatWindow(){
 
-  currentChatUser = null;
+  const user =
+    ACTIVE_CHAT_USER;
 
-  $("chatLayout").classList.remove("chat-open");
+  if(!user) return;
 
-  $("chatContent").classList.add("hidden");
+  const windowBox =
+    $("chatWindow");
 
-  $("noChatSelected").classList.remove("hidden");
+  windowBox.classList.remove("empty-chat");
+
+  windowBox.innerHTML =
+    `
+      <div class="chat-head">
+
+        <button
+          class="icon-btn mobile-only"
+          onclick="backToChatList()"
+        >
+          ←
+        </button>
+
+        <img
+          class="chat-avatar"
+          src="${esc(avatarURL(user))}"
+          alt=""
+        >
+
+        <div class="chat-head-info">
+
+          <b>
+            ${esc(
+              user.name ||
+              user.full_name ||
+              user.username ||
+              "User"
+            )}
+          </b>
+
+          <div class="muted small">
+            @${esc(user.username || "")}
+          </div>
+
+        </div>
+
+        <div class="chat-head-actions">
+
+          <button
+            class="icon-btn"
+            onclick="startCall('audio')"
+            title="Voice call"
+          >
+            📞
+          </button>
+
+          <button
+            class="icon-btn"
+            onclick="startCall('video')"
+            title="Video call"
+          >
+            🎥
+          </button>
+
+          <button
+            class="icon-btn"
+            onclick="chatMenu()"
+          >
+            ⋮
+          </button>
+
+        </div>
+
+      </div>
+
+      <div
+        id="chatMessages"
+        class="chat-messages"
+      >
+        <div class="empty">
+          Loading messages...
+        </div>
+      </div>
+
+      <div class="chat-input">
+
+        <label class="file-label">
+          📎
+          <input
+            id="chatFile"
+            type="file"
+            onchange="sendChatFile()"
+          >
+        </label>
+
+        <button
+          class="icon-btn"
+          id="recordBtn"
+          onclick="toggleVoiceRecording()"
+          title="Voice note"
+        >
+          🎙️
+        </button>
+
+        <input
+          id="messageInput"
+          type="text"
+          placeholder="Andika ujumbe..."
+          maxlength="5000"
+          onkeydown="messageKeydown(event)"
+        >
+
+        <button
+          class="primary-btn"
+          onclick="sendMessage()"
+        >
+          Send
+        </button>
+
+      </div>
+    `;
 }
 
 
-/* =========================
+function backToChatList(){
+
+  $("chatListPanel")
+    .classList.remove("mobile-hide");
+
+  ACTIVE_CHAT_USER = null;
+
+  $("chatWindow").classList.add("empty-chat");
+
+  $("chatWindow").innerHTML =
+    `
+      <div class="empty">
+        <div style="font-size:45px">💬</div>
+        <h3>Messages</h3>
+        <p>
+          Chagua mtu kwenye chat list.
+        </p>
+      </div>
+    `;
+
+  renderChatList();
+}
+
+
+/* ============================================================
    MESSAGES
-========================= */
+============================================================ */
 
-async function loadChatMessages(){
+async function loadMessages(userId){
 
-  if(!currentChatUser) return;
+  const box =
+    $("chatMessages");
+
+  if(!box) return;
 
   try{
 
     const data = await api(
-      `/api/messages/${encodeURIComponent(currentChatUser.id)}`
+      "/api/messages/" +
+      encodeURIComponent(userId)
     );
 
-    currentMessages =
+    CHAT_MESSAGES =
       Array.isArray(data)
-      ? data
-      : data.messages || [];
+        ? data
+        : (
+            data?.messages ||
+            data?.items ||
+            []
+          );
 
     renderMessages();
 
   }catch(error){
 
-    $("messages").innerHTML =
-      `<div class="empty">
-        ${escapeHTML(error.message)}
-      </div>`;
+    box.innerHTML =
+      `<div class="empty">${esc(error.message)}</div>`;
   }
 }
 
 
 function renderMessages(){
 
-  const box = $("messages");
+  const box =
+    $("chatMessages");
 
-  if(!currentMessages.length){
+  if(!box) return;
+
+  if(!CHAT_MESSAGES.length){
 
     box.innerHTML =
-      `<div class="empty">
-        Anza mazungumzo hapa.
-      </div>`;
+      `
+        <div class="empty">
+          <div style="font-size:35px">👋</div>
+          <p>Hakuna messages bado.</p>
+          <p>Anza mazungumzo.</p>
+        </div>
+      `;
 
     return;
   }
 
   box.innerHTML =
-    currentMessages.map(message=>{
+    CHAT_MESSAGES.map(message=>{
+
+      const senderId =
+        message.sender_id ||
+        message.from_user_id ||
+        message.user_id;
 
       const mine =
-        String(message.sender_id) ===
-        String(ME.id);
+        ME &&
+        String(senderId) === String(ME.id);
 
       const text =
-        message.body ||
-        message.text ||
         message.content ||
+        message.text ||
+        message.message ||
         "";
 
-      const media =
-        message.media_url ||
-        message.file_url ||
-        "";
+      const voice =
+        message.voice_url ||
+        message.audio_url ||
+        message.file_url &&
+        (
+          message.content_type || ""
+        ).startsWith("audio");
 
-      const isVoice =
-        message.message_type === "voice" ||
-        message.type === "voice" ||
-        message.media_type === "audio";
+      let body = "";
 
-      let content = "";
+      if(voice){
 
-      if(isVoice && media){
+        body =
+          `
+            <div class="voice-message">
 
-        content = `
-          <div class="voice-message">
-            🎙️
-            <audio
-              controls
-              src="${escapeHTML(fileURL(media))}">
-            </audio>
-          </div>
-        `;
+              🎙️
 
-      }else if(media){
+              <audio
+                controls
+                src="${esc(mediaURL(
+                  message.voice_url ||
+                  message.audio_url ||
+                  message.file_url
+                ))}"
+              ></audio>
 
-        content = `
-          <a
-            href="${escapeHTML(fileURL(media))}"
-            target="_blank"
-            rel="noopener">
-            📎 Open attachment
-          </a>
-          ${
-            text
-            ? `<div style="margin-top:6px">
-                ${escapeHTML(text)}
-               </div>`
-            : ""
-          }
-        `;
+            </div>
+          `;
+
+      }else if(
+        message.file_url &&
+        !text
+      ){
+
+        body =
+          `
+            <a
+              href="${esc(mediaURL(message.file_url))}"
+              target="_blank"
+              rel="noopener"
+              style="color:white"
+            >
+              📎 Open file
+            </a>
+          `;
 
       }else{
 
-        content =
-          escapeHTML(text);
+        body = esc(text);
+
       }
 
       return `
+        <div class="message ${mine ? "mine":"theirs"}">
 
-        <div class="message ${mine ? "mine" : ""}">
+          ${body}
 
-          <div class="bubble">
-
-            ${content}
-
-            <span class="message-time">
-              ${escapeHTML(
-                message.created_at
-                ? formatDate(message.created_at)
-                : ""
-              )}
-            </span>
-
+          <div class="message-time">
+            ${esc(
+              formatDate(
+                message.created_at ||
+                message.created
+              )
+            )}
           </div>
 
         </div>
@@ -2879,1003 +3520,1086 @@ function renderMessages(){
 
     }).join("");
 
-  scrollMessages();
+  box.scrollTop =
+    box.scrollHeight;
 }
 
 
-function scrollMessages(){
+function messageKeydown(event){
 
-  const box = $("messages");
+  if(
+    event.key === "Enter" &&
+    !event.shiftKey
+  ){
 
-  setTimeout(()=>{
-    box.scrollTop = box.scrollHeight;
-  },50);
+    event.preventDefault();
+
+    sendMessage();
+  }
 }
 
 
 async function sendMessage(){
 
-  if(!currentChatUser) return;
+  if(!ACTIVE_CHAT_USER) return;
 
-  const input = $("messageInput");
+  const input =
+    $("messageInput");
 
-  const body = input.value.trim();
+  const text =
+    input.value.trim();
 
-  if(!body) return;
+  if(!text) return;
 
   try{
 
     await api("/api/messages",{
       method:"POST",
-      headers:{
-        "Content-Type":"application/json"
-      },
       body:JSON.stringify({
-        receiver_id:currentChatUser.id,
-        body
+        receiver_id:
+          ACTIVE_CHAT_USER.id ||
+          ACTIVE_CHAT_USER.user_id,
+
+        content:text,
+
+        text:text
       })
     });
 
     input.value = "";
 
-    await loadChatMessages();
-
-    loadChats();
-
-  }catch(error){
-
-    toast(error.message);
-  }
-}
-
-
-/* =========================
-   CHAT FILE
-========================= */
-
-async function sendChatFile(file){
-
-  if(!file || !currentChatUser) return;
-
-  try{
-
-    const form = new FormData();
-
-    form.append("receiver_id",String(currentChatUser.id));
-    form.append("file",file);
-
-    await api("/api/messages/voice",{
-      method:"POST",
-      body:form
-    });
-
-    await loadChatMessages();
+    await loadMessages(
+      ACTIVE_CHAT_USER.id ||
+      ACTIVE_CHAT_USER.user_id
+    );
 
   }catch(error){
 
     toast(error.message);
+
   }
 }
 
 
-/* =========================
+/* ============================================================
    VOICE NOTE
-========================= */
+============================================================ */
 
-async function toggleRecording(){
+async function toggleVoiceRecording(){
 
-  if(mediaRecorder){
+  if(recording){
 
     stopRecording();
 
     return;
   }
 
-  if(!navigator.mediaDevices ||
-     !navigator.mediaDevices.getUserMedia){
+  if(
+    !navigator.mediaDevices ||
+    !navigator.mediaDevices.getUserMedia
+  ){
 
-    toast("Browser hii haiungi microphone.");
-
-    return;
-  }
-
-  if(!currentChatUser){
-
-    toast("Chagua chat kwanza.");
+    toast("Browser yako haisupport microphone.");
 
     return;
   }
 
   try{
 
-    recordingStream =
+    const stream =
       await navigator.mediaDevices.getUserMedia({
         audio:true
       });
 
-    recordingChunks = [];
+    audioChunks = [];
 
     mediaRecorder =
-      new MediaRecorder(recordingStream);
+      new MediaRecorder(stream);
 
-    mediaRecorder.ondataavailable = event=>{
+    mediaRecorder.ondataavailable =
+      event => {
 
-      if(event.data.size > 0){
-        recordingChunks.push(event.data);
-      }
-    };
+        if(event.data.size > 0){
+          audioChunks.push(event.data);
+        }
 
-    mediaRecorder.onstop = async()=>{
+      };
 
-      const blob =
-        new Blob(
-          recordingChunks,
-          {type:"audio/webm"}
-        );
+    mediaRecorder.onstop =
+      async ()=>{
 
-      const file =
-        new File(
-          [blob],
-          "voice-note.webm",
-          {type:"audio/webm"}
-        );
+        stream
+          .getTracks()
+          .forEach(track=>track.stop());
 
-      recordingStream
-        ?.getTracks()
-        .forEach(track=>track.stop());
+        const blob =
+          new Blob(
+            audioChunks,
+            {
+              type:
+                mediaRecorder.mimeType ||
+                "audio/webm"
+            }
+          );
 
-      recordingStream = null;
-
-      mediaRecorder = null;
-
-      $("recordBtn").textContent = "🎙️";
-
-      await uploadVoiceNote(file);
-    };
+        await uploadVoice(blob);
+      };
 
     mediaRecorder.start();
 
+    recording = true;
+
     $("recordBtn").textContent = "⏹️";
 
-    toast("Recording... bonyeza tena kumaliza.");
+    $("recordBtn").classList.add("recording");
+
+    toast("Recording... Bonyeza tena kumaliza.");
 
   }catch(error){
 
-    toast(
-      "Microphone permission haijaruhusiwa."
-    );
+    toast("Microphone permission imekataliwa.");
+
   }
 }
 
 
 function stopRecording(){
 
-  if(mediaRecorder){
+  if(
+    mediaRecorder &&
+    mediaRecorder.state !== "inactive"
+  ){
 
     mediaRecorder.stop();
   }
+
+  recording = false;
+
+  $("recordBtn").textContent = "🎙️";
+
+  $("recordBtn").classList.remove("recording");
 }
 
 
-async function uploadVoiceNote(file){
+async function uploadVoice(blob){
 
-  if(!currentChatUser) return;
+  if(!ACTIVE_CHAT_USER) return;
 
   try{
 
-    const form = new FormData();
-
-    form.append(
-      "receiver_id",
-      String(currentChatUser.id)
-    );
+    const form =
+      new FormData();
 
     form.append(
       "file",
-      file
+      blob,
+      "voice-note.webm"
     );
 
-    await api("/api/messages/voice",{
-      method:"POST",
-      body:form
-    });
-
-    await loadChatMessages();
-
-  }catch(error){
-
-    toast(error.message);
-  }
-}
-
-
-/* =========================
-   CHAT SETTINGS
-========================= */
-
-async function loadChatSettings(){
-
-  if(!currentChatUser) return;
-
-  try{
-
-    const data = await api(
-      `/api/chats/${encodeURIComponent(currentChatUser.id)}/settings`
+    form.append(
+      "receiver_id",
+      ACTIVE_CHAT_USER.id ||
+      ACTIVE_CHAT_USER.user_id
     );
-
-    const settings =
-      data.settings ||
-      data;
-
-    const wallpaper =
-      settings.wallpaper_url ||
-      settings.wallpaper ||
-      "";
-
-    if(wallpaper){
-
-      $("messages").style.backgroundImage =
-        `url("${fileURL(wallpaper)}")`;
-
-    }else{
-
-      $("messages").style.backgroundImage = "none";
-    }
-
-  }catch(error){
-
-    $("messages").style.backgroundImage = "none";
-  }
-}
-
-
-function toggleChatMenu(){
-
-  if(!currentChatUser) return;
-
-  $("chatMenu").classList.toggle("hidden");
-}
-
-
-function pinChat(){
-
-  if(!currentChatUser) return;
-
-  updateChatSettings({
-    pinned:true
-  });
-
-  $("chatMenu").classList.add("hidden");
-}
-
-
-function toggleMute(){
-
-  if(!currentChatUser) return;
-
-  updateChatSettings({
-    muted:true
-  });
-
-  $("chatMenu").classList.add("hidden");
-}
-
-
-async function updateChatSettings(payload){
-
-  try{
 
     await api(
-      `/api/chats/${encodeURIComponent(currentChatUser.id)}/settings`,
-      {
-        method:"PATCH",
-        headers:{
-          "Content-Type":"application/json"
-        },
-        body:JSON.stringify(payload)
-      }
-    );
-
-    toast("Chat settings updated.");
-
-  }catch(error){
-
-    toast(error.message);
-  }
-}
-
-
-function openWallpaperPicker(){
-
-  $("chatMenu").classList.add("hidden");
-
-  if(!currentChatUser) return;
-
-  $("wallpaperInput").click();
-}
-
-
-async function uploadWallpaper(file){
-
-  if(!file || !currentChatUser) return;
-
-  try{
-
-    const form = new FormData();
-
-    form.append("file",file);
-
-    const data = await api(
-      `/api/chats/${encodeURIComponent(currentChatUser.id)}/wallpaper`,
+      "/api/messages/voice",
       {
         method:"POST",
         body:form
       }
     );
 
-    const url =
-      data.wallpaper_url ||
-      data.url;
+    await loadMessages(
+      ACTIVE_CHAT_USER.id ||
+      ACTIVE_CHAT_USER.user_id
+    );
 
-    if(url){
-
-      $("messages").style.backgroundImage =
-        `url("${fileURL(url)}")`;
-    }
-
-    toast("Wallpaper updated.");
+    toast("Voice note imetumwa.");
 
   }catch(error){
 
     toast(error.message);
+
   }
 }
 
 
-async function clearCurrentChat(){
+/* ============================================================
+   CHAT FILE
+============================================================ */
 
-  $("chatMenu").classList.add("hidden");
+async function sendChatFile(){
 
-  if(!currentChatUser) return;
+  const file =
+    $("chatFile").files[0];
 
-  if(!confirm(
-    "Clear chat kwenye account yako?"
-  )){
-    return;
+  if(!file || !ACTIVE_CHAT_USER) return;
+
+  /*
+    Backend V4 inaweza kuwa na endpoint
+    maalum ya generic file.
+    Tunajaribu /api/messages/file.
+  */
+
+  try{
+
+    const form =
+      new FormData();
+
+    form.append("file",file);
+
+    form.append(
+      "receiver_id",
+      ACTIVE_CHAT_USER.id ||
+      ACTIVE_CHAT_USER.user_id
+    );
+
+    await api(
+      "/api/messages/file",
+      {
+        method:"POST",
+        body:form
+      }
+    );
+
+    $("chatFile").value = "";
+
+    await loadMessages(
+      ACTIVE_CHAT_USER.id ||
+      ACTIVE_CHAT_USER.user_id
+    );
+
+    toast("File imetumwa.");
+
+  }catch(error){
+
+    $("chatFile").value = "";
+
+    toast(
+      "File endpoint haijapatikana: " +
+      error.message
+    );
   }
+}
+
+
+/* ============================================================
+   CHAT MENU
+============================================================ */
+
+function chatMenu(){
+
+  if(!ACTIVE_CHAT_USER) return;
+
+  const id =
+    ACTIVE_CHAT_USER.id ||
+    ACTIVE_CHAT_USER.user_id;
+
+  openModal(
+    "Chat Settings",
+    `
+      <button
+        class="secondary-btn full"
+        onclick="pinChat()"
+      >
+        📌 Pin Chat
+      </button>
+
+      <button
+        class="secondary-btn full"
+        style="margin-top:8px"
+        onclick="toggleMute()"
+      >
+        🔕 Mute Chat
+      </button>
+
+      <button
+        class="secondary-btn full"
+        style="margin-top:8px"
+        onclick="chooseWallpaper()"
+      >
+        🖼️ Wallpaper
+      </button>
+
+      <button
+        class="secondary-btn full"
+        style="margin-top:8px"
+        onclick="searchInChat()"
+      >
+        🔎 Search
+      </button>
+
+      <button
+        class="secondary-btn full"
+        style="margin-top:8px"
+        onclick="viewChatProfile('${esc(id)}')"
+      >
+        👤 View Profile
+      </button>
+
+      <button
+        class="secondary-btn full"
+        style="margin-top:8px"
+        onclick="showChatMedia()"
+      >
+        📎 Media, Links & Files
+      </button>
+
+      <button
+        class="secondary-btn full"
+        style="margin-top:8px"
+        onclick="clearChat()"
+      >
+        🗑️ Clear Chat
+      </button>
+
+      <button
+        class="secondary-btn full"
+        style="margin-top:8px"
+        onclick="blockUser()"
+      >
+        🚫 Block
+      </button>
+
+      <button
+        class="danger-btn full"
+        style="margin-top:8px"
+        onclick="reportUser()"
+      >
+        🚩 Report
+      </button>
+    `
+  );
+}
+
+
+async function pinChat(){
+
+  if(!ACTIVE_CHAT_USER) return;
 
   try{
 
     await api(
-      `/api/chats/${encodeURIComponent(currentChatUser.id)}`,
+      "/api/chats/" +
+      encodeURIComponent(
+        ACTIVE_CHAT_USER.id ||
+        ACTIVE_CHAT_USER.user_id
+      ) +
+      "/settings",
+      {
+        method:"PATCH",
+        body:JSON.stringify({
+          pinned:true
+        })
+      }
+    );
+
+    closeModal();
+
+    toast("Chat ime-pin.");
+
+  }catch(error){
+
+    toast(error.message);
+
+  }
+}
+
+
+async function toggleMute(){
+
+  if(!ACTIVE_CHAT_USER) return;
+
+  try{
+
+    await api(
+      "/api/chats/" +
+      encodeURIComponent(
+        ACTIVE_CHAT_USER.id ||
+        ACTIVE_CHAT_USER.user_id
+      ) +
+      "/settings",
+      {
+        method:"PATCH",
+        body:JSON.stringify({
+          muted:true
+        })
+      }
+    );
+
+    closeModal();
+
+    toast("Chat ime-mute.");
+
+  }catch(error){
+
+    toast(error.message);
+
+  }
+}
+
+
+function chooseWallpaper(){
+
+  closeModal();
+
+  openModal(
+    "Chat Wallpaper",
+    `
+      <p class="muted small">
+        Chagua picha kutoka kwenye simu yako.
+      </p>
+
+      <label class="file-label">
+        🖼️ Choose Wallpaper
+        <input
+          id="wallpaperFile"
+          type="file"
+          accept="image/*"
+          onchange="uploadWallpaper()"
+        >
+      </label>
+    `
+  );
+}
+
+
+async function uploadWallpaper(){
+
+  const file =
+    $("wallpaperFile").files[0];
+
+  if(!file || !ACTIVE_CHAT_USER) return;
+
+  try{
+
+    const form =
+      new FormData();
+
+    form.append("file",file);
+
+    const id =
+      ACTIVE_CHAT_USER.id ||
+      ACTIVE_CHAT_USER.user_id;
+
+    const data =
+      await api(
+        "/api/chats/" +
+        encodeURIComponent(id) +
+        "/wallpaper",
+        {
+          method:"POST",
+          body:form
+        }
+      );
+
+    const url =
+      data?.url ||
+      data?.wallpaper_url ||
+      data?.wallpaper;
+
+    if(url){
+
+      $("chatMessages").style.backgroundImage =
+        `linear-gradient(rgba(5,8,23,.48),rgba(5,8,23,.48)),url("${mediaURL(url)}")`;
+    }
+
+    closeModal();
+
+    toast("Wallpaper imewekwa.");
+
+  }catch(error){
+
+    toast(error.message);
+
+  }
+}
+
+
+function searchInChat(){
+
+  closeModal();
+
+  const q =
+    prompt("Search kwenye messages:");
+
+  if(!q) return;
+
+  const query =
+    q.toLowerCase();
+
+  const found =
+    CHAT_MESSAGES.filter(message=>{
+
+      const text =
+        message.content ||
+        message.text ||
+        message.message ||
+        "";
+
+      return String(text)
+        .toLowerCase()
+        .includes(query);
+
+    });
+
+  openModal(
+    "Search Results",
+    found.length
+      ? found.map(x=>`
+          <div class="card" style="margin-bottom:8px">
+            ${esc(
+              x.content ||
+              x.text ||
+              x.message ||
+              ""
+            )}
+          </div>
+        `).join("")
+      : `<div class="empty">Hakuna message iliyopatikana.</div>`
+  );
+}
+
+
+async function clearChat(){
+
+  if(!ACTIVE_CHAT_USER) return;
+
+  const ok =
+    confirm(
+      "Una uhakika unataka kufuta chat hii?"
+    );
+
+  if(!ok) return;
+
+  try{
+
+    const id =
+      ACTIVE_CHAT_USER.id ||
+      ACTIVE_CHAT_USER.user_id;
+
+    await api(
+      "/api/messages/" +
+      encodeURIComponent(id),
       {
         method:"DELETE"
       }
     );
 
-    currentMessages = [];
+    closeModal();
 
-    renderMessages();
+    await loadMessages(id);
 
-    toast("Chat cleared.");
+    toast("Chat ime-clear.");
 
   }catch(error){
 
     toast(error.message);
+
   }
 }
 
 
-function searchMessages(){
+async function blockUser(){
 
-  $("chatMenu").classList.add("hidden");
+  if(!ACTIVE_CHAT_USER) return;
 
-  const q =
-    prompt("Tafuta ujumbe:");
+  try{
 
-  if(!q || !currentMessages.length) return;
+    const id =
+      ACTIVE_CHAT_USER.id ||
+      ACTIVE_CHAT_USER.user_id;
 
-  const term = q.toLowerCase();
-
-  const found =
-    currentMessages.filter(m=>
-      String(
-        m.body ||
-        m.text ||
-        m.content ||
-        ""
-      ).toLowerCase().includes(term)
+    await api(
+      "/api/users/" +
+      encodeURIComponent(id) +
+      "/block",
+      {
+        method:"POST"
+      }
     );
 
-  if(!found.length){
+    closeModal();
 
-    toast("Ujumbe haujapatikana.");
+    toast("User ameblockiwa.");
+
+  }catch(error){
+
+    toast(error.message);
+
+  }
+}
+
+
+async function reportUser(){
+
+  if(!ACTIVE_CHAT_USER) return;
+
+  try{
+
+    const id =
+      ACTIVE_CHAT_USER.id ||
+      ACTIVE_CHAT_USER.user_id;
+
+    await api(
+      "/api/users/" +
+      encodeURIComponent(id) +
+      "/report",
+      {
+        method:"POST",
+        body:JSON.stringify({
+          reason:"Reported by user"
+        })
+      }
+    );
+
+    closeModal();
+
+    toast("Report imetumwa.");
+
+  }catch(error){
+
+    toast(error.message);
+
+  }
+}
+
+
+function viewChatProfile(id){
+
+  closeModal();
+
+  const user =
+    CHAT_USERS.find(
+      x=>String(x.id || x.user_id) === String(id)
+    );
+
+  if(!user){
+
+    toast("Profile haipatikani.");
 
     return;
   }
 
-  const first = found[0];
+  openModal(
+    "Profile",
+    `
+      <div style="text-align:center">
 
-  const index =
-    currentMessages.indexOf(first);
+        <img
+          src="${esc(avatarURL(user))}"
+          style="
+            width:90px;
+            height:90px;
+            border-radius:50%;
+            object-fit:cover;
+          "
+        >
 
-  const elements =
-    document.querySelectorAll(".message");
+        <h3>
+          ${esc(
+            user.name ||
+            user.full_name ||
+            user.username ||
+            "User"
+          )}
+        </h3>
 
-  if(elements[index]){
+        <div class="muted">
+          @${esc(user.username || "")}
+        </div>
 
-    elements[index].scrollIntoView({
-      behavior:"smooth",
-      block:"center"
-    });
-  }
-}
+        <p class="muted">
+          ${esc(user.bio || "")}
+        </p>
 
-
-function openCurrentProfile(){
-
-  $("chatMenu").classList.add("hidden");
-
-  if(!currentChatUser) return;
-
-  alert(
-    `${currentChatUser.name || "User"}\n` +
-    `${currentChatUser.username ? "@" + currentChatUser.username : ""}\n\n` +
-    `${currentChatUser.bio || ""}`
+      </div>
+    `
   );
 }
 
 
 function showChatMedia(){
 
-  $("chatMenu").classList.add("hidden");
-
-  if(!currentMessages.length){
-
-    toast("Hakuna media/files bado.");
-
-    return;
-  }
-
   const media =
-    currentMessages.filter(m=>
-      m.media_url ||
-      m.file_url
+    CHAT_MESSAGES.filter(
+      x =>
+        x.file_url ||
+        x.media_url ||
+        x.voice_url ||
+        x.audio_url
     );
 
-  if(!media.length){
+  openModal(
+    "Media, Links & Files",
+    media.length
+      ? media.map(x=>{
 
-    toast("Hakuna media/files kwenye chat.");
+          const url =
+            x.file_url ||
+            x.media_url ||
+            x.voice_url ||
+            x.audio_url;
 
-    return;
-  }
+          return `
+            <div
+              class="card"
+              style="margin-bottom:8px"
+            >
+              <a
+                href="${esc(mediaURL(url))}"
+                target="_blank"
+                rel="noopener"
+                style="color:white"
+              >
+                📎 Open attachment
+              </a>
+            </div>
+          `;
 
-  alert(
-    `Media/Files: ${media.length}`
+        }).join("")
+      : '<div class="empty">Hakuna media/files.</div>'
   );
 }
 
 
-/* =========================
-   BLOCK / REPORT
-========================= */
-
-async function blockCurrentUser(){
-
-  $("chatMenu").classList.add("hidden");
-
-  if(!currentChatUser) return;
-
-  if(!confirm(
-    `Block ${currentChatUser.name || "user"}?`
-  )){
-    return;
-  }
-
-  try{
-
-    await api(
-      `/api/users/${encodeURIComponent(currentChatUser.id)}/block`,
-      {
-        method:"POST"
-      }
-    );
-
-    toast("User blocked.");
-
-    closeChat();
-
-  }catch(error){
-
-    toast(error.message);
-  }
-}
-
-
-async function reportCurrentUser(){
-
-  $("chatMenu").classList.add("hidden");
-
-  if(!currentChatUser) return;
-
-  const reason =
-    prompt(
-      "Sababu ya report:",
-      "Inappropriate behaviour"
-    );
-
-  if(!reason) return;
-
-  try{
-
-    await api(
-      `/api/users/${encodeURIComponent(currentChatUser.id)}/report`,
-      {
-        method:"POST",
-        headers:{
-          "Content-Type":"application/json"
-        },
-        body:JSON.stringify({
-          reason
-        })
-      }
-    );
-
-    toast("User reported.");
-
-  }catch(error){
-
-    toast(error.message);
-  }
-}
-
-
-/* =========================
+/* ============================================================
    CALLS / LIVEKIT
-========================= */
+============================================================ */
 
 async function startCall(type){
 
-  if(!currentChatUser){
+  if(!ACTIVE_CHAT_USER){
 
-    toast("Chagua contact kwanza.");
+    toast("Chagua mtu kwanza.");
 
     return;
   }
 
-  callType = type;
-  callOtherUser = currentChatUser;
-
-  $("callName").textContent =
-    currentChatUser.name ||
-    currentChatUser.username ||
-    "User";
-
-  $("callAvatar").src =
-    avatarURL(
-      currentChatUser.avatar_url ||
-      currentChatUser.avatar
-    );
-
-  $("callCenterAvatar").src =
-    $("callAvatar").src;
-
-  $("callTypeText").textContent =
-    type === "video"
-    ? "Video call"
-    : "Voice call";
-
-  $("callStatus").textContent =
-    "Calling...";
-
-  $("callScreen").classList.remove("hidden");
+  const id =
+    ACTIVE_CHAT_USER.id ||
+    ACTIVE_CHAT_USER.user_id;
 
   try{
 
-    const data = await api("/api/calls/token",{
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json"
-      },
-      body:JSON.stringify({
-        receiver_id:currentChatUser.id,
-        call_type:type
-      })
-    });
+    const data =
+      await api("/api/calls/token",{
+        method:"POST",
+        body:JSON.stringify({
+          receiver_id:id,
+          call_type:type
+        })
+      });
 
-    callId =
-      data.call_id ||
-      data.id;
-
-    const token =
-      data.token;
-
-    const wsURL =
-      data.livekit_url ||
-      data.url ||
-      data.server_url;
-
-    if(!token || !wsURL){
-
-      throw new Error(
-        "LiveKit token/server URL haijapatikana."
-      );
-    }
-
-    if(
-      typeof LivekitClient === "undefined"
-    ){
-
-      throw new Error(
-        "LiveKit browser SDK haijapakia."
-      );
-    }
-
-    await connectLiveKit(
-      wsURL,
-      token,
+    openCallModal(
+      data,
       type
     );
 
   }catch(error){
 
-    $("callStatus").textContent =
-      error.message;
-
-    toast(error.message);
-  }
-}
-
-
-async function connectLiveKit(url,token,type){
-
-  const LK = LivekitClient;
-
-  callRoom =
-    new LK.Room({
-      adaptiveStream:true,
-      dynacast:true
-    });
-
-  callRoom.on(
-    LK.RoomEvent.TrackSubscribed,
-    (track,publication,participant)=>{
-
-      attachRemoteTrack(track);
-    }
-  );
-
-  callRoom.on(
-    LK.RoomEvent.TrackUnsubscribed,
-    track=>{
-
-      try{
-        track.detach();
-      }catch(e){}
-    }
-  );
-
-  callRoom.on(
-    LK.RoomEvent.ParticipantConnected,
-    participant=>{
-
-      $("callStatus").textContent =
-        "Connected";
-
-    }
-  );
-
-  callRoom.on(
-    LK.RoomEvent.Disconnected,
-    ()=>{
-
-      $("callStatus").textContent =
-        "Call ended";
-
-      cleanupCall();
-    }
-  );
-
-  await callRoom.connect(url,token);
-
-  $("callStatus").textContent =
-    "Connected";
-
-  if(type === "video"){
-
-    await enableCameraAndMic();
-
-  }else{
-
-    await enableMicOnly();
-  }
-}
-
-
-async function enableMicOnly(){
-
-  if(!callRoom) return;
-
-  try{
-
-    callMicTrack =
-      await LivekitClient.createLocalAudioTrack();
-
-    await callRoom.localParticipant.publishTrack(
-      callMicTrack
-    );
-
-  }catch(error){
-
     toast(
-      "Microphone haikupatikana."
+      "Call haijaanza: " +
+      error.message
     );
   }
 }
 
 
-async function enableCameraAndMic(){
+function openCallModal(data,type){
 
-  if(!callRoom) return;
+  const name =
+    ACTIVE_CHAT_USER?.name ||
+    ACTIVE_CHAT_USER?.username ||
+    "User";
 
-  try{
+  openModal(
+    type === "video"
+      ? "Video Call"
+      : "Voice Call",
+    `
+      <div class="call-box">
 
-    callMicTrack =
-      await LivekitClient.createLocalAudioTrack();
+        <img
+          class="call-avatar"
+          src="${esc(
+            avatarURL(ACTIVE_CHAT_USER)
+          )}"
+        >
 
-    await callRoom.localParticipant.publishTrack(
-      callMicTrack
-    );
+        <h3>${esc(name)}</h3>
 
-    callCameraTrack =
-      await LivekitClient.createLocalVideoTrack();
+        <div class="call-status">
+          Calling...
+        </div>
 
-    await callRoom.localParticipant.publishTrack(
-      callCameraTrack
-    );
+        <div class="call-controls">
 
-    const videoElement =
-      $("localVideo");
+          <button
+            class="call-control"
+            onclick="toggleCallMute()"
+          >
+            🎙️
+          </button>
 
-    const mediaStream =
-      new MediaStream();
+          ${
+            type === "video"
+              ? `
+                <button
+                  class="call-control"
+                  onclick="toggleCallCamera()"
+                >
+                  📷
+                </button>
+              `
+              : ""
+          }
 
-    if(callCameraTrack.mediaStreamTrack){
-      mediaStream.addTrack(
-        callCameraTrack.mediaStreamTrack
-      );
-    }
+          <button
+            class="call-control end"
+            onclick="endCall('${esc(data?.call_id || data?.id || "")}')"
+          >
+            ☎️
+          </button>
 
-    if(callMicTrack.mediaStreamTrack){
-      mediaStream.addTrack(
-        callMicTrack.mediaStreamTrack
-      );
-    }
+        </div>
 
-    videoElement.srcObject =
-      mediaStream;
+        <div
+          id="callDebug"
+          class="muted small"
+          style="margin-top:15px"
+        >
+          LiveKit connection preparing...
+        </div>
 
-    $("localVideo").classList.remove("hidden");
+      </div>
+    `
+  );
 
-  }catch(error){
-
-    toast(
-      "Camera/microphone haikupatikana."
-    );
-  }
+  connectLiveKitIfAvailable(data);
 }
 
 
-function attachRemoteTrack(track){
+async function connectLiveKitIfAvailable(data){
 
-  const element =
-    track.attach();
+  const token =
+    data?.token ||
+    data?.access_token;
 
-  if(track.kind === "video"){
+  const url =
+    data?.url ||
+    data?.livekit_url ||
+    "";
 
-    const container =
-      $("callVideos");
+  if(
+    !token ||
+    !url
+  ){
 
-    element.className =
-      "remote-video";
-
-    container.insertBefore(
-      element,
-      container.firstChild
-    );
-
-  }else if(track.kind === "audio"){
-
-    document.body.appendChild(element);
-  }
-}
-
-
-async function toggleCallMute(){
-
-  if(!callMicTrack) return;
-
-  const enabled =
-    callMicTrack.isEnabled;
-
-  callMicTrack.enable(!enabled);
-
-  $("muteCallBtn").textContent =
-    enabled
-    ? "🔇"
-    : "🎙️";
-}
-
-
-async function toggleCallCamera(){
-
-  if(!callCameraTrack) return;
-
-  const enabled =
-    callCameraTrack.isEnabled;
-
-  callCameraTrack.enable(!enabled);
-
-  $("cameraCallBtn").textContent =
-    enabled
-    ? "🚫"
-    : "📷";
-}
-
-
-function switchCamera(){
-
-  if(!callCameraTrack){
-
-    toast("Camera haijawashwa.");
+    $("callDebug").textContent =
+      "LiveKit token/url haijapatikana.";
 
     return;
   }
 
-  /*
-    Browser/device camera switching differs.
-    LiveKit camera source handling can be expanded
-    when multiple camera devices are available.
-  */
+  if(!window.LivekitClient){
 
-  toast("Camera switch requested.");
-}
+    const script =
+      document.createElement("script");
 
+    script.src =
+      "https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js";
 
-async function endCall(){
+    script.onload =
+      ()=>connectLiveKitIfAvailable(data);
+
+    document.head.appendChild(script);
+
+    return;
+  }
 
   try{
 
-    if(callId){
+    const LK =
+      window.LivekitClient;
+
+    const room =
+      new LK.Room();
+
+    window.__livekitRoom = room;
+
+    room.on(
+      LK.RoomEvent.TrackSubscribed,
+      (track)=>{
+        const element =
+          track.attach();
+
+        element.style.maxWidth =
+          "100%";
+
+        $("callDebug")
+          .appendChild(element);
+      }
+    );
+
+    await room.connect(
+      url,
+      token
+    );
+
+    $("callDebug").textContent =
+      "Connected to LiveKit.";
+
+  }catch(error){
+
+    $("callDebug").textContent =
+      "LiveKit error: " +
+      error.message;
+  }
+}
+
+
+async function endCall(callId){
+
+  try{
+
+    if(window.__livekitRoom){
+
+      await window.__livekitRoom.disconnect();
+
+      window.__livekitRoom = null;
+    }
+
+  }catch{}
+
+  if(callId){
+
+    try{
 
       await api(
-        `/api/calls/${encodeURIComponent(callId)}?status=ended`,
+        "/api/calls/" +
+        encodeURIComponent(callId) +
+        "?status=ended",
         {
           method:"PATCH"
         }
       );
-    }
 
-  }catch(e){}
+    }catch{}
+  }
 
-  cleanupCall();
+  closeModal();
+
+  toast("Call ended.");
 }
 
 
-function cleanupCall(){
+function toggleCallMute(){
 
-  try{
+  const room =
+    window.__livekitRoom;
 
-    if(callMicTrack){
+  if(!room){
 
-      callMicTrack.stop();
-      callMicTrack = null;
-    }
-
-    if(callCameraTrack){
-
-      callCameraTrack.stop();
-      callCameraTrack = null;
-    }
-
-    if(callRoom){
-
-      callRoom.disconnect();
-      callRoom = null;
-    }
-
-  }catch(e){}
-
-  $("localVideo").srcObject = null;
-  $("remoteVideo").srcObject = null;
-
-  $("callScreen").classList.add("hidden");
-
-  callId = null;
-  callType = null;
-  callOtherUser = null;
-}
-
-
-/* =========================
-   STARTUP
-========================= */
-
-async function startup(){
-
-  if(!TOKEN){
-
-    $("authView").classList.remove("hidden");
-    $("appView").classList.add("hidden");
+    toast("Call haija-connect bado.");
 
     return;
   }
 
-  try{
-
-    await loadMe();
-
-    openApp();
-
-  }catch(error){
-
-    TOKEN = "";
-
-    localStorage.removeItem(TOKEN_KEY);
-
-    $("authView").classList.remove("hidden");
-    $("appView").classList.add("hidden");
-
-    toast(
-      "Session imeisha. Tafadhali login tena."
-    );
-  }
+  room.localParticipant
+    .setMicrophoneEnabled(
+      !room.localParticipant.isMicrophoneEnabled
+    )
+    .catch(error=>toast(error.message));
 }
 
 
-/* =========================
-   CLOSE MENUS WHEN CLICKING
-   OUTSIDE
-========================= */
+function toggleCallCamera(){
 
-document.addEventListener("click",event=>{
+  const room =
+    window.__livekitRoom;
 
-  const menu = $("chatMenu");
+  if(!room){
 
-  if(
-    !menu.classList.contains("hidden") &&
-    !menu.contains(event.target) &&
-    !event.target.closest(".chat-header-actions")
-  ){
+    toast("Call haija-connect bado.");
 
-    menu.classList.add("hidden");
+    return;
   }
 
-});
+  room.localParticipant
+    .setCameraEnabled(
+      !room.localParticipant.isCameraEnabled
+    )
+    .catch(error=>toast(error.message));
+}
 
 
-/* =========================
-   ESCAPE KEY
-========================= */
+/* ============================================================
+   MODAL
+============================================================ */
 
-document.addEventListener("keydown",event=>{
+function openModal(title,content){
 
-  if(event.key === "Escape"){
+  $("modalTitle").textContent = title;
 
-    $("chatMenu").classList.add("hidden");
+  $("modalContent").innerHTML = content;
 
-    document.querySelectorAll(".modal-bg")
-      .forEach(m=>m.classList.add("hidden"));
+  $("modalBackdrop")
+    .classList.add("show");
+}
+
+
+function closeModal(){
+
+  $("modalBackdrop")
+    .classList.remove("show");
+
+  $("modalContent").innerHTML = "";
+}
+
+
+$("modalBackdrop").addEventListener(
+  "click",
+  event=>{
+
+    if(event.target === $("modalBackdrop")){
+      closeModal();
+    }
+
   }
+);
 
-});
+
+/* ============================================================
+   START
+============================================================ */
+
+document.addEventListener(
+  "DOMContentLoaded",
+  ()=>{
+    checkSession();
+  }
+);
 
 
-/* =========================
-   INITIALIZE
-========================= */
+/* ============================================================
+   ONLINE / OFFLINE
+============================================================ */
 
-startup();
+window.addEventListener(
+  "online",
+  ()=>{
+    toast("Internet connection restored.");
+  }
+);
+
+window.addEventListener(
+  "offline",
+  ()=>{
+    toast("Uko offline.");
+  }
+);
 
 </script>
 

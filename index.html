@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#050817">
-<title>MSAFIRI GLOBAL MEDIA V3</title>
+<title>MSAFIRI GLOBAL MEDIA V4</title>
 
 <style>
 :root{
   --bg:#f5f7fb;
-  --card:#ffffff;
+  --card:#fff;
   --card2:#eef2f8;
   --text:#101828;
   --muted:#667085;
@@ -18,6 +18,7 @@
   --primary2:#1d4ed8;
   --danger:#dc2626;
   --success:#16a34a;
+  --warning:#d97706;
   --shadow:0 8px 30px rgba(15,23,42,.08);
 }
 
@@ -33,9 +34,7 @@ body.dark{
   --shadow:0 8px 30px rgba(0,0,0,.25);
 }
 
-*{
-  box-sizing:border-box;
-}
+*{box-sizing:border-box}
 
 html,body{
   margin:0;
@@ -45,17 +44,10 @@ html,body{
   color:var(--text);
 }
 
-button,input,textarea,select{
-  font:inherit;
-}
+button,input,textarea,select{font:inherit}
+button{cursor:pointer}
 
-button{
-  cursor:pointer;
-}
-
-.app{
-  min-height:100vh;
-}
+.app{min-height:100vh}
 
 .topbar{
   position:sticky;
@@ -96,6 +88,7 @@ button{
 .top-actions{
   display:flex;
   gap:8px;
+  align-items:center;
 }
 
 .icon-btn{
@@ -108,6 +101,11 @@ button{
   display:flex;
   align-items:center;
   justify-content:center;
+}
+
+.auth-actions{
+  display:flex;
+  gap:7px;
 }
 
 .layout{
@@ -158,13 +156,8 @@ button{
   padding:20px;
 }
 
-.page{
-  display:none;
-}
-
-.page.active{
-  display:block;
-}
+.page{display:none}
+.page.active{display:block}
 
 .hero{
   background:linear-gradient(135deg,#172554,#2563eb);
@@ -194,10 +187,7 @@ button{
   box-shadow:var(--shadow);
 }
 
-.card h2,
-.card h3{
-  margin-top:0;
-}
+.card h2,.card h3{margin-top:0}
 
 .btn{
   border:0;
@@ -208,9 +198,7 @@ button{
   font-weight:600;
 }
 
-.btn:hover{
-  background:var(--primary2);
-}
+.btn:hover{background:var(--primary2)}
 
 .btn.secondary{
   background:var(--card2);
@@ -218,9 +206,8 @@ button{
   border:1px solid var(--line);
 }
 
-.btn.danger{
-  background:var(--danger);
-}
+.btn.danger{background:var(--danger)}
+.btn.success{background:var(--success)}
 
 .form-control{
   width:100%;
@@ -231,6 +218,10 @@ button{
   padding:12px;
   outline:none;
   margin-bottom:10px;
+}
+
+.form-control:focus{
+  border-color:var(--primary);
 }
 
 textarea.form-control{
@@ -244,13 +235,9 @@ textarea.form-control{
   gap:8px;
 }
 
-.media-picker{
-  display:none;
-}
+.media-picker{display:none}
 
-.media-preview{
-  margin-top:12px;
-}
+.media-preview{margin-top:12px}
 
 .media-preview img,
 .media-preview video{
@@ -261,9 +248,7 @@ textarea.form-control{
   background:#000;
 }
 
-.post{
-  overflow:hidden;
-}
+.post{overflow:hidden}
 
 .post-header{
   display:flex;
@@ -279,10 +264,7 @@ textarea.form-control{
   background:var(--card2);
 }
 
-.post-user{
-  font-weight:700;
-}
-
+.post-user{font-weight:700}
 .post-time{
   color:var(--muted);
   font-size:12px;
@@ -291,6 +273,7 @@ textarea.form-control{
 .post-content{
   margin:15px 0;
   line-height:1.6;
+  white-space:pre-wrap;
 }
 
 .post-media{
@@ -342,6 +325,7 @@ textarea.form-control{
   border-radius:16px;
   padding:20px;
   cursor:pointer;
+  transition:.15s;
 }
 
 .ai-card:hover{
@@ -416,6 +400,7 @@ textarea.form-control{
   border-radius:15px;
   margin:7px 0;
   line-height:1.45;
+  white-space:pre-wrap;
 }
 
 .message.sent{
@@ -429,6 +414,12 @@ textarea.form-control{
   margin-right:auto;
   background:var(--card2);
   border-bottom-left-radius:4px;
+}
+
+.message-meta{
+  font-size:10px;
+  opacity:.7;
+  margin-top:4px;
 }
 
 .typing{
@@ -512,6 +503,7 @@ textarea.form-control{
   display:flex;
   gap:25px;
   margin-top:15px;
+  flex-wrap:wrap;
 }
 
 .stat strong{
@@ -524,20 +516,45 @@ textarea.form-control{
   font-size:13px;
 }
 
+.user-chip{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+.user-chip img{
+  width:34px;
+  height:34px;
+  border-radius:50%;
+  object-fit:cover;
+}
+
+.auth-status{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-size:13px;
+}
+
+.online-dot{
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:var(--success);
+}
+
 .modal{
   display:none;
   position:fixed;
   inset:0;
   z-index:100;
-  background:rgba(0,0,0,.6);
+  background:rgba(0,0,0,.65);
   align-items:center;
   justify-content:center;
   padding:15px;
 }
 
-.modal.show{
-  display:flex;
-}
+.modal.show{display:flex}
 
 .modal-box{
   width:min(650px,100%);
@@ -546,6 +563,10 @@ textarea.form-control{
   background:var(--card);
   border-radius:18px;
   padding:20px;
+}
+
+.modal-small{
+  width:min(450px,100%);
 }
 
 .modal-head{
@@ -564,8 +585,42 @@ textarea.form-control{
   height:36px;
 }
 
-.bottom-nav{
-  display:none;
+.auth-tabs{
+  display:flex;
+  gap:5px;
+  background:var(--card2);
+  padding:5px;
+  border-radius:12px;
+  margin-bottom:18px;
+}
+
+.auth-tab{
+  flex:1;
+  border:0;
+  background:transparent;
+  color:var(--muted);
+  padding:10px;
+  border-radius:9px;
+}
+
+.auth-tab.active{
+  background:var(--card);
+  color:var(--primary);
+  font-weight:700;
+}
+
+.hidden{display:none!important}
+
+.empty{
+  color:var(--muted);
+  padding:20px;
+  text-align:center;
+}
+
+.loading{
+  color:var(--muted);
+  padding:20px;
+  text-align:center;
 }
 
 .toast{
@@ -579,12 +634,24 @@ textarea.form-control{
   border-radius:10px;
   z-index:300;
   display:none;
+  max-width:90%;
+  text-align:center;
+}
+
+.error-text{
+  color:var(--danger);
+  font-size:13px;
+  margin:8px 0;
+}
+
+.success-text{
+  color:var(--success);
+  font-size:13px;
+  margin:8px 0;
 }
 
 @media(max-width:900px){
-  .sidebar{
-    display:none;
-  }
+  .sidebar{display:none}
 
   .bottom-nav{
     display:flex;
@@ -607,13 +674,9 @@ textarea.form-control{
     font-size:11px;
   }
 
-  .bottom-nav button.active{
-    color:var(--primary);
-  }
+  .bottom-nav button.active{color:var(--primary)}
 
-  .main{
-    padding-bottom:80px;
-  }
+  .main{padding-bottom:80px}
 
   .grid,
   .ai-grid{
@@ -631,12 +694,17 @@ textarea.form-control{
     border-bottom:1px solid var(--line);
   }
 
-  .chat-user{
-    min-width:180px;
+  .chat-user{min-width:180px}
+
+  .search{display:none}
+
+  .auth-actions .btn{
+    padding:8px 10px;
+    font-size:12px;
   }
 
-  .search{
-    display:none;
+  .logo{
+    font-size:15px;
   }
 }
 </style>
@@ -647,28 +715,65 @@ textarea.form-control{
 <div class="app">
 
 <header class="topbar">
+
   <div class="logo">MSAFIRI GLOBAL MEDIA</div>
 
   <div class="search">
-    <input id="globalSearch" placeholder="Search MSAFIRI GLOBAL MEDIA...">
+    <input id="globalSearch"
+           placeholder="Search MSAFIRI GLOBAL MEDIA..."
+           oninput="searchPosts(this.value)">
   </div>
 
   <div class="top-actions">
-    <button class="icon-btn" onclick="toggleTheme()" title="Change theme">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+
+    <div id="authActions" class="auth-actions">
+      <button class="btn secondary" onclick="openAuth('login')">Log in</button>
+      <button class="btn" onclick="openAuth('register')">Create account</button>
+    </div>
+
+    <div id="loggedUser" class="user-chip hidden">
+      <img id="topAvatar" src="https://via.placeholder.com/50" alt="">
+      <span id="topName">User</span>
+    </div>
+
+    <button class="icon-btn"
+            onclick="toggleTheme()"
+            title="Change theme">
+
+      <svg width="20" height="20"
+           viewBox="0 0 24 24"
+           fill="none"
+           stroke="currentColor"
+           stroke-width="2">
+
         <circle cx="12" cy="12" r="4"/>
         <path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42"/>
+
       </svg>
+
     </button>
 
-    <button class="icon-btn" onclick="showPage('profile')">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <button class="icon-btn"
+            onclick="showPage('profile')"
+            title="Profile">
+
+      <svg width="20" height="20"
+           viewBox="0 0 24 24"
+           fill="none"
+           stroke="currentColor"
+           stroke-width="2">
+
         <circle cx="12" cy="8" r="4"/>
         <path d="M4 21c.8-4 3.4-6 8-6s7.2 2 8 6"/>
+
       </svg>
+
     </button>
+
   </div>
+
 </header>
+
 
 <div class="layout">
 
@@ -676,14 +781,19 @@ textarea.form-control{
 
 <button class="nav-btn active" onclick="showPage('home')">
 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-<path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/>
+<path d="M3 11.5 12 4l9 7.5"/>
+<path d="M5 10v10h14V10"/>
+<path d="M9 20v-6h6v6"/>
 </svg>
 Home
 </button>
 
 <button class="nav-btn" onclick="showPage('connect')">
 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-<circle cx="9" cy="8" r="4"/><circle cx="17" cy="10" r="3"/><path d="M2 21c.7-4 3-6 7-6s6.3 2 7 6"/><path d="M15 15c3.2 0 5.2 2 6 5"/>
+<circle cx="9" cy="8" r="4"/>
+<circle cx="17" cy="10" r="3"/>
+<path d="M2 21c.7-4 3-6 7-6s6.3 2 7 6"/>
+<path d="M15 15c3.2 0 5.2 2 6 5"/>
 </svg>
 Connect
 </button>
@@ -699,35 +809,54 @@ Video
 
 <button class="nav-btn" onclick="showPage('studio')">
 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-<path d="M12 3v18M3 12h18"/><rect x="5" y="5" width="14" height="14" rx="3"/>
+<path d="M12 3v18M3 12h18"/>
+<rect x="5" y="5" width="14" height="14" rx="3"/>
 </svg>
 Creative Studio
 </button>
 
 <button class="nav-btn" onclick="showPage('market')">
 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-<path d="M4 8h16l-1 12H5L4 8Z"/><path d="M8 8a4 4 0 0 1 8 0"/>
+<path d="M4 8h16l-1 12H5L4 8Z"/>
+<path d="M8 8a4 4 0 0 1 8 0"/>
 </svg>
 Market
 </button>
 
 <button class="nav-btn" onclick="showPage('ai')">
 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-<circle cx="12" cy="12" r="8"/><path d="M8 12h8M12 8v8"/>
+<circle cx="12" cy="12" r="8"/>
+<path d="M8 12h8M12 8v8"/>
 </svg>
 AI Council
 </button>
 
 <button class="nav-btn" onclick="showPage('profile')">
 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-<circle cx="12" cy="8" r="4"/><path d="M4 21c.8-4 3.4-6 8-6s7.2 2 8 6"/>
+<circle cx="12" cy="8" r="4"/>
+<path d="M4 21c.8-4 3.4-6 8-6s7.2 2 8 6"/>
 </svg>
 Profile
 </button>
 
+<button id="logoutSideBtn"
+        class="nav-btn hidden"
+        onclick="logout()">
+
+<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+<path d="M10 17l5-5-5-5"/>
+<path d="M15 12H3"/>
+<path d="M21 3v18"/>
+</svg>
+
+Log out
+</button>
+
 </aside>
 
+
 <main class="main">
+
 
 <!-- HOME -->
 
@@ -738,67 +867,122 @@ Profile
 <p>Share ideas, knowledge, creativity and opportunities with the world.</p>
 </div>
 
+
 <div class="card">
+
 <h3>Create a status</h3>
 
 <div class="post-actions">
 
 <label class="btn secondary">
 Photo
-<input id="statusPhoto" class="media-picker" type="file" accept="image/*" onchange="previewStatusPhoto(event)">
+<input id="statusPhoto"
+       class="media-picker"
+       type="file"
+       accept="image/*"
+       onchange="previewStatusPhoto(event)">
 </label>
 
 <label class="btn secondary">
 Video
-<input id="statusVideo" class="media-picker" type="file" accept="video/*" onchange="previewStatusVideo(event)">
+<input id="statusVideo"
+       class="media-picker"
+       type="file"
+       accept="video/*"
+       onchange="previewStatusVideo(event)">
 </label>
 
 <label class="btn secondary">
 Audio
-<input id="statusAudio" class="media-picker" type="file" accept="audio/*">
+<input id="statusAudio"
+       class="media-picker"
+       type="file"
+       accept="audio/*"
+       onchange="selectStatusAudio(event)">
 </label>
 
-<button class="btn" onclick="createTextStatus()">Text Status</button>
+<button class="btn"
+        onclick="createTextStatus()">
+Text Status
+</button>
+
+<button class="btn secondary"
+        onclick="publishMediaStatus()">
+Publish Status
+</button>
 
 </div>
 
-<div id="statusPreview" class="media-preview"></div>
+<div id="statusPreview"
+     class="media-preview"></div>
+
 </div>
+
 
 <div class="card">
+
 <h3>What's on your mind?</h3>
 
-<textarea id="postCaption" class="form-control"
-placeholder="Write something to share with the world..."></textarea>
+<textarea id="postCaption"
+          class="form-control"
+          placeholder="Write something to share with the world..."></textarea>
 
 <div class="post-actions">
 
 <label class="btn secondary">
 Photo
-<input id="photoInput" class="media-picker" type="file" accept="image/*" onchange="handlePhoto(event)">
+<input id="photoInput"
+       class="media-picker"
+       type="file"
+       accept="image/*"
+       onchange="handlePhoto(event)">
 </label>
 
 <label class="btn secondary">
 Video
-<input id="videoInput" class="media-picker" type="file" accept="video/*" onchange="handleVideo(event)">
+<input id="videoInput"
+       class="media-picker"
+       type="file"
+       accept="video/*"
+       onchange="handleVideo(event)">
 </label>
 
 <label class="btn secondary">
 File
-<input id="fileInput" class="media-picker" type="file" onchange="handleFile(event)">
+<input id="fileInput"
+       class="media-picker"
+       type="file"
+       onchange="handleFile(event)">
 </label>
 
-<button class="btn" onclick="publishPost()">Post</button>
+<button class="btn"
+        onclick="publishPost()">
+Post
+</button>
 
 </div>
 
-<div id="postPreview" class="media-preview"></div>
+<div id="postPreview"
+     class="media-preview"></div>
+
 </div>
+
 
 <div class="card">
+
 <h3>Stories & Status</h3>
-<div id="statusRow" class="status-row"></div>
+
+<div id="statusRow"
+     class="status-row">
+
+<div class="loading">
+Loading statuses...
 </div>
+
+</div>
+
+</div>
+
 
 <div id="feed"></div>
 
@@ -810,45 +994,104 @@ File
 <section id="connect" class="page">
 
 <div class="card">
+
 <h2>Connect</h2>
-<p>Find people and communicate with your community.</p>
+
+<p>
+Find people and communicate with your community.
+</p>
+
+<div id="chatLoginMessage"
+     class="empty hidden">
+
+Please log in to use messaging.
+
+<br><br>
+
+<button class="btn"
+        onclick="openAuth('login')">
+Log in
+</button>
+
 </div>
+
+</div>
+
 
 <div class="chat-layout">
 
-<div class="chat-users" id="usersList"></div>
+<div class="chat-users"
+     id="usersList"></div>
+
 
 <div class="chat-window">
 
-<div class="chat-header" id="chatHeader">
+<div class="chat-header"
+     id="chatHeader">
+
 Select a person to start chatting
+
 </div>
 
-<div class="messages" id="messages"></div>
+<div class="messages"
+     id="messages">
 
-<div id="typing" class="typing">
+<div class="empty">
+Select a user to view messages.
+</div>
+
+</div>
+
+<div id="typing"
+     class="typing">
 Typing...
 </div>
 
+
 <div class="composer">
 
-<label class="icon-btn">
+<label class="icon-btn"
+       title="Attach file">
+
 +
-<input id="chatAttachment" class="media-picker" type="file"
-accept="image/*,.pdf,.doc,.docx,.txt">
+<input id="chatAttachment"
+       class="media-picker"
+       type="file"
+       accept="image/*,.pdf,.doc,.docx,.txt"
+       onchange="handleChatAttachment(event)">
 </label>
 
-<input id="chatInput" placeholder="Write a message..."
-onkeydown="if(event.key==='Enter')sendMessage()">
+<input id="chatInput"
+       placeholder="Write a message..."
+       oninput="showTyping()"
+       onkeydown="if(event.key==='Enter')sendMessage()">
 
-<button class="icon-btn" onclick="startVoiceRecording()" title="Voice note">
-<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-<rect x="9" y="3" width="6" height="11" rx="3"/>
+<button class="icon-btn"
+        onclick="toggleVoiceRecording()"
+        title="Voice note">
+
+<svg width="20"
+     height="20"
+     viewBox="0 0 24 24"
+     fill="none"
+     stroke="currentColor"
+     stroke-width="2">
+
+<rect x="9" y="3"
+      width="6"
+      height="11"
+      rx="3"/>
+
 <path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8"/>
+
 </svg>
+
 </button>
 
-<button class="btn" onclick="sendMessage()">Send</button>
+<button class="btn"
+        onclick="sendMessage()">
+Send
+</button>
 
 </div>
 
@@ -864,8 +1107,13 @@ onkeydown="if(event.key==='Enter')sendMessage()">
 <section id="video" class="page">
 
 <div class="card">
+
 <h2>Video</h2>
-<p>Watch and share video content.</p>
+
+<p>
+Watch and share video content.
+</p>
+
 </div>
 
 <div id="videoFeed"></div>
@@ -878,36 +1126,80 @@ onkeydown="if(event.key==='Enter')sendMessage()">
 <section id="studio" class="page">
 
 <div class="card">
+
 <h2>Creative Studio</h2>
-<p>Create professional digital content.</p>
+
+<p>
+Create professional digital content.
+</p>
 
 <div class="grid">
 
 <div class="card">
+
 <h3>Image Creator</h3>
-<p>Create social media graphics, posters and visual content.</p>
-<button class="btn" onclick="toast('Creative Studio tool ready')">Open Tool</button>
+
+<p>
+Create social media graphics, posters and visual content.
+</p>
+
+<button class="btn"
+        onclick="toast('Creative Studio tool ready')">
+Open Tool
+</button>
+
 </div>
 
+
 <div class="card">
+
 <h3>Video Creator</h3>
-<p>Prepare and edit short-form video content.</p>
-<button class="btn" onclick="toast('Video creator ready')">Open Tool</button>
+
+<p>
+Prepare and edit short-form video content.
+</p>
+
+<button class="btn"
+        onclick="toast('Video creator ready')">
+Open Tool
+</button>
+
 </div>
 
+
 <div class="card">
+
 <h3>Document Creator</h3>
-<p>Create professional documents and digital resources.</p>
-<button class="btn" onclick="toast('Document creator ready')">Open Tool</button>
+
+<p>
+Create professional documents and digital resources.
+</p>
+
+<button class="btn"
+        onclick="toast('Document creator ready')">
+Open Tool
+</button>
+
 </div>
+
 
 <div class="card">
+
 <h3>Design Assistant</h3>
-<p>Get AI-assisted ideas for your next project.</p>
-<button class="btn" onclick="showPage('ai')">Use AI</button>
+
+<p>
+Get AI-assisted ideas for your next project.
+</p>
+
+<button class="btn"
+        onclick="showPage('ai')">
+Use AI
+</button>
+
 </div>
 
 </div>
+
 </div>
 
 </section>
@@ -918,34 +1210,55 @@ onkeydown="if(event.key==='Enter')sendMessage()">
 <section id="market" class="page">
 
 <div class="card">
+
 <h2>Global Market</h2>
-<p>Discover products, services and digital opportunities.</p>
+
+<p>
+Discover products, services and digital opportunities.
+</p>
+
 </div>
+
 
 <div class="grid">
 
 <div class="card">
 <h3>Products</h3>
 <p>Discover products from sellers and businesses.</p>
-<button class="btn">Explore</button>
+<button class="btn"
+        onclick="toast('Marketplace coming soon')">
+Explore
+</button>
 </div>
+
 
 <div class="card">
 <h3>Services</h3>
 <p>Find professional and digital services.</p>
-<button class="btn">Explore</button>
+<button class="btn"
+        onclick="toast('Services marketplace coming soon')">
+Explore
+</button>
 </div>
+
 
 <div class="card">
 <h3>Digital Products</h3>
 <p>Books, courses, software and other digital products.</p>
-<button class="btn">Explore</button>
+<button class="btn"
+        onclick="toast('Digital marketplace coming soon')">
+Explore
+</button>
 </div>
+
 
 <div class="card">
 <h3>Business Opportunities</h3>
 <p>Explore entrepreneurship and collaboration opportunities.</p>
-<button class="btn">Explore</button>
+<button class="btn"
+        onclick="toast('Business marketplace coming soon')">
+Explore
+</button>
 </div>
 
 </div>
@@ -958,59 +1271,145 @@ onkeydown="if(event.key==='Enter')sendMessage()">
 <section id="ai" class="page">
 
 <div class="card">
+
 <h2>AI Council</h2>
-<p>Choose an AI assistant according to the problem you want to understand.</p>
+
+<p>
+Choose an AI assistant according to the problem you want to understand.
+</p>
+
 </div>
+
 
 <div class="ai-grid">
 
-<div class="ai-card" onclick="openAI('Education AI')">
+
+<div class="ai-card"
+     onclick="openAI('Education AI')">
+
 <div class="ai-symbol">
-<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-<path d="m3 10 9-5 9 5-9 5-9-5Z"/><path d="M7 12v5c3 3 7 3 10 0v-5"/>
+
+<svg width="24"
+     height="24"
+     viewBox="0 0 24 24"
+     fill="none"
+     stroke="currentColor"
+     stroke-width="2">
+
+<path d="m3 10 9-5 9 5-9 5-9-5Z"/>
+<path d="M7 12v5c3 3 7 3 10 0v-5"/>
+
 </svg>
+
 </div>
+
 <h3>Education AI</h3>
-<p>Curriculum, subjects, study plans and academic explanations.</p>
+
+<p>
+Curriculum, subjects, study plans and academic explanations.
+</p>
+
 </div>
 
-<div class="ai-card" onclick="openAI('Health AI')">
+
+<div class="ai-card"
+     onclick="openAI('Health AI')">
+
 <div class="ai-symbol">
-<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+
+<svg width="24"
+     height="24"
+     viewBox="0 0 24 24"
+     fill="none"
+     stroke="currentColor"
+     stroke-width="2">
+
 <path d="M3 12h4l2-6 4 12 2-6h6"/>
+
 </svg>
+
 </div>
+
 <h3>Health AI</h3>
-<p>Educational health information and general guidance.</p>
+
+<p>
+Educational health information and general guidance.
+</p>
+
 </div>
 
-<div class="ai-card" onclick="openAI('Agricultural AI')">
+
+<div class="ai-card"
+     onclick="openAI('Agricultural AI')">
+
 <div class="ai-symbol">
-<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-<path d="M12 21V10"/><path d="M12 13C7 13 4 10 4 5c5 0 8 3 8 8Z"/><path d="M12 16c5 0 8-3 8-8-5 0-8 3-8 8Z"/>
+
+<svg width="24"
+     height="24"
+     viewBox="0 0 24 24"
+     fill="none"
+     stroke="currentColor"
+     stroke-width="2">
+
+<path d="M12 21V10"/>
+<path d="M12 13C7 13 4 10 4 5c5 0 8 3 8 8Z"/>
+<path d="M12 16c5 0 8-3 8-8-5 0-8 3-8 8Z"/>
+
 </svg>
+
 </div>
+
 <h3>Agricultural AI</h3>
-<p>Crops, soil, farming systems, pests and agricultural research.</p>
+
+<p>
+Crops, soil, farming systems, pests and agricultural research.
+</p>
+
 </div>
 
-<div class="ai-card" onclick="openAI('Research AI')">
+
+<div class="ai-card"
+     onclick="openAI('Research AI')">
+
 <div class="ai-symbol">
-<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-<circle cx="10" cy="10" r="6"/><path d="m15 15 6 6"/>
+
+<svg width="24"
+     height="24"
+     viewBox="0 0 24 24"
+     fill="none"
+     stroke="currentColor"
+     stroke-width="2">
+
+<circle cx="10" cy="10" r="6"/>
+<path d="m15 15 6 6"/>
+
 </svg>
+
 </div>
+
 <h3>Research AI</h3>
-<p>Research questions, analysis, ideas and academic guidance.</p>
+
+<p>
+Research questions, analysis, ideas and academic guidance.
+</p>
+
 </div>
 
 </div>
+
 
 <div class="card">
+
 <h2>Education AI</h2>
 
-<select id="countrySelect" class="form-control">
-<option value="">Select country / curriculum</option>
+
+<select id="countrySelect"
+        class="form-control">
+
+<option value="">
+Select country / curriculum
+</option>
+
 <option>Tanzania</option>
 <option>Kenya</option>
 <option>Uganda</option>
@@ -1038,10 +1437,17 @@ onkeydown="if(event.key==='Enter')sendMessage()">
 <option>Argentina</option>
 <option>Mexico</option>
 <option>Other</option>
+
 </select>
 
-<select id="levelSelect" class="form-control">
-<option value="">Select education level</option>
+
+<select id="levelSelect"
+        class="form-control">
+
+<option value="">
+Select education level
+</option>
+
 <option>Nursery / Early Childhood</option>
 <option>Primary</option>
 <option>Secondary</option>
@@ -1050,14 +1456,25 @@ onkeydown="if(event.key==='Enter')sendMessage()">
 <option>Degree</option>
 <option>Master</option>
 <option>PhD</option>
+
 </select>
 
-<textarea id="aiQuestion" class="form-control"
-placeholder="Ask Education AI a question..."></textarea>
 
-<button class="btn" onclick="askAI()">Ask Education AI</button>
+<textarea id="aiQuestion"
+          class="form-control"
+          placeholder="Ask Education AI a question..."></textarea>
 
-<div id="aiAnswer" class="card" style="margin-top:15px;display:none"></div>
+
+<button class="btn"
+        onclick="askAI()">
+Ask Education AI
+</button>
+
+
+<div id="aiAnswer"
+     class="card"
+     style="margin-top:15px;display:none">
+</div>
 
 </div>
 
@@ -1068,19 +1485,26 @@ placeholder="Ask Education AI a question..."></textarea>
 
 <section id="profile" class="page">
 
-<div class="card" style="padding:0;overflow:hidden">
+<div class="card"
+     style="padding:0;overflow:hidden">
 
 <div class="profile-cover"></div>
 
 <div class="profile-info">
 
 <img id="profileAvatar"
-class="profile-avatar"
-src="https://via.placeholder.com/100">
+     class="profile-avatar"
+     src="https://via.placeholder.com/100"
+     alt="Profile">
 
-<h2 id="profileName">Your Name</h2>
+<h2 id="profileName">
+Your Name
+</h2>
 
-<p id="profileBio">Welcome to my MSAFIRI GLOBAL MEDIA profile.</p>
+<p id="profileBio">
+Welcome to my MSAFIRI GLOBAL MEDIA profile.
+</p>
+
 
 <div class="stats">
 
@@ -1108,27 +1532,55 @@ src="https://via.placeholder.com/100">
 
 <br>
 
-<button class="btn" onclick="openModal('editProfileModal')">
+<button class="btn"
+        onclick="openEditProfile()">
 Edit Profile
+</button>
+
+<button id="profileLoginBtn"
+        class="btn secondary"
+        onclick="openAuth('login')">
+Log in
 </button>
 
 </div>
 
 </div>
 
+
 <div class="card">
+
 <h3>Saved Posts</h3>
-<div id="savedPosts"></div>
+
+<div id="savedPosts"
+     class="empty">
+Log in to view saved posts.
 </div>
 
+</div>
+
+
 <div class="card">
+
 <h3>Watched Content</h3>
-<div id="watchedContent"></div>
+
+<div id="watchedContent"
+     class="empty">
+No watched content yet.
 </div>
 
+</div>
+
+
 <div class="card">
+
 <h3>My Posts</h3>
-<div id="myPosts"></div>
+
+<div id="myPosts"
+     class="empty">
+Log in to view your posts.
+</div>
+
 </div>
 
 </section>
@@ -1140,40 +1592,179 @@ Edit Profile
 
 <nav class="bottom-nav">
 
-<button class="active" onclick="showPage('home')">Home</button>
-<button onclick="showPage('connect')">Connect</button>
-<button onclick="showPage('video')">Video</button>
-<button onclick="showPage('ai')">AI</button>
-<button onclick="showPage('profile')">Profile</button>
+<button class="active"
+        onclick="showPage('home')">
+Home
+</button>
+
+<button onclick="showPage('connect')">
+Connect
+</button>
+
+<button onclick="showPage('video')">
+Video
+</button>
+
+<button onclick="showPage('ai')">
+AI
+</button>
+
+<button onclick="showPage('profile')">
+Profile
+</button>
 
 </nav>
 
 </div>
 
 
+<!-- AUTH MODAL -->
+
+<div id="authModal"
+     class="modal">
+
+<div class="modal-box modal-small">
+
+<div class="modal-head">
+
+<h2 id="authTitle">
+Log in
+</h2>
+
+<button class="close"
+        onclick="closeModal('authModal')">
+×
+</button>
+
+</div>
+
+
+<div class="auth-tabs">
+
+<button id="loginTab"
+        class="auth-tab active"
+        onclick="switchAuth('login')">
+Log in
+</button>
+
+<button id="registerTab"
+        class="auth-tab"
+        onclick="switchAuth('register')">
+Create account
+</button>
+
+</div>
+
+
+<div id="loginForm">
+
+<input id="loginEmail"
+       class="form-control"
+       type="email"
+       placeholder="Email">
+
+<input id="loginPassword"
+       class="form-control"
+       type="password"
+       placeholder="Password">
+
+<button class="btn"
+        style="width:100%"
+        onclick="login()">
+Log in
+</button>
+
+</div>
+
+
+<div id="registerForm"
+     class="hidden">
+
+<input id="registerName"
+       class="form-control"
+       placeholder="Full name">
+
+<input id="registerUsername"
+       class="form-control"
+       placeholder="Username">
+
+<input id="registerEmail"
+       class="form-control"
+       type="email"
+       placeholder="Email">
+
+<input id="registerPassword"
+       class="form-control"
+       type="password"
+       placeholder="Password">
+
+<button class="btn"
+        style="width:100%"
+        onclick="register()">
+Create account
+</button>
+
+</div>
+
+
+<div id="authMessage"
+     class="error-text"></div>
+
+<p style="color:var(--muted);font-size:12px;margin-bottom:0">
+Use an email address you can access. If email verification is enabled by the backend, complete that verification before logging in.
+</p>
+
+</div>
+
+</div>
+
+
 <!-- EDIT PROFILE -->
 
-<div id="editProfileModal" class="modal">
+<div id="editProfileModal"
+     class="modal">
 
 <div class="modal-box">
 
 <div class="modal-head">
+
 <h2>Edit Profile</h2>
-<button class="close" onclick="closeModal('editProfileModal')">×</button>
+
+<button class="close"
+        onclick="closeModal('editProfileModal')">
+×
+</button>
+
 </div>
 
-<input id="editName" class="form-control" placeholder="Full name">
 
-<textarea id="editBio" class="form-control" placeholder="Bio"></textarea>
+<input id="editName"
+       class="form-control"
+       placeholder="Full name">
+
+
+<textarea id="editBio"
+          class="form-control"
+          placeholder="Bio"></textarea>
+
 
 <label class="btn secondary">
+
 Choose Profile Photo
-<input id="profilePhotoInput" class="media-picker" type="file" accept="image/*">
+
+<input id="profilePhotoInput"
+       class="media-picker"
+       type="file"
+       accept="image/*">
+
 </label>
 
 <br><br>
 
-<button class="btn" onclick="saveProfile()">Save Changes</button>
+<button class="btn"
+        onclick="saveProfile()">
+Save Changes
+</button>
 
 </div>
 
@@ -1182,297 +1773,1075 @@ Choose Profile Photo
 
 <!-- AI MODAL -->
 
-<div id="aiModal" class="modal">
+<div id="aiModal"
+     class="modal">
 
 <div class="modal-box">
 
 <div class="modal-head">
-<h2 id="aiModalTitle">AI Assistant</h2>
-<button class="close" onclick="closeModal('aiModal')">×</button>
-</div>
 
-<textarea id="domainQuestion" class="form-control"
-placeholder="Ask your question..."></textarea>
+<h2 id="aiModalTitle">
+AI Assistant
+</h2>
 
-<button class="btn" onclick="askDomainAI()">Ask AI</button>
-
-<div id="domainAnswer" class="card" style="margin-top:15px;display:none"></div>
-
-</div>
+<button class="close"
+        onclick="closeModal('aiModal')">
+×
+</button>
 
 </div>
 
 
-<div id="toast" class="toast"></div>
+<textarea id="domainQuestion"
+          class="form-control"
+          placeholder="Ask your question..."></textarea>
+
+
+<button class="btn"
+        onclick="askDomainAI()">
+Ask AI
+</button>
+
+
+<div id="domainAnswer"
+     class="card"
+     style="margin-top:15px;display:none">
+</div>
+
+</div>
+
+</div>
+
+
+<div id="toast"
+     class="toast"></div>
 
 
 <script>
 
-let currentPage='home';
-let currentChatUser=null;
-let selectedPostMedia=null;
-let selectedStatusMedia=null;
-let selectedAI='';
+/* =========================================================
+   MSAFIRI GLOBAL MEDIA V4
+   FRONTEND -> RENDER BACKEND
+   ========================================================= */
+
+const API_BASE =
+  "https://msafiri-global-media-3-1.onrender.com";
 
 
-const $=id=>document.getElementById(id);
+let currentPage = "home";
+let currentChatUser = null;
+let currentChatName = "";
+let selectedPostMedia = null;
+let selectedStatusMedia = null;
+let selectedAI = "";
+let currentUser = null;
+let recorder = null;
+let recordedChunks = [];
+let recordingStream = null;
+let typingTimer = null;
 
+
+const $ = id => document.getElementById(id);
+
+
+/* =========================================================
+   API HELPER
+   ========================================================= */
+
+function apiUrl(path){
+
+  if(!path.startsWith("/")){
+    path="/" + path;
+  }
+
+  return API_BASE + path;
+
+}
+
+
+async function api(path, options = {}){
+
+  const config = {...options};
+
+  config.headers = new Headers(options.headers || {});
+
+  const token =
+    localStorage.getItem("msg_token");
+
+  if(token){
+
+    config.headers.set(
+      "Authorization",
+      "Bearer " + token
+    );
+
+  }
+
+  /*
+   Do not manually set Content-Type for FormData.
+   Browser creates the multipart boundary automatically.
+  */
+
+  return fetch(apiUrl(path), config);
+
+}
+
+
+/* =========================================================
+   MEDIA URL
+   ========================================================= */
+
+function mediaUrl(value){
+
+  if(!value){
+    return "";
+  }
+
+  value = String(value);
+
+  if(
+    value.startsWith("http://") ||
+    value.startsWith("https://") ||
+    value.startsWith("blob:")
+  ){
+
+    return value;
+
+  }
+
+  if(value.startsWith("/")){
+    return API_BASE + value;
+  }
+
+  return API_BASE + "/" + value;
+
+}
+
+
+/* =========================================================
+   TOAST
+   ========================================================= */
 
 function toast(message){
 
-  const t=$('toast');
+  const t = $("toast");
 
-  t.textContent=message;
+  t.textContent = message;
 
-  t.style.display='block';
+  t.style.display = "block";
 
   clearTimeout(window.toastTimer);
 
-  window.toastTimer=setTimeout(()=>{
-    t.style.display='none';
-  },2500);
+  window.toastTimer = setTimeout(()=>{
+
+    t.style.display = "none";
+
+  },2800);
+
 }
 
+
+/* =========================================================
+   PAGE NAVIGATION
+   ========================================================= */
 
 function showPage(page){
 
-  document.querySelectorAll('.page').forEach(p=>{
-    p.classList.remove('active');
-  });
+  document.querySelectorAll(".page")
+    .forEach(p => p.classList.remove("active"));
 
-  const target=$(page);
+  const target = $(page);
 
-  if(target) target.classList.add('active');
+  if(target){
+    target.classList.add("active");
+  }
 
-  currentPage=page;
+  currentPage = page;
 
-  document.querySelectorAll('.nav-btn').forEach(b=>{
-    b.classList.remove('active');
-  });
+  document.querySelectorAll(".nav-btn")
+    .forEach(b => b.classList.remove("active"));
 
-  document.querySelectorAll('.bottom-nav button').forEach(b=>{
-    b.classList.remove('active');
-  });
+  document.querySelectorAll(".bottom-nav button")
+    .forEach(b => b.classList.remove("active"));
 
 }
 
 
+/* =========================================================
+   THEME
+   ========================================================= */
+
 function toggleTheme(){
 
-  document.body.classList.toggle('dark');
+  document.body.classList.toggle("dark");
 
   localStorage.setItem(
-    'msg_theme',
-    document.body.classList.contains('dark')?'dark':'light'
+    "msg_theme",
+    document.body.classList.contains("dark")
+      ? "dark"
+      : "light"
   );
 
 }
 
 
-if(localStorage.getItem('msg_theme')==='dark'){
-  document.body.classList.add('dark');
+if(localStorage.getItem("msg_theme")==="dark"){
+  document.body.classList.add("dark");
 }
 
 
-/* POST MEDIA */
+/* =========================================================
+   AUTH UI
+   ========================================================= */
+
+function openAuth(mode = "login"){
+
+  $("authModal").classList.add("show");
+
+  switchAuth(mode);
+
+}
+
+
+function switchAuth(mode){
+
+  const login =
+    mode === "login";
+
+  $("loginForm").classList.toggle(
+    "hidden",
+    !login
+  );
+
+  $("registerForm").classList.toggle(
+    "hidden",
+    login
+  );
+
+  $("loginTab").classList.toggle(
+    "active",
+    login
+  );
+
+  $("registerTab").classList.toggle(
+    "active",
+    !login
+  );
+
+  $("authTitle").textContent =
+    login ? "Log in" : "Create account";
+
+  $("authMessage").textContent = "";
+
+}
+
+
+async function register(){
+
+  const name =
+    $("registerName").value.trim();
+
+  const username =
+    $("registerUsername").value.trim();
+
+  const email =
+    $("registerEmail").value.trim();
+
+  const password =
+    $("registerPassword").value;
+
+  if(!name || !username || !email || !password){
+
+    $("authMessage").textContent =
+      "Please complete all fields.";
+
+    return;
+
+  }
+
+  $("authMessage").textContent =
+    "Creating your account...";
+
+  try{
+
+    const r = await api("/api/register",{
+
+      method:"POST",
+
+      headers:{
+        "Content-Type":"application/json"
+      },
+
+      body:JSON.stringify({
+        name,
+        username,
+        email,
+        password
+      })
+
+    });
+
+    const data = await safeJson(r);
+
+    if(!r.ok){
+
+      throw new Error(
+        data?.detail ||
+        data?.message ||
+        "Registration failed."
+      );
+
+    }
+
+    const token =
+      data?.token ||
+      data?.access_token ||
+      data?.session;
+
+    if(token){
+
+      localStorage.setItem(
+        "msg_token",
+        token
+      );
+
+    }
+
+    $("authMessage").className =
+      "success-text";
+
+    $("authMessage").textContent =
+      "Account created successfully.";
+
+    if(token){
+
+      await refreshSession();
+
+      setTimeout(()=>{
+        closeModal("authModal");
+      },500);
+
+    }else{
+
+      setTimeout(()=>{
+        switchAuth("login");
+      },700);
+
+    }
+
+  }catch(error){
+
+    $("authMessage").className =
+      "error-text";
+
+    $("authMessage").textContent =
+      error.message ||
+      "Could not create account.";
+
+  }
+
+}
+
+
+async function login(){
+
+  const email =
+    $("loginEmail").value.trim();
+
+  const password =
+    $("loginPassword").value;
+
+  if(!email || !password){
+
+    $("authMessage").textContent =
+      "Enter your email and password.";
+
+    return;
+
+  }
+
+  $("authMessage").className =
+    "error-text";
+
+  $("authMessage").textContent =
+    "Logging in...";
+
+  try{
+
+    /*
+      Try JSON first because our API supports JSON.
+    */
+
+    let r = await api("/api/login",{
+
+      method:"POST",
+
+      headers:{
+        "Content-Type":"application/json"
+      },
+
+      body:JSON.stringify({
+        email,
+        password
+      })
+
+    });
+
+    let data =
+      await safeJson(r);
+
+    /*
+      Some FastAPI login implementations use
+      form fields. If JSON is rejected, retry
+      using URLSearchParams.
+    */
+
+    if(!r.ok && (r.status===422 || r.status===415)){
+
+      const form =
+        new URLSearchParams();
+
+      form.append("email",email);
+      form.append("password",password);
+
+      r = await api("/api/login",{
+
+        method:"POST",
+
+        headers:{
+          "Content-Type":
+            "application/x-www-form-urlencoded"
+        },
+
+        body:form
+
+      });
+
+      data =
+        await safeJson(r);
+
+    }
+
+    if(!r.ok){
+
+      throw new Error(
+        data?.detail ||
+        data?.message ||
+        "Login failed."
+      );
+
+    }
+
+    const token =
+      data?.token ||
+      data?.access_token ||
+      data?.session;
+
+    if(token){
+
+      localStorage.setItem(
+        "msg_token",
+        token
+      );
+
+    }
+
+    await refreshSession();
+
+    closeModal("authModal");
+
+    toast("Welcome back.");
+
+  }catch(error){
+
+    $("authMessage").className =
+      "error-text";
+
+    $("authMessage").textContent =
+      error.message ||
+      "Could not log in.";
+
+  }
+
+}
+
+
+async function refreshSession(){
+
+  const token =
+    localStorage.getItem("msg_token");
+
+  if(!token){
+
+    currentUser = null;
+
+    updateAuthUI();
+
+    return;
+
+  }
+
+  try{
+
+    const r =
+      await api("/api/me");
+
+    if(!r.ok){
+
+      if(r.status===401){
+
+        localStorage.removeItem(
+          "msg_token"
+        );
+
+      }
+
+      currentUser = null;
+
+      updateAuthUI();
+
+      return;
+
+    }
+
+    currentUser =
+      await safeJson(r);
+
+    updateAuthUI();
+
+    loadProfile();
+
+    loadUsers();
+
+  }catch(e){
+
+    currentUser = null;
+
+    updateAuthUI();
+
+  }
+
+}
+
+
+function updateAuthUI(){
+
+  const logged =
+    !!currentUser;
+
+  $("authActions")
+    .classList.toggle(
+      "hidden",
+      logged
+    );
+
+  $("loggedUser")
+    .classList.toggle(
+      "hidden",
+      !logged
+    );
+
+  $("logoutSideBtn")
+    .classList.toggle(
+      "hidden",
+      !logged
+    );
+
+  $("profileLoginBtn")
+    .classList.toggle(
+      "hidden",
+      logged
+    );
+
+  if(logged){
+
+    const name =
+      currentUser.name ||
+      currentUser.username ||
+      "User";
+
+    $("topName").textContent =
+      name;
+
+    $("topAvatar").src =
+      mediaUrl(
+        currentUser.avatar
+      ) ||
+      "https://via.placeholder.com/50";
+
+  }
+
+}
+
+
+async function logout(){
+
+  try{
+
+    await api("/api/logout",{
+      method:"POST"
+    });
+
+  }catch(e){}
+
+  localStorage.removeItem(
+    "msg_token"
+  );
+
+  currentUser = null;
+
+  updateAuthUI();
+
+  $("messages").innerHTML =
+    `<div class="empty">
+      Please log in to view messages.
+    </div>`;
+
+  toast("You have been logged out.");
+
+}
+
+
+/* =========================================================
+   SAFE JSON
+   ========================================================= */
+
+async function safeJson(response){
+
+  try{
+    return await response.json();
+  }catch(e){
+    return {};
+  }
+
+}
+
+
+/* =========================================================
+   POST MEDIA
+   ========================================================= */
 
 function handlePhoto(event){
 
-  const file=event.target.files[0];
+  const file =
+    event.target.files[0];
 
   if(!file)return;
 
-  selectedPostMedia={
+  selectedPostMedia = {
     file,
-    type:'image',
+    type:"image",
     url:URL.createObjectURL(file)
   };
 
-  $('postPreview').innerHTML=
-    `<img src="${selectedPostMedia.url}" alt="Selected photo">`;
+  $("postPreview").innerHTML =
+    `<img src="${selectedPostMedia.url}"
+          alt="Selected photo">`;
 
 }
 
 
 function handleVideo(event){
 
-  const file=event.target.files[0];
+  const file =
+    event.target.files[0];
 
   if(!file)return;
 
-  selectedPostMedia={
+  selectedPostMedia = {
     file,
-    type:'video',
+    type:"video",
     url:URL.createObjectURL(file)
   };
 
-  $('postPreview').innerHTML=
-    `<video src="${selectedPostMedia.url}" controls></video>`;
+  $("postPreview").innerHTML =
+    `<video src="${selectedPostMedia.url}"
+            controls></video>`;
 
 }
 
 
 function handleFile(event){
 
-  const file=event.target.files[0];
+  const file =
+    event.target.files[0];
 
   if(!file)return;
 
-  selectedPostMedia={
+  selectedPostMedia = {
     file,
-    type:'file',
+    type:"file",
     url:null
   };
 
-  $('postPreview').innerHTML=
+  $("postPreview").innerHTML =
     `<div class="card">
-      <strong>Selected file:</strong> ${escapeHtml(file.name)}
+      <strong>Selected file:</strong>
+      ${escapeHtml(file.name)}
     </div>`;
 
 }
 
 
+/* =========================================================
+   PUBLISH POST
+   ========================================================= */
+
 async function publishPost(){
 
-  const caption=$('postCaption').value.trim();
+  if(!currentUser){
 
-  if(!caption && !selectedPostMedia){
-    toast('Write something or select media first.');
+    toast("Please log in before posting.");
+
+    openAuth("login");
+
     return;
+
   }
 
-  const form=new FormData();
+  const caption =
+    $("postCaption").value.trim();
 
-  form.append('caption',caption);
+  if(!caption && !selectedPostMedia){
+
+    toast(
+      "Write something or select media first."
+    );
+
+    return;
+
+  }
+
+  const form =
+    new FormData();
+
+  form.append(
+    "caption",
+    caption
+  );
 
   if(selectedPostMedia?.file){
-    form.append('media',selectedPostMedia.file);
+
+    form.append(
+      "media",
+      selectedPostMedia.file
+    );
+
   }
 
   try{
 
-    const response=await fetch('/api/posts',{
-      method:'POST',
-      body:form
-    });
+    const response =
+      await api("/api/posts",{
 
-    if(response.ok){
+        method:"POST",
 
-      toast('Post published successfully.');
+        body:form
 
-      $('postCaption').value='';
-      $('postPreview').innerHTML='';
-      selectedPostMedia=null;
+      });
 
-      loadFeed();
+    const data =
+      await safeJson(response);
 
-    }else{
+    if(!response.ok){
 
-      toast('Post could not be published. Check the server.');
+      throw new Error(
+        data?.detail ||
+        "Post could not be published."
+      );
 
     }
 
+    toast(
+      "Post published successfully."
+    );
+
+    $("postCaption").value = "";
+
+    $("postPreview").innerHTML = "";
+
+    selectedPostMedia = null;
+
+    $("photoInput").value = "";
+    $("videoInput").value = "";
+    $("fileInput").value = "";
+
+    await loadFeed();
+
   }catch(error){
 
-    toast('Connection error.');
+    toast(
+      error.message ||
+      "Connection error."
+    );
 
   }
 
 }
 
 
-/* STATUS */
+/* =========================================================
+   STATUS MEDIA
+   ========================================================= */
 
 function previewStatusPhoto(event){
 
-  const file=event.target.files[0];
+  const file =
+    event.target.files[0];
 
   if(!file)return;
 
-  selectedStatusMedia={
+  selectedStatusMedia = {
     file,
-    type:'image',
+    type:"image",
     url:URL.createObjectURL(file)
   };
 
-  $('statusPreview').innerHTML=
-    `<img class="post-media" src="${selectedStatusMedia.url}">`;
+  $("statusPreview").innerHTML =
+    `<img class="post-media"
+          src="${selectedStatusMedia.url}"
+          alt="Status photo">`;
 
 }
 
 
 function previewStatusVideo(event){
 
-  const file=event.target.files[0];
+  const file =
+    event.target.files[0];
 
   if(!file)return;
 
-  selectedStatusMedia={
+  selectedStatusMedia = {
     file,
-    type:'video',
+    type:"video",
     url:URL.createObjectURL(file)
   };
 
-  $('statusPreview').innerHTML=
-    `<video class="post-media" src="${selectedStatusMedia.url}" controls></video>`;
+  $("statusPreview").innerHTML =
+    `<video class="post-media"
+            src="${selectedStatusMedia.url}"
+            controls></video>`;
 
 }
 
 
+function selectStatusAudio(event){
+
+  const file =
+    event.target.files[0];
+
+  if(!file)return;
+
+  selectedStatusMedia = {
+    file,
+    type:"audio",
+    url:URL.createObjectURL(file)
+  };
+
+  $("statusPreview").innerHTML =
+    `<audio controls
+            style="width:100%"
+            src="${selectedStatusMedia.url}">
+     </audio>`;
+
+}
+
+
+/* =========================================================
+   TEXT STATUS
+   ========================================================= */
+
 async function createTextStatus(){
 
-  const text=prompt('Write your status:');
+  if(!currentUser){
 
-  if(!text)return;
+    openAuth("login");
+
+    toast("Please log in first.");
+
+    return;
+
+  }
+
+  const text =
+    prompt("Write your status:");
+
+  if(!text || !text.trim())return;
+
+  const form =
+    new FormData();
+
+  form.append(
+    "text",
+    text.trim()
+  );
 
   try{
 
-    const response=await fetch('/api/status',{
-      method:'POST',
-      headers:{
-        'Content-Type':'application/json'
-      },
-      body:JSON.stringify({
-        text
-      })
-    });
+    const r =
+      await api("/api/status",{
 
-    if(response.ok){
-      toast('Status published.');
-      loadStatuses();
-    }else{
-      toast('Status service is not connected yet.');
+        method:"POST",
+
+        body:form
+
+      });
+
+    const data =
+      await safeJson(r);
+
+    if(!r.ok){
+
+      throw new Error(
+        data?.detail ||
+        "Status could not be published."
+      );
+
     }
+
+    toast("Status published.");
+
+    await loadStatuses();
 
   }catch(e){
 
-    toast('Status service is not connected yet.');
+    toast(
+      e.message ||
+      "Status service error."
+    );
 
   }
 
 }
 
 
-/* FEED */
+/* =========================================================
+   MEDIA STATUS
+   ========================================================= */
 
-async function loadFeed(){
+async function publishMediaStatus(){
+
+  if(!currentUser){
+
+    openAuth("login");
+
+    toast("Please log in first.");
+
+    return;
+
+  }
+
+  if(!selectedStatusMedia?.file){
+
+    toast(
+      "Choose a photo, video or audio first."
+    );
+
+    return;
+
+  }
+
+  const form =
+    new FormData();
+
+  form.append(
+    "media",
+    selectedStatusMedia.file
+  );
 
   try{
 
-    const response=await fetch('/api/posts');
+    const r =
+      await api("/api/status",{
 
-    if(!response.ok)throw new Error();
+        method:"POST",
 
-    const posts=await response.json();
+        body:form
 
-    renderFeed(posts);
+      });
+
+    const data =
+      await safeJson(r);
+
+    if(!r.ok){
+
+      throw new Error(
+        data?.detail ||
+        "Status could not be published."
+      );
+
+    }
+
+    toast("Status published.");
+
+    selectedStatusMedia = null;
+
+    $("statusPreview").innerHTML = "";
+
+    $("statusPhoto").value = "";
+    $("statusVideo").value = "";
+    $("statusAudio").value = "";
+
+    await loadStatuses();
 
   }catch(e){
 
-    $('feed').innerHTML=
+    toast(
+      e.message ||
+      "Status upload failed."
+    );
+
+  }
+
+}
+
+
+/* =========================================================
+   FEED
+   ========================================================= */
+
+let allPosts = [];
+
+
+async function loadFeed(){
+
+  $("feed").innerHTML =
+    `<div class="loading">
+      Loading posts...
+    </div>`;
+
+  try{
+
+    const response =
+      await api("/api/posts");
+
+    if(!response.ok){
+
+      throw new Error();
+
+    }
+
+    const posts =
+      await response.json();
+
+    allPosts =
+      Array.isArray(posts)
+        ? posts
+        : [];
+
+    renderFeed(allPosts);
+    renderVideoFeed(allPosts);
+
+  }catch(e){
+
+    $("feed").innerHTML =
       `<div class="card">
-        <strong>Welcome to MSAFIRI GLOBAL MEDIA.</strong>
-        <p>Connect the backend API to load live posts.</p>
+        <strong>MSAFIRI GLOBAL MEDIA</strong>
+        <p>
+        The backend is online, but no posts
+        are available yet.
+        </p>
       </div>`;
 
   }
@@ -1482,110 +2851,298 @@ async function loadFeed(){
 
 function renderFeed(posts){
 
-  if(!Array.isArray(posts))posts=[];
+  if(!Array.isArray(posts)){
+    posts=[];
+  }
 
-  $('feed').innerHTML=posts.map(post=>{
+  if(!posts.length){
 
-    const media=post.media_url||post.media||'';
+    $("feed").innerHTML =
+      `<div class="card empty">
+        No posts yet. Be the first to share something.
+      </div>`;
 
-    let mediaHTML='';
+    return;
 
-    if(media){
+  }
 
-      if(post.media_type?.startsWith('video')||
-         /\.(mp4|webm|ogg)$/i.test(media)){
+  $("feed").innerHTML =
+    posts.map(post=>{
 
-        mediaHTML=
-          `<video class="post-media"
-             src="${escapeAttr(media)}"
-             controls
-             onclick="markWatched('${escapeAttr(media)}')"></video>`;
+      const media =
+        mediaUrl(
+          post.media_url ||
+          post.media ||
+          ""
+        );
 
-      }else{
+      let mediaHTML = "";
 
-        mediaHTML=
-          `<img class="post-media"
-             src="${escapeAttr(media)}"
-             alt="Post media">`;
+      if(media){
+
+        const type =
+          String(
+            post.media_type ||
+            ""
+          ).toLowerCase();
+
+        if(
+          type.includes("video") ||
+          /\.(mp4|webm|ogg|mov)(\?|$)/i.test(media)
+        ){
+
+          mediaHTML =
+            `<video class="post-media"
+                    src="${escapeAttr(media)}"
+                    controls
+                    playsinline
+                    onclick="markWatched('${escapeAttr(media)}')">
+             </video>`;
+
+        }else if(
+          type.includes("audio") ||
+          /\.(mp3|wav|ogg|webm|m4a)(\?|$)/i.test(media)
+        ){
+
+          mediaHTML =
+            `<audio controls
+                    style="width:100%"
+                    src="${escapeAttr(media)}">
+             </audio>`;
+
+        }else{
+
+          mediaHTML =
+            `<img class="post-media"
+                  src="${escapeAttr(media)}"
+                  alt="Post media"
+                  loading="lazy">`;
+
+        }
 
       }
 
-    }
 
-    return `
-    <article class="card post">
+      return `
 
-      <div class="post-header">
+      <article class="card post">
 
-        <img class="avatar"
-             src="${escapeAttr(post.avatar||'https://via.placeholder.com/50')}">
+        <div class="post-header">
 
-        <div>
-          <div class="post-user">
-            ${escapeHtml(post.user_name||post.username||'User')}
+          <img class="avatar"
+               src="${escapeAttr(
+                 mediaUrl(
+                   post.avatar
+                 ) ||
+                 "https://via.placeholder.com/50"
+               )}"
+               alt="">
+
+          <div>
+
+            <div class="post-user">
+              ${escapeHtml(
+                post.user_name ||
+                post.name ||
+                post.username ||
+                "User"
+              )}
+            </div>
+
+            <div class="post-time">
+              ${escapeHtml(
+                post.created_at || ""
+              )}
+            </div>
+
           </div>
 
-          <div class="post-time">
-            ${escapeHtml(post.created_at||'')}
-          </div>
         </div>
 
-      </div>
 
-      <div class="post-content">
-        ${escapeHtml(post.caption||post.text||'')}
-      </div>
+        <div class="post-content">
+          ${escapeHtml(
+            post.caption ||
+            post.text ||
+            ""
+          )}
+        </div>
 
-      ${mediaHTML}
 
-      <div class="post-footer">
+        ${mediaHTML}
 
-        <button class="action" onclick="likePost('${escapeAttr(post.id)}')">
-          Like
-        </button>
 
-        <button class="action" onclick="commentPost('${escapeAttr(post.id)}')">
-          Comment
-        </button>
+        <div class="post-footer">
 
-        <button class="action" onclick="savePost('${escapeAttr(post.id)}')">
-          Save
-        </button>
+          <button class="action"
+                  onclick="likePost('${escapeAttr(post.id)}')">
+            Like
+          </button>
 
-        <button class="action" onclick="resharePost('${escapeAttr(post.id)}')">
-          Reshare
-        </button>
+          <button class="action"
+                  onclick="commentPost('${escapeAttr(post.id)}')">
+            Comment
+          </button>
 
-      </div>
+          <button class="action"
+                  onclick="savePost('${escapeAttr(post.id)}')">
+            Save
+          </button>
 
-    </article>
-    `;
+          <button class="action"
+                  onclick="resharePost('${escapeAttr(post.id)}')">
+            Reshare
+          </button>
 
-  }).join('');
+        </div>
+
+      </article>
+
+      `;
+
+    }).join("");
 
 }
 
 
-/* SOCIAL ACTIONS */
+/* =========================================================
+   VIDEO FEED
+   ========================================================= */
+
+function renderVideoFeed(posts){
+
+  const videos =
+    posts.filter(post=>{
+
+      const media =
+        String(
+          post.media_url ||
+          post.media ||
+          ""
+        );
+
+      const type =
+        String(
+          post.media_type ||
+          ""
+        ).toLowerCase();
+
+      return(
+        type.includes("video") ||
+        /\.(mp4|webm|ogg|mov)(\?|$)/i.test(media)
+      );
+
+    });
+
+
+  if(!videos.length){
+
+    $("videoFeed").innerHTML =
+      `<div class="card empty">
+        No video posts available yet.
+      </div>`;
+
+    return;
+
+  }
+
+
+  $("videoFeed").innerHTML =
+    videos.map(post=>{
+
+      const media =
+        mediaUrl(
+          post.media_url ||
+          post.media
+        );
+
+      return `
+
+      <article class="card">
+
+        <h3>
+          ${escapeHtml(
+            post.user_name ||
+            post.username ||
+            "User"
+          )}
+        </h3>
+
+        <p>
+          ${escapeHtml(
+            post.caption || ""
+          )}
+        </p>
+
+        <video class="post-media"
+               src="${escapeAttr(media)}"
+               controls
+               playsinline
+               onplay="markWatched('${escapeAttr(media)}')">
+        </video>
+
+      </article>
+
+      `;
+
+    }).join("");
+
+}
+
+
+/* =========================================================
+   SOCIAL ACTIONS
+   ========================================================= */
+
+async function requireLogin(){
+
+  if(currentUser){
+    return true;
+  }
+
+  toast("Please log in first.");
+
+  openAuth("login");
+
+  return false;
+
+}
+
 
 async function likePost(id){
 
+  if(!(await requireLogin()))return;
+
   try{
 
-    const r=await fetch(`/api/posts/${encodeURIComponent(id)}/like`,{
-      method:'POST'
-    });
+    const r =
+      await api(
+        `/api/posts/${encodeURIComponent(id)}/like`,
+        {method:"POST"}
+      );
 
-    if(r.ok){
-      toast('Post liked.');
-      loadFeed();
-    }else{
-      toast('Like service is not connected.');
+    if(!r.ok){
+
+      const data =
+        await safeJson(r);
+
+      throw new Error(
+        data?.detail ||
+        "Like failed."
+      );
+
     }
+
+    toast("Post liked.");
+
+    await loadFeed();
 
   }catch(e){
 
-    toast('Like service is not connected.');
+    toast(
+      e.message ||
+      "Like service error."
+    );
 
   }
 
@@ -1594,33 +3151,49 @@ async function likePost(id){
 
 async function commentPost(id){
 
-  const text=prompt('Write your comment:');
+  if(!(await requireLogin()))return;
 
-  if(!text)return;
+  const text =
+    prompt("Write your comment:");
+
+  if(!text || !text.trim())return;
 
   try{
 
-    const r=await fetch(`/api/posts/${encodeURIComponent(id)}/comments`,{
-      method:'POST',
-      headers:{
-        'Content-Type':'application/json'
-      },
-      body:JSON.stringify({text})
-    });
+    const r =
+      await api(
+        `/api/posts/${encodeURIComponent(id)}/comments`,
+        {
+          method:"POST",
+          headers:{
+            "Content-Type":"application/json"
+          },
+          body:JSON.stringify({
+            text:text.trim()
+          })
+        }
+      );
 
-    if(r.ok){
+    const data =
+      await safeJson(r);
 
-      toast('Comment added.');
+    if(!r.ok){
 
-    }else{
-
-      toast('Comment service is not connected.');
+      throw new Error(
+        data?.detail ||
+        "Comment failed."
+      );
 
     }
 
+    toast("Comment added.");
+
   }catch(e){
 
-    toast('Comment service is not connected.');
+    toast(
+      e.message ||
+      "Comment service error."
+    );
 
   }
 
@@ -1629,25 +3202,36 @@ async function commentPost(id){
 
 async function savePost(id){
 
+  if(!(await requireLogin()))return;
+
   try{
 
-    const r=await fetch(`/api/posts/${encodeURIComponent(id)}/save`,{
-      method:'POST'
-    });
+    const r =
+      await api(
+        `/api/posts/${encodeURIComponent(id)}/save`,
+        {method:"POST"}
+      );
 
-    if(r.ok){
+    const data =
+      await safeJson(r);
 
-      toast('Post saved.');
+    if(!r.ok){
 
-    }else{
-
-      toast('Save service is not connected.');
+      throw new Error(
+        data?.detail ||
+        "Save failed."
+      );
 
     }
 
+    toast("Post saved.");
+
   }catch(e){
 
-    toast('Save service is not connected.');
+    toast(
+      e.message ||
+      "Save service error."
+    );
 
   }
 
@@ -1656,25 +3240,38 @@ async function savePost(id){
 
 async function resharePost(id){
 
+  if(!(await requireLogin()))return;
+
   try{
 
-    const r=await fetch(`/api/posts/${encodeURIComponent(id)}/reshare`,{
-      method:'POST'
-    });
+    const r =
+      await api(
+        `/api/posts/${encodeURIComponent(id)}/reshare`,
+        {method:"POST"}
+      );
 
-    if(r.ok){
+    const data =
+      await safeJson(r);
 
-      toast('Post reshared.');
+    if(!r.ok){
 
-    }else{
-
-      toast('Reshare service is not connected.');
+      throw new Error(
+        data?.detail ||
+        "Reshare failed."
+      );
 
     }
 
+    toast("Post reshared.");
+
+    await loadFeed();
+
   }catch(e){
 
-    toast('Reshare service is not connected.');
+    toast(
+      e.message ||
+      "Reshare service error."
+    );
 
   }
 
@@ -1683,50 +3280,175 @@ async function resharePost(id){
 
 function markWatched(media){
 
+  const current =
+    JSON.parse(
+      localStorage.getItem(
+        "watchedContent"
+      ) || "[]"
+    );
+
+  current.unshift({
+    media,
+    time:new Date().toISOString()
+  });
+
   localStorage.setItem(
-    'lastWatched',
-    JSON.stringify({
-      media,
-      time:new Date().toISOString()
-    })
+    "watchedContent",
+    JSON.stringify(
+      current.slice(0,50)
+    )
   );
+
+  renderWatchedContent();
 
 }
 
 
-/* USERS */
+/* =========================================================
+   SEARCH
+   ========================================================= */
+
+function searchPosts(query){
+
+  const q =
+    String(query || "")
+      .trim()
+      .toLowerCase();
+
+  if(!q){
+
+    renderFeed(allPosts);
+
+    return;
+
+  }
+
+  const filtered =
+    allPosts.filter(post=>{
+
+      const text =
+        [
+          post.caption,
+          post.text,
+          post.user_name,
+          post.username,
+          post.name
+        ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return text.includes(q);
+
+    });
+
+  renderFeed(filtered);
+
+}
+
+
+/* =========================================================
+   USERS
+   ========================================================= */
 
 async function loadUsers(){
 
+  if(!currentUser){
+
+    $("usersList").innerHTML =
+      `<div class="empty">
+        Log in to see people.
+      </div>`;
+
+    $("chatLoginMessage")
+      .classList.remove("hidden");
+
+    return;
+
+  }
+
+  $("chatLoginMessage")
+    .classList.add("hidden");
+
+
   try{
 
-    const r=await fetch('/api/users');
+    const r =
+      await api("/api/users");
 
-    if(!r.ok)throw new Error();
+    if(!r.ok){
 
-    const users=await r.json();
+      throw new Error();
 
-    $('usersList').innerHTML=users.map(user=>`
+    }
 
-      <div class="chat-user"
-           onclick="openChat('${escapeAttr(user.id)}','${escapeAttr(user.name||user.username||'User')}')">
+    const users =
+      await r.json();
 
-        <img class="avatar"
-             src="${escapeAttr(user.avatar||'https://via.placeholder.com/50')}">
+    const list =
+      Array.isArray(users)
+        ? users
+        : [];
 
-        <div>
-          <strong>${escapeHtml(user.name||user.username||'User')}</strong>
+
+    if(!list.length){
+
+      $("usersList").innerHTML =
+        `<div class="empty">
+          No other users found.
+        </div>`;
+
+      return;
+
+    }
+
+
+    $("usersList").innerHTML =
+      list.map(user=>{
+
+        const id =
+          user.id ||
+          user.user_id;
+
+        const name =
+          user.name ||
+          user.username ||
+          "User";
+
+        return `
+
+        <div class="chat-user"
+             onclick="openChat(
+               '${escapeAttr(id)}',
+               '${escapeAttr(name)}'
+             )">
+
+          <img class="avatar"
+               src="${escapeAttr(
+                 mediaUrl(
+                   user.avatar
+                 ) ||
+                 "https://via.placeholder.com/50"
+               )}"
+               alt="">
+
+          <div>
+            <strong>
+              ${escapeHtml(name)}
+            </strong>
+          </div>
+
         </div>
 
-      </div>
+        `;
 
-    `).join('');
+      }).join("");
 
   }catch(e){
 
-    $('usersList').innerHTML=
-      `<div class="card">
-        Connect backend to load users.
+    $("usersList").innerHTML =
+      `<div class="empty">
+        Unable to load users.
       </div>`;
 
   }
@@ -1734,13 +3456,19 @@ async function loadUsers(){
 }
 
 
-/* CHAT */
+/* =========================================================
+   CHAT
+   ========================================================= */
 
 async function openChat(id,name){
 
-  currentChatUser=id;
+  if(!(await requireLogin()))return;
 
-  $('chatHeader').textContent=name;
+  currentChatUser = id;
+  currentChatName = name;
+
+  $("chatHeader").textContent =
+    name;
 
   await loadMessages(id);
 
@@ -1751,26 +3479,89 @@ async function loadMessages(id){
 
   try{
 
-    const r=await fetch(`/api/messages/${encodeURIComponent(id)}`);
+    const r =
+      await api(
+        `/api/messages/${encodeURIComponent(id)}`
+      );
 
-    if(!r.ok)throw new Error();
+    if(!r.ok){
 
-    const messages=await r.json();
+      throw new Error();
 
-    $('messages').innerHTML=messages.map(m=>`
+    }
 
-      <div class="message ${m.sender_id==id?'received':'sent'}">
+    const messages =
+      await r.json();
 
-        ${escapeHtml(m.text||'')}
+    const list =
+      Array.isArray(messages)
+        ? messages
+        : [];
 
-      </div>
 
-    `).join('');
+    if(!list.length){
+
+      $("messages").innerHTML =
+        `<div class="empty">
+          No messages yet.
+        </div>`;
+
+      return;
+
+    }
+
+
+    $("messages").innerHTML =
+      list.map(m=>{
+
+        const sender =
+          String(
+            m.sender_id ??
+            m.sender ??
+            ""
+          );
+
+        const mine =
+          sender ===
+          String(currentUser?.id);
+
+        const text =
+          m.text ||
+          m.message ||
+          "";
+
+        return `
+
+        <div class="message ${
+          mine
+            ? "sent"
+            : "received"
+        }">
+
+          ${escapeHtml(text)}
+
+          ${
+            m.created_at
+              ? `<div class="message-meta">
+                   ${escapeHtml(m.created_at)}
+                 </div>`
+              : ""
+          }
+
+        </div>
+
+        `;
+
+      }).join("");
+
+
+    $("messages").scrollTop =
+      $("messages").scrollHeight;
 
   }catch(e){
 
-    $('messages').innerHTML=
-      `<div style="color:var(--muted)">
+    $("messages").innerHTML =
+      `<div class="empty">
         No messages available.
       </div>`;
 
@@ -1779,200 +3570,433 @@ async function loadMessages(id){
 }
 
 
-async function sendMessage(){
+function showTyping(){
 
-  const input=$('chatInput');
+  if(!currentChatUser)return;
 
-  const text=input.value.trim();
+  $("typing").style.display =
+    "block";
 
-  if(!text || !currentChatUser)return;
+  clearTimeout(typingTimer);
 
-  try{
+  typingTimer =
+    setTimeout(()=>{
 
-    const r=await fetch('/api/messages',{
-      method:'POST',
-      headers:{
-        'Content-Type':'application/json'
-      },
-      body:JSON.stringify({
-        receiver_id:currentChatUser,
-        text
-      })
-    });
+      $("typing").style.display =
+        "none";
 
-    if(r.ok){
-
-      input.value='';
-
-      await loadMessages(currentChatUser);
-
-    }else{
-
-      toast('Message service is not connected.');
-
-    }
-
-  }catch(e){
-
-    toast('Message service is not connected.');
-
-  }
+    },900);
 
 }
 
 
-/* VOICE */
+async function sendMessage(){
 
-let recorder=null;
-let recordedChunks=[];
+  if(!(await requireLogin()))return;
 
+  if(!currentChatUser){
 
-async function startVoiceRecording(){
-
-  if(!navigator.mediaDevices?.getUserMedia){
-
-    toast('Voice recording is not supported on this device/browser.');
+    toast(
+      "Select a person first."
+    );
 
     return;
 
   }
 
+  const input =
+    $("chatInput");
+
+  const text =
+    input.value.trim();
+
+  if(!text)return;
+
+
   try{
 
-    const stream=await navigator.mediaDevices.getUserMedia({
-      audio:true
-    });
+    const r =
+      await api("/api/messages",{
 
-    recordedChunks=[];
+        method:"POST",
 
-    recorder=new MediaRecorder(stream);
+        headers:{
+          "Content-Type":"application/json"
+        },
 
-    recorder.ondataavailable=e=>{
-      if(e.data.size>0)recordedChunks.push(e.data);
-    };
+        body:JSON.stringify({
 
-    recorder.onstop=async()=>{
+          receiver_id:
+            currentChatUser,
 
-      stream.getTracks().forEach(track=>track.stop());
+          text
 
-      const blob=new Blob(recordedChunks,{
-        type:'audio/webm'
+        })
+
       });
 
-      const file=new File(
-        [blob],
-        'voice-note.webm',
-        {type:'audio/webm'}
+    const data =
+      await safeJson(r);
+
+    if(!r.ok){
+
+      throw new Error(
+        data?.detail ||
+        "Message failed."
       );
 
-      const form=new FormData();
+    }
 
-      form.append('receiver_id',currentChatUser||'');
-      form.append('voice',file);
+    input.value = "";
 
-      try{
+    $("typing").style.display =
+      "none";
 
-        const r=await fetch('/api/messages/voice',{
-          method:'POST',
-          body:form
-        });
-
-        if(r.ok){
-          toast('Voice note sent.');
-        }else{
-          toast('Voice note upload is not connected.');
-        }
-
-      }catch(e){
-
-        toast('Voice note upload is not connected.');
-
-      }
-
-    };
-
-    recorder.start();
-
-    toast('Recording... press the voice button again to stop.');
-
-    setTimeout(()=>{
-
-      if(recorder && recorder.state==='recording'){
-        recorder.stop();
-      }
-
-    },30000);
+    await loadMessages(
+      currentChatUser
+    );
 
   }catch(e){
 
-    toast('Microphone permission is required.');
+    toast(
+      e.message ||
+      "Message service error."
+    );
 
   }
 
 }
 
 
-/* AI */
+/* =========================================================
+   CHAT ATTACHMENT
+   ========================================================= */
+
+function handleChatAttachment(event){
+
+  const file =
+    event.target.files[0];
+
+  if(!file)return;
+
+  /*
+    Current backend's message endpoint
+    accepts text JSON. We therefore keep the
+    attachment picker ready without pretending
+    the backend supports message attachments.
+  */
+
+  toast(
+    "Attachment selected: " +
+    file.name +
+    ". Message attachment API can be enabled next."
+  );
+
+}
+
+
+/* =========================================================
+   VOICE NOTES
+   ========================================================= */
+
+async function toggleVoiceRecording(){
+
+  if(recorder &&
+     recorder.state === "recording"){
+
+    recorder.stop();
+
+    return;
+
+  }
+
+  await startVoiceRecording();
+
+}
+
+
+async function startVoiceRecording(){
+
+  if(!(await requireLogin()))return;
+
+  if(!currentChatUser){
+
+    toast(
+      "Select a person before recording."
+    );
+
+    return;
+
+  }
+
+
+  if(!navigator.mediaDevices?.getUserMedia){
+
+    toast(
+      "Voice recording is not supported by this browser."
+    );
+
+    return;
+
+  }
+
+
+  try{
+
+    recordingStream =
+      await navigator.mediaDevices.getUserMedia({
+        audio:true
+      });
+
+    recordedChunks=[];
+
+    recorder =
+      new MediaRecorder(
+        recordingStream
+      );
+
+
+    recorder.ondataavailable =
+      event => {
+
+        if(event.data.size>0){
+
+          recordedChunks.push(
+            event.data
+          );
+
+        }
+
+      };
+
+
+    recorder.onstop =
+      async()=>{
+
+        if(recordingStream){
+
+          recordingStream
+            .getTracks()
+            .forEach(
+              track=>track.stop()
+            );
+
+        }
+
+
+        const blob =
+          new Blob(
+            recordedChunks,
+            {type:"audio/webm"}
+          );
+
+
+        const file =
+          new File(
+            [blob],
+            "voice-note.webm",
+            {type:"audio/webm"}
+          );
+
+
+        const form =
+          new FormData();
+
+        form.append(
+          "receiver_id",
+          currentChatUser
+        );
+
+        form.append(
+          "voice",
+          file
+        );
+
+
+        try{
+
+          const r =
+            await api(
+              "/api/messages/voice",
+              {
+                method:"POST",
+                body:form
+              }
+            );
+
+          const data =
+            await safeJson(r);
+
+          if(!r.ok){
+
+            throw new Error(
+              data?.detail ||
+              "Voice note failed."
+            );
+
+          }
+
+          toast(
+            "Voice note sent."
+          );
+
+          await loadMessages(
+            currentChatUser
+          );
+
+        }catch(e){
+
+          toast(
+            e.message ||
+            "Voice note upload failed."
+          );
+
+        }
+
+      };
+
+
+    recorder.start();
+
+    toast(
+      "Recording... press the microphone button again to stop."
+    );
+
+
+    setTimeout(()=>{
+
+      if(
+        recorder &&
+        recorder.state==="recording"
+      ){
+
+        recorder.stop();
+
+      }
+
+    },30000);
+
+
+  }catch(e){
+
+    toast(
+      "Microphone permission is required."
+    );
+
+  }
+
+}
+
+
+/* =========================================================
+   AI
+   ========================================================= */
 
 function openAI(name){
 
-  selectedAI=name;
+  selectedAI = name;
 
-  $('aiModalTitle').textContent=name;
+  $("aiModalTitle").textContent =
+    name;
 
-  $('domainQuestion').value='';
+  $("domainQuestion").value =
+    "";
 
-  $('domainAnswer').style.display='none';
+  $("domainAnswer").style.display =
+    "none";
 
-  openModal('aiModal');
+  openModal("aiModal");
 
 }
 
 
 async function askDomainAI(){
 
-  const question=$('domainQuestion').value.trim();
+  const question =
+    $("domainQuestion")
+      .value
+      .trim();
 
   if(!question){
 
-    toast('Write a question first.');
+    toast(
+      "Write a question first."
+    );
 
     return;
 
   }
 
-  const answer=$('domainAnswer');
 
-  answer.style.display='block';
+  const answer =
+    $("domainAnswer");
 
-  answer.innerHTML='<strong>Thinking...</strong>';
+  answer.style.display =
+    "block";
+
+  answer.innerHTML =
+    "<strong>Thinking...</strong>";
+
 
   try{
 
-    const r=await fetch('/api/ai',{
-      method:'POST',
-      headers:{
-        'Content-Type':'application/json'
-      },
-      body:JSON.stringify({
-        council:selectedAI,
-        question
-      })
-    });
+    const r =
+      await api("/api/ai",{
 
-    if(!r.ok)throw new Error();
+        method:"POST",
 
-    const data=await r.json();
+        headers:{
+          "Content-Type":
+            "application/json"
+        },
 
-    answer.innerHTML=
-      `<strong>${escapeHtml(selectedAI)}</strong>
-       <p>${escapeHtml(data.answer||data.response||'No answer returned.')}</p>`;
+        body:JSON.stringify({
+
+          council:selectedAI,
+
+          question
+
+        })
+
+      });
+
+
+    const data =
+      await safeJson(r);
+
+
+    if(!r.ok){
+
+      throw new Error(
+        data?.detail ||
+        "AI request failed."
+      );
+
+    }
+
+
+    answer.innerHTML =
+      `<strong>
+        ${escapeHtml(selectedAI)}
+       </strong>
+       <p>
+        ${escapeHtml(
+          data.answer ||
+          data.response ||
+          "No answer returned."
+        )}
+       </p>`;
+
 
   }catch(e){
 
-    answer.innerHTML=
-      `<strong>${escapeHtml(selectedAI)}</strong>
-       <p>The AI backend is not connected yet.</p>`;
+    answer.innerHTML =
+      `<strong>
+        ${escapeHtml(selectedAI)}
+       </strong>
+       <p>
+        AI service is currently unavailable.
+       </p>`;
 
   }
 
@@ -1981,173 +4005,426 @@ async function askDomainAI(){
 
 async function askAI(){
 
-  const country=$('countrySelect').value;
+  const country =
+    $("countrySelect").value;
 
-  const level=$('levelSelect').value;
+  const level =
+    $("levelSelect").value;
 
-  const question=$('aiQuestion').value.trim();
+  const question =
+    $("aiQuestion")
+      .value
+      .trim();
 
-  if(!country || !level || !question){
 
-    toast('Select country, education level and write a question.');
+  if(
+    !country ||
+    !level ||
+    !question
+  ){
+
+    toast(
+      "Select country, education level and write a question."
+    );
 
     return;
 
   }
 
-  const answer=$('aiAnswer');
 
-  answer.style.display='block';
+  const answer =
+    $("aiAnswer");
 
-  answer.innerHTML='<strong>Education AI is thinking...</strong>';
+  answer.style.display =
+    "block";
+
+  answer.innerHTML =
+    "<strong>Education AI is thinking...</strong>";
+
 
   try{
 
-    const r=await fetch('/api/ai',{
-      method:'POST',
-      headers:{
-        'Content-Type':'application/json'
-      },
-      body:JSON.stringify({
-        council:'Education AI',
-        country,
-        education_level:level,
-        question
-      })
-    });
+    const r =
+      await api("/api/ai",{
 
-    if(!r.ok)throw new Error();
+        method:"POST",
 
-    const data=await r.json();
+        headers:{
+          "Content-Type":
+            "application/json"
+        },
 
-    answer.innerHTML=
+        body:JSON.stringify({
+
+          council:
+            "Education AI",
+
+          country,
+
+          education_level:
+            level,
+
+          question
+
+        })
+
+      });
+
+
+    const data =
+      await safeJson(r);
+
+
+    if(!r.ok){
+
+      throw new Error(
+        data?.detail ||
+        "Education AI request failed."
+      );
+
+    }
+
+
+    answer.innerHTML =
       `<h3>Education AI</h3>
-       <p><strong>Curriculum:</strong> ${escapeHtml(country)}</p>
-       <p><strong>Level:</strong> ${escapeHtml(level)}</p>
-       <p>${escapeHtml(data.answer||data.response||'No answer returned.')}</p>`;
+
+       <p>
+       <strong>Curriculum:</strong>
+       ${escapeHtml(country)}
+       </p>
+
+       <p>
+       <strong>Level:</strong>
+       ${escapeHtml(level)}
+       </p>
+
+       <p>
+       ${escapeHtml(
+         data.answer ||
+         data.response ||
+         "No answer returned."
+       )}
+       </p>`;
+
 
   }catch(e){
 
-    answer.innerHTML=
+    answer.innerHTML =
       `<h3>Education AI</h3>
-       <p>The Education AI backend is not connected yet.</p>
-       <p>Once the AI endpoint is connected, it can provide curriculum guidance, study plans, topic explanations, subject recommendations and research support.</p>`;
+
+       <p>
+       The AI endpoint is currently unavailable.
+       </p>
+
+       <p style="color:var(--muted)">
+       The interface is ready for the AI provider
+       connection on the backend.
+       </p>`;
 
   }
 
 }
 
 
-/* PROFILE */
+/* =========================================================
+   PROFILE
+   ========================================================= */
 
 async function loadProfile(){
 
+  if(!currentUser){
+
+    $("profileName").textContent =
+      "Your Name";
+
+    $("profileBio").textContent =
+      "Log in to manage your profile.";
+
+    $("followersCount").textContent =
+      "0";
+
+    $("followingCount").textContent =
+      "0";
+
+    $("likesCount").textContent =
+      "0";
+
+    $("postsCount").textContent =
+      "0";
+
+    return;
+
+  }
+
+
   try{
 
-    const r=await fetch('/api/me');
+    const r =
+      await api("/api/me");
 
-    if(!r.ok)throw new Error();
+    if(!r.ok){
 
-    const user=await r.json();
+      throw new Error();
 
-    $('profileName').textContent=
-      user.name||user.username||'Your Name';
-
-    $('profileBio').textContent=
-      user.bio||'Welcome to my MSAFIRI GLOBAL MEDIA profile.';
-
-    if(user.avatar){
-      $('profileAvatar').src=user.avatar;
     }
 
-    $('followersCount').textContent=user.followers_count||0;
-    $('followingCount').textContent=user.following_count||0;
-    $('likesCount').textContent=user.likes_count||0;
-    $('postsCount').textContent=user.posts_count||0;
+    const user =
+      await r.json();
+
+    currentUser =
+      user;
+
+    updateAuthUI();
+
+
+    $("profileName").textContent =
+      user.name ||
+      user.username ||
+      "Your Name";
+
+
+    $("profileBio").textContent =
+      user.bio ||
+      "Welcome to my MSAFIRI GLOBAL MEDIA profile.";
+
+
+    if(user.avatar){
+
+      $("profileAvatar").src =
+        mediaUrl(user.avatar);
+
+    }
+
+
+    $("followersCount").textContent =
+      user.followers_count || 0;
+
+    $("followingCount").textContent =
+      user.following_count || 0;
+
+    $("likesCount").textContent =
+      user.likes_count || 0;
+
+    $("postsCount").textContent =
+      user.posts_count || 0;
+
+
+    $("editName").value =
+      user.name || "";
+
+    $("editBio").value =
+      user.bio || "";
+
+
+    renderWatchedContent();
+
 
   }catch(e){}
 
 }
 
 
+function openEditProfile(){
+
+  if(!currentUser){
+
+    openAuth("login");
+
+    return;
+
+  }
+
+  $("editName").value =
+    currentUser.name || "";
+
+  $("editBio").value =
+    currentUser.bio || "";
+
+  openModal(
+    "editProfileModal"
+  );
+
+}
+
+
 async function saveProfile(){
 
-  const name=$('editName').value.trim();
+  if(!(await requireLogin()))return;
 
-  const bio=$('editBio').value.trim();
 
-  const photo=$('profilePhotoInput').files[0];
+  const name =
+    $("editName").value.trim();
 
-  const form=new FormData();
+  const bio =
+    $("editBio").value.trim();
 
-  form.append('name',name);
+  const photo =
+    $("profilePhotoInput")
+      .files[0];
 
-  form.append('bio',bio);
 
-  if(photo)form.append('avatar',photo);
+  const form =
+    new FormData();
+
+  form.append(
+    "name",
+    name
+  );
+
+  form.append(
+    "bio",
+    bio
+  );
+
+
+  if(photo){
+
+    form.append(
+      "avatar",
+      photo
+    );
+
+  }
+
 
   try{
 
-    const r=await fetch('/api/profile',{
-      method:'PUT',
-      body:form
-    });
+    const r =
+      await api("/api/profile",{
 
-    if(r.ok){
+        method:"PUT",
 
-      toast('Profile updated.');
+        body:form
 
-      closeModal('editProfileModal');
+      });
 
-      loadProfile();
 
-    }else{
+    const data =
+      await safeJson(r);
 
-      toast('Profile API is not connected.');
+
+    if(!r.ok){
+
+      throw new Error(
+        data?.detail ||
+        "Profile update failed."
+      );
 
     }
 
+
+    toast(
+      "Profile updated successfully."
+    );
+
+
+    closeModal(
+      "editProfileModal"
+    );
+
+
+    $("profilePhotoInput").value =
+      "";
+
+
+    await loadProfile();
+
+
   }catch(e){
 
-    toast('Profile API is not connected.');
+    toast(
+      e.message ||
+      "Profile update failed."
+    );
 
   }
 
 }
 
 
-/* STATUS LOADING */
+/* =========================================================
+   STATUS LOADING
+   ========================================================= */
 
 async function loadStatuses(){
 
   try{
 
-    const r=await fetch('/api/status');
+    const r =
+      await api("/api/status");
 
-    if(!r.ok)throw new Error();
+    if(!r.ok){
 
-    const statuses=await r.json();
+      throw new Error();
 
-    $('statusRow').innerHTML=statuses.map(s=>`
+    }
 
-      <div class="status">
+    const statuses =
+      await r.json();
 
-        <div class="status-ring">
+    const list =
+      Array.isArray(statuses)
+        ? statuses
+        : [];
 
-          <img src="${escapeAttr(s.avatar||'https://via.placeholder.com/100')}">
+
+    if(!list.length){
+
+      $("statusRow").innerHTML =
+        `<div class="empty">
+          No live statuses yet.
+        </div>`;
+
+      return;
+
+    }
+
+
+    $("statusRow").innerHTML =
+      list.map(s=>{
+
+        return `
+
+        <div class="status"
+             onclick="viewStatus('${escapeAttr(
+               mediaUrl(
+                 s.media_url ||
+                 s.media ||
+                 ""
+               )
+             )}')">
+
+          <div class="status-ring">
+
+            <img src="${escapeAttr(
+              mediaUrl(
+                s.avatar
+              ) ||
+              "https://via.placeholder.com/100"
+            )}"
+            alt="">
+
+          </div>
+
+          <small>
+            ${escapeHtml(
+              s.name ||
+              s.username ||
+              "User"
+            )}
+          </small>
 
         </div>
 
-        <small>${escapeHtml(s.name||'User')}</small>
+        `;
 
-      </div>
+      }).join("");
 
-    `).join('');
 
   }catch(e){
 
-    $('statusRow').innerHTML=
-      `<div style="color:var(--muted)">
+    $("statusRow").innerHTML =
+      `<div class="empty">
         No live statuses yet.
       </div>`;
 
@@ -2156,31 +4433,109 @@ async function loadStatuses(){
 }
 
 
-/* MODALS */
+function viewStatus(media){
+
+  if(!media)return;
+
+  window.open(
+    media,
+    "_blank",
+    "noopener"
+  );
+
+}
+
+
+/* =========================================================
+   PROFILE LOCAL CONTENT
+   ========================================================= */
+
+function renderWatchedContent(){
+
+  const box =
+    $("watchedContent");
+
+  const list =
+    JSON.parse(
+      localStorage.getItem(
+        "watchedContent"
+      ) || "[]"
+    );
+
+
+  if(!list.length){
+
+    box.innerHTML =
+      "No watched content yet.";
+
+    return;
+
+  }
+
+
+  box.innerHTML =
+    list.slice(0,10)
+      .map(item=>`
+
+        <div style="
+          padding:10px 0;
+          border-bottom:1px solid var(--line)
+        ">
+
+          <a href="${escapeAttr(item.media)}"
+             target="_blank"
+             rel="noopener"
+             style="color:var(--primary)">
+            Open watched content
+          </a>
+
+          <div style="
+            color:var(--muted);
+            font-size:12px
+          ">
+            ${escapeHtml(item.time)}
+          </div>
+
+        </div>
+
+      `).join("");
+
+}
+
+
+/* =========================================================
+   MODALS
+   ========================================================= */
 
 function openModal(id){
 
-  $(id).classList.add('show');
+  $(id).classList.add(
+    "show"
+  );
 
 }
 
 
 function closeModal(id){
 
-  $(id).classList.remove('show');
+  $(id).classList.remove(
+    "show"
+  );
 
 }
 
 
-/* HELPERS */
+/* =========================================================
+   ESCAPE HELPERS
+   ========================================================= */
 
 function escapeHtml(value){
 
-  return String(value??'')
-    .replaceAll('&','&amp;')
-    .replaceAll('<','&lt;')
-    .replaceAll('>','&gt;')
-    .replaceAll('"','&quot;')
+  return String(value ?? "")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
     .replaceAll("'","&#039;");
 
 }
@@ -2193,12 +4548,74 @@ function escapeAttr(value){
 }
 
 
-/* INITIALIZE */
+/* =========================================================
+   CLOSE MODAL WHEN CLICKING OUTSIDE
+   ========================================================= */
 
-loadFeed();
-loadUsers();
-loadProfile();
-loadStatuses();
+document.querySelectorAll(".modal")
+  .forEach(modal=>{
+
+    modal.addEventListener(
+      "click",
+      event=>{
+
+        if(event.target === modal){
+
+          modal.classList.remove(
+            "show"
+          );
+
+        }
+
+      }
+    );
+
+  });
+
+
+/* =========================================================
+   KEYBOARD SHORTCUT
+   ========================================================= */
+
+document.addEventListener(
+  "keydown",
+  event=>{
+
+    if(
+      event.key === "Escape"
+    ){
+
+      document.querySelectorAll(
+        ".modal.show"
+      ).forEach(modal=>{
+
+        modal.classList.remove(
+          "show"
+        );
+
+      });
+
+    }
+
+  }
+);
+
+
+/* =========================================================
+   INITIALIZE
+   ========================================================= */
+
+(async function init(){
+
+  await refreshSession();
+
+  await loadFeed();
+
+  await loadStatuses();
+
+  renderWatchedContent();
+
+})();
 
 </script>
 

@@ -2,571 +2,691 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#050817">
+<meta name="description" content="MSAFIRI GLOBAL MEDIA V4">
 <title>MSAFIRI GLOBAL MEDIA V4</title>
 
 <style>
 :root{
-  --bg:#f5f7fb;
-  --card:#fff;
-  --card2:#eef2f8;
-  --text:#101828;
-  --muted:#667085;
-  --line:#dfe4ec;
-  --primary:#2563eb;
-  --primary2:#1d4ed8;
-  --danger:#dc2626;
-  --success:#16a34a;
-  --warning:#d97706;
-  --shadow:0 8px 30px rgba(15,23,42,.08);
-}
-
-body.dark{
   --bg:#050817;
   --card:#0b1227;
-  --card2:#101b38;
-  --text:#f5f7ff;
-  --muted:#9aa6bd;
-  --line:#263554;
-  --primary:#4f8cff;
-  --primary2:#3677e8;
-  --shadow:0 8px 30px rgba(0,0,0,.25);
+  --card2:#101a34;
+  --line:#243252;
+  --text:#f4f7ff;
+  --muted:#9ca8c7;
+  --accent:#ff8a00;
+  --accent2:#ff4d3d;
+  --green:#20d37a;
+  --danger:#ff4d5e;
+  --blue:#3d8bff;
+  --shadow:0 10px 30px rgba(0,0,0,.25);
+  --radius:18px;
 }
 
-*{box-sizing:border-box}
+*{
+  box-sizing:border-box;
+  -webkit-tap-highlight-color:transparent;
+}
 
 html,body{
   margin:0;
   padding:0;
-  font-family:Inter,Arial,sans-serif;
+  width:100%;
+  min-height:100%;
   background:var(--bg);
   color:var(--text);
+  font-family:Arial,Helvetica,sans-serif;
 }
 
-button,input,textarea,select{font:inherit}
-button{cursor:pointer}
+body{
+  overflow-x:hidden;
+}
 
-.app{min-height:100vh}
+button,
+input,
+textarea{
+  font:inherit;
+}
+
+button{
+  cursor:pointer;
+}
+
+.hidden{
+  display:none!important;
+}
+
+.app{
+  min-height:100vh;
+}
+
+.auth{
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+  background:
+    radial-gradient(circle at top left,rgba(255,138,0,.12),transparent 35%),
+    radial-gradient(circle at bottom right,rgba(61,139,255,.12),transparent 35%),
+    var(--bg);
+}
+
+.auth-card{
+  width:min(430px,100%);
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:24px;
+  padding:25px;
+  box-shadow:var(--shadow);
+}
+
+.brand{
+  text-align:center;
+  margin-bottom:25px;
+}
+
+.brand-logo{
+  width:68px;
+  height:68px;
+  margin:auto;
+  border-radius:20px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:32px;
+  font-weight:900;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  color:white;
+}
+
+.brand h1{
+  margin:14px 0 5px;
+  font-size:25px;
+}
+
+.brand p{
+  margin:0;
+  color:var(--muted);
+  font-size:13px;
+}
+
+.tabs{
+  display:flex;
+  gap:8px;
+  margin-bottom:18px;
+}
+
+.tab{
+  flex:1;
+  border:1px solid var(--line);
+  background:var(--card2);
+  color:var(--muted);
+  padding:11px;
+  border-radius:12px;
+}
+
+.tab.active{
+  color:white;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  border-color:transparent;
+}
+
+.form{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+
+.input,
+.textarea{
+  width:100%;
+  border:1px solid var(--line);
+  outline:none;
+  background:#071025;
+  color:white;
+  border-radius:12px;
+  padding:13px 14px;
+}
+
+.textarea{
+  resize:vertical;
+  min-height:90px;
+}
+
+.input:focus,
+.textarea:focus{
+  border-color:var(--accent);
+}
+
+.primary{
+  border:0;
+  color:white;
+  padding:13px 16px;
+  border-radius:12px;
+  font-weight:700;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+}
+
+.secondary{
+  border:1px solid var(--line);
+  color:white;
+  background:var(--card2);
+  padding:11px 14px;
+  border-radius:12px;
+}
+
+.danger{
+  border:1px solid rgba(255,77,94,.4);
+  color:#ff7c89;
+  background:rgba(255,77,94,.08);
+  padding:11px 14px;
+  border-radius:12px;
+}
+
+.small{
+  font-size:12px;
+}
+
+.muted{
+  color:var(--muted);
+}
+
+.app-shell{
+  min-height:100vh;
+}
 
 .topbar{
   position:sticky;
   top:0;
   z-index:50;
-  height:64px;
-  display:flex;
-  align-items:center;
-  gap:16px;
-  padding:0 18px;
-  background:var(--card);
+  height:62px;
+  background:rgba(5,8,23,.96);
   border-bottom:1px solid var(--line);
-}
-
-.logo{
-  font-weight:800;
-  font-size:19px;
-  color:var(--primary);
-  white-space:nowrap;
-}
-
-.search{
-  flex:1;
-  max-width:600px;
-  margin:auto;
-}
-
-.search input{
-  width:100%;
-  border:1px solid var(--line);
-  background:var(--card2);
-  color:var(--text);
-  border-radius:25px;
-  padding:11px 16px;
-  outline:none;
-}
-
-.top-actions{
   display:flex;
-  gap:8px;
   align-items:center;
+  justify-content:space-between;
+  padding:0 15px;
 }
 
-.icon-btn{
-  width:42px;
-  height:42px;
-  border:1px solid var(--line);
-  border-radius:50%;
-  background:var(--card);
-  color:var(--text);
+.top-brand{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  font-weight:800;
+}
+
+.top-logo{
+  width:38px;
+  height:38px;
+  border-radius:11px;
   display:flex;
   align-items:center;
   justify-content:center;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  font-weight:900;
 }
 
-.auth-actions{
-  display:flex;
-  gap:7px;
-}
-
-.layout{
-  display:flex;
-  max-width:1400px;
-  margin:auto;
-}
-
-.sidebar{
-  width:240px;
-  min-height:calc(100vh - 64px);
-  padding:18px 12px;
-  border-right:1px solid var(--line);
-  position:sticky;
-  top:64px;
-  height:calc(100vh - 64px);
-}
-
-.nav-btn{
-  width:100%;
+.icon-btn{
+  width:40px;
+  height:40px;
+  border-radius:50%;
+  border:1px solid var(--line);
+  background:var(--card2);
+  color:white;
   display:flex;
   align-items:center;
-  gap:13px;
-  padding:13px 15px;
-  margin-bottom:5px;
-  border:0;
-  background:transparent;
-  color:var(--text);
-  border-radius:12px;
-  text-align:left;
-}
-
-.nav-btn:hover,
-.nav-btn.active{
-  background:var(--card2);
-  color:var(--primary);
-}
-
-.nav-icon{
-  width:22px;
-  height:22px;
-  display:inline-flex;
+  justify-content:center;
+  font-size:18px;
 }
 
 .main{
-  flex:1;
-  min-width:0;
-  padding:20px;
+  width:min(1100px,100%);
+  margin:auto;
+  padding:15px 15px 85px;
 }
 
-.page{display:none}
-.page.active{display:block}
-
-.hero{
-  background:linear-gradient(135deg,#172554,#2563eb);
-  color:white;
-  border-radius:22px;
-  padding:30px;
-  margin-bottom:20px;
-  box-shadow:var(--shadow);
+.view{
+  display:none;
 }
 
-.hero h1{
-  margin:0 0 8px;
-  font-size:30px;
+.view.active{
+  display:block;
 }
 
-.hero p{
-  margin:0;
-  opacity:.9;
+.section-title{
+  font-size:21px;
+  margin:5px 0 15px;
 }
 
 .card{
   background:var(--card);
   border:1px solid var(--line);
-  border-radius:18px;
-  padding:18px;
-  margin-bottom:18px;
+  border-radius:var(--radius);
   box-shadow:var(--shadow);
 }
 
-.card h2,.card h3{margin-top:0}
-
-.btn{
-  border:0;
-  border-radius:10px;
-  padding:10px 15px;
-  background:var(--primary);
-  color:white;
-  font-weight:600;
+.create-post{
+  padding:15px;
+  margin-bottom:15px;
 }
 
-.btn:hover{background:var(--primary2)}
-
-.btn.secondary{
-  background:var(--card2);
-  color:var(--text);
-  border:1px solid var(--line);
-}
-
-.btn.danger{background:var(--danger)}
-.btn.success{background:var(--success)}
-
-.form-control{
-  width:100%;
-  border:1px solid var(--line);
-  border-radius:11px;
-  background:var(--card);
-  color:var(--text);
-  padding:12px;
-  outline:none;
-  margin-bottom:10px;
-}
-
-.form-control:focus{
-  border-color:var(--primary);
-}
-
-textarea.form-control{
-  min-height:100px;
-  resize:vertical;
-}
-
-.post-actions{
+.create-top{
   display:flex;
-  flex-wrap:wrap;
-  gap:8px;
+  gap:10px;
+  align-items:flex-start;
 }
 
-.media-picker{display:none}
+.avatar{
+  width:45px;
+  height:45px;
+  border-radius:50%;
+  object-fit:cover;
+  background:#1c2948;
+  border:1px solid var(--line);
+  flex:none;
+}
 
-.media-preview{margin-top:12px}
+.avatar.big{
+  width:80px;
+  height:80px;
+}
 
-.media-preview img,
-.media-preview video{
-  width:100%;
-  max-height:450px;
-  object-fit:contain;
+.avatar.small{
+  width:38px;
+  height:38px;
+}
+
+.post-input{
+  flex:1;
+  background:#071025;
+  border:1px solid var(--line);
   border-radius:14px;
-  background:#000;
+  padding:13px;
+  color:var(--muted);
+  cursor:text;
+  min-height:50px;
 }
 
-.post{overflow:hidden}
+.file-row{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-top:12px;
+}
 
-.post-header{
+.file-btn{
+  border:1px solid var(--line);
+  background:var(--card2);
+  color:white;
+  border-radius:11px;
+  padding:9px 12px;
+}
+
+.file-name{
+  color:var(--muted);
+  font-size:12px;
+  padding:9px 3px;
+}
+
+.post{
+  padding:15px;
+  margin-bottom:14px;
+}
+
+.post-head{
   display:flex;
   align-items:center;
   gap:10px;
 }
 
-.avatar{
-  width:44px;
-  height:44px;
-  border-radius:50%;
-  object-fit:cover;
-  background:var(--card2);
+.post-user{
+  flex:1;
 }
 
-.post-user{font-weight:700}
-.post-time{
+.post-user strong{
+  display:block;
+  font-size:14px;
+}
+
+.post-user span{
   color:var(--muted);
-  font-size:12px;
+  font-size:11px;
 }
 
-.post-content{
-  margin:15px 0;
-  line-height:1.6;
+.post-caption{
+  margin:13px 0;
+  line-height:1.5;
   white-space:pre-wrap;
+  overflow-wrap:anywhere;
 }
 
 .post-media{
   width:100%;
   max-height:600px;
   object-fit:contain;
+  background:#03050d;
   border-radius:14px;
-  background:#000;
+  border:1px solid var(--line);
 }
 
-.post-footer{
+.post-actions{
   display:flex;
   gap:5px;
-  padding-top:12px;
-  border-top:1px solid var(--line);
-  margin-top:12px;
+  margin-top:10px;
+  overflow-x:auto;
 }
 
 .action{
   flex:1;
+  min-width:65px;
   border:0;
   background:transparent;
   color:var(--muted);
-  padding:10px;
-  border-radius:9px;
+  padding:9px 5px;
+  border-radius:10px;
 }
 
-.action:hover,
-.action.active{
+.action:hover{
   background:var(--card2);
-  color:var(--primary);
+  color:white;
 }
 
-.grid{
-  display:grid;
-  grid-template-columns:repeat(2,minmax(0,1fr));
-  gap:16px;
+.action.liked{
+  color:#ff6474;
 }
 
-.ai-grid{
-  display:grid;
-  grid-template-columns:repeat(4,minmax(0,1fr));
-  gap:15px;
+.comments{
+  margin-top:10px;
+  border-top:1px solid var(--line);
+  padding-top:10px;
 }
 
-.ai-card{
-  border:1px solid var(--line);
-  background:var(--card);
-  border-radius:16px;
-  padding:20px;
-  cursor:pointer;
-  transition:.15s;
-}
-
-.ai-card:hover{
-  border-color:var(--primary);
-  transform:translateY(-2px);
-}
-
-.ai-symbol{
-  width:42px;
-  height:42px;
+.comment{
   display:flex;
+  gap:8px;
+  margin-bottom:9px;
+}
+
+.comment-body{
+  background:var(--card2);
+  border-radius:12px;
+  padding:8px 10px;
+  flex:1;
+  font-size:13px;
+}
+
+.comment-form{
+  display:flex;
+  gap:7px;
+  margin-top:10px;
+}
+
+.comment-form input{
+  flex:1;
+}
+
+.bottom-nav{
+  position:fixed;
+  z-index:100;
+  bottom:0;
+  left:0;
+  right:0;
+  height:66px;
+  background:rgba(5,8,23,.98);
+  border-top:1px solid var(--line);
+  display:flex;
+  justify-content:center;
+}
+
+.bottom-inner{
+  width:min(600px,100%);
+  display:flex;
+}
+
+.nav-btn{
+  flex:1;
+  border:0;
+  background:transparent;
+  color:var(--muted);
+  display:flex;
+  flex-direction:column;
   align-items:center;
   justify-content:center;
-  border-radius:12px;
-  background:var(--card2);
-  color:var(--primary);
-  margin-bottom:12px;
+  gap:3px;
+  font-size:11px;
+}
+
+.nav-btn span:first-child{
+  font-size:20px;
+}
+
+.nav-btn.active{
+  color:white;
 }
 
 .chat-layout{
   display:grid;
-  grid-template-columns:280px 1fr;
-  min-height:650px;
-  background:var(--card);
-  border:1px solid var(--line);
-  border-radius:18px;
+  grid-template-columns:330px 1fr;
+  min-height:calc(100vh - 100px);
+  gap:12px;
+}
+
+.chat-list{
   overflow:hidden;
 }
 
-.chat-users{
-  border-right:1px solid var(--line);
-  padding:10px;
-  overflow:auto;
+.chat-search{
+  padding:12px;
+  border-bottom:1px solid var(--line);
 }
 
-.chat-user{
+.chat-items{
+  max-height:calc(100vh - 190px);
+  overflow-y:auto;
+}
+
+.chat-item{
   display:flex;
-  gap:10px;
   align-items:center;
+  gap:10px;
   padding:12px;
-  border-radius:12px;
+  border-bottom:1px solid rgba(36,50,82,.5);
   cursor:pointer;
 }
 
-.chat-user:hover,
-.chat-user.active{
+.chat-item:hover,
+.chat-item.active{
   background:var(--card2);
+}
+
+.chat-info{
+  min-width:0;
+  flex:1;
+}
+
+.chat-info strong{
+  display:block;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.chat-info small{
+  color:var(--muted);
 }
 
 .chat-window{
   display:flex;
   flex-direction:column;
-  min-width:0;
+  min-height:calc(100vh - 100px);
+  overflow:hidden;
 }
 
 .chat-header{
-  padding:15px;
+  height:64px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:8px 10px;
   border-bottom:1px solid var(--line);
-  font-weight:700;
+  background:var(--card);
+}
+
+.chat-header-info{
+  flex:1;
+  min-width:0;
+}
+
+.chat-header-info strong{
+  display:block;
+}
+
+.chat-header-info small{
+  color:var(--green);
+}
+
+.chat-header-actions{
+  display:flex;
+  gap:4px;
+}
+
+.chat-header-actions .icon-btn{
+  width:36px;
+  height:36px;
+  font-size:16px;
+  border:0;
 }
 
 .messages{
   flex:1;
-  padding:18px;
-  overflow:auto;
-  min-height:450px;
+  min-height:350px;
+  overflow-y:auto;
+  padding:15px;
+  background-size:cover;
+  background-position:center;
 }
 
 .message{
-  max-width:75%;
-  padding:10px 13px;
+  display:flex;
+  margin-bottom:8px;
+}
+
+.message.mine{
+  justify-content:flex-end;
+}
+
+.bubble{
+  max-width:min(75%,520px);
+  padding:9px 11px;
   border-radius:15px;
-  margin:7px 0;
-  line-height:1.45;
-  white-space:pre-wrap;
+  background:#172442;
+  overflow-wrap:anywhere;
 }
 
-.message.sent{
-  margin-left:auto;
-  background:var(--primary);
-  color:white;
-  border-bottom-right-radius:4px;
+.mine .bubble{
+  background:#075e54;
 }
 
-.message.received{
-  margin-right:auto;
-  background:var(--card2);
-  border-bottom-left-radius:4px;
+.message-time{
+  display:block;
+  text-align:right;
+  font-size:9px;
+  color:#b8c3da;
+  margin-top:3px;
 }
 
-.message-meta{
-  font-size:10px;
-  opacity:.7;
-  margin-top:4px;
-}
-
-.typing{
-  display:none;
-  padding:5px 18px;
-  color:var(--muted);
-  font-size:13px;
-}
-
-.composer{
+.voice-message{
   display:flex;
   align-items:center;
   gap:8px;
-  padding:12px;
+}
+
+.voice-message audio{
+  max-width:210px;
+  height:35px;
+}
+
+.chat-composer{
+  padding:9px;
+  display:flex;
+  align-items:center;
+  gap:7px;
+  background:var(--card);
   border-top:1px solid var(--line);
 }
 
-.composer input{
+.chat-composer input{
   flex:1;
   min-width:0;
   border:1px solid var(--line);
+  background:#071025;
+  color:white;
   border-radius:22px;
-  background:var(--card2);
-  color:var(--text);
-  padding:11px 15px;
+  padding:11px 14px;
   outline:none;
 }
 
-.status-row{
-  display:flex;
-  gap:14px;
-  overflow:auto;
-  padding-bottom:5px;
-}
-
-.status{
-  min-width:78px;
-  text-align:center;
-  cursor:pointer;
-}
-
-.status-ring{
-  width:64px;
-  height:64px;
+.round-btn{
+  width:42px;
+  height:42px;
   border-radius:50%;
-  padding:2px;
-  margin:auto;
-  background:linear-gradient(135deg,#2563eb,#9333ea);
+  border:1px solid var(--line);
+  background:var(--card2);
+  color:white;
 }
 
-.status-ring img{
+.send-btn{
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  border:0;
+}
+
+.menu{
+  position:fixed;
+  z-index:300;
+  right:15px;
+  top:70px;
+  width:240px;
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:15px;
+  box-shadow:var(--shadow);
+  overflow:hidden;
+}
+
+.menu button{
   width:100%;
-  height:100%;
-  object-fit:cover;
-  border-radius:50%;
-  border:3px solid var(--card);
+  padding:13px;
+  text-align:left;
+  border:0;
+  background:transparent;
+  color:white;
 }
 
-.profile-cover{
-  height:180px;
-  border-radius:18px 18px 0 0;
-  background:linear-gradient(135deg,#172554,#2563eb);
-}
-
-.profile-info{
-  padding:0 20px 20px;
-  position:relative;
-}
-
-.profile-avatar{
-  width:100px;
-  height:100px;
-  border-radius:50%;
-  border:5px solid var(--card);
-  object-fit:cover;
-  margin-top:-50px;
+.menu button:hover{
   background:var(--card2);
 }
 
-.stats{
-  display:flex;
-  gap:25px;
-  margin-top:15px;
-  flex-wrap:wrap;
-}
-
-.stat strong{
-  display:block;
-  font-size:20px;
-}
-
-.stat span{
-  color:var(--muted);
-  font-size:13px;
-}
-
-.user-chip{
+.modal-bg{
+  position:fixed;
+  inset:0;
+  z-index:500;
+  background:rgba(0,0,0,.72);
   display:flex;
   align-items:center;
-  gap:8px;
-}
-
-.user-chip img{
-  width:34px;
-  height:34px;
-  border-radius:50%;
-  object-fit:cover;
-}
-
-.auth-status{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  font-size:13px;
-}
-
-.online-dot{
-  width:8px;
-  height:8px;
-  border-radius:50%;
-  background:var(--success);
+  justify-content:center;
+  padding:18px;
 }
 
 .modal{
-  display:none;
-  position:fixed;
-  inset:0;
-  z-index:100;
-  background:rgba(0,0,0,.65);
-  align-items:center;
-  justify-content:center;
-  padding:15px;
-}
-
-.modal.show{display:flex}
-
-.modal-box{
-  width:min(650px,100%);
+  width:min(480px,100%);
   max-height:90vh;
   overflow:auto;
   background:var(--card);
-  border-radius:18px;
-  padding:20px;
-}
-
-.modal-small{
-  width:min(450px,100%);
+  border:1px solid var(--line);
+  border-radius:20px;
+  padding:18px;
 }
 
 .modal-head{
@@ -576,135 +696,245 @@ textarea.form-control{
   margin-bottom:15px;
 }
 
-.close{
-  border:0;
-  background:var(--card2);
-  color:var(--text);
-  border-radius:50%;
-  width:36px;
-  height:36px;
+.modal-head h3{
+  margin:0;
 }
 
-.auth-tabs{
+.profile-card{
+  padding:20px;
+}
+
+.profile-head{
   display:flex;
-  gap:5px;
-  background:var(--card2);
-  padding:5px;
-  border-radius:12px;
-  margin-bottom:18px;
+  align-items:center;
+  gap:15px;
 }
 
-.auth-tab{
+.profile-info{
   flex:1;
-  border:0;
-  background:transparent;
+}
+
+.profile-info h2{
+  margin:0 0 4px;
+}
+
+.profile-info p{
+  margin:0;
   color:var(--muted);
-  padding:10px;
-  border-radius:9px;
 }
 
-.auth-tab.active{
-  background:var(--card);
-  color:var(--primary);
-  font-weight:700;
+.profile-actions{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-top:18px;
 }
 
-.hidden{display:none!important}
+.settings-list{
+  margin-top:15px;
+  overflow:hidden;
+}
+
+.setting{
+  width:100%;
+  padding:15px;
+  background:transparent;
+  color:white;
+  border:0;
+  border-bottom:1px solid var(--line);
+  text-align:left;
+}
+
+.setting:last-child{
+  border-bottom:0;
+}
+
+.call-screen{
+  position:fixed;
+  inset:0;
+  z-index:800;
+  background:#03050d;
+  display:flex;
+  flex-direction:column;
+}
+
+.call-top{
+  height:65px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:10px 15px;
+  background:#070c1b;
+}
+
+.call-user{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.call-videos{
+  position:relative;
+  flex:1;
+  overflow:hidden;
+  background:#02040a;
+}
+
+.remote-video{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+
+.local-video{
+  position:absolute;
+  right:12px;
+  top:12px;
+  width:120px;
+  height:170px;
+  object-fit:cover;
+  border-radius:13px;
+  background:#111;
+  border:1px solid #3b4663;
+}
+
+.call-avatar{
+  position:absolute;
+  inset:0;
+  margin:auto;
+  width:110px;
+  height:110px;
+  border-radius:50%;
+  object-fit:cover;
+}
+
+.call-status{
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:25px;
+  text-align:center;
+  color:white;
+}
+
+.call-controls{
+  min-height:90px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+  background:#070c1b;
+}
+
+.call-control{
+  width:50px;
+  height:50px;
+  border-radius:50%;
+  border:1px solid var(--line);
+  background:#172039;
+  color:white;
+}
+
+.call-end{
+  background:#d92f43;
+  border:0;
+}
 
 .empty{
-  color:var(--muted);
-  padding:20px;
+  padding:35px 15px;
   text-align:center;
-}
-
-.loading{
   color:var(--muted);
-  padding:20px;
-  text-align:center;
 }
 
 .toast{
   position:fixed;
-  bottom:25px;
+  z-index:1000;
   left:50%;
+  bottom:82px;
   transform:translateX(-50%);
-  background:#111827;
+  background:#111b31;
+  border:1px solid var(--line);
   color:white;
-  padding:12px 18px;
-  border-radius:10px;
-  z-index:300;
-  display:none;
+  padding:11px 15px;
+  border-radius:12px;
   max-width:90%;
   text-align:center;
+  display:none;
 }
 
-.error-text{
-  color:var(--danger);
-  font-size:13px;
-  margin:8px 0;
+.search-results{
+  margin-top:10px;
+  max-height:300px;
+  overflow:auto;
 }
 
-.success-text{
-  color:var(--success);
-  font-size:13px;
-  margin:8px 0;
+.search-user{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:10px;
+  border-bottom:1px solid var(--line);
 }
 
-@media(max-width:900px){
-  .sidebar{display:none}
+.search-user button{
+  margin-left:auto;
+}
 
-  .bottom-nav{
-    display:flex;
-    position:fixed;
-    bottom:0;
-    left:0;
-    right:0;
-    z-index:60;
-    background:var(--card);
-    border-top:1px solid var(--line);
-    padding:7px;
-    justify-content:space-around;
-  }
+.preview{
+  margin-top:10px;
+  max-width:100%;
+  max-height:300px;
+  border-radius:12px;
+}
 
-  .bottom-nav button{
-    border:0;
-    background:transparent;
-    color:var(--muted);
-    padding:7px;
-    font-size:11px;
-  }
-
-  .bottom-nav button.active{color:var(--primary)}
-
-  .main{padding-bottom:80px}
-
-  .grid,
-  .ai-grid{
-    grid-template-columns:1fr;
-  }
-
+@media(max-width:760px){
   .chat-layout{
-    grid-template-columns:1fr;
+    display:block;
   }
 
-  .chat-users{
+  .chat-list{
+    display:block;
+  }
+
+  .chat-window{
+    display:none;
+  }
+
+  .chat-layout.chat-open .chat-list{
+    display:none;
+  }
+
+  .chat-layout.chat-open .chat-window{
     display:flex;
-    overflow-x:auto;
-    border-right:0;
-    border-bottom:1px solid var(--line);
   }
 
-  .chat-user{min-width:180px}
-
-  .search{display:none}
-
-  .auth-actions .btn{
-    padding:8px 10px;
-    font-size:12px;
+  .chat-window{
+    min-height:calc(100vh - 100px);
   }
 
-  .logo{
-    font-size:15px;
+  .chat-header{
+    position:sticky;
+    top:0;
+    z-index:20;
+  }
+
+  .back-chat{
+    display:flex!important;
+  }
+
+  .bubble{
+    max-width:85%;
+  }
+
+  .main{
+    padding-left:10px;
+    padding-right:10px;
+  }
+}
+
+@media(min-width:761px){
+  .back-chat{
+    display:none!important;
   }
 }
 </style>
@@ -712,1665 +942,785 @@ textarea.form-control{
 
 <body>
 
-<div class="app">
+<!-- AUTH -->
+<section id="authView" class="auth">
+  <div class="auth-card">
 
-<header class="topbar">
-
-  <div class="logo">MSAFIRI GLOBAL MEDIA</div>
-
-  <div class="search">
-    <input id="globalSearch"
-           placeholder="Search MSAFIRI GLOBAL MEDIA..."
-           oninput="searchPosts(this.value)">
-  </div>
-
-  <div class="top-actions">
-
-    <div id="authActions" class="auth-actions">
-      <button class="btn secondary" onclick="openAuth('login')">Log in</button>
-      <button class="btn" onclick="openAuth('register')">Create account</button>
+    <div class="brand">
+      <div class="brand-logo">M</div>
+      <h1>MSAFIRI GLOBAL MEDIA</h1>
+      <p>Connect beyond boundaries.</p>
     </div>
 
-    <div id="loggedUser" class="user-chip hidden">
-      <img id="topAvatar" src="https://via.placeholder.com/50" alt="">
-      <span id="topName">User</span>
+    <div class="tabs">
+      <button id="loginTab" class="tab active" onclick="showAuth('login')">Log In</button>
+      <button id="registerTab" class="tab" onclick="showAuth('register')">Create Account</button>
     </div>
 
-    <button class="icon-btn"
-            onclick="toggleTheme()"
-            title="Change theme">
+    <form id="loginForm" class="form" onsubmit="login(event)">
+      <input id="loginEmail" class="input" type="email" placeholder="Email" required>
+      <input id="loginPassword" class="input" type="password" placeholder="Password" required>
+      <button class="primary" type="submit">Log In</button>
+    </form>
 
-      <svg width="20" height="20"
-           viewBox="0 0 24 24"
-           fill="none"
-           stroke="currentColor"
-           stroke-width="2">
+    <form id="registerForm" class="form hidden" onsubmit="register(event)">
+      <input id="regName" class="input" type="text" placeholder="Full name" required>
+      <input id="regUsername" class="input" type="text" placeholder="Username" required>
+      <input id="regEmail" class="input" type="email" placeholder="Email" required>
+      <input id="regPassword" class="input" type="password" placeholder="Password" required minlength="6">
+      <button class="primary" type="submit">Create Account</button>
+    </form>
 
-        <circle cx="12" cy="12" r="4"/>
-        <path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42"/>
+    <p id="authMessage" class="muted small" style="margin-top:12px;text-align:center"></p>
+  </div>
+</section>
 
-      </svg>
 
-    </button>
+<!-- MAIN APP -->
+<section id="appView" class="app-shell hidden">
 
-    <button class="icon-btn"
-            onclick="showPage('profile')"
-            title="Profile">
+  <header class="topbar">
+    <div class="top-brand">
+      <div class="top-logo">M</div>
+      <span>MSAFIRI GLOBAL MEDIA</span>
+    </div>
 
-      <svg width="20" height="20"
-           viewBox="0 0 24 24"
-           fill="none"
-           stroke="currentColor"
-           stroke-width="2">
+    <button class="icon-btn" onclick="openProfile()">👤</button>
+  </header>
 
-        <circle cx="12" cy="8" r="4"/>
-        <path d="M4 21c.8-4 3.4-6 8-6s7.2 2 8 6"/>
 
-      </svg>
+  <main class="main">
 
+    <!-- HOME -->
+    <section id="homeView" class="view active">
+
+      <h2 class="section-title">Home</h2>
+
+      <div class="card create-post">
+
+        <div class="create-top">
+          <img id="createAvatar" class="avatar" src="" alt="avatar">
+
+          <div id="postCaptionBox"
+               class="post-input"
+               onclick="openPostModal()">
+            Unaweza kuandika nini leo?
+          </div>
+        </div>
+
+        <div class="file-row">
+          <button class="file-btn" onclick="openPostModal('image')">🖼️ Photo</button>
+          <button class="file-btn" onclick="openPostModal('video')">🎥 Video</button>
+          <button class="file-btn" onclick="openPostModal('audio')">🎵 Audio</button>
+        </div>
+
+      </div>
+
+      <div id="feed"></div>
+
+    </section>
+
+
+    <!-- CHATS -->
+    <section id="chatsView" class="view">
+
+      <div id="chatLayout" class="chat-layout">
+
+        <div class="card chat-list">
+
+          <div class="chat-search">
+            <input
+              id="userSearch"
+              class="input"
+              placeholder="Search users..."
+              oninput="searchUsers(this.value)">
+            <div id="searchResults" class="search-results"></div>
+          </div>
+
+          <div id="chatItems" class="chat-items">
+            <div class="empty">Hakuna chats bado.</div>
+          </div>
+
+        </div>
+
+
+        <div class="card chat-window">
+
+          <div id="noChatSelected" class="empty">
+            <h3>Messages</h3>
+            <p>Chagua mtu kuanza chat.</p>
+          </div>
+
+
+          <div id="chatContent" class="hidden" style="height:100%;display:flex;flex-direction:column">
+
+            <div class="chat-header">
+
+              <button
+                class="icon-btn back-chat"
+                onclick="closeChat()">
+                ←
+              </button>
+
+              <img id="chatAvatar" class="avatar small" src="" alt="avatar">
+
+              <div class="chat-header-info">
+                <strong id="chatName">User</strong>
+                <small id="chatStatus">online</small>
+              </div>
+
+              <div class="chat-header-actions">
+
+                <button
+                  class="icon-btn"
+                  onclick="startCall('audio')"
+                  title="Voice call">
+                  📞
+                </button>
+
+                <button
+                  class="icon-btn"
+                  onclick="startCall('video')"
+                  title="Video call">
+                  🎥
+                </button>
+
+                <button
+                  class="icon-btn"
+                  onclick="toggleChatMenu()"
+                  title="More">
+                  ⋮
+                </button>
+
+              </div>
+
+            </div>
+
+
+            <div id="messages" class="messages"></div>
+
+
+            <div class="chat-composer">
+
+              <button
+                class="round-btn"
+                onclick="document.getElementById('chatFile').click()">
+                📎
+              </button>
+
+              <input
+                id="chatFile"
+                type="file"
+                class="hidden"
+                onchange="sendChatFile(this.files[0])">
+
+              <input
+                id="messageInput"
+                type="text"
+                placeholder="Andika ujumbe..."
+                onkeydown="if(event.key==='Enter')sendMessage()">
+
+              <button
+                id="recordBtn"
+                class="round-btn"
+                onclick="toggleRecording()">
+                🎙️
+              </button>
+
+              <button
+                class="round-btn send-btn"
+                onclick="sendMessage()">
+                ➤
+              </button>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- PROFILE -->
+    <section id="profileView" class="view">
+
+      <h2 class="section-title">Profile</h2>
+
+      <div class="card profile-card">
+
+        <div class="profile-head">
+
+          <img id="profileAvatar" class="avatar big" src="" alt="profile">
+
+          <div class="profile-info">
+            <h2 id="profileName">User</h2>
+            <p id="profileUsername">@username</p>
+            <p id="profileBio"></p>
+          </div>
+
+        </div>
+
+        <div class="profile-actions">
+
+          <button
+            class="primary"
+            onclick="document.getElementById('avatarInput').click()">
+            📷 Change Profile Picture
+          </button>
+
+          <input
+            id="avatarInput"
+            type="file"
+            accept="image/*"
+            class="hidden"
+            onchange="changeAvatar(this.files[0])">
+
+          <button
+            class="secondary"
+            onclick="openEditProfile()">
+            ✏️ Edit Profile
+          </button>
+
+        </div>
+
+      </div>
+
+
+      <div class="card settings-list">
+
+        <button class="setting" onclick="openEditProfile()">
+          👤 Edit profile
+        </button>
+
+        <button class="setting" onclick="showMyPosts()">
+          📝 My posts
+        </button>
+
+        <button class="setting" onclick="logout()">
+          🚪 Log out
+        </button>
+
+        <button class="setting" style="color:#ff6978" onclick="deleteAccount()">
+          🗑️ Delete account
+        </button>
+
+      </div>
+
+    </section>
+
+  </main>
+
+
+  <!-- BOTTOM NAV -->
+  <nav class="bottom-nav">
+
+    <div class="bottom-inner">
+
+      <button
+        id="navHome"
+        class="nav-btn active"
+        onclick="switchView('home')">
+        <span>🏠</span>
+        <span>Home</span>
+      </button>
+
+      <button
+        id="navChats"
+        class="nav-btn"
+        onclick="switchView('chats')">
+        <span>💬</span>
+        <span>Chats</span>
+      </button>
+
+      <button
+        id="navProfile"
+        class="nav-btn"
+        onclick="switchView('profile')">
+        <span>👤</span>
+        <span>Profile</span>
+      </button>
+
+    </div>
+
+  </nav>
+
+</section>
+
+
+<!-- CHAT MENU -->
+<div id="chatMenu" class="menu hidden">
+
+  <button onclick="pinChat()">📌 Pin chat</button>
+
+  <button onclick="toggleMute()">🔕 Mute notifications</button>
+
+  <button onclick="openWallpaperPicker()">🖼️ Chat wallpaper</button>
+
+  <button onclick="searchMessages()">🔎 Search messages</button>
+
+  <button onclick="clearCurrentChat()">🗑️ Clear chat</button>
+
+  <button onclick="openCurrentProfile()">👤 View profile</button>
+
+  <button onclick="showChatMedia()">📁 Media, links & files</button>
+
+  <button onclick="blockCurrentUser()">🚫 Block</button>
+
+  <button onclick="reportCurrentUser()">⚠️ Report</button>
+
+</div>
+
+
+<input
+  id="wallpaperInput"
+  type="file"
+  accept="image/*"
+  class="hidden"
+  onchange="uploadWallpaper(this.files[0])">
+
+
+<!-- POST MODAL -->
+<div id="postModal" class="modal-bg hidden">
+
+  <div class="modal">
+
+    <div class="modal-head">
+      <h3>Create Post</h3>
+
+      <button
+        class="icon-btn"
+        onclick="closeModal('postModal')">
+        ✕
+      </button>
+    </div>
+
+    <textarea
+      id="postCaption"
+      class="textarea"
+      placeholder="Andika caption yako..."></textarea>
+
+    <div class="file-row">
+
+      <button
+        class="file-btn"
+        onclick="document.getElementById('postFile').click()">
+        📎 Choose media
+      </button>
+
+      <input
+        id="postFile"
+        type="file"
+        accept="image/*,video/*,audio/*"
+        class="hidden"
+        onchange="previewPostFile(this.files[0])">
+
+      <span id="postFileName" class="file-name">
+        Hakuna file iliyochaguliwa
+      </span>
+
+    </div>
+
+    <div id="postPreview"></div>
+
+    <button
+      class="primary"
+      style="width:100%;margin-top:15px"
+      onclick="createPost()">
+      🚀 Publish
     </button>
 
   </div>
 
-</header>
-
-
-<div class="layout">
-
-<aside class="sidebar">
-
-<button class="nav-btn active" onclick="showPage('home')">
-<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-<path d="M3 11.5 12 4l9 7.5"/>
-<path d="M5 10v10h14V10"/>
-<path d="M9 20v-6h6v6"/>
-</svg>
-Home
-</button>
-
-<button class="nav-btn" onclick="showPage('connect')">
-<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-<circle cx="9" cy="8" r="4"/>
-<circle cx="17" cy="10" r="3"/>
-<path d="M2 21c.7-4 3-6 7-6s6.3 2 7 6"/>
-<path d="M15 15c3.2 0 5.2 2 6 5"/>
-</svg>
-Connect
-</button>
-
-<button class="nav-btn" onclick="showPage('video')">
-<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-<rect x="3" y="5" width="13" height="14" rx="2"/>
-<path d="m16 10 5-3v10l-5-3z"/>
-<path d="m9 9 4 3-4 3z" fill="currentColor" stroke="none"/>
-</svg>
-Video
-</button>
-
-<button class="nav-btn" onclick="showPage('studio')">
-<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-<path d="M12 3v18M3 12h18"/>
-<rect x="5" y="5" width="14" height="14" rx="3"/>
-</svg>
-Creative Studio
-</button>
-
-<button class="nav-btn" onclick="showPage('market')">
-<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-<path d="M4 8h16l-1 12H5L4 8Z"/>
-<path d="M8 8a4 4 0 0 1 8 0"/>
-</svg>
-Market
-</button>
-
-<button class="nav-btn" onclick="showPage('ai')">
-<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-<circle cx="12" cy="12" r="8"/>
-<path d="M8 12h8M12 8v8"/>
-</svg>
-AI Council
-</button>
-
-<button class="nav-btn" onclick="showPage('profile')">
-<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-<circle cx="12" cy="8" r="4"/>
-<path d="M4 21c.8-4 3.4-6 8-6s7.2 2 8 6"/>
-</svg>
-Profile
-</button>
-
-<button id="logoutSideBtn"
-        class="nav-btn hidden"
-        onclick="logout()">
-
-<svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-<path d="M10 17l5-5-5-5"/>
-<path d="M15 12H3"/>
-<path d="M21 3v18"/>
-</svg>
-
-Log out
-</button>
-
-</aside>
-
-
-<main class="main">
-
-
-<!-- HOME -->
-
-<section id="home" class="page active">
-
-<div class="hero">
-<h1>Connect Beyond Borders</h1>
-<p>Share ideas, knowledge, creativity and opportunities with the world.</p>
 </div>
 
 
-<div class="card">
+<!-- EDIT PROFILE MODAL -->
+<div id="editProfileModal" class="modal-bg hidden">
 
-<h3>Create a status</h3>
+  <div class="modal">
 
-<div class="post-actions">
+    <div class="modal-head">
+      <h3>Edit Profile</h3>
 
-<label class="btn secondary">
-Photo
-<input id="statusPhoto"
-       class="media-picker"
-       type="file"
-       accept="image/*"
-       onchange="previewStatusPhoto(event)">
-</label>
-
-<label class="btn secondary">
-Video
-<input id="statusVideo"
-       class="media-picker"
-       type="file"
-       accept="video/*"
-       onchange="previewStatusVideo(event)">
-</label>
-
-<label class="btn secondary">
-Audio
-<input id="statusAudio"
-       class="media-picker"
-       type="file"
-       accept="audio/*"
-       onchange="selectStatusAudio(event)">
-</label>
-
-<button class="btn"
-        onclick="createTextStatus()">
-Text Status
-</button>
-
-<button class="btn secondary"
-        onclick="publishMediaStatus()">
-Publish Status
-</button>
-
-</div>
-
-<div id="statusPreview"
-     class="media-preview"></div>
-
-</div>
-
-
-<div class="card">
-
-<h3>What's on your mind?</h3>
-
-<textarea id="postCaption"
-          class="form-control"
-          placeholder="Write something to share with the world..."></textarea>
-
-<div class="post-actions">
-
-<label class="btn secondary">
-Photo
-<input id="photoInput"
-       class="media-picker"
-       type="file"
-       accept="image/*"
-       onchange="handlePhoto(event)">
-</label>
-
-<label class="btn secondary">
-Video
-<input id="videoInput"
-       class="media-picker"
-       type="file"
-       accept="video/*"
-       onchange="handleVideo(event)">
-</label>
-
-<label class="btn secondary">
-File
-<input id="fileInput"
-       class="media-picker"
-       type="file"
-       onchange="handleFile(event)">
-</label>
-
-<button class="btn"
-        onclick="publishPost()">
-Post
-</button>
-
-</div>
-
-<div id="postPreview"
-     class="media-preview"></div>
-
-</div>
-
-
-<div class="card">
-
-<h3>Stories & Status</h3>
-
-<div id="statusRow"
-     class="status-row">
-
-<div class="loading">
-Loading statuses...
-</div>
-
-</div>
-
-</div>
-
-
-<div id="feed"></div>
-
-</section>
-
-
-<!-- CONNECT -->
-
-<section id="connect" class="page">
-
-<div class="card">
-
-<h2>Connect</h2>
-
-<p>
-Find people and communicate with your community.
-</p>
-
-<div id="chatLoginMessage"
-     class="empty hidden">
-
-Please log in to use messaging.
-
-<br><br>
-
-<button class="btn"
-        onclick="openAuth('login')">
-Log in
-</button>
-
-</div>
-
-</div>
-
-
-<div class="chat-layout">
-
-<div class="chat-users"
-     id="usersList"></div>
-
-
-<div class="chat-window">
-
-<div class="chat-header"
-     id="chatHeader">
-
-Select a person to start chatting
-
-</div>
-
-<div class="messages"
-     id="messages">
-
-<div class="empty">
-Select a user to view messages.
-</div>
-
-</div>
-
-<div id="typing"
-     class="typing">
-Typing...
-</div>
-
-
-<div class="composer">
-
-<label class="icon-btn"
-       title="Attach file">
-
-+
-<input id="chatAttachment"
-       class="media-picker"
-       type="file"
-       accept="image/*,.pdf,.doc,.docx,.txt"
-       onchange="handleChatAttachment(event)">
-</label>
-
-<input id="chatInput"
-       placeholder="Write a message..."
-       oninput="showTyping()"
-       onkeydown="if(event.key==='Enter')sendMessage()">
-
-<button class="icon-btn"
-        onclick="toggleVoiceRecording()"
-        title="Voice note">
-
-<svg width="20"
-     height="20"
-     viewBox="0 0 24 24"
-     fill="none"
-     stroke="currentColor"
-     stroke-width="2">
-
-<rect x="9" y="3"
-      width="6"
-      height="11"
-      rx="3"/>
-
-<path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8"/>
-
-</svg>
-
-</button>
-
-<button class="btn"
-        onclick="sendMessage()">
-Send
-</button>
-
-</div>
-
-</div>
-
-</div>
-
-</section>
-
-
-<!-- VIDEO -->
-
-<section id="video" class="page">
-
-<div class="card">
-
-<h2>Video</h2>
-
-<p>
-Watch and share video content.
-</p>
-
-</div>
-
-<div id="videoFeed"></div>
-
-</section>
-
-
-<!-- STUDIO -->
-
-<section id="studio" class="page">
-
-<div class="card">
-
-<h2>Creative Studio</h2>
-
-<p>
-Create professional digital content.
-</p>
-
-<div class="grid">
-
-<div class="card">
-
-<h3>Image Creator</h3>
-
-<p>
-Create social media graphics, posters and visual content.
-</p>
-
-<button class="btn"
-        onclick="toast('Creative Studio tool ready')">
-Open Tool
-</button>
-
-</div>
-
-
-<div class="card">
-
-<h3>Video Creator</h3>
-
-<p>
-Prepare and edit short-form video content.
-</p>
-
-<button class="btn"
-        onclick="toast('Video creator ready')">
-Open Tool
-</button>
-
-</div>
-
-
-<div class="card">
-
-<h3>Document Creator</h3>
-
-<p>
-Create professional documents and digital resources.
-</p>
-
-<button class="btn"
-        onclick="toast('Document creator ready')">
-Open Tool
-</button>
-
-</div>
-
-
-<div class="card">
-
-<h3>Design Assistant</h3>
-
-<p>
-Get AI-assisted ideas for your next project.
-</p>
-
-<button class="btn"
-        onclick="showPage('ai')">
-Use AI
-</button>
-
-</div>
-
-</div>
-
-</div>
-
-</section>
-
-
-<!-- MARKET -->
-
-<section id="market" class="page">
-
-<div class="card">
-
-<h2>Global Market</h2>
-
-<p>
-Discover products, services and digital opportunities.
-</p>
-
-</div>
-
-
-<div class="grid">
-
-<div class="card">
-<h3>Products</h3>
-<p>Discover products from sellers and businesses.</p>
-<button class="btn"
-        onclick="toast('Marketplace coming soon')">
-Explore
-</button>
-</div>
-
-
-<div class="card">
-<h3>Services</h3>
-<p>Find professional and digital services.</p>
-<button class="btn"
-        onclick="toast('Services marketplace coming soon')">
-Explore
-</button>
-</div>
-
-
-<div class="card">
-<h3>Digital Products</h3>
-<p>Books, courses, software and other digital products.</p>
-<button class="btn"
-        onclick="toast('Digital marketplace coming soon')">
-Explore
-</button>
-</div>
-
-
-<div class="card">
-<h3>Business Opportunities</h3>
-<p>Explore entrepreneurship and collaboration opportunities.</p>
-<button class="btn"
-        onclick="toast('Business marketplace coming soon')">
-Explore
-</button>
-</div>
-
-</div>
-
-</section>
-
-
-<!-- AI -->
-
-<section id="ai" class="page">
-
-<div class="card">
-
-<h2>AI Council</h2>
-
-<p>
-Choose an AI assistant according to the problem you want to understand.
-</p>
-
-</div>
-
-
-<div class="ai-grid">
-
-
-<div class="ai-card"
-     onclick="openAI('Education AI')">
-
-<div class="ai-symbol">
-
-<svg width="24"
-     height="24"
-     viewBox="0 0 24 24"
-     fill="none"
-     stroke="currentColor"
-     stroke-width="2">
-
-<path d="m3 10 9-5 9 5-9 5-9-5Z"/>
-<path d="M7 12v5c3 3 7 3 10 0v-5"/>
-
-</svg>
-
-</div>
-
-<h3>Education AI</h3>
-
-<p>
-Curriculum, subjects, study plans and academic explanations.
-</p>
-
-</div>
-
-
-<div class="ai-card"
-     onclick="openAI('Health AI')">
-
-<div class="ai-symbol">
-
-<svg width="24"
-     height="24"
-     viewBox="0 0 24 24"
-     fill="none"
-     stroke="currentColor"
-     stroke-width="2">
-
-<path d="M3 12h4l2-6 4 12 2-6h6"/>
-
-</svg>
-
-</div>
-
-<h3>Health AI</h3>
-
-<p>
-Educational health information and general guidance.
-</p>
-
-</div>
-
-
-<div class="ai-card"
-     onclick="openAI('Agricultural AI')">
-
-<div class="ai-symbol">
-
-<svg width="24"
-     height="24"
-     viewBox="0 0 24 24"
-     fill="none"
-     stroke="currentColor"
-     stroke-width="2">
-
-<path d="M12 21V10"/>
-<path d="M12 13C7 13 4 10 4 5c5 0 8 3 8 8Z"/>
-<path d="M12 16c5 0 8-3 8-8-5 0-8 3-8 8Z"/>
-
-</svg>
-
-</div>
-
-<h3>Agricultural AI</h3>
-
-<p>
-Crops, soil, farming systems, pests and agricultural research.
-</p>
-
-</div>
-
-
-<div class="ai-card"
-     onclick="openAI('Research AI')">
-
-<div class="ai-symbol">
-
-<svg width="24"
-     height="24"
-     viewBox="0 0 24 24"
-     fill="none"
-     stroke="currentColor"
-     stroke-width="2">
-
-<circle cx="10" cy="10" r="6"/>
-<path d="m15 15 6 6"/>
-
-</svg>
-
-</div>
-
-<h3>Research AI</h3>
-
-<p>
-Research questions, analysis, ideas and academic guidance.
-</p>
-
-</div>
-
-</div>
-
-
-<div class="card">
-
-<h2>Education AI</h2>
-
-
-<select id="countrySelect"
-        class="form-control">
-
-<option value="">
-Select country / curriculum
-</option>
-
-<option>Tanzania</option>
-<option>Kenya</option>
-<option>Uganda</option>
-<option>Rwanda</option>
-<option>Burundi</option>
-<option>South Africa</option>
-<option>Zambia</option>
-<option>Zimbabwe</option>
-<option>Malawi</option>
-<option>Mozambique</option>
-<option>Nigeria</option>
-<option>Ghana</option>
-<option>Ethiopia</option>
-<option>United Kingdom</option>
-<option>United States</option>
-<option>Canada</option>
-<option>Australia</option>
-<option>New Zealand</option>
-<option>India</option>
-<option>China</option>
-<option>Japan</option>
-<option>Germany</option>
-<option>France</option>
-<option>Brazil</option>
-<option>Argentina</option>
-<option>Mexico</option>
-<option>Other</option>
-
-</select>
-
-
-<select id="levelSelect"
-        class="form-control">
-
-<option value="">
-Select education level
-</option>
-
-<option>Nursery / Early Childhood</option>
-<option>Primary</option>
-<option>Secondary</option>
-<option>Certificate</option>
-<option>Diploma</option>
-<option>Degree</option>
-<option>Master</option>
-<option>PhD</option>
-
-</select>
-
-
-<textarea id="aiQuestion"
-          class="form-control"
-          placeholder="Ask Education AI a question..."></textarea>
-
-
-<button class="btn"
-        onclick="askAI()">
-Ask Education AI
-</button>
-
-
-<div id="aiAnswer"
-     class="card"
-     style="margin-top:15px;display:none">
-</div>
-
-</div>
-
-</section>
-
-
-<!-- PROFILE -->
-
-<section id="profile" class="page">
-
-<div class="card"
-     style="padding:0;overflow:hidden">
-
-<div class="profile-cover"></div>
-
-<div class="profile-info">
-
-<img id="profileAvatar"
-     class="profile-avatar"
-     src="https://via.placeholder.com/100"
-     alt="Profile">
-
-<h2 id="profileName">
-Your Name
-</h2>
-
-<p id="profileBio">
-Welcome to my MSAFIRI GLOBAL MEDIA profile.
-</p>
-
-
-<div class="stats">
-
-<div class="stat">
-<strong id="followersCount">0</strong>
-<span>Followers</span>
-</div>
-
-<div class="stat">
-<strong id="followingCount">0</strong>
-<span>Following</span>
-</div>
-
-<div class="stat">
-<strong id="likesCount">0</strong>
-<span>Likes</span>
-</div>
-
-<div class="stat">
-<strong id="postsCount">0</strong>
-<span>Posts</span>
-</div>
-
-</div>
-
-<br>
-
-<button class="btn"
-        onclick="openEditProfile()">
-Edit Profile
-</button>
-
-<button id="profileLoginBtn"
-        class="btn secondary"
-        onclick="openAuth('login')">
-Log in
-</button>
-
-</div>
-
-</div>
-
-
-<div class="card">
-
-<h3>Saved Posts</h3>
-
-<div id="savedPosts"
-     class="empty">
-Log in to view saved posts.
-</div>
-
-</div>
-
-
-<div class="card">
-
-<h3>Watched Content</h3>
-
-<div id="watchedContent"
-     class="empty">
-No watched content yet.
-</div>
-
-</div>
-
-
-<div class="card">
-
-<h3>My Posts</h3>
-
-<div id="myPosts"
-     class="empty">
-Log in to view your posts.
-</div>
-
-</div>
-
-</section>
-
-</main>
-
-</div>
-
-
-<nav class="bottom-nav">
-
-<button class="active"
-        onclick="showPage('home')">
-Home
-</button>
-
-<button onclick="showPage('connect')">
-Connect
-</button>
-
-<button onclick="showPage('video')">
-Video
-</button>
-
-<button onclick="showPage('ai')">
-AI
-</button>
-
-<button onclick="showPage('profile')">
-Profile
-</button>
-
-</nav>
-
-</div>
-
-
-<!-- AUTH MODAL -->
-
-<div id="authModal"
-     class="modal">
-
-<div class="modal-box modal-small">
-
-<div class="modal-head">
-
-<h2 id="authTitle">
-Log in
-</h2>
-
-<button class="close"
-        onclick="closeModal('authModal')">
-×
-</button>
-
-</div>
-
-
-<div class="auth-tabs">
-
-<button id="loginTab"
-        class="auth-tab active"
-        onclick="switchAuth('login')">
-Log in
-</button>
-
-<button id="registerTab"
-        class="auth-tab"
-        onclick="switchAuth('register')">
-Create account
-</button>
-
-</div>
-
-
-<div id="loginForm">
-
-<input id="loginEmail"
-       class="form-control"
-       type="email"
-       placeholder="Email">
-
-<input id="loginPassword"
-       class="form-control"
-       type="password"
-       placeholder="Password">
-
-<button class="btn"
-        style="width:100%"
-        onclick="login()">
-Log in
-</button>
-
-</div>
-
-
-<div id="registerForm"
-     class="hidden">
-
-<input id="registerName"
-       class="form-control"
-       placeholder="Full name">
-
-<input id="registerUsername"
-       class="form-control"
-       placeholder="Username">
-
-<input id="registerEmail"
-       class="form-control"
-       type="email"
-       placeholder="Email">
-
-<input id="registerPassword"
-       class="form-control"
-       type="password"
-       placeholder="Password">
-
-<button class="btn"
-        style="width:100%"
-        onclick="register()">
-Create account
-</button>
-
-</div>
-
-
-<div id="authMessage"
-     class="error-text"></div>
-
-<p style="color:var(--muted);font-size:12px;margin-bottom:0">
-Use an email address you can access. If email verification is enabled by the backend, complete that verification before logging in.
-</p>
-
-</div>
-
-</div>
-
-
-<!-- EDIT PROFILE -->
-
-<div id="editProfileModal"
-     class="modal">
-
-<div class="modal-box">
-
-<div class="modal-head">
-
-<h2>Edit Profile</h2>
-
-<button class="close"
+      <button
+        class="icon-btn"
         onclick="closeModal('editProfileModal')">
-×
-</button>
+        ✕
+      </button>
+    </div>
 
-</div>
+    <div class="form">
 
+      <input
+        id="editName"
+        class="input"
+        placeholder="Full name">
 
-<input id="editName"
-       class="form-control"
-       placeholder="Full name">
+      <input
+        id="editUsername"
+        class="input"
+        placeholder="Username">
 
+      <textarea
+        id="editBio"
+        class="textarea"
+        placeholder="Bio"></textarea>
 
-<textarea id="editBio"
-          class="form-control"
-          placeholder="Bio"></textarea>
-
-
-<label class="btn secondary">
-
-Choose Profile Photo
-
-<input id="profilePhotoInput"
-       class="media-picker"
-       type="file"
-       accept="image/*">
-
-</label>
-
-<br><br>
-
-<button class="btn"
+      <button
+        class="primary"
         onclick="saveProfile()">
-Save Changes
-</button>
+        Save changes
+      </button>
 
-</div>
+    </div>
 
-</div>
-
-
-<!-- AI MODAL -->
-
-<div id="aiModal"
-     class="modal">
-
-<div class="modal-box">
-
-<div class="modal-head">
-
-<h2 id="aiModalTitle">
-AI Assistant
-</h2>
-
-<button class="close"
-        onclick="closeModal('aiModal')">
-×
-</button>
+  </div>
 
 </div>
 
 
-<textarea id="domainQuestion"
-          class="form-control"
-          placeholder="Ask your question..."></textarea>
+<!-- CALL SCREEN -->
+<div id="callScreen" class="call-screen hidden">
+
+  <div class="call-top">
+
+    <div class="call-user">
+      <img id="callAvatar" class="avatar small" src="" alt="">
+      <div>
+        <strong id="callName">Calling...</strong>
+        <div id="callTypeText" class="muted small">Voice call</div>
+      </div>
+    </div>
+
+    <button
+      class="icon-btn"
+      onclick="endCall()">
+      ✕
+    </button>
+
+  </div>
 
 
-<button class="btn"
-        onclick="askDomainAI()">
-Ask AI
-</button>
+  <div id="callVideos" class="call-videos">
+
+    <img
+      id="callCenterAvatar"
+      class="call-avatar"
+      src=""
+      alt="">
+
+    <video
+      id="remoteVideo"
+      class="remote-video"
+      autoplay
+      playsinline></video>
+
+    <video
+      id="localVideo"
+      class="local-video"
+      autoplay
+      muted
+      playsinline></video>
+
+    <div id="callStatus" class="call-status">
+      Connecting...
+    </div>
+
+  </div>
 
 
-<div id="domainAnswer"
-     class="card"
-     style="margin-top:15px;display:none">
+  <div class="call-controls">
+
+    <button
+      id="muteCallBtn"
+      class="call-control"
+      onclick="toggleCallMute()">
+      🎙️
+    </button>
+
+    <button
+      id="cameraCallBtn"
+      class="call-control"
+      onclick="toggleCallCamera()">
+      📷
+    </button>
+
+    <button
+      class="call-control"
+      onclick="switchCamera()">
+      🔄
+    </button>
+
+    <button
+      class="call-control call-end"
+      onclick="endCall()">
+      📞
+    </button>
+
+  </div>
+
 </div>
 
-</div>
 
-</div>
+<div id="toast" class="toast"></div>
 
 
-<div id="toast"
-     class="toast"></div>
-
+<!-- LiveKit browser client -->
+<script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
 
 <script>
 
-/* =========================================================
-   MSAFIRI GLOBAL MEDIA V4
-   FRONTEND -> RENDER BACKEND
-   ========================================================= */
+const API = "https://msafiri-global-media-3-1.onrender.com";
 
-const API_BASE =
-  "https://msafiri-global-media-3-1.onrender.com";
+const TOKEN_KEY = "msafiri_token";
 
+let TOKEN = localStorage.getItem(TOKEN_KEY) || "";
+let ME = null;
 
-let currentPage = "home";
+let currentView = "home";
 let currentChatUser = null;
-let currentChatName = "";
-let selectedPostMedia = null;
-let selectedStatusMedia = null;
-let selectedAI = "";
-let currentUser = null;
-let recorder = null;
-let recordedChunks = [];
+let currentMessages = [];
+let mediaRecorder = null;
+let recordingChunks = [];
 let recordingStream = null;
-let typingTimer = null;
+
+let callRoom = null;
+let callId = null;
+let callType = null;
+let callMicTrack = null;
+let callCameraTrack = null;
+let callOtherUser = null;
 
 
-const $ = id => document.getElementById(id);
+/* =========================
+   HELPERS
+========================= */
 
-
-/* =========================================================
-   API HELPER
-   ========================================================= */
-
-function apiUrl(path){
-
-  if(!path.startsWith("/")){
-    path="/" + path;
-  }
-
-  return API_BASE + path;
-
+function $(id){
+  return document.getElementById(id);
 }
 
-
-async function api(path, options = {}){
-
-  const config = {...options};
-
-  config.headers = new Headers(options.headers || {});
-
-  const token =
-    localStorage.getItem("msg_token");
-
-  if(token){
-
-    config.headers.set(
-      "Authorization",
-      "Bearer " + token
-    );
-
-  }
-
-  /*
-   Do not manually set Content-Type for FormData.
-   Browser creates the multipart boundary automatically.
-  */
-
-  return fetch(apiUrl(path), config);
-
+function escapeHTML(value){
+  return String(value ?? "")
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;")
+    .replace(/'/g,"&#039;");
 }
 
+function fileURL(url){
 
-/* =========================================================
-   MEDIA URL
-   ========================================================= */
-
-function mediaUrl(value){
-
-  if(!value){
-    return "";
-  }
-
-  value = String(value);
+  if(!url) return "";
 
   if(
-    value.startsWith("http://") ||
-    value.startsWith("https://") ||
-    value.startsWith("blob:")
+    url.startsWith("http://") ||
+    url.startsWith("https://") ||
+    url.startsWith("blob:")
   ){
-
-    return value;
-
+    return url;
   }
 
-  if(value.startsWith("/")){
-    return API_BASE + value;
-  }
-
-  return API_BASE + "/" + value;
-
+  return new URL(url, API).href;
 }
 
+function avatarURL(url){
 
-/* =========================================================
-   TOAST
-   ========================================================= */
+  return fileURL(url) ||
+    "https://ui-avatars.com/api/?name=User&background=172442&color=ffffff";
+}
 
 function toast(message){
 
   const t = $("toast");
 
   t.textContent = message;
-
   t.style.display = "block";
 
   clearTimeout(window.toastTimer);
 
   window.toastTimer = setTimeout(()=>{
-
     t.style.display = "none";
-
-  },2800);
-
+  },2600);
 }
 
+function closeModal(id){
+  $(id).classList.add("hidden");
+}
 
-/* =========================================================
-   PAGE NAVIGATION
-   ========================================================= */
+function authHeaders(json=false){
 
-function showPage(page){
+  const h = {};
 
-  document.querySelectorAll(".page")
-    .forEach(p => p.classList.remove("active"));
-
-  const target = $(page);
-
-  if(target){
-    target.classList.add("active");
+  if(json){
+    h["Content-Type"] = "application/json";
   }
 
-  currentPage = page;
+  if(TOKEN){
+    h["Authorization"] = "Bearer " + TOKEN;
+  }
 
-  document.querySelectorAll(".nav-btn")
-    .forEach(b => b.classList.remove("active"));
+  return h;
+}
 
-  document.querySelectorAll(".bottom-nav button")
-    .forEach(b => b.classList.remove("active"));
+async function api(path,options={}){
 
+  options.headers = {
+    ...authHeaders(),
+    ...(options.headers || {})
+  };
+
+  const response = await fetch(API + path,options);
+
+  let data = null;
+
+  try{
+    data = await response.json();
+  }catch(e){
+    data = {};
+  }
+
+  if(!response.ok){
+
+    const message =
+      data.detail ||
+      data.message ||
+      "Request failed";
+
+    throw new Error(message);
+  }
+
+  return data;
 }
 
 
-/* =========================================================
-   THEME
-   ========================================================= */
+/* =========================
+   AUTH
+========================= */
 
-function toggleTheme(){
+function showAuth(mode){
 
-  document.body.classList.toggle("dark");
+  const login = mode === "login";
 
-  localStorage.setItem(
-    "msg_theme",
-    document.body.classList.contains("dark")
-      ? "dark"
-      : "light"
-  );
+  $("loginForm").classList.toggle("hidden",!login);
+  $("registerForm").classList.toggle("hidden",login);
 
-}
-
-
-if(localStorage.getItem("msg_theme")==="dark"){
-  document.body.classList.add("dark");
-}
-
-
-/* =========================================================
-   AUTH UI
-   ========================================================= */
-
-function openAuth(mode = "login"){
-
-  $("authModal").classList.add("show");
-
-  switchAuth(mode);
-
-}
-
-
-function switchAuth(mode){
-
-  const login =
-    mode === "login";
-
-  $("loginForm").classList.toggle(
-    "hidden",
-    !login
-  );
-
-  $("registerForm").classList.toggle(
-    "hidden",
-    login
-  );
-
-  $("loginTab").classList.toggle(
-    "active",
-    login
-  );
-
-  $("registerTab").classList.toggle(
-    "active",
-    !login
-  );
-
-  $("authTitle").textContent =
-    login ? "Log in" : "Create account";
+  $("loginTab").classList.toggle("active",login);
+  $("registerTab").classList.toggle("active",!login);
 
   $("authMessage").textContent = "";
-
 }
 
 
-async function register(){
+async function register(event){
 
-  const name =
-    $("registerName").value.trim();
+  event.preventDefault();
 
-  const username =
-    $("registerUsername").value.trim();
-
-  const email =
-    $("registerEmail").value.trim();
-
-  const password =
-    $("registerPassword").value;
-
-  if(!name || !username || !email || !password){
-
-    $("authMessage").textContent =
-      "Please complete all fields.";
-
-    return;
-
-  }
-
-  $("authMessage").textContent =
-    "Creating your account...";
+  const payload = {
+    name:$("regName").value.trim(),
+    username:$("regUsername").value.trim(),
+    email:$("regEmail").value.trim(),
+    password:$("regPassword").value
+  };
 
   try{
 
-    const r = await api("/api/register",{
+    $("authMessage").textContent = "Creating account...";
 
+    const data = await api("/api/register",{
       method:"POST",
-
       headers:{
         "Content-Type":"application/json"
       },
-
-      body:JSON.stringify({
-        name,
-        username,
-        email,
-        password
-      })
-
+      body:JSON.stringify(payload)
     });
 
-    const data = await safeJson(r);
+    if(data.token){
 
-    if(!r.ok){
+      TOKEN = data.token;
 
-      throw new Error(
-        data?.detail ||
-        data?.message ||
-        "Registration failed."
-      );
+      localStorage.setItem(TOKEN_KEY,TOKEN);
 
-    }
+      await loadMe();
+      openApp();
 
-    const token =
-      data?.token ||
-      data?.access_token ||
-      data?.session;
-
-    if(token){
-
-      localStorage.setItem(
-        "msg_token",
-        token
-      );
-
-    }
-
-    $("authMessage").className =
-      "success-text";
-
-    $("authMessage").textContent =
-      "Account created successfully.";
-
-    if(token){
-
-      await refreshSession();
-
-      setTimeout(()=>{
-        closeModal("authModal");
-      },500);
+      toast("Account created successfully.");
 
     }else{
 
-      setTimeout(()=>{
-        switchAuth("login");
-      },700);
+      $("authMessage").textContent =
+        "Account created. Tafadhali login.";
 
+      showAuth("login");
     }
 
   }catch(error){
 
-    $("authMessage").className =
-      "error-text";
-
-    $("authMessage").textContent =
-      error.message ||
-      "Could not create account.";
-
+    $("authMessage").textContent = error.message;
   }
-
 }
 
 
-async function login(){
+async function login(event){
 
-  const email =
-    $("loginEmail").value.trim();
-
-  const password =
-    $("loginPassword").value;
-
-  if(!email || !password){
-
-    $("authMessage").textContent =
-      "Enter your email and password.";
-
-    return;
-
-  }
-
-  $("authMessage").className =
-    "error-text";
-
-  $("authMessage").textContent =
-    "Logging in...";
+  event.preventDefault();
 
   try{
 
-    /*
-      Try JSON first because our API supports JSON.
-    */
+    $("authMessage").textContent = "Logging in...";
 
-    let r = await api("/api/login",{
-
+    const data = await api("/api/login",{
       method:"POST",
-
       headers:{
         "Content-Type":"application/json"
       },
-
       body:JSON.stringify({
-        email,
-        password
+        email:$("loginEmail").value.trim(),
+        password:$("loginPassword").value
       })
-
     });
 
-    let data =
-      await safeJson(r);
-
-    /*
-      Some FastAPI login implementations use
-      form fields. If JSON is rejected, retry
-      using URLSearchParams.
-    */
-
-    if(!r.ok && (r.status===422 || r.status===415)){
-
-      const form =
-        new URLSearchParams();
-
-      form.append("email",email);
-      form.append("password",password);
-
-      r = await api("/api/login",{
-
-        method:"POST",
-
-        headers:{
-          "Content-Type":
-            "application/x-www-form-urlencoded"
-        },
-
-        body:form
-
-      });
-
-      data =
-        await safeJson(r);
-
+    if(!data.token){
+      throw new Error("Login token haijapatikana.");
     }
 
-    if(!r.ok){
+    TOKEN = data.token;
 
-      throw new Error(
-        data?.detail ||
-        data?.message ||
-        "Login failed."
-      );
+    localStorage.setItem(TOKEN_KEY,TOKEN);
 
-    }
+    await loadMe();
 
-    const token =
-      data?.token ||
-      data?.access_token ||
-      data?.session;
-
-    if(token){
-
-      localStorage.setItem(
-        "msg_token",
-        token
-      );
-
-    }
-
-    await refreshSession();
-
-    closeModal("authModal");
+    openApp();
 
     toast("Welcome back.");
 
   }catch(error){
 
-    $("authMessage").className =
-      "error-text";
-
-    $("authMessage").textContent =
-      error.message ||
-      "Could not log in.";
-
+    $("authMessage").textContent = error.message;
   }
-
 }
 
 
-async function refreshSession(){
+async function loadMe(){
 
-  const token =
-    localStorage.getItem("msg_token");
+  ME = await api("/api/me");
 
-  if(!token){
-
-    currentUser = null;
-
-    updateAuthUI();
-
-    return;
-
-  }
-
-  try{
-
-    const r =
-      await api("/api/me");
-
-    if(!r.ok){
-
-      if(r.status===401){
-
-        localStorage.removeItem(
-          "msg_token"
-        );
-
-      }
-
-      currentUser = null;
-
-      updateAuthUI();
-
-      return;
-
-    }
-
-    currentUser =
-      await safeJson(r);
-
-    updateAuthUI();
-
-    loadProfile();
-
-    loadUsers();
-
-  }catch(e){
-
-    currentUser = null;
-
-    updateAuthUI();
-
-  }
-
+  updateProfileUI();
 }
 
 
-function updateAuthUI(){
+function openApp(){
 
-  const logged =
-    !!currentUser;
+  $("authView").classList.add("hidden");
+  $("appView").classList.remove("hidden");
 
-  $("authActions")
-    .classList.toggle(
-      "hidden",
-      logged
-    );
+  switchView("home");
 
-  $("loggedUser")
-    .classList.toggle(
-      "hidden",
-      !logged
-    );
-
-  $("logoutSideBtn")
-    .classList.toggle(
-      "hidden",
-      !logged
-    );
-
-  $("profileLoginBtn")
-    .classList.toggle(
-      "hidden",
-      logged
-    );
-
-  if(logged){
-
-    const name =
-      currentUser.name ||
-      currentUser.username ||
-      "User";
-
-    $("topName").textContent =
-      name;
-
-    $("topAvatar").src =
-      mediaUrl(
-        currentUser.avatar
-      ) ||
-      "https://via.placeholder.com/50";
-
-  }
-
+  loadFeed();
+  loadChats();
 }
 
 
@@ -2378,1368 +1728,1263 @@ async function logout(){
 
   try{
 
-    await api("/api/logout",{
-      method:"POST"
-    });
+    if(TOKEN){
+      await api("/api/logout",{
+        method:"POST"
+      });
+    }
 
   }catch(e){}
 
-  localStorage.removeItem(
-    "msg_token"
-  );
+  TOKEN = "";
+  ME = null;
 
-  currentUser = null;
+  localStorage.removeItem(TOKEN_KEY);
 
-  updateAuthUI();
+  $("appView").classList.add("hidden");
+  $("authView").classList.remove("hidden");
 
-  $("messages").innerHTML =
-    `<div class="empty">
-      Please log in to view messages.
-    </div>`;
+  showAuth("login");
 
-  toast("You have been logged out.");
-
+  toast("Logged out.");
 }
 
 
-/* =========================================================
-   SAFE JSON
-   ========================================================= */
+async function deleteAccount(){
 
-async function safeJson(response){
-
-  try{
-    return await response.json();
-  }catch(e){
-    return {};
-  }
-
-}
-
-
-/* =========================================================
-   POST MEDIA
-   ========================================================= */
-
-function handlePhoto(event){
-
-  const file =
-    event.target.files[0];
-
-  if(!file)return;
-
-  selectedPostMedia = {
-    file,
-    type:"image",
-    url:URL.createObjectURL(file)
-  };
-
-  $("postPreview").innerHTML =
-    `<img src="${selectedPostMedia.url}"
-          alt="Selected photo">`;
-
-}
-
-
-function handleVideo(event){
-
-  const file =
-    event.target.files[0];
-
-  if(!file)return;
-
-  selectedPostMedia = {
-    file,
-    type:"video",
-    url:URL.createObjectURL(file)
-  };
-
-  $("postPreview").innerHTML =
-    `<video src="${selectedPostMedia.url}"
-            controls></video>`;
-
-}
-
-
-function handleFile(event){
-
-  const file =
-    event.target.files[0];
-
-  if(!file)return;
-
-  selectedPostMedia = {
-    file,
-    type:"file",
-    url:null
-  };
-
-  $("postPreview").innerHTML =
-    `<div class="card">
-      <strong>Selected file:</strong>
-      ${escapeHtml(file.name)}
-    </div>`;
-
-}
-
-
-/* =========================================================
-   PUBLISH POST
-   ========================================================= */
-
-async function publishPost(){
-
-  if(!currentUser){
-
-    toast("Please log in before posting.");
-
-    openAuth("login");
-
+  if(!confirm(
+    "Una uhakika unataka kufuta account yako? Hatua hii itafuta access ya account."
+  )){
     return;
-
-  }
-
-  const caption =
-    $("postCaption").value.trim();
-
-  if(!caption && !selectedPostMedia){
-
-    toast(
-      "Write something or select media first."
-    );
-
-    return;
-
-  }
-
-  const form =
-    new FormData();
-
-  form.append(
-    "caption",
-    caption
-  );
-
-  if(selectedPostMedia?.file){
-
-    form.append(
-      "media",
-      selectedPostMedia.file
-    );
-
   }
 
   try{
 
-    const response =
-      await api("/api/posts",{
+    await api("/api/account",{
+      method:"DELETE"
+    });
 
-        method:"POST",
+    TOKEN = "";
+    ME = null;
 
-        body:form
+    localStorage.removeItem(TOKEN_KEY);
 
-      });
+    $("appView").classList.add("hidden");
+    $("authView").classList.remove("hidden");
 
-    const data =
-      await safeJson(response);
-
-    if(!response.ok){
-
-      throw new Error(
-        data?.detail ||
-        "Post could not be published."
-      );
-
-    }
-
-    toast(
-      "Post published successfully."
-    );
-
-    $("postCaption").value = "";
-
-    $("postPreview").innerHTML = "";
-
-    selectedPostMedia = null;
-
-    $("photoInput").value = "";
-    $("videoInput").value = "";
-    $("fileInput").value = "";
-
-    await loadFeed();
+    toast("Account deleted.");
 
   }catch(error){
 
-    toast(
-      error.message ||
-      "Connection error."
-    );
+    toast(error.message);
+  }
+}
+
+
+/* =========================
+   VIEWS
+========================= */
+
+function switchView(view){
+
+  currentView = view;
+
+  document.querySelectorAll(".view")
+    .forEach(v=>v.classList.remove("active"));
+
+  document.querySelectorAll(".nav-btn")
+    .forEach(v=>v.classList.remove("active"));
+
+  if(view === "home"){
+
+    $("homeView").classList.add("active");
+    $("navHome").classList.add("active");
+
+    loadFeed();
 
   }
 
-}
+  if(view === "chats"){
 
+    $("chatsView").classList.add("active");
+    $("navChats").classList.add("active");
 
-/* =========================================================
-   STATUS MEDIA
-   ========================================================= */
-
-function previewStatusPhoto(event){
-
-  const file =
-    event.target.files[0];
-
-  if(!file)return;
-
-  selectedStatusMedia = {
-    file,
-    type:"image",
-    url:URL.createObjectURL(file)
-  };
-
-  $("statusPreview").innerHTML =
-    `<img class="post-media"
-          src="${selectedStatusMedia.url}"
-          alt="Status photo">`;
-
-}
-
-
-function previewStatusVideo(event){
-
-  const file =
-    event.target.files[0];
-
-  if(!file)return;
-
-  selectedStatusMedia = {
-    file,
-    type:"video",
-    url:URL.createObjectURL(file)
-  };
-
-  $("statusPreview").innerHTML =
-    `<video class="post-media"
-            src="${selectedStatusMedia.url}"
-            controls></video>`;
-
-}
-
-
-function selectStatusAudio(event){
-
-  const file =
-    event.target.files[0];
-
-  if(!file)return;
-
-  selectedStatusMedia = {
-    file,
-    type:"audio",
-    url:URL.createObjectURL(file)
-  };
-
-  $("statusPreview").innerHTML =
-    `<audio controls
-            style="width:100%"
-            src="${selectedStatusMedia.url}">
-     </audio>`;
-
-}
-
-
-/* =========================================================
-   TEXT STATUS
-   ========================================================= */
-
-async function createTextStatus(){
-
-  if(!currentUser){
-
-    openAuth("login");
-
-    toast("Please log in first.");
-
-    return;
+    loadChats();
 
   }
 
-  const text =
-    prompt("Write your status:");
+  if(view === "profile"){
 
-  if(!text || !text.trim())return;
+    $("profileView").classList.add("active");
+    $("navProfile").classList.add("active");
 
-  const form =
-    new FormData();
+    updateProfileUI();
+  }
+}
 
-  form.append(
-    "text",
-    text.trim()
+
+function openProfile(){
+
+  switchView("profile");
+}
+
+
+/* =========================
+   PROFILE
+========================= */
+
+function updateProfileUI(){
+
+  if(!ME) return;
+
+  const avatar = avatarURL(
+    ME.avatar_url ||
+    ME.profile_picture ||
+    ME.avatar
   );
+
+  $("createAvatar").src = avatar;
+  $("profileAvatar").src = avatar;
+
+  $("profileName").textContent =
+    ME.name || ME.username || "User";
+
+  $("profileUsername").textContent =
+    ME.username ? "@" + ME.username : "";
+
+  $("profileBio").textContent =
+    ME.bio || "";
+
+}
+
+
+function openEditProfile(){
+
+  if(!ME) return;
+
+  $("editName").value = ME.name || "";
+  $("editUsername").value = ME.username || "";
+  $("editBio").value = ME.bio || "";
+
+  $("editProfileModal").classList.remove("hidden");
+}
+
+
+async function saveProfile(){
 
   try{
 
-    const r =
-      await api("/api/status",{
+    const data = await api("/api/profile",{
+      method:"PATCH",
+      headers:{
+        "Content-Type":"application/json"
+      },
+      body:JSON.stringify({
+        name:$("editName").value.trim(),
+        username:$("editUsername").value.trim(),
+        bio:$("editBio").value.trim()
+      })
+    });
 
-        method:"POST",
+    ME = data.user || data;
 
-        body:form
+    updateProfileUI();
 
-      });
+    closeModal("editProfileModal");
 
-    const data =
-      await safeJson(r);
+    toast("Profile updated.");
 
-    if(!r.ok){
+  }catch(error){
 
-      throw new Error(
-        data?.detail ||
-        "Status could not be published."
-      );
-
-    }
-
-    toast("Status published.");
-
-    await loadStatuses();
-
-  }catch(e){
-
-    toast(
-      e.message ||
-      "Status service error."
-    );
-
+    toast(error.message);
   }
-
 }
 
 
-/* =========================================================
-   MEDIA STATUS
-   ========================================================= */
+async function changeAvatar(file){
 
-async function publishMediaStatus(){
-
-  if(!currentUser){
-
-    openAuth("login");
-
-    toast("Please log in first.");
-
-    return;
-
-  }
-
-  if(!selectedStatusMedia?.file){
-
-    toast(
-      "Choose a photo, video or audio first."
-    );
-
-    return;
-
-  }
-
-  const form =
-    new FormData();
-
-  form.append(
-    "media",
-    selectedStatusMedia.file
-  );
+  if(!file) return;
 
   try{
 
-    const r =
-      await api("/api/status",{
+    const form = new FormData();
 
-        method:"POST",
+    form.append("file",file);
 
-        body:form
+    const data = await api("/api/profile/avatar",{
+      method:"POST",
+      body:form
+    });
 
-      });
-
-    const data =
-      await safeJson(r);
-
-    if(!r.ok){
-
-      throw new Error(
-        data?.detail ||
-        "Status could not be published."
-      );
-
+    if(data.user){
+      ME = data.user;
     }
 
-    toast("Status published.");
+    if(data.avatar_url){
+      ME.avatar_url = data.avatar_url;
+    }
 
-    selectedStatusMedia = null;
+    updateProfileUI();
 
-    $("statusPreview").innerHTML = "";
+    toast("Profile picture changed.");
 
-    $("statusPhoto").value = "";
-    $("statusVideo").value = "";
-    $("statusAudio").value = "";
+  }catch(error){
 
-    await loadStatuses();
-
-  }catch(e){
-
-    toast(
-      e.message ||
-      "Status upload failed."
-    );
-
+    toast(error.message);
   }
-
 }
 
 
-/* =========================================================
+function showMyPosts(){
+
+  switchView("home");
+
+  if(ME){
+    loadFeed(ME.id);
+  }
+}
+
+
+/* =========================
    FEED
-   ========================================================= */
+========================= */
 
-let allPosts = [];
+function openPostModal(type=""){
+
+  $("postModal").classList.remove("hidden");
+
+  $("postCaption").focus();
+
+  if(type){
+
+    $("postFile").accept =
+      type === "image"
+      ? "image/*"
+      : type === "video"
+      ? "video/*"
+      : "audio/*";
+
+    $("postFile").click();
+  }
+}
 
 
-async function loadFeed(){
+function previewPostFile(file){
 
-  $("feed").innerHTML =
-    `<div class="loading">
-      Loading posts...
-    </div>`;
+  if(!file) return;
+
+  $("postFileName").textContent = file.name;
+
+  const preview = $("postPreview");
+
+  preview.innerHTML = "";
+
+  const url = URL.createObjectURL(file);
+
+  if(file.type.startsWith("image/")){
+
+    const img = document.createElement("img");
+
+    img.src = url;
+    img.className = "preview";
+
+    preview.appendChild(img);
+
+  }else if(file.type.startsWith("video/")){
+
+    const video = document.createElement("video");
+
+    video.src = url;
+    video.controls = true;
+    video.className = "preview";
+
+    preview.appendChild(video);
+
+  }else if(file.type.startsWith("audio/")){
+
+    const audio = document.createElement("audio");
+
+    audio.src = url;
+    audio.controls = true;
+    audio.style.width = "100%";
+
+    preview.appendChild(audio);
+  }
+}
+
+
+async function createPost(){
 
   try{
 
-    const response =
-      await api("/api/posts");
+    const caption = $("postCaption").value.trim();
+    const file = $("postFile").files[0];
 
-    if(!response.ok){
+    if(!caption && !file){
 
-      throw new Error();
+      toast("Andika caption au chagua media.");
 
+      return;
     }
+
+    const form = new FormData();
+
+    form.append("caption",caption);
+
+    if(file){
+      form.append("file",file);
+    }
+
+    toast("Publishing...");
+
+    await api("/api/posts",{
+      method:"POST",
+      body:form
+    });
+
+    $("postCaption").value = "";
+    $("postFile").value = "";
+    $("postFileName").textContent =
+      "Hakuna file iliyochaguliwa";
+
+    $("postPreview").innerHTML = "";
+
+    closeModal("postModal");
+
+    await loadFeed();
+
+    toast("Post published.");
+
+  }catch(error){
+
+    toast(error.message);
+  }
+}
+
+
+async function loadFeed(userId=null){
+
+  try{
+
+    const path =
+      userId
+      ? "/api/posts?user_id=" + encodeURIComponent(userId)
+      : "/api/posts";
+
+    const data = await api(path);
 
     const posts =
-      await response.json();
+      Array.isArray(data)
+      ? data
+      : data.posts || [];
 
-    allPosts =
-      Array.isArray(posts)
-        ? posts
-        : [];
+    renderFeed(posts);
 
-    renderFeed(allPosts);
-    renderVideoFeed(allPosts);
-
-  }catch(e){
+  }catch(error){
 
     $("feed").innerHTML =
-      `<div class="card">
-        <strong>MSAFIRI GLOBAL MEDIA</strong>
-        <p>
-        The backend is online, but no posts
-        are available yet.
-        </p>
+      `<div class="card empty">
+        Imeshindikana kupakia feed.<br>
+        <small>${escapeHTML(error.message)}</small>
       </div>`;
-
   }
-
 }
 
 
 function renderFeed(posts){
 
-  if(!Array.isArray(posts)){
-    posts=[];
-  }
-
   if(!posts.length){
 
     $("feed").innerHTML =
       `<div class="card empty">
-        No posts yet. Be the first to share something.
+        Hakuna posts bado.
       </div>`;
 
     return;
-
   }
 
   $("feed").innerHTML =
-    posts.map(post=>{
-
-      const media =
-        mediaUrl(
-          post.media_url ||
-          post.media ||
-          ""
-        );
-
-      let mediaHTML = "";
-
-      if(media){
-
-        const type =
-          String(
-            post.media_type ||
-            ""
-          ).toLowerCase();
-
-        if(
-          type.includes("video") ||
-          /\.(mp4|webm|ogg|mov)(\?|$)/i.test(media)
-        ){
-
-          mediaHTML =
-            `<video class="post-media"
-                    src="${escapeAttr(media)}"
-                    controls
-                    playsinline
-                    onclick="markWatched('${escapeAttr(media)}')">
-             </video>`;
-
-        }else if(
-          type.includes("audio") ||
-          /\.(mp3|wav|ogg|webm|m4a)(\?|$)/i.test(media)
-        ){
-
-          mediaHTML =
-            `<audio controls
-                    style="width:100%"
-                    src="${escapeAttr(media)}">
-             </audio>`;
-
-        }else{
-
-          mediaHTML =
-            `<img class="post-media"
-                  src="${escapeAttr(media)}"
-                  alt="Post media"
-                  loading="lazy">`;
-
-        }
-
-      }
-
-
-      return `
-
-      <article class="card post">
-
-        <div class="post-header">
-
-          <img class="avatar"
-               src="${escapeAttr(
-                 mediaUrl(
-                   post.avatar
-                 ) ||
-                 "https://via.placeholder.com/50"
-               )}"
-               alt="">
-
-          <div>
-
-            <div class="post-user">
-              ${escapeHtml(
-                post.user_name ||
-                post.name ||
-                post.username ||
-                "User"
-              )}
-            </div>
-
-            <div class="post-time">
-              ${escapeHtml(
-                post.created_at || ""
-              )}
-            </div>
-
-          </div>
-
-        </div>
-
-
-        <div class="post-content">
-          ${escapeHtml(
-            post.caption ||
-            post.text ||
-            ""
-          )}
-        </div>
-
-
-        ${mediaHTML}
-
-
-        <div class="post-footer">
-
-          <button class="action"
-                  onclick="likePost('${escapeAttr(post.id)}')">
-            Like
-          </button>
-
-          <button class="action"
-                  onclick="commentPost('${escapeAttr(post.id)}')">
-            Comment
-          </button>
-
-          <button class="action"
-                  onclick="savePost('${escapeAttr(post.id)}')">
-            Save
-          </button>
-
-          <button class="action"
-                  onclick="resharePost('${escapeAttr(post.id)}')">
-            Reshare
-          </button>
-
-        </div>
-
-      </article>
-
-      `;
-
-    }).join("");
-
+    posts.map(renderPost).join("");
 }
 
 
-/* =========================================================
-   VIDEO FEED
-   ========================================================= */
+function renderPost(post){
 
-function renderVideoFeed(posts){
+  const user = post.user || {};
 
-  const videos =
-    posts.filter(post=>{
+  const name =
+    post.user_name ||
+    user.name ||
+    post.username ||
+    user.username ||
+    "User";
 
-      const media =
-        String(
-          post.media_url ||
-          post.media ||
-          ""
-        );
+  const avatar =
+    avatarURL(
+      post.avatar_url ||
+      user.avatar_url ||
+      user.avatar
+    );
 
-      const type =
-        String(
-          post.media_type ||
-          ""
-        ).toLowerCase();
+  const caption =
+    post.caption || "";
 
-      return(
-        type.includes("video") ||
-        /\.(mp4|webm|ogg|mov)(\?|$)/i.test(media)
-      );
+  const media =
+    post.media_url ||
+    post.file_url ||
+    post.url ||
+    "";
 
-    });
+  const type =
+    post.media_type ||
+    post.file_type ||
+    "";
 
+  const postId = post.id;
 
-  if(!videos.length){
+  let mediaHTML = "";
 
-    $("videoFeed").innerHTML =
-      `<div class="card empty">
-        No video posts available yet.
-      </div>`;
+  if(media){
 
-    return;
+    const url = fileURL(media);
 
+    if(
+      type.includes("image") ||
+      /\.(jpg|jpeg|png|gif|webp)$/i.test(url)
+    ){
+
+      mediaHTML =
+        `<img class="post-media"
+          src="${escapeHTML(url)}"
+          alt="post image"
+          loading="lazy">`;
+
+    }else if(
+      type.includes("video") ||
+      /\.(mp4|webm|mov)$/i.test(url)
+    ){
+
+      mediaHTML =
+        `<video
+          class="post-media"
+          src="${escapeHTML(url)}"
+          controls
+          playsinline></video>`;
+
+    }else if(
+      type.includes("audio") ||
+      /\.(mp3|wav|ogg|m4a)$/i.test(url)
+    ){
+
+      mediaHTML =
+        `<audio
+          src="${escapeHTML(url)}"
+          controls
+          style="width:100%;margin-top:10px"></audio>`;
+    }
   }
 
+  const liked =
+    post.liked_by_me ||
+    post.liked ||
+    false;
 
-  $("videoFeed").innerHTML =
-    videos.map(post=>{
+  return `
+  <article class="card post">
 
-      const media =
-        mediaUrl(
-          post.media_url ||
-          post.media
-        );
+    <div class="post-head">
 
-      return `
+      <img
+        class="avatar small"
+        src="${escapeHTML(avatar)}"
+        alt="avatar">
 
-      <article class="card">
+      <div class="post-user">
+        <strong>${escapeHTML(name)}</strong>
+        <span>${escapeHTML(
+          post.created_at
+          ? formatDate(post.created_at)
+          : ""
+        )}</span>
+      </div>
 
-        <h3>
-          ${escapeHtml(
-            post.user_name ||
-            post.username ||
-            "User"
-          )}
-        </h3>
+    </div>
 
-        <p>
-          ${escapeHtml(
-            post.caption || ""
-          )}
-        </p>
+    ${
+      caption
+      ? `<div class="post-caption">
+          ${escapeHTML(caption)}
+         </div>`
+      : ""
+    }
 
-        <video class="post-media"
-               src="${escapeAttr(media)}"
-               controls
-               playsinline
-               onplay="markWatched('${escapeAttr(media)}')">
-        </video>
+    ${mediaHTML}
 
-      </article>
+    <div class="post-actions">
 
-      `;
+      <button
+        class="action ${liked ? "liked" : ""}"
+        onclick="likePost('${postId}',this)">
+        ❤️ ${post.likes_count || post.likes || 0}
+      </button>
 
-    }).join("");
+      <button
+        class="action"
+        onclick="toggleComments('${postId}')">
+        💬 ${post.comments_count || post.comments || 0}
+      </button>
 
+      <button
+        class="action"
+        onclick="savePost('${postId}',this)">
+        🔖 Save
+      </button>
+
+      <button
+        class="action"
+        onclick="resharePost('${postId}')">
+        🔁 Share
+      </button>
+
+      <button
+        class="action"
+        onclick="reportPost('${postId}')">
+        ⋮
+      </button>
+
+    </div>
+
+    <div
+      id="comments-${postId}"
+      class="comments hidden">
+    </div>
+
+  </article>
+  `;
 }
 
 
-/* =========================================================
-   SOCIAL ACTIONS
-   ========================================================= */
-
-async function requireLogin(){
-
-  if(currentUser){
-    return true;
-  }
-
-  toast("Please log in first.");
-
-  openAuth("login");
-
-  return false;
-
-}
-
-
-async function likePost(id){
-
-  if(!(await requireLogin()))return;
+function formatDate(value){
 
   try{
 
-    const r =
-      await api(
-        `/api/posts/${encodeURIComponent(id)}/like`,
-        {method:"POST"}
-      );
-
-    if(!r.ok){
-
-      const data =
-        await safeJson(r);
-
-      throw new Error(
-        data?.detail ||
-        "Like failed."
-      );
-
-    }
-
-    toast("Post liked.");
-
-    await loadFeed();
+    return new Date(value).toLocaleString();
 
   }catch(e){
 
-    toast(
-      e.message ||
-      "Like service error."
-    );
-
+    return "";
   }
-
 }
 
 
-async function commentPost(id){
-
-  if(!(await requireLogin()))return;
-
-  const text =
-    prompt("Write your comment:");
-
-  if(!text || !text.trim())return;
+async function likePost(id,button){
 
   try{
 
-    const r =
-      await api(
-        `/api/posts/${encodeURIComponent(id)}/comments`,
-        {
-          method:"POST",
-          headers:{
-            "Content-Type":"application/json"
-          },
-          body:JSON.stringify({
-            text:text.trim()
-          })
-        }
-      );
-
-    const data =
-      await safeJson(r);
-
-    if(!r.ok){
-
-      throw new Error(
-        data?.detail ||
-        "Comment failed."
-      );
-
-    }
-
-    toast("Comment added.");
-
-  }catch(e){
-
-    toast(
-      e.message ||
-      "Comment service error."
+    const data = await api(
+      `/api/posts/${encodeURIComponent(id)}/like`,
+      {method:"POST"}
     );
 
-  }
+    if(data.liked !== undefined){
 
+      button.classList.toggle("liked",data.liked);
+    }
+
+    const count =
+      data.likes_count ??
+      data.count ??
+      "";
+
+    if(count !== ""){
+      button.innerHTML =
+        `❤️ ${count}`;
+    }
+
+  }catch(error){
+
+    toast(error.message);
+  }
 }
 
 
-async function savePost(id){
-
-  if(!(await requireLogin()))return;
+async function savePost(id,button){
 
   try{
 
-    const r =
-      await api(
-        `/api/posts/${encodeURIComponent(id)}/save`,
-        {method:"POST"}
-      );
-
-    const data =
-      await safeJson(r);
-
-    if(!r.ok){
-
-      throw new Error(
-        data?.detail ||
-        "Save failed."
-      );
-
-    }
-
-    toast("Post saved.");
-
-  }catch(e){
-
-    toast(
-      e.message ||
-      "Save service error."
+    await api(
+      `/api/posts/${encodeURIComponent(id)}/save`,
+      {method:"POST"}
     );
 
-  }
+    button.textContent = "🔖 Saved";
 
+  }catch(error){
+
+    toast(error.message);
+  }
 }
 
 
 async function resharePost(id){
 
-  if(!(await requireLogin()))return;
-
   try{
 
-    const r =
-      await api(
-        `/api/posts/${encodeURIComponent(id)}/reshare`,
-        {method:"POST"}
-      );
-
-    const data =
-      await safeJson(r);
-
-    if(!r.ok){
-
-      throw new Error(
-        data?.detail ||
-        "Reshare failed."
-      );
-
-    }
+    await api(
+      `/api/posts/${encodeURIComponent(id)}/reshare`,
+      {method:"POST"}
+    );
 
     toast("Post reshared.");
 
-    await loadFeed();
+    loadFeed();
 
-  }catch(e){
+  }catch(error){
 
-    toast(
-      e.message ||
-      "Reshare service error."
-    );
-
+    toast(error.message);
   }
-
 }
 
 
-function markWatched(media){
+async function toggleComments(id){
 
-  const current =
-    JSON.parse(
-      localStorage.getItem(
-        "watchedContent"
-      ) || "[]"
-    );
+  const box = $(`comments-${id}`);
 
-  current.unshift({
-    media,
-    time:new Date().toISOString()
-  });
+  if(!box) return;
 
-  localStorage.setItem(
-    "watchedContent",
-    JSON.stringify(
-      current.slice(0,50)
-    )
-  );
+  box.classList.toggle("hidden");
 
-  renderWatchedContent();
+  if(!box.classList.contains("hidden")){
 
+    await loadComments(id);
+  }
 }
 
 
-/* =========================================================
-   SEARCH
-   ========================================================= */
+async function loadComments(id){
 
-function searchPosts(query){
-
-  const q =
-    String(query || "")
-      .trim()
-      .toLowerCase();
-
-  if(!q){
-
-    renderFeed(allPosts);
-
-    return;
-
-  }
-
-  const filtered =
-    allPosts.filter(post=>{
-
-      const text =
-        [
-          post.caption,
-          post.text,
-          post.user_name,
-          post.username,
-          post.name
-        ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-
-      return text.includes(q);
-
-    });
-
-  renderFeed(filtered);
-
-}
-
-
-/* =========================================================
-   USERS
-   ========================================================= */
-
-async function loadUsers(){
-
-  if(!currentUser){
-
-    $("usersList").innerHTML =
-      `<div class="empty">
-        Log in to see people.
-      </div>`;
-
-    $("chatLoginMessage")
-      .classList.remove("hidden");
-
-    return;
-
-  }
-
-  $("chatLoginMessage")
-    .classList.add("hidden");
-
+  const box = $(`comments-${id}`);
 
   try{
 
-    const r =
-      await api("/api/users");
+    const data = await api(
+      `/api/posts/${encodeURIComponent(id)}/comments`
+    );
 
-    if(!r.ok){
+    const comments =
+      Array.isArray(data)
+      ? data
+      : data.comments || [];
 
-      throw new Error();
+    box.innerHTML = `
 
-    }
+      <div>
+        ${
+          comments.length
+          ? comments.map(c=>`
+
+            <div class="comment">
+
+              <div class="comment-body">
+
+                <strong>
+                  ${escapeHTML(
+                    c.user_name ||
+                    c.username ||
+                    c.user?.name ||
+                    "User"
+                  )}
+                </strong>
+
+                <div>
+                  ${escapeHTML(c.body || c.comment || c.text || "")}
+                </div>
+
+              </div>
+
+            </div>
+
+          `).join("")
+          : `<div class="muted small">
+              Hakuna comments bado.
+             </div>`
+        }
+      </div>
+
+      <div class="comment-form">
+
+        <input
+          id="commentInput-${id}"
+          class="input"
+          placeholder="Andika comment...">
+
+        <button
+          class="primary"
+          onclick="sendComment('${id}')">
+          ➤
+        </button>
+
+      </div>
+    `;
+
+  }catch(error){
+
+    box.innerHTML =
+      `<div class="muted small">
+        ${escapeHTML(error.message)}
+      </div>`;
+  }
+}
+
+
+async function sendComment(id){
+
+  const input = $(`commentInput-${id}`);
+
+  if(!input) return;
+
+  const body = input.value.trim();
+
+  if(!body) return;
+
+  try{
+
+    await api(
+      `/api/posts/${encodeURIComponent(id)}/comments`,
+      {
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json"
+        },
+        body:JSON.stringify({
+          body
+        })
+      }
+    );
+
+    input.value = "";
+
+    loadComments(id);
+
+  }catch(error){
+
+    toast(error.message);
+  }
+}
+
+
+async function reportPost(id){
+
+  if(!confirm("Report this post?")) return;
+
+  try{
+
+    await api(
+      `/api/posts/${encodeURIComponent(id)}/report`,
+      {
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json"
+        },
+        body:JSON.stringify({
+          reason:"User report"
+        })
+      }
+    );
+
+    toast("Post reported.");
+
+  }catch(error){
+
+    toast(error.message);
+  }
+}
+
+
+/* =========================
+   USERS / CHAT LIST
+========================= */
+
+async function searchUsers(value){
+
+  const q = value.trim();
+
+  const box = $("searchResults");
+
+  if(q.length < 2){
+
+    box.innerHTML = "";
+
+    return;
+  }
+
+  try{
+
+    const data = await api(
+      `/api/users/search?q=${encodeURIComponent(q)}`
+    );
 
     const users =
-      await r.json();
+      Array.isArray(data)
+      ? data
+      : data.users || [];
 
-    const list =
-      Array.isArray(users)
-        ? users
-        : [];
+    box.innerHTML =
+      users.map(user=>`
 
+        <div class="search-user">
 
-    if(!list.length){
-
-      $("usersList").innerHTML =
-        `<div class="empty">
-          No other users found.
-        </div>`;
-
-      return;
-
-    }
-
-
-    $("usersList").innerHTML =
-      list.map(user=>{
-
-        const id =
-          user.id ||
-          user.user_id;
-
-        const name =
-          user.name ||
-          user.username ||
-          "User";
-
-        return `
-
-        <div class="chat-user"
-             onclick="openChat(
-               '${escapeAttr(id)}',
-               '${escapeAttr(name)}'
-             )">
-
-          <img class="avatar"
-               src="${escapeAttr(
-                 mediaUrl(
-                   user.avatar
-                 ) ||
-                 "https://via.placeholder.com/50"
-               )}"
-               alt="">
+          <img
+            class="avatar small"
+            src="${escapeHTML(
+              avatarURL(
+                user.avatar_url ||
+                user.avatar
+              )
+            )}">
 
           <div>
             <strong>
-              ${escapeHtml(name)}
+              ${escapeHTML(
+                user.name ||
+                user.username ||
+                "User"
+              )}
             </strong>
+
+            <div class="muted small">
+              ${escapeHTML(
+                user.username
+                ? "@" + user.username
+                : ""
+              )}
+            </div>
           </div>
+
+          <button
+            class="secondary"
+            onclick='openChat(${JSON.stringify(user)})'>
+            Chat
+          </button>
 
         </div>
 
-        `;
+      `).join("");
 
-      }).join("");
+  }catch(error){
 
-  }catch(e){
-
-    $("usersList").innerHTML =
-      `<div class="empty">
-        Unable to load users.
+    box.innerHTML =
+      `<div class="muted small">
+        ${escapeHTML(error.message)}
       </div>`;
-
   }
-
 }
 
 
-/* =========================================================
-   CHAT
-   ========================================================= */
+async function loadChats(){
 
-async function openChat(id,name){
+  /*
+    Backend V4 inaweza kurudisha chat list tofauti
+    kulingana na implementation.
+    Tunajaribu endpoint ya messages na fallback.
+  */
 
-  if(!(await requireLogin()))return;
-
-  currentChatUser = id;
-  currentChatName = name;
-
-  $("chatHeader").textContent =
-    name;
-
-  await loadMessages(id);
-
-}
-
-
-async function loadMessages(id){
+  const box = $("chatItems");
 
   try{
 
-    const r =
-      await api(
-        `/api/messages/${encodeURIComponent(id)}`
-      );
+    let data;
 
-    if(!r.ok){
+    try{
 
-      throw new Error();
+      data = await api("/api/messages");
 
+    }catch(e){
+
+      data = [];
     }
 
-    const messages =
-      await r.json();
+    const users =
+      Array.isArray(data)
+      ? data
+      : data.chats ||
+        data.users ||
+        [];
 
-    const list =
-      Array.isArray(messages)
-        ? messages
-        : [];
+    const unique = [];
 
+    const seen = new Set();
 
-    if(!list.length){
+    for(const item of users){
 
-      $("messages").innerHTML =
+      const user =
+        item.user ||
+        item.other_user ||
+        item;
+
+      const id = user.id;
+
+      if(!id || seen.has(String(id))) continue;
+
+      if(ME && String(id) === String(ME.id)) continue;
+
+      seen.add(String(id));
+
+      unique.push(user);
+    }
+
+    if(!unique.length){
+
+      box.innerHTML =
         `<div class="empty">
-          No messages yet.
+          Search user hapo juu kuanza chat.
         </div>`;
 
       return;
-
     }
 
+    box.innerHTML =
+      unique.map(user=>chatItemHTML(user)).join("");
 
-    $("messages").innerHTML =
-      list.map(m=>{
+  }catch(error){
 
-        const sender =
-          String(
-            m.sender_id ??
-            m.sender ??
-            ""
-          );
-
-        const mine =
-          sender ===
-          String(currentUser?.id);
-
-        const text =
-          m.text ||
-          m.message ||
-          "";
-
-        return `
-
-        <div class="message ${
-          mine
-            ? "sent"
-            : "received"
-        }">
-
-          ${escapeHtml(text)}
-
-          ${
-            m.created_at
-              ? `<div class="message-meta">
-                   ${escapeHtml(m.created_at)}
-                 </div>`
-              : ""
-          }
-
-        </div>
-
-        `;
-
-      }).join("");
-
-
-    $("messages").scrollTop =
-      $("messages").scrollHeight;
-
-  }catch(e){
-
-    $("messages").innerHTML =
+    box.innerHTML =
       `<div class="empty">
-        No messages available.
+        Search user kuanza chat.
       </div>`;
-
   }
-
 }
 
 
-function showTyping(){
+function chatItemHTML(user){
 
-  if(!currentChatUser)return;
+  return `
 
-  $("typing").style.display =
-    "block";
+  <div
+    class="chat-item"
+    onclick='openChat(${JSON.stringify(user)})'>
 
-  clearTimeout(typingTimer);
+    <img
+      class="avatar"
+      src="${escapeHTML(
+        avatarURL(
+          user.avatar_url ||
+          user.avatar
+        )
+      )}">
 
-  typingTimer =
-    setTimeout(()=>{
+    <div class="chat-info">
 
-      $("typing").style.display =
-        "none";
+      <strong>
+        ${escapeHTML(
+          user.name ||
+          user.username ||
+          "User"
+        )}
+      </strong>
 
-    },900);
+      <small>
+        ${escapeHTML(
+          user.last_message ||
+          "Start conversation"
+        )}
+      </small>
 
+    </div>
+
+  </div>
+
+  `;
+}
+
+
+/* =========================
+   OPEN CHAT
+========================= */
+
+async function openChat(user){
+
+  if(!user || !user.id) return;
+
+  currentChatUser = user;
+
+  $("chatLayout").classList.add("chat-open");
+
+  $("noChatSelected").classList.add("hidden");
+
+  $("chatContent").classList.remove("hidden");
+
+  $("chatAvatar").src =
+    avatarURL(
+      user.avatar_url ||
+      user.avatar
+    );
+
+  $("chatName").textContent =
+    user.name ||
+    user.username ||
+    "User";
+
+  $("chatStatus").textContent =
+    "online";
+
+  $("chatMenu").classList.add("hidden");
+
+  await loadChatMessages();
+
+  await loadChatSettings();
+
+  scrollMessages();
+}
+
+
+function closeChat(){
+
+  currentChatUser = null;
+
+  $("chatLayout").classList.remove("chat-open");
+
+  $("chatContent").classList.add("hidden");
+
+  $("noChatSelected").classList.remove("hidden");
+}
+
+
+/* =========================
+   MESSAGES
+========================= */
+
+async function loadChatMessages(){
+
+  if(!currentChatUser) return;
+
+  try{
+
+    const data = await api(
+      `/api/messages/${encodeURIComponent(currentChatUser.id)}`
+    );
+
+    currentMessages =
+      Array.isArray(data)
+      ? data
+      : data.messages || [];
+
+    renderMessages();
+
+  }catch(error){
+
+    $("messages").innerHTML =
+      `<div class="empty">
+        ${escapeHTML(error.message)}
+      </div>`;
+  }
+}
+
+
+function renderMessages(){
+
+  const box = $("messages");
+
+  if(!currentMessages.length){
+
+    box.innerHTML =
+      `<div class="empty">
+        Anza mazungumzo hapa.
+      </div>`;
+
+    return;
+  }
+
+  box.innerHTML =
+    currentMessages.map(message=>{
+
+      const mine =
+        String(message.sender_id) ===
+        String(ME.id);
+
+      const text =
+        message.body ||
+        message.text ||
+        message.content ||
+        "";
+
+      const media =
+        message.media_url ||
+        message.file_url ||
+        "";
+
+      const isVoice =
+        message.message_type === "voice" ||
+        message.type === "voice" ||
+        message.media_type === "audio";
+
+      let content = "";
+
+      if(isVoice && media){
+
+        content = `
+          <div class="voice-message">
+            🎙️
+            <audio
+              controls
+              src="${escapeHTML(fileURL(media))}">
+            </audio>
+          </div>
+        `;
+
+      }else if(media){
+
+        content = `
+          <a
+            href="${escapeHTML(fileURL(media))}"
+            target="_blank"
+            rel="noopener">
+            📎 Open attachment
+          </a>
+          ${
+            text
+            ? `<div style="margin-top:6px">
+                ${escapeHTML(text)}
+               </div>`
+            : ""
+          }
+        `;
+
+      }else{
+
+        content =
+          escapeHTML(text);
+      }
+
+      return `
+
+        <div class="message ${mine ? "mine" : ""}">
+
+          <div class="bubble">
+
+            ${content}
+
+            <span class="message-time">
+              ${escapeHTML(
+                message.created_at
+                ? formatDate(message.created_at)
+                : ""
+              )}
+            </span>
+
+          </div>
+
+        </div>
+      `;
+
+    }).join("");
+
+  scrollMessages();
+}
+
+
+function scrollMessages(){
+
+  const box = $("messages");
+
+  setTimeout(()=>{
+    box.scrollTop = box.scrollHeight;
+  },50);
 }
 
 
 async function sendMessage(){
 
-  if(!(await requireLogin()))return;
+  if(!currentChatUser) return;
 
-  if(!currentChatUser){
+  const input = $("messageInput");
 
-    toast(
-      "Select a person first."
-    );
+  const body = input.value.trim();
 
-    return;
-
-  }
-
-  const input =
-    $("chatInput");
-
-  const text =
-    input.value.trim();
-
-  if(!text)return;
-
+  if(!body) return;
 
   try{
 
-    const r =
-      await api("/api/messages",{
-
-        method:"POST",
-
-        headers:{
-          "Content-Type":"application/json"
-        },
-
-        body:JSON.stringify({
-
-          receiver_id:
-            currentChatUser,
-
-          text
-
-        })
-
-      });
-
-    const data =
-      await safeJson(r);
-
-    if(!r.ok){
-
-      throw new Error(
-        data?.detail ||
-        "Message failed."
-      );
-
-    }
+    await api("/api/messages",{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json"
+      },
+      body:JSON.stringify({
+        receiver_id:currentChatUser.id,
+        body
+      })
+    });
 
     input.value = "";
 
-    $("typing").style.display =
-      "none";
+    await loadChatMessages();
 
-    await loadMessages(
-      currentChatUser
-    );
+    loadChats();
 
-  }catch(e){
+  }catch(error){
 
-    toast(
-      e.message ||
-      "Message service error."
-    );
-
+    toast(error.message);
   }
-
 }
 
 
-/* =========================================================
-   CHAT ATTACHMENT
-   ========================================================= */
+/* =========================
+   CHAT FILE
+========================= */
 
-function handleChatAttachment(event){
+async function sendChatFile(file){
 
-  const file =
-    event.target.files[0];
+  if(!file || !currentChatUser) return;
 
-  if(!file)return;
+  try{
 
-  /*
-    Current backend's message endpoint
-    accepts text JSON. We therefore keep the
-    attachment picker ready without pretending
-    the backend supports message attachments.
-  */
+    const form = new FormData();
 
-  toast(
-    "Attachment selected: " +
-    file.name +
-    ". Message attachment API can be enabled next."
-  );
+    form.append("receiver_id",String(currentChatUser.id));
+    form.append("file",file);
 
+    await api("/api/messages/voice",{
+      method:"POST",
+      body:form
+    });
+
+    await loadChatMessages();
+
+  }catch(error){
+
+    toast(error.message);
+  }
 }
 
 
-/* =========================================================
-   VOICE NOTES
-   ========================================================= */
+/* =========================
+   VOICE NOTE
+========================= */
 
-async function toggleVoiceRecording(){
+async function toggleRecording(){
 
-  if(recorder &&
-     recorder.state === "recording"){
+  if(mediaRecorder){
 
-    recorder.stop();
+    stopRecording();
 
     return;
-
   }
 
-  await startVoiceRecording();
+  if(!navigator.mediaDevices ||
+     !navigator.mediaDevices.getUserMedia){
 
-}
+    toast("Browser hii haiungi microphone.");
 
-
-async function startVoiceRecording(){
-
-  if(!(await requireLogin()))return;
+    return;
+  }
 
   if(!currentChatUser){
 
-    toast(
-      "Select a person before recording."
-    );
+    toast("Chagua chat kwanza.");
 
     return;
-
   }
-
-
-  if(!navigator.mediaDevices?.getUserMedia){
-
-    toast(
-      "Voice recording is not supported by this browser."
-    );
-
-    return;
-
-  }
-
 
   try{
 
@@ -3748,874 +2993,889 @@ async function startVoiceRecording(){
         audio:true
       });
 
-    recordedChunks=[];
+    recordingChunks = [];
 
-    recorder =
-      new MediaRecorder(
-        recordingStream
-      );
+    mediaRecorder =
+      new MediaRecorder(recordingStream);
 
+    mediaRecorder.ondataavailable = event=>{
 
-    recorder.ondataavailable =
-      event => {
-
-        if(event.data.size>0){
-
-          recordedChunks.push(
-            event.data
-          );
-
-        }
-
-      };
-
-
-    recorder.onstop =
-      async()=>{
-
-        if(recordingStream){
-
-          recordingStream
-            .getTracks()
-            .forEach(
-              track=>track.stop()
-            );
-
-        }
-
-
-        const blob =
-          new Blob(
-            recordedChunks,
-            {type:"audio/webm"}
-          );
-
-
-        const file =
-          new File(
-            [blob],
-            "voice-note.webm",
-            {type:"audio/webm"}
-          );
-
-
-        const form =
-          new FormData();
-
-        form.append(
-          "receiver_id",
-          currentChatUser
-        );
-
-        form.append(
-          "voice",
-          file
-        );
-
-
-        try{
-
-          const r =
-            await api(
-              "/api/messages/voice",
-              {
-                method:"POST",
-                body:form
-              }
-            );
-
-          const data =
-            await safeJson(r);
-
-          if(!r.ok){
-
-            throw new Error(
-              data?.detail ||
-              "Voice note failed."
-            );
-
-          }
-
-          toast(
-            "Voice note sent."
-          );
-
-          await loadMessages(
-            currentChatUser
-          );
-
-        }catch(e){
-
-          toast(
-            e.message ||
-            "Voice note upload failed."
-          );
-
-        }
-
-      };
-
-
-    recorder.start();
-
-    toast(
-      "Recording... press the microphone button again to stop."
-    );
-
-
-    setTimeout(()=>{
-
-      if(
-        recorder &&
-        recorder.state==="recording"
-      ){
-
-        recorder.stop();
-
+      if(event.data.size > 0){
+        recordingChunks.push(event.data);
       }
+    };
 
-    },30000);
+    mediaRecorder.onstop = async()=>{
 
+      const blob =
+        new Blob(
+          recordingChunks,
+          {type:"audio/webm"}
+        );
 
-  }catch(e){
+      const file =
+        new File(
+          [blob],
+          "voice-note.webm",
+          {type:"audio/webm"}
+        );
+
+      recordingStream
+        ?.getTracks()
+        .forEach(track=>track.stop());
+
+      recordingStream = null;
+
+      mediaRecorder = null;
+
+      $("recordBtn").textContent = "🎙️";
+
+      await uploadVoiceNote(file);
+    };
+
+    mediaRecorder.start();
+
+    $("recordBtn").textContent = "⏹️";
+
+    toast("Recording... bonyeza tena kumaliza.");
+
+  }catch(error){
 
     toast(
-      "Microphone permission is required."
+      "Microphone permission haijaruhusiwa."
     );
-
   }
-
 }
 
 
-/* =========================================================
-   AI
-   ========================================================= */
+function stopRecording(){
 
-function openAI(name){
+  if(mediaRecorder){
 
-  selectedAI = name;
-
-  $("aiModalTitle").textContent =
-    name;
-
-  $("domainQuestion").value =
-    "";
-
-  $("domainAnswer").style.display =
-    "none";
-
-  openModal("aiModal");
-
+    mediaRecorder.stop();
+  }
 }
 
 
-async function askDomainAI(){
+async function uploadVoiceNote(file){
 
-  const question =
-    $("domainQuestion")
-      .value
-      .trim();
-
-  if(!question){
-
-    toast(
-      "Write a question first."
-    );
-
-    return;
-
-  }
-
-
-  const answer =
-    $("domainAnswer");
-
-  answer.style.display =
-    "block";
-
-  answer.innerHTML =
-    "<strong>Thinking...</strong>";
-
+  if(!currentChatUser) return;
 
   try{
 
-    const r =
-      await api("/api/ai",{
+    const form = new FormData();
 
-        method:"POST",
+    form.append(
+      "receiver_id",
+      String(currentChatUser.id)
+    );
 
+    form.append(
+      "file",
+      file
+    );
+
+    await api("/api/messages/voice",{
+      method:"POST",
+      body:form
+    });
+
+    await loadChatMessages();
+
+  }catch(error){
+
+    toast(error.message);
+  }
+}
+
+
+/* =========================
+   CHAT SETTINGS
+========================= */
+
+async function loadChatSettings(){
+
+  if(!currentChatUser) return;
+
+  try{
+
+    const data = await api(
+      `/api/chats/${encodeURIComponent(currentChatUser.id)}/settings`
+    );
+
+    const settings =
+      data.settings ||
+      data;
+
+    const wallpaper =
+      settings.wallpaper_url ||
+      settings.wallpaper ||
+      "";
+
+    if(wallpaper){
+
+      $("messages").style.backgroundImage =
+        `url("${fileURL(wallpaper)}")`;
+
+    }else{
+
+      $("messages").style.backgroundImage = "none";
+    }
+
+  }catch(error){
+
+    $("messages").style.backgroundImage = "none";
+  }
+}
+
+
+function toggleChatMenu(){
+
+  if(!currentChatUser) return;
+
+  $("chatMenu").classList.toggle("hidden");
+}
+
+
+function pinChat(){
+
+  if(!currentChatUser) return;
+
+  updateChatSettings({
+    pinned:true
+  });
+
+  $("chatMenu").classList.add("hidden");
+}
+
+
+function toggleMute(){
+
+  if(!currentChatUser) return;
+
+  updateChatSettings({
+    muted:true
+  });
+
+  $("chatMenu").classList.add("hidden");
+}
+
+
+async function updateChatSettings(payload){
+
+  try{
+
+    await api(
+      `/api/chats/${encodeURIComponent(currentChatUser.id)}/settings`,
+      {
+        method:"PATCH",
         headers:{
-          "Content-Type":
-            "application/json"
+          "Content-Type":"application/json"
         },
+        body:JSON.stringify(payload)
+      }
+    );
 
+    toast("Chat settings updated.");
+
+  }catch(error){
+
+    toast(error.message);
+  }
+}
+
+
+function openWallpaperPicker(){
+
+  $("chatMenu").classList.add("hidden");
+
+  if(!currentChatUser) return;
+
+  $("wallpaperInput").click();
+}
+
+
+async function uploadWallpaper(file){
+
+  if(!file || !currentChatUser) return;
+
+  try{
+
+    const form = new FormData();
+
+    form.append("file",file);
+
+    const data = await api(
+      `/api/chats/${encodeURIComponent(currentChatUser.id)}/wallpaper`,
+      {
+        method:"POST",
+        body:form
+      }
+    );
+
+    const url =
+      data.wallpaper_url ||
+      data.url;
+
+    if(url){
+
+      $("messages").style.backgroundImage =
+        `url("${fileURL(url)}")`;
+    }
+
+    toast("Wallpaper updated.");
+
+  }catch(error){
+
+    toast(error.message);
+  }
+}
+
+
+async function clearCurrentChat(){
+
+  $("chatMenu").classList.add("hidden");
+
+  if(!currentChatUser) return;
+
+  if(!confirm(
+    "Clear chat kwenye account yako?"
+  )){
+    return;
+  }
+
+  try{
+
+    await api(
+      `/api/chats/${encodeURIComponent(currentChatUser.id)}`,
+      {
+        method:"DELETE"
+      }
+    );
+
+    currentMessages = [];
+
+    renderMessages();
+
+    toast("Chat cleared.");
+
+  }catch(error){
+
+    toast(error.message);
+  }
+}
+
+
+function searchMessages(){
+
+  $("chatMenu").classList.add("hidden");
+
+  const q =
+    prompt("Tafuta ujumbe:");
+
+  if(!q || !currentMessages.length) return;
+
+  const term = q.toLowerCase();
+
+  const found =
+    currentMessages.filter(m=>
+      String(
+        m.body ||
+        m.text ||
+        m.content ||
+        ""
+      ).toLowerCase().includes(term)
+    );
+
+  if(!found.length){
+
+    toast("Ujumbe haujapatikana.");
+
+    return;
+  }
+
+  const first = found[0];
+
+  const index =
+    currentMessages.indexOf(first);
+
+  const elements =
+    document.querySelectorAll(".message");
+
+  if(elements[index]){
+
+    elements[index].scrollIntoView({
+      behavior:"smooth",
+      block:"center"
+    });
+  }
+}
+
+
+function openCurrentProfile(){
+
+  $("chatMenu").classList.add("hidden");
+
+  if(!currentChatUser) return;
+
+  alert(
+    `${currentChatUser.name || "User"}\n` +
+    `${currentChatUser.username ? "@" + currentChatUser.username : ""}\n\n` +
+    `${currentChatUser.bio || ""}`
+  );
+}
+
+
+function showChatMedia(){
+
+  $("chatMenu").classList.add("hidden");
+
+  if(!currentMessages.length){
+
+    toast("Hakuna media/files bado.");
+
+    return;
+  }
+
+  const media =
+    currentMessages.filter(m=>
+      m.media_url ||
+      m.file_url
+    );
+
+  if(!media.length){
+
+    toast("Hakuna media/files kwenye chat.");
+
+    return;
+  }
+
+  alert(
+    `Media/Files: ${media.length}`
+  );
+}
+
+
+/* =========================
+   BLOCK / REPORT
+========================= */
+
+async function blockCurrentUser(){
+
+  $("chatMenu").classList.add("hidden");
+
+  if(!currentChatUser) return;
+
+  if(!confirm(
+    `Block ${currentChatUser.name || "user"}?`
+  )){
+    return;
+  }
+
+  try{
+
+    await api(
+      `/api/users/${encodeURIComponent(currentChatUser.id)}/block`,
+      {
+        method:"POST"
+      }
+    );
+
+    toast("User blocked.");
+
+    closeChat();
+
+  }catch(error){
+
+    toast(error.message);
+  }
+}
+
+
+async function reportCurrentUser(){
+
+  $("chatMenu").classList.add("hidden");
+
+  if(!currentChatUser) return;
+
+  const reason =
+    prompt(
+      "Sababu ya report:",
+      "Inappropriate behaviour"
+    );
+
+  if(!reason) return;
+
+  try{
+
+    await api(
+      `/api/users/${encodeURIComponent(currentChatUser.id)}/report`,
+      {
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json"
+        },
         body:JSON.stringify({
-
-          council:selectedAI,
-
-          question
-
+          reason
         })
+      }
+    );
 
-      });
+    toast("User reported.");
+
+  }catch(error){
+
+    toast(error.message);
+  }
+}
 
 
-    const data =
-      await safeJson(r);
+/* =========================
+   CALLS / LIVEKIT
+========================= */
 
+async function startCall(type){
 
-    if(!r.ok){
+  if(!currentChatUser){
+
+    toast("Chagua contact kwanza.");
+
+    return;
+  }
+
+  callType = type;
+  callOtherUser = currentChatUser;
+
+  $("callName").textContent =
+    currentChatUser.name ||
+    currentChatUser.username ||
+    "User";
+
+  $("callAvatar").src =
+    avatarURL(
+      currentChatUser.avatar_url ||
+      currentChatUser.avatar
+    );
+
+  $("callCenterAvatar").src =
+    $("callAvatar").src;
+
+  $("callTypeText").textContent =
+    type === "video"
+    ? "Video call"
+    : "Voice call";
+
+  $("callStatus").textContent =
+    "Calling...";
+
+  $("callScreen").classList.remove("hidden");
+
+  try{
+
+    const data = await api("/api/calls/token",{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json"
+      },
+      body:JSON.stringify({
+        receiver_id:currentChatUser.id,
+        call_type:type
+      })
+    });
+
+    callId =
+      data.call_id ||
+      data.id;
+
+    const token =
+      data.token;
+
+    const wsURL =
+      data.livekit_url ||
+      data.url ||
+      data.server_url;
+
+    if(!token || !wsURL){
 
       throw new Error(
-        data?.detail ||
-        "AI request failed."
+        "LiveKit token/server URL haijapatikana."
       );
-
     }
 
-
-    answer.innerHTML =
-      `<strong>
-        ${escapeHtml(selectedAI)}
-       </strong>
-       <p>
-        ${escapeHtml(
-          data.answer ||
-          data.response ||
-          "No answer returned."
-        )}
-       </p>`;
-
-
-  }catch(e){
-
-    answer.innerHTML =
-      `<strong>
-        ${escapeHtml(selectedAI)}
-       </strong>
-       <p>
-        AI service is currently unavailable.
-       </p>`;
-
-  }
-
-}
-
-
-async function askAI(){
-
-  const country =
-    $("countrySelect").value;
-
-  const level =
-    $("levelSelect").value;
-
-  const question =
-    $("aiQuestion")
-      .value
-      .trim();
-
-
-  if(
-    !country ||
-    !level ||
-    !question
-  ){
-
-    toast(
-      "Select country, education level and write a question."
-    );
-
-    return;
-
-  }
-
-
-  const answer =
-    $("aiAnswer");
-
-  answer.style.display =
-    "block";
-
-  answer.innerHTML =
-    "<strong>Education AI is thinking...</strong>";
-
-
-  try{
-
-    const r =
-      await api("/api/ai",{
-
-        method:"POST",
-
-        headers:{
-          "Content-Type":
-            "application/json"
-        },
-
-        body:JSON.stringify({
-
-          council:
-            "Education AI",
-
-          country,
-
-          education_level:
-            level,
-
-          question
-
-        })
-
-      });
-
-
-    const data =
-      await safeJson(r);
-
-
-    if(!r.ok){
+    if(
+      typeof LivekitClient === "undefined"
+    ){
 
       throw new Error(
-        data?.detail ||
-        "Education AI request failed."
+        "LiveKit browser SDK haijapakia."
       );
-
     }
 
+    await connectLiveKit(
+      wsURL,
+      token,
+      type
+    );
 
-    answer.innerHTML =
-      `<h3>Education AI</h3>
+  }catch(error){
 
-       <p>
-       <strong>Curriculum:</strong>
-       ${escapeHtml(country)}
-       </p>
+    $("callStatus").textContent =
+      error.message;
 
-       <p>
-       <strong>Level:</strong>
-       ${escapeHtml(level)}
-       </p>
-
-       <p>
-       ${escapeHtml(
-         data.answer ||
-         data.response ||
-         "No answer returned."
-       )}
-       </p>`;
-
-
-  }catch(e){
-
-    answer.innerHTML =
-      `<h3>Education AI</h3>
-
-       <p>
-       The AI endpoint is currently unavailable.
-       </p>
-
-       <p style="color:var(--muted)">
-       The interface is ready for the AI provider
-       connection on the backend.
-       </p>`;
-
+    toast(error.message);
   }
-
 }
 
 
-/* =========================================================
-   PROFILE
-   ========================================================= */
+async function connectLiveKit(url,token,type){
 
-async function loadProfile(){
+  const LK = LivekitClient;
 
-  if(!currentUser){
+  callRoom =
+    new LK.Room({
+      adaptiveStream:true,
+      dynacast:true
+    });
 
-    $("profileName").textContent =
-      "Your Name";
+  callRoom.on(
+    LK.RoomEvent.TrackSubscribed,
+    (track,publication,participant)=>{
 
-    $("profileBio").textContent =
-      "Log in to manage your profile.";
+      attachRemoteTrack(track);
+    }
+  );
 
-    $("followersCount").textContent =
-      "0";
+  callRoom.on(
+    LK.RoomEvent.TrackUnsubscribed,
+    track=>{
 
-    $("followingCount").textContent =
-      "0";
+      try{
+        track.detach();
+      }catch(e){}
+    }
+  );
 
-    $("likesCount").textContent =
-      "0";
+  callRoom.on(
+    LK.RoomEvent.ParticipantConnected,
+    participant=>{
 
-    $("postsCount").textContent =
-      "0";
+      $("callStatus").textContent =
+        "Connected";
 
-    return;
+    }
+  );
 
+  callRoom.on(
+    LK.RoomEvent.Disconnected,
+    ()=>{
+
+      $("callStatus").textContent =
+        "Call ended";
+
+      cleanupCall();
+    }
+  );
+
+  await callRoom.connect(url,token);
+
+  $("callStatus").textContent =
+    "Connected";
+
+  if(type === "video"){
+
+    await enableCameraAndMic();
+
+  }else{
+
+    await enableMicOnly();
   }
+}
 
+
+async function enableMicOnly(){
+
+  if(!callRoom) return;
 
   try{
 
-    const r =
-      await api("/api/me");
+    callMicTrack =
+      await LivekitClient.createLocalAudioTrack();
 
-    if(!r.ok){
+    await callRoom.localParticipant.publishTrack(
+      callMicTrack
+    );
 
-      throw new Error();
+  }catch(error){
 
+    toast(
+      "Microphone haikupatikana."
+    );
+  }
+}
+
+
+async function enableCameraAndMic(){
+
+  if(!callRoom) return;
+
+  try{
+
+    callMicTrack =
+      await LivekitClient.createLocalAudioTrack();
+
+    await callRoom.localParticipant.publishTrack(
+      callMicTrack
+    );
+
+    callCameraTrack =
+      await LivekitClient.createLocalVideoTrack();
+
+    await callRoom.localParticipant.publishTrack(
+      callCameraTrack
+    );
+
+    const videoElement =
+      $("localVideo");
+
+    const mediaStream =
+      new MediaStream();
+
+    if(callCameraTrack.mediaStreamTrack){
+      mediaStream.addTrack(
+        callCameraTrack.mediaStreamTrack
+      );
     }
 
-    const user =
-      await r.json();
-
-    currentUser =
-      user;
-
-    updateAuthUI();
-
-
-    $("profileName").textContent =
-      user.name ||
-      user.username ||
-      "Your Name";
-
-
-    $("profileBio").textContent =
-      user.bio ||
-      "Welcome to my MSAFIRI GLOBAL MEDIA profile.";
-
-
-    if(user.avatar){
-
-      $("profileAvatar").src =
-        mediaUrl(user.avatar);
-
+    if(callMicTrack.mediaStreamTrack){
+      mediaStream.addTrack(
+        callMicTrack.mediaStreamTrack
+      );
     }
 
+    videoElement.srcObject =
+      mediaStream;
 
-    $("followersCount").textContent =
-      user.followers_count || 0;
+    $("localVideo").classList.remove("hidden");
 
-    $("followingCount").textContent =
-      user.following_count || 0;
+  }catch(error){
 
-    $("likesCount").textContent =
-      user.likes_count || 0;
-
-    $("postsCount").textContent =
-      user.posts_count || 0;
-
-
-    $("editName").value =
-      user.name || "";
-
-    $("editBio").value =
-      user.bio || "";
+    toast(
+      "Camera/microphone haikupatikana."
+    );
+  }
+}
 
 
-    renderWatchedContent();
+function attachRemoteTrack(track){
 
+  const element =
+    track.attach();
+
+  if(track.kind === "video"){
+
+    const container =
+      $("callVideos");
+
+    element.className =
+      "remote-video";
+
+    container.insertBefore(
+      element,
+      container.firstChild
+    );
+
+  }else if(track.kind === "audio"){
+
+    document.body.appendChild(element);
+  }
+}
+
+
+async function toggleCallMute(){
+
+  if(!callMicTrack) return;
+
+  const enabled =
+    callMicTrack.isEnabled;
+
+  callMicTrack.enable(!enabled);
+
+  $("muteCallBtn").textContent =
+    enabled
+    ? "🔇"
+    : "🎙️";
+}
+
+
+async function toggleCallCamera(){
+
+  if(!callCameraTrack) return;
+
+  const enabled =
+    callCameraTrack.isEnabled;
+
+  callCameraTrack.enable(!enabled);
+
+  $("cameraCallBtn").textContent =
+    enabled
+    ? "🚫"
+    : "📷";
+}
+
+
+function switchCamera(){
+
+  if(!callCameraTrack){
+
+    toast("Camera haijawashwa.");
+
+    return;
+  }
+
+  /*
+    Browser/device camera switching differs.
+    LiveKit camera source handling can be expanded
+    when multiple camera devices are available.
+  */
+
+  toast("Camera switch requested.");
+}
+
+
+async function endCall(){
+
+  try{
+
+    if(callId){
+
+      await api(
+        `/api/calls/${encodeURIComponent(callId)}?status=ended`,
+        {
+          method:"PATCH"
+        }
+      );
+    }
 
   }catch(e){}
 
+  cleanupCall();
 }
 
 
-function openEditProfile(){
-
-  if(!currentUser){
-
-    openAuth("login");
-
-    return;
-
-  }
-
-  $("editName").value =
-    currentUser.name || "";
-
-  $("editBio").value =
-    currentUser.bio || "";
-
-  openModal(
-    "editProfileModal"
-  );
-
-}
-
-
-async function saveProfile(){
-
-  if(!(await requireLogin()))return;
-
-
-  const name =
-    $("editName").value.trim();
-
-  const bio =
-    $("editBio").value.trim();
-
-  const photo =
-    $("profilePhotoInput")
-      .files[0];
-
-
-  const form =
-    new FormData();
-
-  form.append(
-    "name",
-    name
-  );
-
-  form.append(
-    "bio",
-    bio
-  );
-
-
-  if(photo){
-
-    form.append(
-      "avatar",
-      photo
-    );
-
-  }
-
+function cleanupCall(){
 
   try{
 
-    const r =
-      await api("/api/profile",{
+    if(callMicTrack){
 
-        method:"PUT",
-
-        body:form
-
-      });
-
-
-    const data =
-      await safeJson(r);
-
-
-    if(!r.ok){
-
-      throw new Error(
-        data?.detail ||
-        "Profile update failed."
-      );
-
+      callMicTrack.stop();
+      callMicTrack = null;
     }
 
+    if(callCameraTrack){
 
-    toast(
-      "Profile updated successfully."
-    );
+      callCameraTrack.stop();
+      callCameraTrack = null;
+    }
 
+    if(callRoom){
 
-    closeModal(
-      "editProfileModal"
-    );
+      callRoom.disconnect();
+      callRoom = null;
+    }
 
+  }catch(e){}
 
-    $("profilePhotoInput").value =
-      "";
+  $("localVideo").srcObject = null;
+  $("remoteVideo").srcObject = null;
 
+  $("callScreen").classList.add("hidden");
 
-    await loadProfile();
-
-
-  }catch(e){
-
-    toast(
-      e.message ||
-      "Profile update failed."
-    );
-
-  }
-
+  callId = null;
+  callType = null;
+  callOtherUser = null;
 }
 
 
-/* =========================================================
-   STATUS LOADING
-   ========================================================= */
+/* =========================
+   STARTUP
+========================= */
 
-async function loadStatuses(){
+async function startup(){
+
+  if(!TOKEN){
+
+    $("authView").classList.remove("hidden");
+    $("appView").classList.add("hidden");
+
+    return;
+  }
 
   try{
 
-    const r =
-      await api("/api/status");
+    await loadMe();
 
-    if(!r.ok){
+    openApp();
 
-      throw new Error();
+  }catch(error){
 
-    }
+    TOKEN = "";
 
-    const statuses =
-      await r.json();
+    localStorage.removeItem(TOKEN_KEY);
 
-    const list =
-      Array.isArray(statuses)
-        ? statuses
-        : [];
+    $("authView").classList.remove("hidden");
+    $("appView").classList.add("hidden");
 
-
-    if(!list.length){
-
-      $("statusRow").innerHTML =
-        `<div class="empty">
-          No live statuses yet.
-        </div>`;
-
-      return;
-
-    }
-
-
-    $("statusRow").innerHTML =
-      list.map(s=>{
-
-        return `
-
-        <div class="status"
-             onclick="viewStatus('${escapeAttr(
-               mediaUrl(
-                 s.media_url ||
-                 s.media ||
-                 ""
-               )
-             )}')">
-
-          <div class="status-ring">
-
-            <img src="${escapeAttr(
-              mediaUrl(
-                s.avatar
-              ) ||
-              "https://via.placeholder.com/100"
-            )}"
-            alt="">
-
-          </div>
-
-          <small>
-            ${escapeHtml(
-              s.name ||
-              s.username ||
-              "User"
-            )}
-          </small>
-
-        </div>
-
-        `;
-
-      }).join("");
-
-
-  }catch(e){
-
-    $("statusRow").innerHTML =
-      `<div class="empty">
-        No live statuses yet.
-      </div>`;
-
-  }
-
-}
-
-
-function viewStatus(media){
-
-  if(!media)return;
-
-  window.open(
-    media,
-    "_blank",
-    "noopener"
-  );
-
-}
-
-
-/* =========================================================
-   PROFILE LOCAL CONTENT
-   ========================================================= */
-
-function renderWatchedContent(){
-
-  const box =
-    $("watchedContent");
-
-  const list =
-    JSON.parse(
-      localStorage.getItem(
-        "watchedContent"
-      ) || "[]"
+    toast(
+      "Session imeisha. Tafadhali login tena."
     );
+  }
+}
 
 
-  if(!list.length){
+/* =========================
+   CLOSE MENUS WHEN CLICKING
+   OUTSIDE
+========================= */
 
-    box.innerHTML =
-      "No watched content yet.";
+document.addEventListener("click",event=>{
 
-    return;
+  const menu = $("chatMenu");
 
+  if(
+    !menu.classList.contains("hidden") &&
+    !menu.contains(event.target) &&
+    !event.target.closest(".chat-header-actions")
+  ){
+
+    menu.classList.add("hidden");
   }
 
-
-  box.innerHTML =
-    list.slice(0,10)
-      .map(item=>`
-
-        <div style="
-          padding:10px 0;
-          border-bottom:1px solid var(--line)
-        ">
-
-          <a href="${escapeAttr(item.media)}"
-             target="_blank"
-             rel="noopener"
-             style="color:var(--primary)">
-            Open watched content
-          </a>
-
-          <div style="
-            color:var(--muted);
-            font-size:12px
-          ">
-            ${escapeHtml(item.time)}
-          </div>
-
-        </div>
-
-      `).join("");
-
-}
+});
 
 
-/* =========================================================
-   MODALS
-   ========================================================= */
+/* =========================
+   ESCAPE KEY
+========================= */
 
-function openModal(id){
+document.addEventListener("keydown",event=>{
 
-  $(id).classList.add(
-    "show"
-  );
+  if(event.key === "Escape"){
 
-}
+    $("chatMenu").classList.add("hidden");
 
-
-function closeModal(id){
-
-  $(id).classList.remove(
-    "show"
-  );
-
-}
-
-
-/* =========================================================
-   ESCAPE HELPERS
-   ========================================================= */
-
-function escapeHtml(value){
-
-  return String(value ?? "")
-    .replaceAll("&","&amp;")
-    .replaceAll("<","&lt;")
-    .replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;")
-    .replaceAll("'","&#039;");
-
-}
-
-
-function escapeAttr(value){
-
-  return escapeHtml(value);
-
-}
-
-
-/* =========================================================
-   CLOSE MODAL WHEN CLICKING OUTSIDE
-   ========================================================= */
-
-document.querySelectorAll(".modal")
-  .forEach(modal=>{
-
-    modal.addEventListener(
-      "click",
-      event=>{
-
-        if(event.target === modal){
-
-          modal.classList.remove(
-            "show"
-          );
-
-        }
-
-      }
-    );
-
-  });
-
-
-/* =========================================================
-   KEYBOARD SHORTCUT
-   ========================================================= */
-
-document.addEventListener(
-  "keydown",
-  event=>{
-
-    if(
-      event.key === "Escape"
-    ){
-
-      document.querySelectorAll(
-        ".modal.show"
-      ).forEach(modal=>{
-
-        modal.classList.remove(
-          "show"
-        );
-
-      });
-
-    }
-
+    document.querySelectorAll(".modal-bg")
+      .forEach(m=>m.classList.add("hidden"));
   }
-);
+
+});
 
 
-/* =========================================================
+/* =========================
    INITIALIZE
-   ========================================================= */
+========================= */
 
-(async function init(){
-
-  await refreshSession();
-
-  await loadFeed();
-
-  await loadStatuses();
-
-  renderWatchedContent();
-
-})();
+startup();
 
 </script>
 

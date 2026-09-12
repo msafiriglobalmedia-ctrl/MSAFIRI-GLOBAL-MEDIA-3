@@ -1,1401 +1,1395 @@
 import os
 import uuid
 import sqlite3
-from datetime import datetime, timezone
-from functools import wraps
+import hashlib
+import secrets
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Optional
 
-from flask import Flask, request, jsonify, send_from_directory, session
-from werkzeug.security import generate_password_hash, check_password_hash
-from werkzeug.utils import secure_filename
+from fastapi import (
+    FastAPI,
+    UploadFile,
+    File,
+    Form,
+    HTTPException,
+    Request,
+)
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+from pydantic import BaseModel
 
-# ============================================================
-# MSAFIRI GLOBAL MEDIA
-# V3 FULL CLEAN
-# Flask + PostgreSQL/SQLite + LiveKit
-# ============================================================
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-INDEX_FILE = os.path.join(BASE_DIR, "index.html")
-MEDIA_DIR = os.path.join(BASE_DIR, "media")
+# =========================================================
+# MSAFIRI GLOBAL MEDIA V3
+# Backend API
+# =========================================================
 
-os.makedirs(MEDIA_DIR, exist_ok=True)
+BASE_DIR = Path(__file__).resolve().parent
+DB_FILE = BASE_DIR / "msafiri.db"
+UPLOAD_DIR = BASE_DIR / "uploads"
 
-app = Flask(__name__, static_folder=None)
+UPLOAD_DIR.mkdir(exist_ok=True)
 
-app.secret_key = os.environ.get(
-    "SECRET_KEY",
-    "change-this-secret-in-render"
+MAX_UPLOAD_SIZE = 100 * 1024 * 1024  # 100 MB
+
+app = FastAPI(
+    title="MSAFIRI GLOBAL MEDIA V3 API",
+    version="3.0.0",
+    description="Backend API for MSAFIRI GLOBAL MEDIA",
 )
 
-app.config["MAX_CONTENT_LENGTH"] = 100 * 1024 * 1024
 
-DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
+# =========================================================
+# CORS
+# =========================================================
 
-LIVEKIT_URL = os.environ.get("LIVEKIT_URL", "").strip()
-LIVEKIT_API_KEY = os.environ.get("LIVEKIT_API_KEY", "").strip()
-LIVEKIT_API_SECRET = os.environ.get("LIVEKIT_API_SECRET", "").strip()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
-# ============================================================
+# =========================================================
+# STATIC UPLOADS
+# =========================================================
+
+app.mount(
+    "/uploads",
+    StaticFiles(directory=str(UPLOAD_DIR)),
+    name="uploads",
+)
+
+
+# =========================================================
 # DATABASE
-# ============================================================
+# =========================================================
 
-USE_POSTGRES = bool(DATABASE_URL)
-
-if USE_POSTGRES:
-    try:
-        import psycopg2
-        from psycopg2.extras import RealDictCursor
-    except Exception:
-        USE_POSTGRES = False
-
-
-def now_iso():
-    return datetime.now(timezone.utc).isoformat()
-
-
-def db_connect():
-    if USE_POSTGRES:
-        conn = psycopg2.connect(
-            DATABASE_URL,
-            cursor_factory=RealDictCursor
-        )
-        return conn
-
-    conn = sqlite3.connect(
-        os.path.join(BASE_DIR, "msafiri.db"),
-        check_same_thread=False
-    )
+def db():
+    conn = sqlite3.connect(DB_FILE)
     conn.row_factory = sqlite3.Row
     return conn
 
 
-def execute(sql, params=(), fetchone=False, fetchall=False, commit=False):
-    conn = db_connect()
-
-    try:
-        cur = conn.cursor()
-
-        if USE_POSTGRES:
-            sql = sql.replace("?", "%s")
-
-        cur.execute(sql, params)
-
-        result = None
-
-        if fetchone:
-            result = cur.fetchone()
-
-        elif fetchall:
-            result = cur.fetchall()
-
-        if commit:
-            conn.commit()
-
-        return result
-
-    finally:
-        conn.close()
+def now():
+    return datetime.utcnow().isoformat()
 
 
 def init_db():
 
-    conn = db_connect()
+    conn = db()
+    cur = conn.cursor()
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        password_hash TEXT,
+        bio TEXT DEFAULT '',
+        avatar TEXT DEFAULT '',
+        followers_count INTEGER DEFAULT 0,
+        following_count INTEGER DEFAULT 0,
+        likes_count INTEGER DEFAULT 0,
+        posts_count INTEGER DEFAULT 0,
+        created_at TEXT NOT NULL
+    )
+    """)
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS sessions (
+        token TEXT PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY(user_id) REFERENCES users(id)
+    )
+    """)
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS posts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        caption TEXT DEFAULT '',
+        media_url TEXT DEFAULT '',
+        media_type TEXT DEFAULT '',
+        created_at TEXT NOT NULL,
+        FOREIGN KEY(user_id) REFERENCES users(id)
+    )
+    """)
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS likes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        post_id INTEGER NOT NULL,
+        UNIQUE(user_id, post_id)
+    )
+    """)
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS comments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        post_id INTEGER NOT NULL,
+        text TEXT NOT NULL,
+        created_at TEXT NOT NULL
+    )
+    """)
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS saved_posts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        post_id INTEGER NOT NULL,
+        UNIQUE(user_id, post_id)
+    )
+    """)
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS reshares (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        post_id INTEGER NOT NULL,
+        created_at TEXT NOT NULL,
+        UNIQUE(user_id, post_id)
+    )
+    """)
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sender_id INTEGER NOT NULL,
+        receiver_id INTEGER NOT NULL,
+        text TEXT DEFAULT '',
+        media_url TEXT DEFAULT '',
+        voice_url TEXT DEFAULT '',
+        created_at TEXT NOT NULL,
+        read INTEGER DEFAULT 0
+    )
+    """)
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS statuses (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        text TEXT DEFAULT '',
+        media_url TEXT DEFAULT '',
+        media_type TEXT DEFAULT '',
+        audio_url TEXT DEFAULT '',
+        created_at TEXT NOT NULL
+    )
+    """)
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS followers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        follower_id INTEGER NOT NULL,
+        following_id INTEGER NOT NULL,
+        UNIQUE(follower_id, following_id)
+    )
+    """)
+
+    conn.commit()
+    conn.close()
+
+
+init_db()
+
+
+# =========================================================
+# SECURITY HELPERS
+# =========================================================
+
+def hash_password(password: str):
+    salt = secrets.token_bytes(16)
+
+    key = hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode(),
+        salt,
+        120000,
+    )
+
+    return salt.hex() + ":" + key.hex()
+
+
+def verify_password(password: str, stored: str):
 
     try:
-        cur = conn.cursor()
 
-        if USE_POSTGRES:
+        salt_hex, key_hex = stored.split(":")
 
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS users (
-                    id SERIAL PRIMARY KEY,
-                    name TEXT NOT NULL,
-                    email TEXT UNIQUE NOT NULL,
-                    password_hash TEXT NOT NULL,
-                    avatar TEXT DEFAULT '',
-                    created_at TEXT NOT NULL
-                )
-            """)
+        salt = bytes.fromhex(salt_hex)
 
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS posts (
-                    id SERIAL PRIMARY KEY,
-                    user_id INTEGER NOT NULL,
-                    caption TEXT DEFAULT '',
-                    media_url TEXT DEFAULT '',
-                    media_type TEXT DEFAULT '',
-                    created_at TEXT NOT NULL
-                )
-            """)
+        new_key = hashlib.pbkdf2_hmac(
+            "sha256",
+            password.encode(),
+            salt,
+            120000,
+        )
 
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS messages (
-                    id SERIAL PRIMARY KEY,
-                    sender_id INTEGER NOT NULL,
-                    receiver_id INTEGER NOT NULL,
-                    text TEXT DEFAULT '',
-                    media_url TEXT DEFAULT '',
-                    created_at TEXT NOT NULL
-                )
-            """)
+        return secrets.compare_digest(
+            new_key.hex(),
+            key_hex,
+        )
 
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS calls (
-                    id SERIAL PRIMARY KEY,
-                    caller_id INTEGER NOT NULL,
-                    receiver_id INTEGER NOT NULL,
-                    room_name TEXT NOT NULL,
-                    call_type TEXT DEFAULT 'video',
-                    status TEXT DEFAULT 'started',
-                    created_at TEXT NOT NULL,
-                    ended_at TEXT DEFAULT ''
-                )
-            """)
-
-        else:
-
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS users (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT NOT NULL,
-                    email TEXT UNIQUE NOT NULL,
-                    password_hash TEXT NOT NULL,
-                    avatar TEXT DEFAULT '',
-                    created_at TEXT NOT NULL
-                )
-            """)
-
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS posts (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER NOT NULL,
-                    caption TEXT DEFAULT '',
-                    media_url TEXT DEFAULT '',
-                    media_type TEXT DEFAULT '',
-                    created_at TEXT NOT NULL
-                )
-            """)
-
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS messages (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    sender_id INTEGER NOT NULL,
-                    receiver_id INTEGER NOT NULL,
-                    text TEXT DEFAULT '',
-                    media_url TEXT DEFAULT '',
-                    created_at TEXT NOT NULL
-                )
-            """)
-
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS calls (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    caller_id INTEGER NOT NULL,
-                    receiver_id INTEGER NOT NULL,
-                    room_name TEXT NOT NULL,
-                    call_type TEXT DEFAULT 'video',
-                    status TEXT DEFAULT 'started',
-                    created_at TEXT NOT NULL,
-                    ended_at TEXT DEFAULT ''
-                )
-            """)
-
-        conn.commit()
-
-    finally:
-        conn.close()
+    except Exception:
+        return False
 
 
-# ============================================================
-# HELPERS
-# ============================================================
+def create_session(user_id: int):
 
-def row_to_dict(row):
-    if row is None:
+    token = secrets.token_urlsafe(48)
+
+    conn = db()
+
+    conn.execute(
+        """
+        INSERT INTO sessions(token,user_id,created_at)
+        VALUES(?,?,?)
+        """,
+        (token, user_id, now()),
+    )
+
+    conn.commit()
+    conn.close()
+
+    return token
+
+
+def get_token(request: Request):
+
+    auth = request.headers.get("Authorization", "")
+
+    if auth.startswith("Bearer "):
+        return auth[7:]
+
+    return request.cookies.get("session")
+
+
+def current_user(request: Request):
+
+    token = get_token(request)
+
+    if not token:
         return None
 
-    if isinstance(row, dict):
-        return dict(row)
+    conn = db()
 
-    return dict(row)
-
-
-def current_user():
-    uid = session.get("user_id")
-
-    if not uid:
-        return None
-
-    row = execute(
+    row = conn.execute(
         """
-        SELECT id, name, email, avatar, created_at
+        SELECT users.*
         FROM users
-        WHERE id = ?
+        JOIN sessions
+        ON users.id=sessions.user_id
+        WHERE sessions.token=?
         """,
-        (uid,),
-        fetchone=True
-    )
+        (token,),
+    ).fetchone()
 
-    return row_to_dict(row)
+    conn.close()
 
-
-def login_required(fn):
-    @wraps(fn)
-    def wrapper(*args, **kwargs):
-        if not current_user():
-            return jsonify({
-                "ok": False,
-                "error": "Ingia kwanza."
-            }), 401
-
-        return fn(*args, **kwargs)
-
-    return wrapper
+    return dict(row) if row else None
 
 
-def clean_text(value, max_length=5000):
-    if value is None:
-        return ""
+def require_user(request: Request):
 
-    return str(value).strip()[:max_length]
-
-
-# ============================================================
-# FRONTEND
-# ============================================================
-
-@app.route("/", methods=["GET"])
-def home():
-    """
-    IMPORTANT:
-    Serve index.html directly from the same directory as main.py.
-    This fixes the Render 200 0 problem caused by an empty response.
-    """
-
-    if not os.path.isfile(INDEX_FILE):
-        return """
-        <h1>MSAFIRI GLOBAL MEDIA</h1>
-        <p>index.html haipo kwenye root ya project.</p>
-        """, 500
-
-    return send_from_directory(BASE_DIR, "index.html")
-
-
-@app.route("/index.html", methods=["GET"])
-def index_html():
-    return home()
-
-
-@app.route("/media/<path:filename>")
-def media_file(filename):
-    return send_from_directory(MEDIA_DIR, filename)
-
-
-@app.route("/favicon.ico")
-def favicon():
-    return ("", 204)
-
-
-# ============================================================
-# HEALTH
-# ============================================================
-
-@app.route("/api/health", methods=["GET"])
-def health():
-    database = "postgresql" if USE_POSTGRES else "sqlite"
-
-    return jsonify({
-        "ok": True,
-        "app": "MSAFIRI GLOBAL MEDIA",
-        "version": "V3 FULL CLEAN",
-        "database": database,
-        "livekit": bool(
-            LIVEKIT_URL and
-            LIVEKIT_API_KEY and
-            LIVEKIT_API_SECRET
-        ),
-        "time": now_iso()
-    })
-
-
-# ============================================================
-# AUTH
-# ============================================================
-
-@app.route("/api/me", methods=["GET"])
-def me():
-    user = current_user()
-
-    return jsonify({
-        "ok": True,
-        "user": user
-    })
-
-
-@app.route("/api/register", methods=["POST"])
-def register():
-
-    data = request.get_json(silent=True) or {}
-
-    name = clean_text(data.get("name"), 100)
-    email = clean_text(data.get("email"), 200).lower()
-    password = str(data.get("password") or "")
-
-    if not name:
-        return jsonify({
-            "ok": False,
-            "error": "Weka jina."
-        }), 400
-
-    if not email or "@" not in email:
-        return jsonify({
-            "ok": False,
-            "error": "Weka email sahihi."
-        }), 400
-
-    if len(password) < 6:
-        return jsonify({
-            "ok": False,
-            "error": "Password iwe na angalau characters 6."
-        }), 400
-
-    existing = execute(
-        "SELECT id FROM users WHERE email = ?",
-        (email,),
-        fetchone=True
-    )
-
-    if existing:
-        return jsonify({
-            "ok": False,
-            "error": "Email tayari imesajiliwa."
-        }), 409
-
-    password_hash = generate_password_hash(password)
-    created = now_iso()
-
-    conn = db_connect()
-
-    try:
-        cur = conn.cursor()
-
-        if USE_POSTGRES:
-
-            cur.execute(
-                """
-                INSERT INTO users
-                (name, email, password_hash, created_at)
-                VALUES (%s, %s, %s, %s)
-                RETURNING id
-                """,
-                (name, email, password_hash, created)
-            )
-
-            uid = cur.fetchone()["id"]
-
-        else:
-
-            cur.execute(
-                """
-                INSERT INTO users
-                (name, email, password_hash, created_at)
-                VALUES (?, ?, ?, ?)
-                """,
-                (name, email, password_hash, created)
-            )
-
-            uid = cur.lastrowid
-
-        conn.commit()
-
-    finally:
-        conn.close()
-
-    session["user_id"] = uid
-
-    return jsonify({
-        "ok": True,
-        "user": current_user()
-    })
-
-
-@app.route("/api/login", methods=["POST"])
-def login():
-
-    data = request.get_json(silent=True) or {}
-
-    email = clean_text(data.get("email"), 200).lower()
-    password = str(data.get("password") or "")
-
-    user = execute(
-        """
-        SELECT *
-        FROM users
-        WHERE email = ?
-        """,
-        (email,),
-        fetchone=True
-    )
+    user = current_user(request)
 
     if not user:
-        return jsonify({
-            "ok": False,
-            "error": "Email au password si sahihi."
-        }), 401
-
-    user = row_to_dict(user)
-
-    if not check_password_hash(
-        user["password_hash"],
-        password
-    ):
-        return jsonify({
-            "ok": False,
-            "error": "Email au password si sahihi."
-        }), 401
-
-    session["user_id"] = user["id"]
-
-    user.pop("password_hash", None)
-
-    return jsonify({
-        "ok": True,
-        "user": user
-    })
-
-
-@app.route("/api/logout", methods=["POST"])
-def logout():
-    session.clear()
-
-    return jsonify({
-        "ok": True
-    })
-
-
-# ============================================================
-# USERS
-# ============================================================
-
-@app.route("/api/users", methods=["GET"])
-@login_required
-def users():
-
-    rows = execute(
-        """
-        SELECT id, name, email, avatar, created_at
-        FROM users
-        ORDER BY id DESC
-        LIMIT 100
-        """,
-        fetchall=True
-    )
-
-    return jsonify({
-        "ok": True,
-        "users": [
-            row_to_dict(x)
-            for x in rows
-        ]
-    })
-
-
-# ============================================================
-# POSTS
-# ============================================================
-
-@app.route("/api/posts", methods=["GET"])
-def get_posts():
-
-    rows = execute(
-        """
-        SELECT
-            p.id,
-            p.user_id,
-            p.caption,
-            p.media_url,
-            p.media_type,
-            p.created_at,
-            u.name AS user_name,
-            u.avatar AS user_avatar
-        FROM posts p
-        JOIN users u ON u.id = p.user_id
-        ORDER BY p.id DESC
-        LIMIT 100
-        """,
-        fetchall=True
-    )
-
-    return jsonify({
-        "ok": True,
-        "posts": [
-            row_to_dict(x)
-            for x in rows
-        ]
-    })
-
-
-@app.route("/api/posts", methods=["POST"])
-@login_required
-def create_post():
-
-    user = current_user()
-    data = request.get_json(silent=True) or {}
-
-    caption = clean_text(data.get("caption"), 5000)
-    media_url = clean_text(data.get("media_url"), 1000)
-    media_type = clean_text(data.get("media_type"), 50)
-
-    if not caption and not media_url:
-        return jsonify({
-            "ok": False,
-            "error": "Weka caption au media."
-        }), 400
-
-    created = now_iso()
-
-    conn = db_connect()
-
-    try:
-        cur = conn.cursor()
-
-        if USE_POSTGRES:
-
-            cur.execute(
-                """
-                INSERT INTO posts
-                (user_id, caption, media_url, media_type, created_at)
-                VALUES (%s, %s, %s, %s, %s)
-                RETURNING id
-                """,
-                (
-                    user["id"],
-                    caption,
-                    media_url,
-                    media_type,
-                    created
-                )
-            )
-
-            pid = cur.fetchone()["id"]
-
-        else:
-
-            cur.execute(
-                """
-                INSERT INTO posts
-                (user_id, caption, media_url, media_type, created_at)
-                VALUES (?, ?, ?, ?, ?)
-                """,
-                (
-                    user["id"],
-                    caption,
-                    media_url,
-                    media_type,
-                    created
-                )
-            )
-
-            pid = cur.lastrowid
-
-        conn.commit()
-
-    finally:
-        conn.close()
-
-    return jsonify({
-        "ok": True,
-        "post_id": pid
-    })
-
-
-@app.route("/api/posts/<int:post_id>", methods=["DELETE"])
-@login_required
-def delete_post(post_id):
-
-    user = current_user()
-
-    post = execute(
-        """
-        SELECT id, user_id
-        FROM posts
-        WHERE id = ?
-        """,
-        (post_id,),
-        fetchone=True
-    )
-
-    if not post:
-        return jsonify({
-            "ok": False,
-            "error": "Post haipo."
-        }), 404
-
-    post = row_to_dict(post)
-
-    if int(post["user_id"]) != int(user["id"]):
-        return jsonify({
-            "ok": False,
-            "error": "Huna ruhusa kufuta post hii."
-        }), 403
-
-    execute(
-        "DELETE FROM posts WHERE id = ?",
-        (post_id,),
-        commit=True
-    )
-
-    return jsonify({
-        "ok": True
-    })
-
-
-# ============================================================
-# MESSAGES / CHAT
-# ============================================================
-
-@app.route("/api/messages", methods=["GET"])
-@login_required
-def get_messages():
-
-    user = current_user()
-
-    try:
-        other_id = int(request.args.get("user_id", "0"))
-    except ValueError:
-        other_id = 0
-
-    if other_id <= 0:
-        return jsonify({
-            "ok": False,
-            "error": "user_id haipo."
-        }), 400
-
-    rows = execute(
-        """
-        SELECT
-            m.id,
-            m.sender_id,
-            m.receiver_id,
-            m.text,
-            m.media_url,
-            m.created_at,
-            u.name AS sender_name
-        FROM messages m
-        JOIN users u ON u.id = m.sender_id
-        WHERE
-            (m.sender_id = ? AND m.receiver_id = ?)
-            OR
-            (m.sender_id = ? AND m.receiver_id = ?)
-        ORDER BY m.id ASC
-        LIMIT 500
-        """,
-        (
-            user["id"],
-            other_id,
-            other_id,
-            user["id"]
-        ),
-        fetchall=True
-    )
-
-    return jsonify({
-        "ok": True,
-        "messages": [
-            row_to_dict(x)
-            for x in rows
-        ]
-    })
-
-
-@app.route("/api/messages", methods=["POST"])
-@login_required
-def send_message():
-
-    user = current_user()
-    data = request.get_json(silent=True) or {}
-
-    try:
-        receiver_id = int(data.get("receiver_id"))
-    except (TypeError, ValueError):
-        return jsonify({
-            "ok": False,
-            "error": "receiver_id si sahihi."
-        }), 400
-
-    text = clean_text(data.get("text"), 5000)
-    media_url = clean_text(data.get("media_url"), 1000)
-
-    if receiver_id == user["id"]:
-        return jsonify({
-            "ok": False,
-            "error": "Huwezi kujitumia message."
-        }), 400
-
-    if not text and not media_url:
-        return jsonify({
-            "ok": False,
-            "error": "Message iko tupu."
-        }), 400
-
-    receiver = execute(
-        "SELECT id FROM users WHERE id = ?",
-        (receiver_id,),
-        fetchone=True
-    )
-
-    if not receiver:
-        return jsonify({
-            "ok": False,
-            "error": "Mtumiaji huyo hayupo."
-        }), 404
-
-    execute(
-        """
-        INSERT INTO messages
-        (sender_id, receiver_id, text, media_url, created_at)
-        VALUES (?, ?, ?, ?, ?)
-        """,
-        (
-            user["id"],
-            receiver_id,
-            text,
-            media_url,
-            now_iso()
-        ),
-        commit=True
-    )
-
-    return jsonify({
-        "ok": True
-    })
-
-
-# ============================================================
-# LIVEKIT
-# ============================================================
-
-def livekit_available():
-    return bool(
-        LIVEKIT_URL and
-        LIVEKIT_API_KEY and
-        LIVEKIT_API_SECRET
-    )
-
-
-@app.route("/api/call/token", methods=["POST"])
-@login_required
-def call_token():
-
-    if not livekit_available():
-        return jsonify({
-            "ok": False,
-            "error": "LiveKit environment variables hazijawekwa vizuri kwenye Render."
-        }), 500
-
-    try:
-        from livekit import api
-    except Exception:
-        return jsonify({
-            "ok": False,
-            "error": "livekit package haipo kwenye requirements.txt."
-        }), 500
-
-    user = current_user()
-    data = request.get_json(silent=True) or {}
-
-    room = clean_text(data.get("room"), 200)
-    call_type = clean_text(
-        data.get("call_type", "video"),
-        20
-    )
-
-    try:
-        receiver_id = int(data.get("receiver_id", 0))
-    except (TypeError, ValueError):
-        receiver_id = 0
-
-    if not room:
-        return jsonify({
-            "ok": False,
-            "error": "Room name haipo."
-        }), 400
-
-    if call_type not in ("video", "voice"):
-        call_type = "video"
-
-    # --------------------------------------------------------
-    # START CALL
-    # receiver_id ikiwa imeletwa = caller anaanzisha call
-    # --------------------------------------------------------
-
-    if receiver_id:
-
-        if receiver_id == user["id"]:
-            return jsonify({
-                "ok": False,
-                "error": "Huwezi kumpigia simu mwenyewe."
-            }), 400
-
-        receiver = execute(
-            "SELECT id FROM users WHERE id = ?",
-            (receiver_id,),
-            fetchone=True
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication required",
         )
 
-        if not receiver:
-            return jsonify({
-                "ok": False,
-                "error": "Mpokeaji wa call hayupo."
-            }), 404
-
-        # Prevent duplicate active call for same room
-        active = execute(
-            """
-            SELECT id
-            FROM calls
-            WHERE room_name = ?
-            AND status = 'started'
-            """,
-            (room,),
-            fetchone=True
-        )
-
-        if not active:
-
-            execute(
-                """
-                INSERT INTO calls
-                (caller_id, receiver_id, room_name, call_type, status, created_at)
-                VALUES (?, ?, ?, ?, 'started', ?)
-                """,
-                (
-                    user["id"],
-                    receiver_id,
-                    room,
-                    call_type,
-                    now_iso()
-                ),
-                commit=True
-            )
-
-    # --------------------------------------------------------
-    # LIVEKIT ACCESS TOKEN
-    # --------------------------------------------------------
-
-    try:
-
-        token = (
-            api.AccessToken(
-                LIVEKIT_API_KEY,
-                LIVEKIT_API_SECRET
-            )
-            .with_identity(
-                str(user["id"])
-            )
-            .with_name(
-                user["name"]
-            )
-            .with_grants(
-                api.VideoGrants(
-                    room_join=True,
-                    room=room,
-                    can_publish=True,
-                    can_subscribe=True
-                )
-            )
-        )
-
-        jwt_token = token.to_jwt()
-
-    except Exception as e:
-
-        return jsonify({
-            "ok": False,
-            "error": f"LiveKit token error: {str(e)}"
-        }), 500
-
-    return jsonify({
-        "ok": True,
-        "token": jwt_token,
-        "server_url": LIVEKIT_URL,
-        "room": room,
-        "call_type": call_type
-    })
+    return user
 
 
-# ============================================================
-# CALLS
-# ============================================================
+# =========================================================
+# FILE HELPERS
+# =========================================================
 
-@app.route("/api/calls", methods=["GET"])
-@login_required
-def calls():
+ALLOWED_IMAGE = {
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/gif",
+}
 
-    user = current_user()
+ALLOWED_VIDEO = {
+    "video/mp4",
+    "video/webm",
+    "video/ogg",
+}
 
-    rows = execute(
-        """
-        SELECT
-            c.id,
-            c.caller_id,
-            c.receiver_id,
-            c.room_name,
-            c.call_type,
-            c.status,
-            c.created_at,
-            c.ended_at,
-            caller.name AS caller_name,
-            receiver.name AS receiver_name
-        FROM calls c
-        JOIN users caller
-            ON caller.id = c.caller_id
-        JOIN users receiver
-            ON receiver.id = c.receiver_id
-        WHERE
-            c.caller_id = ?
-            OR c.receiver_id = ?
-        ORDER BY c.id DESC
-        LIMIT 100
-        """,
-        (
-            user["id"],
-            user["id"]
-        ),
-        fetchall=True
-    )
-
-    return jsonify({
-        "ok": True,
-        "calls": [
-            row_to_dict(x)
-            for x in rows
-        ]
-    })
-
-
-@app.route("/api/calls/incoming", methods=["GET"])
-@login_required
-def incoming_calls():
-
-    user = current_user()
-
-    rows = execute(
-        """
-        SELECT
-            c.id,
-            c.caller_id,
-            c.receiver_id,
-            c.room_name,
-            c.call_type,
-            c.status,
-            c.created_at,
-            caller.name AS caller_name
-        FROM calls c
-        JOIN users caller
-            ON caller.id = c.caller_id
-        WHERE
-            c.receiver_id = ?
-            AND c.status = 'started'
-        ORDER BY c.id DESC
-        LIMIT 20
-        """,
-        (user["id"],),
-        fetchall=True
-    )
-
-    return jsonify({
-        "ok": True,
-        "calls": [
-            row_to_dict(x)
-            for x in rows
-        ]
-    })
-
-
-@app.route("/api/calls/<int:call_id>/accept", methods=["POST"])
-@login_required
-def accept_call(call_id):
-
-    user = current_user()
-
-    call = execute(
-        """
-        SELECT *
-        FROM calls
-        WHERE id = ?
-        """,
-        (call_id,),
-        fetchone=True
-    )
-
-    if not call:
-        return jsonify({
-            "ok": False,
-            "error": "Call haipo."
-        }), 404
-
-    call = row_to_dict(call)
-
-    if int(call["receiver_id"]) != int(user["id"]):
-        return jsonify({
-            "ok": False,
-            "error": "Huna ruhusa."
-        }), 403
-
-    if call["status"] != "started":
-        return jsonify({
-            "ok": False,
-            "error": "Call hii haipo active."
-        }), 400
-
-    execute(
-        """
-        UPDATE calls
-        SET status = 'accepted'
-        WHERE id = ?
-        """,
-        (call_id,),
-        commit=True
-    )
-
-    return jsonify({
-        "ok": True,
-        "call": call
-    })
-
-
-@app.route("/api/calls/<int:call_id>/reject", methods=["POST"])
-@login_required
-def reject_call(call_id):
-
-    user = current_user()
-
-    call = execute(
-        """
-        SELECT *
-        FROM calls
-        WHERE id = ?
-        """,
-        (call_id,),
-        fetchone=True
-    )
-
-    if not call:
-        return jsonify({
-            "ok": False,
-            "error": "Call haipo."
-        }), 404
-
-    call = row_to_dict(call)
-
-    if int(call["receiver_id"]) != int(user["id"]):
-        return jsonify({
-            "ok": False,
-            "error": "Huna ruhusa."
-        }), 403
-
-    execute(
-        """
-        UPDATE calls
-        SET status = 'rejected',
-            ended_at = ?
-        WHERE id = ?
-        """,
-        (
-            now_iso(),
-            call_id
-        ),
-        commit=True
-    )
-
-    return jsonify({
-        "ok": True
-    })
-
-
-@app.route("/api/call/end", methods=["POST"])
-@login_required
-def end_call():
-
-    user = current_user()
-    data = request.get_json(silent=True) or {}
-
-    room = clean_text(data.get("room"), 200)
-
-    if not room:
-        return jsonify({
-            "ok": False,
-            "error": "Room haipo."
-        }), 400
-
-    execute(
-        """
-        UPDATE calls
-        SET status = 'ended',
-            ended_at = ?
-        WHERE
-            room_name = ?
-            AND
-            (caller_id = ? OR receiver_id = ?)
-            AND
-            status IN ('started', 'accepted')
-        """,
-        (
-            now_iso(),
-            room,
-            user["id"],
-            user["id"]
-        ),
-        commit=True
-    )
-
-    return jsonify({
-        "ok": True
-    })
-
-
-# ============================================================
-# FILE UPLOAD
-# ============================================================
-
-ALLOWED_EXTENSIONS = {
-    "jpg", "jpeg", "png", "gif",
-    "webp", "mp4", "webm",
-    "mp3", "wav", "m4a",
-    "pdf", "doc", "docx"
+ALLOWED_AUDIO = {
+    "audio/webm",
+    "audio/ogg",
+    "audio/mpeg",
+    "audio/wav",
 }
 
 
-def allowed_file(filename):
+async def save_upload(
+    file: UploadFile,
+    folder: str,
+    allowed_types=None,
+):
 
-    if "." not in filename:
-        return False
+    if not file:
+        return None, None
 
-    ext = filename.rsplit(".", 1)[1].lower()
+    if allowed_types and file.content_type not in allowed_types:
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported file type",
+        )
 
-    return ext in ALLOWED_EXTENSIONS
+    data = await file.read()
 
+    if len(data) > MAX_UPLOAD_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail="File is too large",
+        )
 
-@app.route("/api/upload", methods=["POST"])
-@login_required
-def upload_file():
-
-    if "file" not in request.files:
-        return jsonify({
-            "ok": False,
-            "error": "File haijatumwa."
-        }), 400
-
-    file = request.files["file"]
-
-    if not file.filename:
-        return jsonify({
-            "ok": False,
-            "error": "Chagua file."
-        }), 400
-
-    if not allowed_file(file.filename):
-        return jsonify({
-            "ok": False,
-            "error": "Aina ya file hairuhusiwi."
-        }), 400
-
-    original = secure_filename(file.filename)
-
-    ext = ""
-
-    if "." in original:
-        ext = "." + original.rsplit(".", 1)[1].lower()
+    extension = Path(file.filename or "").suffix.lower()
 
     filename = (
-        uuid.uuid4().hex +
-        ext
+        f"{uuid.uuid4().hex}"
+        f"{extension}"
     )
 
-    path = os.path.join(
-        MEDIA_DIR,
-        filename
+    folder_path = UPLOAD_DIR / folder
+    folder_path.mkdir(exist_ok=True)
+
+    destination = folder_path / filename
+
+    destination.write_bytes(data)
+
+    url = f"/uploads/{folder}/{filename}"
+
+    return url, file.content_type
+
+
+# =========================================================
+# BASIC
+# =========================================================
+
+@app.get("/")
+def root():
+
+    index = BASE_DIR / "index.html"
+
+    if index.exists():
+        return FileResponse(index)
+
+    return {
+        "name": "MSAFIRI GLOBAL MEDIA V3",
+        "status": "online",
+    }
+
+
+@app.get("/api/health")
+def health():
+
+    return {
+        "status": "online",
+        "service": "MSAFIRI GLOBAL MEDIA V3",
+        "time": now(),
+    }
+
+
+# =========================================================
+# AUTH
+# =========================================================
+
+class RegisterRequest(BaseModel):
+
+    name: str
+    email: str
+    password: str
+
+
+class LoginRequest(BaseModel):
+
+    email: str
+    password: str
+
+
+@app.post("/api/register")
+def register(data: RegisterRequest):
+
+    name = data.name.strip()
+    email = data.email.strip().lower()
+    password = data.password
+
+    if not name or not email or not password:
+        raise HTTPException(
+            400,
+            "All fields are required",
+        )
+
+    if len(password) < 6:
+        raise HTTPException(
+            400,
+            "Password must contain at least 6 characters",
+        )
+
+    conn = db()
+
+    existing = conn.execute(
+        "SELECT id FROM users WHERE email=?",
+        (email,),
+    ).fetchone()
+
+    if existing:
+        conn.close()
+
+        raise HTTPException(
+            409,
+            "Email already registered",
+        )
+
+    password_hash = hash_password(password)
+
+    cur = conn.execute(
+        """
+        INSERT INTO users
+        (name,email,password_hash,created_at)
+        VALUES(?,?,?,?)
+        """,
+        (
+            name,
+            email,
+            password_hash,
+            now(),
+        ),
     )
 
-    file.save(path)
+    user_id = cur.lastrowid
 
-    return jsonify({
-        "ok": True,
-        "url": "/media/" + filename,
-        "filename": filename
-    })
+    conn.commit()
+    conn.close()
 
+    token = create_session(user_id)
 
-# ============================================================
-# MARKET
-# ============================================================
-
-@app.route("/api/market", methods=["GET"])
-def market():
-
-    return jsonify({
-        "ok": True,
-        "items": [
-            {
-                "id": 1,
-                "name": "Digital Services",
-                "category": "Services",
-                "price": "TZS 10,000"
-            },
-            {
-                "id": 2,
-                "name": "Creative Studio",
-                "category": "Digital",
-                "price": "TZS 15,000"
-            },
-            {
-                "id": 3,
-                "name": "Education Materials",
-                "category": "Education",
-                "price": "TZS 5,000"
-            }
-        ]
-    })
+    return {
+        "message": "Account created successfully",
+        "token": token,
+        "user": {
+            "id": user_id,
+            "name": name,
+            "email": email,
+        },
+    }
 
 
-# ============================================================
-# AI COUNCIL
-# ============================================================
+@app.post("/api/login")
+def login(data: LoginRequest):
 
-@app.route("/api/ai", methods=["POST"])
-@login_required
-def ai():
+    email = data.email.strip().lower()
 
-    data = request.get_json(silent=True) or {}
+    conn = db()
 
-    council = clean_text(
-        data.get("council", "Education AI"),
-        100
+    user = conn.execute(
+        "SELECT * FROM users WHERE email=?",
+        (email,),
+    ).fetchone()
+
+    conn.close()
+
+    if not user:
+        raise HTTPException(
+            401,
+            "Invalid email or password",
+        )
+
+    if not verify_password(
+        data.password,
+        user["password_hash"],
+    ):
+        raise HTTPException(
+            401,
+            "Invalid email or password",
+        )
+
+    token = create_session(user["id"])
+
+    return {
+        "message": "Login successful",
+        "token": token,
+        "user": dict(user),
+    }
+
+
+@app.post("/api/logout")
+def logout(request: Request):
+
+    token = get_token(request)
+
+    if token:
+
+        conn = db()
+
+        conn.execute(
+            "DELETE FROM sessions WHERE token=?",
+            (token,),
+        )
+
+        conn.commit()
+        conn.close()
+
+    return {
+        "message": "Logged out",
+    }
+
+
+@app.get("/api/me")
+def me(request: Request):
+
+    user = require_user(request)
+
+    return user
+
+
+# =========================================================
+# USERS
+# =========================================================
+
+@app.get("/api/users")
+def users(request: Request):
+
+    user = require_user(request)
+
+    conn = db()
+
+    rows = conn.execute(
+        """
+        SELECT id,name,bio,avatar
+        FROM users
+        WHERE id != ?
+        ORDER BY name
+        """,
+        (user["id"],),
+    ).fetchall()
+
+    conn.close()
+
+    return [dict(row) for row in rows]
+
+
+# =========================================================
+# POSTS
+# =========================================================
+
+@app.get("/api/posts")
+def get_posts():
+
+    conn = db()
+
+    rows = conn.execute(
+        """
+        SELECT
+            posts.*,
+            users.name AS user_name,
+            users.avatar AS avatar
+        FROM posts
+        JOIN users
+        ON posts.user_id=users.id
+        ORDER BY posts.id DESC
+        """
+    ).fetchall()
+
+    conn.close()
+
+    result = []
+
+    for row in rows:
+
+        item = dict(row)
+
+        item["likes"] = get_post_count(
+            "likes",
+            row["id"],
+        )
+
+        item["comments"] = get_post_count(
+            "comments",
+            row["id"],
+        )
+
+        result.append(item)
+
+    return result
+
+
+def get_post_count(table, post_id):
+
+    conn = db()
+
+    row = conn.execute(
+        f"SELECT COUNT(*) AS count FROM {table} WHERE post_id=?",
+        (post_id,),
+    ).fetchone()
+
+    conn.close()
+
+    return row["count"]
+
+
+@app.post("/api/posts")
+async def create_post(
+    request: Request,
+    caption: str = Form(""),
+    media: Optional[UploadFile] = File(None),
+):
+
+    user = require_user(request)
+
+    media_url = ""
+    media_type = ""
+
+    if media:
+
+        media_url, media_type = await save_upload(
+            media,
+            "posts",
+            ALLOWED_IMAGE | ALLOWED_VIDEO,
+        )
+
+    conn = db()
+
+    cur = conn.execute(
+        """
+        INSERT INTO posts
+        (user_id,caption,media_url,media_type,created_at)
+        VALUES(?,?,?,?,?)
+        """,
+        (
+            user["id"],
+            caption.strip(),
+            media_url or "",
+            media_type or "",
+            now(),
+        ),
     )
 
-    prompt = clean_text(
-        data.get("prompt") or data.get("message"),
-        5000
+    post_id = cur.lastrowid
+
+    conn.execute(
+        """
+        UPDATE users
+        SET posts_count=posts_count+1
+        WHERE id=?
+        """,
+        (user["id"],),
     )
 
-    if not prompt:
-        return jsonify({
-            "ok": False,
-            "error": "Andika swali kwanza."
-        }), 400
+    conn.commit()
+    conn.close()
 
-    # --------------------------------------------------------
-    # V3 foundation.
-    # Hapa tunaweza kuunganisha AI provider baadaye.
-    # --------------------------------------------------------
+    return {
+        "message": "Post published",
+        "id": post_id,
+        "media_url": media_url,
+        "media_type": media_type,
+    }
 
-    return jsonify({
-        "ok": True,
+
+# =========================================================
+# LIKE
+# =========================================================
+
+@app.post("/api/posts/{post_id}/like")
+def like_post(
+    post_id: int,
+    request: Request,
+):
+
+    user = require_user(request)
+
+    conn = db()
+
+    exists = conn.execute(
+        """
+        SELECT id
+        FROM likes
+        WHERE user_id=? AND post_id=?
+        """,
+        (
+            user["id"],
+            post_id,
+        ),
+    ).fetchone()
+
+    if exists:
+
+        conn.execute(
+            "DELETE FROM likes WHERE id=?",
+            (exists["id"],),
+        )
+
+        liked = False
+
+    else:
+
+        conn.execute(
+            """
+            INSERT INTO likes(user_id,post_id)
+            VALUES(?,?)
+            """,
+            (
+                user["id"],
+                post_id,
+            ),
+        )
+
+        liked = True
+
+    conn.commit()
+    conn.close()
+
+    return {
+        "liked": liked,
+        "likes": get_post_count(
+            "likes",
+            post_id,
+        ),
+    }
+
+
+# =========================================================
+# COMMENTS
+# =========================================================
+
+class CommentRequest(BaseModel):
+
+    text: str
+
+
+@app.post("/api/posts/{post_id}/comments")
+def comment_post(
+    post_id: int,
+    data: CommentRequest,
+    request: Request,
+):
+
+    user = require_user(request)
+
+    text = data.text.strip()
+
+    if not text:
+        raise HTTPException(
+            400,
+            "Comment cannot be empty",
+        )
+
+    conn = db()
+
+    cur = conn.execute(
+        """
+        INSERT INTO comments
+        (user_id,post_id,text,created_at)
+        VALUES(?,?,?,?)
+        """,
+        (
+            user["id"],
+            post_id,
+            text,
+            now(),
+        ),
+    )
+
+    conn.commit()
+    conn.close()
+
+    return {
+        "message": "Comment added",
+        "id": cur.lastrowid,
+    }
+
+
+@app.get("/api/posts/{post_id}/comments")
+def get_comments(post_id: int):
+
+    conn = db()
+
+    rows = conn.execute(
+        """
+        SELECT
+            comments.*,
+            users.name,
+            users.avatar
+        FROM comments
+        JOIN users
+        ON comments.user_id=users.id
+        WHERE post_id=?
+        ORDER BY comments.id ASC
+        """,
+        (post_id,),
+    ).fetchall()
+
+    conn.close()
+
+    return [dict(row) for row in rows]
+
+
+# =========================================================
+# SAVE
+# =========================================================
+
+@app.post("/api/posts/{post_id}/save")
+def save_post(
+    post_id: int,
+    request: Request,
+):
+
+    user = require_user(request)
+
+    conn = db()
+
+    exists = conn.execute(
+        """
+        SELECT id
+        FROM saved_posts
+        WHERE user_id=? AND post_id=?
+        """,
+        (
+            user["id"],
+            post_id,
+        ),
+    ).fetchone()
+
+    if exists:
+
+        conn.execute(
+            "DELETE FROM saved_posts WHERE id=?",
+            (exists["id"],),
+        )
+
+        saved = False
+
+    else:
+
+        conn.execute(
+            """
+            INSERT INTO saved_posts(user_id,post_id)
+            VALUES(?,?)
+            """,
+            (
+                user["id"],
+                post_id,
+            ),
+        )
+
+        saved = True
+
+    conn.commit()
+    conn.close()
+
+    return {
+        "saved": saved,
+    }
+
+
+@app.get("/api/saved")
+def saved_posts(request: Request):
+
+    user = require_user(request)
+
+    conn = db()
+
+    rows = conn.execute(
+        """
+        SELECT
+            posts.*,
+            users.name AS user_name,
+            users.avatar
+        FROM saved_posts
+        JOIN posts
+        ON saved_posts.post_id=posts.id
+        JOIN users
+        ON posts.user_id=users.id
+        WHERE saved_posts.user_id=?
+        ORDER BY saved_posts.id DESC
+        """,
+        (user["id"],),
+    ).fetchall()
+
+    conn.close()
+
+    return [dict(row) for row in rows]
+
+
+# =========================================================
+# RESHARE
+# =========================================================
+
+@app.post("/api/posts/{post_id}/reshare")
+def reshare_post(
+    post_id: int,
+    request: Request,
+):
+
+    user = require_user(request)
+
+    conn = db()
+
+    exists = conn.execute(
+        """
+        SELECT id
+        FROM reshares
+        WHERE user_id=? AND post_id=?
+        """,
+        (
+            user["id"],
+            post_id,
+        ),
+    ).fetchone()
+
+    if not exists:
+
+        conn.execute(
+            """
+            INSERT INTO reshares
+            (user_id,post_id,created_at)
+            VALUES(?,?,?)
+            """,
+            (
+                user["id"],
+                post_id,
+                now(),
+            ),
+        )
+
+        conn.commit()
+
+    conn.close()
+
+    return {
+        "message": "Post reshared",
+    }
+
+
+# =========================================================
+# PROFILE
+# =========================================================
+
+@app.put("/api/profile")
+async def update_profile(
+    request: Request,
+    name: str = Form(""),
+    bio: str = Form(""),
+    avatar: Optional[UploadFile] = File(None),
+):
+
+    user = require_user(request)
+
+    avatar_url = None
+
+    if avatar:
+
+        avatar_url, _ = await save_upload(
+            avatar,
+            "avatars",
+            ALLOWED_IMAGE,
+        )
+
+    conn = db()
+
+    if avatar_url:
+
+        conn.execute(
+            """
+            UPDATE users
+            SET name=?,bio=?,avatar=?
+            WHERE id=?
+            """,
+            (
+                name.strip(),
+                bio.strip(),
+                avatar_url,
+                user["id"],
+            ),
+        )
+
+    else:
+
+        conn.execute(
+            """
+            UPDATE users
+            SET name=?,bio=?
+            WHERE id=?
+            """,
+            (
+                name.strip(),
+                bio.strip(),
+                user["id"],
+            ),
+        )
+
+    conn.commit()
+    conn.close()
+
+    return {
+        "message": "Profile updated",
+    }
+
+
+# =========================================================
+# STATUS
+# =========================================================
+
+@app.get("/api/status")
+def get_status():
+
+    conn = db()
+
+    rows = conn.execute(
+        """
+        SELECT
+            statuses.*,
+            users.name,
+            users.avatar
+        FROM statuses
+        JOIN users
+        ON statuses.user_id=users.id
+        ORDER BY statuses.id DESC
+        """
+    ).fetchall()
+
+    conn.close()
+
+    return [dict(row) for row in rows]
+
+
+@app.post("/api/status")
+async def create_status(
+    request: Request,
+    text: str = Form(""),
+    media: Optional[UploadFile] = File(None),
+    audio: Optional[UploadFile] = File(None),
+):
+
+    user = require_user(request)
+
+    media_url = ""
+    media_type = ""
+    audio_url = ""
+
+    if media:
+
+        media_url, media_type = await save_upload(
+            media,
+            "status",
+            ALLOWED_IMAGE | ALLOWED_VIDEO,
+        )
+
+    if audio:
+
+        audio_url, _ = await save_upload(
+            audio,
+            "status_audio",
+            ALLOWED_AUDIO,
+        )
+
+    conn = db()
+
+    cur = conn.execute(
+        """
+        INSERT INTO statuses
+        (user_id,text,media_url,media_type,audio_url,created_at)
+        VALUES(?,?,?,?,?,?)
+        """,
+        (
+            user["id"],
+            text.strip(),
+            media_url or "",
+            media_type or "",
+            audio_url or "",
+            now(),
+        ),
+    )
+
+    conn.commit()
+    conn.close()
+
+    return {
+        "message": "Status published",
+        "id": cur.lastrowid,
+    }
+
+
+# =========================================================
+# CHAT
+# =========================================================
+
+class MessageRequest(BaseModel):
+
+    receiver_id: int
+    text: str
+
+
+@app.get("/api/messages/{user_id}")
+def get_messages(
+    user_id: int,
+    request: Request,
+):
+
+    user = require_user(request)
+
+    conn = db()
+
+    rows = conn.execute(
+        """
+        SELECT *
+        FROM messages
+        WHERE
+        (sender_id=? AND receiver_id=?)
+        OR
+        (sender_id=? AND receiver_id=?)
+        ORDER BY id ASC
+        """,
+        (
+            user["id"],
+            user_id,
+            user_id,
+            user["id"],
+        ),
+    ).fetchall()
+
+    conn.close()
+
+    return [dict(row) for row in rows]
+
+
+@app.post("/api/messages")
+def send_message(
+    data: MessageRequest,
+    request: Request,
+):
+
+    user = require_user(request)
+
+    if not data.text.strip():
+        raise HTTPException(
+            400,
+            "Message cannot be empty",
+        )
+
+    conn = db()
+
+    cur = conn.execute(
+        """
+        INSERT INTO messages
+        (sender_id,receiver_id,text,created_at)
+        VALUES(?,?,?,?)
+        """,
+        (
+            user["id"],
+            data.receiver_id,
+            data.text.strip(),
+            now(),
+        ),
+    )
+
+    conn.commit()
+    conn.close()
+
+    return {
+        "message": "Message sent",
+        "id": cur.lastrowid,
+    }
+
+
+# =========================================================
+# VOICE MESSAGE
+# =========================================================
+
+@app.post("/api/messages/voice")
+async def voice_message(
+    request: Request,
+    receiver_id: int = Form(...),
+    voice: UploadFile = File(...),
+):
+
+    user = require_user(request)
+
+    voice_url, _ = await save_upload(
+        voice,
+        "voice",
+        ALLOWED_AUDIO,
+    )
+
+    conn = db()
+
+    cur = conn.execute(
+        """
+        INSERT INTO messages
+        (sender_id,receiver_id,voice_url,created_at)
+        VALUES(?,?,?,?)
+        """,
+        (
+            user["id"],
+            int(receiver_id),
+            voice_url,
+            now(),
+        ),
+    )
+
+    conn.commit()
+    conn.close()
+
+    return {
+        "message": "Voice note sent",
+        "voice_url": voice_url,
+        "id": cur.lastrowid,
+    }
+
+
+# =========================================================
+# AI
+# =========================================================
+
+class AIRequest(BaseModel):
+
+    council: str
+    question: str
+    country: Optional[str] = None
+    education_level: Optional[str] = None
+
+
+@app.post("/api/ai")
+def ai(data: AIRequest):
+
+    council = data.council.strip()
+
+    if not data.question.strip():
+        raise HTTPException(
+            400,
+            "Question is required",
+        )
+
+    # -----------------------------------------------------
+    # AI PROVIDER CONNECTION
+    # -----------------------------------------------------
+    #
+    # This is intentionally a safe fallback.
+    #
+    # To connect a real AI provider, put its API call here.
+    #
+    # Do NOT put an API secret directly in this file.
+    # Use an environment variable on your hosting service.
+    #
+    # -----------------------------------------------------
+
+    if council == "Education AI":
+
+        answer = (
+            "Education AI is ready. "
+            f"Curriculum: {data.country or 'Not specified'}. "
+            f"Level: {data.education_level or 'Not specified'}. "
+            f"Question received: {data.question}"
+        )
+
+    elif council == "Health AI":
+
+        answer = (
+            "Health AI can provide general educational "
+            "health information. It cannot replace a "
+            "qualified healthcare professional. "
+            f"Question received: {data.question}"
+        )
+
+    elif council == "Agricultural AI":
+
+        answer = (
+            "Agricultural AI can provide educational "
+            "information about crops, soil, farming, "
+            "pests, irrigation and agricultural research. "
+            f"Question received: {data.question}"
+        )
+
+    elif council == "Research AI":
+
+        answer = (
+            "Research AI can help with research questions, "
+            "study design, literature organization, "
+            "analysis ideas and academic explanations. "
+            f"Question received: {data.question}"
+        )
+
+    else:
+
+        answer = (
+            f"AI Council '{council}' received your question: "
+            f"{data.question}"
+        )
+
+    return {
+        "answer": answer,
         "council": council,
-        "answer": (
-            f"{council} imepokea swali lako. "
-            "AI engine inaweza kuunganishwa hapa "
-            "na provider wako wa AI."
-        )
-    })
+    }
 
 
-# ============================================================
-# REALITY LAB
-# ============================================================
+# =========================================================
+# GOOGLE LOGIN FOUNDATION
+# =========================================================
 
-@app.route("/api/reality", methods=["POST"])
-@login_required
-def reality():
+@app.get("/api/auth/google")
+def google_login():
 
-    data = request.get_json(silent=True) or {}
-
-    mode = clean_text(
-        data.get("mode", "object_counter"),
-        100
+    google_client_id = os.getenv(
+        "GOOGLE_CLIENT_ID"
     )
 
-    return jsonify({
-        "ok": True,
-        "mode": mode,
-        "result": {
-            "message": "Reality Lab engine iko tayari kupokea image/camera input."
+    if not google_client_id:
+
+        return {
+            "configured": False,
+            "message": (
+                "Google OAuth is not configured yet. "
+                "Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET "
+                "as environment variables."
+            ),
         }
-    })
+
+    return {
+        "configured": True,
+        "message": "Google OAuth configuration detected.",
+    }
 
 
-# ============================================================
-# ERROR HANDLERS
-# ============================================================
+# =========================================================
+# STARTUP INFO
+# =========================================================
 
-@app.errorhandler(404)
-def not_found(error):
+@app.get("/api")
+def api_info():
 
-    if request.path.startswith("/api/"):
-        return jsonify({
-            "ok": False,
-            "error": "API endpoint haipo.",
-            "path": request.path
-        }), 404
-
-    return home()
-
-
-@app.errorhandler(413)
-def too_large(error):
-
-    return jsonify({
-        "ok": False,
-        "error": "File ni kubwa sana. Maximum ni 100MB."
-    }), 413
-
-
-@app.errorhandler(500)
-def internal_error(error):
-
-    return jsonify({
-        "ok": False,
-        "error": "Server error."
-    }), 500
-
-
-# ============================================================
-# INITIALIZE DATABASE
-# ============================================================
-
-try:
-    init_db()
-    print("==========================================")
-    print("MSAFIRI GLOBAL MEDIA V3")
-    print("Database initialized")
-    print("Database:", "PostgreSQL" if USE_POSTGRES else "SQLite")
-    print("LiveKit:", "READY" if livekit_available() else "NOT CONFIGURED")
-    print("Index:", INDEX_FILE)
-    print("Index exists:", os.path.isfile(INDEX_FILE))
-    print("==========================================")
-
-except Exception as e:
-    print("DATABASE INITIALIZATION ERROR:", repr(e))
-
-
-# ============================================================
-# LOCAL RUN
-# Render uses: gunicorn main:app
-# ============================================================
-
-if __name__ == "__main__":
-
-    port = int(
-        os.environ.get(
-            "PORT",
-            "5000"
-        )
-    )
-
-    app.run(
-        host="0.0.0.0",
-        port=port,
-        debug=False
-    )
+    return {
+        "name": "MSAFIRI GLOBAL MEDIA V3",
+        "version": "3.0.0",
+        "status": "online",
+        "features": [
+            "authentication",
+            "profiles",
+            "posts",
+            "photo_upload",
+            "video_upload",
+            "likes",
+            "comments",
+            "saved_posts",
+            "reshares",
+            "status",
+            "chat",
+            "voice_notes",
+            "AI foundation",
+            "Google OAuth foundation",
+        ],
+    }

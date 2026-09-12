@@ -2,7 +2,7 @@
 # MSAFIRI GLOBAL MEDIA V4
 # FastAPI + PostgreSQL + LiveKit
 # ============================================================
-
+from fastapi.responses import FileResponse
 import os
 import re
 import uuid
@@ -814,19 +814,11 @@ def startup():
 # ROOT
 # ============================================================
 
-@app.get("/")
+@app.get("/", include_in_schema=False)
 def root():
-    return {
-        "app": APP_NAME,
-        "version": "4.0.0",
-        "status": "online",
-        "database": "postgresql",
-        "livekit": bool(
-            LIVEKIT_URL
-            and LIVEKIT_API_KEY
-            and LIVEKIT_API_SECRET
-        ),
-    }
+    return FileResponse(
+        str(BASE_DIR / "index.html")
+    )
 
 
 # ============================================================

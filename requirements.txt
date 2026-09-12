@@ -1,5 +1,6 @@
-Flask
-gunicorn
-psycopg2-binary
-Werkzeug
-livekit-api
+fastapi
+uvicorn[standard]
+python-multipart
+python-dotenv
+passlib[bcrypt]
+PyJWT

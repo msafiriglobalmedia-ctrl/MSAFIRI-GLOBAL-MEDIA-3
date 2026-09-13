@@ -926,9 +926,12 @@ def register(data: RegisterRequest):
 
     with db() as conn:
 
+        # Check whether this email already has an account.
+        # Do NOT use deleted_at because the current users table
+        # does not contain that column.
         existing = conn.execute(
             """
-            SELECT id, deleted_at
+            SELECT id
             FROM users
             WHERE email = %s
             LIMIT 1
@@ -971,6 +974,7 @@ def register(data: RegisterRequest):
         "message": "Account created successfully.",
         "user": user_dict(user),
     }
+
 
 
 # ============================================================

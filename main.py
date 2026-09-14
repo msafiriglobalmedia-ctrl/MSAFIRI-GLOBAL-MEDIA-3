@@ -84,6 +84,7 @@ pwd_context = CryptContext(
     schemes=["bcrypt"],
     deprecated="auto",
 )
+password_hasher = PasswordHasher()
 
 
 # ============================================================

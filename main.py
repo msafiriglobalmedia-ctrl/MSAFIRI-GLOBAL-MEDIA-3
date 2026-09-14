@@ -1,16 +1,15 @@
 # ============================================================
-# MSAFIRI GLOBAL MEDIA V4
-# FastAPI + PostgreSQL + LiveKit
+# MSAFIRI GLOBAL MEDIA V4.1
+# FastAPI + PostgreSQL + JWT + LiveKit
 # ============================================================
-from fastapi.responses import FileResponse
+
 import os
-import re
-import uuid
 import hashlib
 import secrets
 import mimetypes
 from pathlib import Path
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from typing import Optional
 
 import psycopg
 from psycopg.rows import dict_row
@@ -22,52 +21,56 @@ from fastapi import (
     File,
     Form,
     Header,
-    Cookie,
     Query,
 )
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, EmailStr
 
-from livekit import api
+from passlib.context import CryptContext
+import jwt
 
 
 # ============================================================
 # CONFIG
 # ============================================================
 
-APP_NAME = "MSAFIRI GLOBAL MEDIA V4"
+APP_NAME = "MSAFIRI GLOBAL MEDIA V4.1"
 
 BASE_DIR = Path(__file__).resolve().parent
+
 UPLOAD_DIR = BASE_DIR / "uploads"
-POST_UPLOAD_DIR = UPLOAD_DIR / "posts"
-AVATAR_UPLOAD_DIR = UPLOAD_DIR / "avatars"
-WALLPAPER_UPLOAD_DIR = UPLOAD_DIR / "wallpapers"
-VOICE_UPLOAD_DIR = UPLOAD_DIR / "voice"
+AVATAR_DIR = UPLOAD_DIR / "avatars"
+POST_DIR = UPLOAD_DIR / "posts"
+VOICE_DIR = UPLOAD_DIR / "voice"
+CHAT_FILE_DIR = UPLOAD_DIR / "chat_files"
+WALLPAPER_DIR = UPLOAD_DIR / "wallpapers"
 
 for folder in [
     UPLOAD_DIR,
-    POST_UPLOAD_DIR,
-    AVATAR_UPLOAD_DIR,
-    WALLPAPER_UPLOAD_DIR,
-    VOICE_UPLOAD_DIR,
+    AVATAR_DIR,
+    POST_DIR,
+    VOICE_DIR,
+    CHAT_FILE_DIR,
+    WALLPAPER_DIR,
 ]:
     folder.mkdir(parents=True, exist_ok=True)
 
 
-DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-LIVEKIT_URL = os.getenv("LIVEKIT_URL", "").strip()
-LIVEKIT_API_KEY = os.getenv("LIVEKIT_API_KEY", "").strip()
-LIVEKIT_API_SECRET = os.getenv("LIVEKIT_API_SECRET", "").strip()
+JWT_SECRET = os.getenv("JWT_SECRET", "CHANGE_THIS_SECRET_IN_RENDER")
+JWT_ALGORITHM = "HS256"
+TOKEN_DAYS = 30
 
+LIVEKIT_URL = os.getenv("LIVEKIT_URL", "")
+LIVEKIT_API_KEY = os.getenv("LIVEKIT_API_KEY", "")
+LIVEKIT_API_SECRET = os.getenv("LIVEKIT_API_SECRET", "")
 
-if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace(
-        "postgres://",
-        "postgresql://",
-        1,
-    )
+pwd_context = CryptContext(
+    schemes=["bcrypt"],
+    deprecated="auto",
+)
 
 
 # ============================================================
@@ -76,8 +79,7 @@ if DATABASE_URL.startswith("postgres://"):
 
 app = FastAPI(
     title=APP_NAME,
-    version="4.0.0",
-    description="MSAFIRI GLOBAL MEDIA V4 Backend",
+    version="4.1.0",
 )
 
 
@@ -91,25 +93,10 @@ app.add_middleware(
 
 
 # ============================================================
-# STATIC FILES
+# DATABASE
 # ============================================================
 
-app.mount(
-    "/uploads",
-    StaticFiles(directory=str(UPLOAD_DIR)),
-    name="uploads",
-)
-
-
-# ============================================================
-# HELPERS
-# ============================================================
-
-def now_utc():
-    return datetime.now(timezone.utc)
-
-
-def db():
+def get_conn():
     if not DATABASE_URL:
         raise RuntimeError("DATABASE_URL is not configured")
 
@@ -119,691 +106,294 @@ def db():
     )
 
 
-def hash_token(token: str):
-    return hashlib.sha256(
-        token.encode("utf-8")
-    ).hexdigest()
-
-
-def generate_token():
-    return secrets.token_urlsafe(48)
-
-
-def normalize_email(email: str):
-    return email.strip().lower()
-
-
-def clean_text(value: str, max_length: int = 5000):
-    if value is None:
-        return ""
-
-    value = value.strip()
-
-    if len(value) > max_length:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Text is too long. Maximum {max_length} characters.",
-        )
-
-    return value
-
-
-def valid_password(password: str):
-    if len(password) < 6:
-        raise HTTPException(
-            status_code=400,
-            detail="Password must contain at least 6 characters.",
-        )
-
-
-def password_hash(password: str):
-    """
-    Compatible PBKDF2 password format.
-    """
-    salt = secrets.token_hex(16)
-
-    iterations = 120000
-
-    digest = hashlib.pbkdf2_hmac(
-        "sha256",
-        password.encode("utf-8"),
-        salt.encode("utf-8"),
-        iterations,
-    )
-
-    return (
-        f"pbkdf2_sha256${iterations}$"
-        f"{salt}${digest.hex()}"
-    )
-
-
-def password_verify(password: str, stored: str):
-    try:
-        algorithm, iterations, salt, stored_hash = stored.split(
-            "$",
-            3,
-        )
-
-        if algorithm != "pbkdf2_sha256":
-            return False
-
-        iterations = int(iterations)
-
-        digest = hashlib.pbkdf2_hmac(
-            "sha256",
-            password.encode("utf-8"),
-            salt.encode("utf-8"),
-            iterations,
-        )
-
-        return secrets.compare_digest(
-            digest.hex(),
-            stored_hash,
-        )
-
-    except Exception:
-        return False
-
-
-def safe_filename(filename: str):
-    ext = Path(filename or "").suffix.lower()
-
-    allowed = {
-        ".jpg",
-        ".jpeg",
-        ".png",
-        ".gif",
-        ".webp",
-        ".mp4",
-        ".webm",
-        ".mov",
-        ".mp3",
-        ".wav",
-        ".m4a",
-        ".ogg",
-    }
-
-    if ext not in allowed:
-        ext = ""
-
-    return f"{uuid.uuid4().hex}{ext}"
-
-
-def get_bearer_token(
-    authorization: str | None,
-    token_cookie: str | None,
-):
-    if authorization:
-        if authorization.lower().startswith("bearer "):
-            return authorization[7:].strip()
-
-    if token_cookie:
-        return token_cookie.strip()
-
-    return None
-
-
-def require_user(
-    authorization: str | None = None,
-    token_cookie: str | None = None,
-):
-    token = get_bearer_token(
-        authorization,
-        token_cookie,
-    )
-
-    if not token:
-        raise HTTPException(
-            status_code=401,
-            detail="Authentication required.",
-        )
-
-    token_hash = hash_token(token)
-
-    with db() as conn:
-        user = conn.execute(
-            """
-            SELECT
-                u.id,
-                u.name,
-                u.email,
-                u.bio,
-                u.avatar,
-                u.created_at,
-                u.updated_at
-            FROM sessions s
-            JOIN users u
-                ON u.id = s.user_id
-            WHERE s.token_hash = %s
-              AND s.revoked = FALSE
-              AND u.deleted_at IS NULL
-            LIMIT 1
-            """,
-            (token_hash,),
-        ).fetchone()
-
-    if not user:
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid or logged-out session.",
-        )
-
-    return user
-
-
-def user_dict(user):
-    if not user:
-        return None
-
-    return {
-        "id": user["id"],
-        "name": user["name"],
-        "email": user["email"],
-        "bio": user.get("bio"),
-        "avatar": user.get("avatar"),
-        "created_at": user.get("created_at"),
-        "updated_at": user.get("updated_at"),
-    }
-
-
 # ============================================================
-# DATABASE INITIALIZATION
+# DATABASE INITIALIZATION + MIGRATION
 # ============================================================
 
 def init_db():
-
-    with db() as conn:
+    with get_conn() as conn:
 
         # ----------------------------------------------------
         # USERS
         # ----------------------------------------------------
 
-        conn.execute(
-            """
+        conn.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 id BIGSERIAL PRIMARY KEY,
-
                 name TEXT NOT NULL,
-
                 email TEXT NOT NULL UNIQUE,
-
                 password_hash TEXT NOT NULL,
-
                 bio TEXT DEFAULT '',
-
                 avatar TEXT,
-
                 deleted_at TIMESTAMPTZ,
-
-                created_at TIMESTAMPTZ NOT NULL
-                    DEFAULT CURRENT_TIMESTAMP,
-
-                updated_at TIMESTAMPTZ NOT NULL
-                    DEFAULT CURRENT_TIMESTAMP
+                created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
-            """
-        )
+        """)
 
+        # IMPORTANT:
+        # Existing PostgreSQL tables are NOT changed by
+        # CREATE TABLE IF NOT EXISTS.
+        # These migrations repair older V3/V4 databases.
+
+        conn.execute("""
+            ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS bio TEXT DEFAULT ''
+        """)
+
+        conn.execute("""
+            ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS avatar TEXT
+        """)
+
+        conn.execute("""
+            ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ
+        """)
+
+        conn.execute("""
+            ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS created_at
+            TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+        """)
+
+        conn.execute("""
+            ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS updated_at
+            TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+        """)
 
         # ----------------------------------------------------
         # SESSIONS
         # ----------------------------------------------------
 
-        conn.execute(
-            """
+        conn.execute("""
             CREATE TABLE IF NOT EXISTS sessions (
                 id BIGSERIAL PRIMARY KEY,
-
-                user_id BIGINT NOT NULL
-                    REFERENCES users(id)
-                    ON DELETE CASCADE,
-
+                user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                 token_hash TEXT NOT NULL UNIQUE,
-
-                revoked BOOLEAN NOT NULL DEFAULT FALSE,
-
-                created_at TIMESTAMPTZ NOT NULL
-                    DEFAULT CURRENT_TIMESTAMP
+                created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                expires_at TIMESTAMPTZ NOT NULL,
+                revoked BOOLEAN NOT NULL DEFAULT FALSE
             )
-            """
-        )
+        """)
 
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_sessions_token
+            ON sessions(token_hash)
+        """)
 
         # ----------------------------------------------------
         # POSTS
         # ----------------------------------------------------
 
-        conn.execute(
-            """
+        conn.execute("""
             CREATE TABLE IF NOT EXISTS posts (
                 id BIGSERIAL PRIMARY KEY,
-
-                user_id BIGINT NOT NULL
-                    REFERENCES users(id)
-                    ON DELETE CASCADE,
-
-                caption TEXT DEFAULT '',
-
+                user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                caption TEXT NOT NULL DEFAULT '',
                 media_url TEXT,
-
                 media_type TEXT,
-
-                deleted_at TIMESTAMPTZ,
-
-                created_at TIMESTAMPTZ NOT NULL
-                    DEFAULT CURRENT_TIMESTAMP,
-
-                updated_at TIMESTAMPTZ NOT NULL
-                    DEFAULT CURRENT_TIMESTAMP
+                created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
-            """
-        )
+        """)
 
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_posts_created
+            ON posts(created_at DESC)
+        """)
+
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_posts_user
+            ON posts(user_id)
+        """)
 
         # ----------------------------------------------------
         # LIKES
         # ----------------------------------------------------
 
-        conn.execute(
-            """
+        conn.execute("""
             CREATE TABLE IF NOT EXISTS likes (
                 id BIGSERIAL PRIMARY KEY,
-
-                user_id BIGINT NOT NULL
-                    REFERENCES users(id)
-                    ON DELETE CASCADE,
-
-                post_id BIGINT NOT NULL
-                    REFERENCES posts(id)
-                    ON DELETE CASCADE,
-
-                created_at TIMESTAMPTZ NOT NULL
-                    DEFAULT CURRENT_TIMESTAMP,
-
-                UNIQUE(user_id, post_id)
+                post_id BIGINT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+                user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(post_id, user_id)
             )
-            """
-        )
-
+        """)
 
         # ----------------------------------------------------
         # COMMENTS
         # ----------------------------------------------------
 
-        conn.execute(
-            """
+        conn.execute("""
             CREATE TABLE IF NOT EXISTS comments (
                 id BIGSERIAL PRIMARY KEY,
-
-                user_id BIGINT NOT NULL
-                    REFERENCES users(id)
-                    ON DELETE CASCADE,
-
-                post_id BIGINT NOT NULL
-                    REFERENCES posts(id)
-                    ON DELETE CASCADE,
-
+                post_id BIGINT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+                user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                 text TEXT NOT NULL,
-
-                created_at TIMESTAMPTZ NOT NULL
-                    DEFAULT CURRENT_TIMESTAMP
+                created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
-            """
-        )
-
+        """)
 
         # ----------------------------------------------------
         # SAVED POSTS
         # ----------------------------------------------------
 
-        conn.execute(
-            """
+        conn.execute("""
             CREATE TABLE IF NOT EXISTS saved_posts (
                 id BIGSERIAL PRIMARY KEY,
-
-                user_id BIGINT NOT NULL
-                    REFERENCES users(id)
-                    ON DELETE CASCADE,
-
-                post_id BIGINT NOT NULL
-                    REFERENCES posts(id)
-                    ON DELETE CASCADE,
-
-                created_at TIMESTAMPTZ NOT NULL
-                    DEFAULT CURRENT_TIMESTAMP,
-
-                UNIQUE(user_id, post_id)
+                post_id BIGINT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+                user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(post_id, user_id)
             )
-            """
-        )
-
+        """)
 
         # ----------------------------------------------------
         # RESHARES
         # ----------------------------------------------------
 
-        conn.execute(
-            """
+        conn.execute("""
             CREATE TABLE IF NOT EXISTS reshares (
                 id BIGSERIAL PRIMARY KEY,
-
-                user_id BIGINT NOT NULL
-                    REFERENCES users(id)
-                    ON DELETE CASCADE,
-
-                post_id BIGINT NOT NULL
-                    REFERENCES posts(id)
-                    ON DELETE CASCADE,
-
-                created_at TIMESTAMPTZ NOT NULL
-                    DEFAULT CURRENT_TIMESTAMP,
-
-                UNIQUE(user_id, post_id)
+                post_id BIGINT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+                user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(post_id, user_id)
             )
-            """
-        )
-
+        """)
 
         # ----------------------------------------------------
         # MESSAGES
         # ----------------------------------------------------
 
-        conn.execute(
-            """
+        conn.execute("""
             CREATE TABLE IF NOT EXISTS messages (
                 id BIGSERIAL PRIMARY KEY,
-
-                sender_id BIGINT NOT NULL
-                    REFERENCES users(id)
-                    ON DELETE CASCADE,
-
-                receiver_id BIGINT NOT NULL
-                    REFERENCES users(id)
-                    ON DELETE CASCADE,
-
+                sender_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                receiver_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                 text TEXT DEFAULT '',
-
                 media_url TEXT,
-
                 media_type TEXT,
-
-                voice_url TEXT,
-
-                read BOOLEAN NOT NULL DEFAULT FALSE,
-
+                duration_seconds INTEGER,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 deleted_for_sender BOOLEAN NOT NULL DEFAULT FALSE,
-
                 deleted_for_receiver BOOLEAN NOT NULL DEFAULT FALSE,
-
-                created_at TIMESTAMPTZ NOT NULL
-                    DEFAULT CURRENT_TIMESTAMP
+                seen BOOLEAN NOT NULL DEFAULT FALSE
             )
-            """
-        )
+        """)
 
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_messages_sender_receiver
+            ON messages(sender_id, receiver_id, created_at DESC)
+        """)
+
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_messages_receiver_sender
+            ON messages(receiver_id, sender_id, created_at DESC)
+        """)
 
         # ----------------------------------------------------
         # CHAT SETTINGS
         # ----------------------------------------------------
 
-        conn.execute(
-            """
+        conn.execute("""
             CREATE TABLE IF NOT EXISTS chat_settings (
                 id BIGSERIAL PRIMARY KEY,
-
-                user_id BIGINT NOT NULL
-                    REFERENCES users(id)
-                    ON DELETE CASCADE,
-
-                chat_user_id BIGINT NOT NULL
-                    REFERENCES users(id)
-                    ON DELETE CASCADE,
-
+                user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                other_user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                 wallpaper_url TEXT,
-
-                muted BOOLEAN NOT NULL DEFAULT FALSE,
-
                 pinned BOOLEAN NOT NULL DEFAULT FALSE,
-
+                muted BOOLEAN NOT NULL DEFAULT FALSE,
                 blocked BOOLEAN NOT NULL DEFAULT FALSE,
-
-                updated_at TIMESTAMPTZ NOT NULL
-                    DEFAULT CURRENT_TIMESTAMP,
-
-                UNIQUE(user_id, chat_user_id)
+                created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(user_id, other_user_id)
             )
-            """
-        )
-
-
-        # ----------------------------------------------------
-        # FOLLOWERS
-        # ----------------------------------------------------
-
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS followers (
-                id BIGSERIAL PRIMARY KEY,
-
-                follower_id BIGINT NOT NULL
-                    REFERENCES users(id)
-                    ON DELETE CASCADE,
-
-                following_id BIGINT NOT NULL
-                    REFERENCES users(id)
-                    ON DELETE CASCADE,
-
-                created_at TIMESTAMPTZ NOT NULL
-                    DEFAULT CURRENT_TIMESTAMP,
-
-                UNIQUE(follower_id, following_id),
-
-                CHECK(follower_id <> following_id)
-            )
-            """
-        )
-
-
-        # ----------------------------------------------------
-        # STATUSES
-        # ----------------------------------------------------
-
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS statuses (
-                id BIGSERIAL PRIMARY KEY,
-
-                user_id BIGINT NOT NULL
-                    REFERENCES users(id)
-                    ON DELETE CASCADE,
-
-                media_url TEXT,
-
-                media_type TEXT,
-
-                text TEXT DEFAULT '',
-
-                expires_at TIMESTAMPTZ,
-
-                created_at TIMESTAMPTZ NOT NULL
-                    DEFAULT CURRENT_TIMESTAMP
-            )
-            """
-        )
-
-
-        # ----------------------------------------------------
-        # CALL SESSIONS
-        # ----------------------------------------------------
-
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS call_sessions (
-                id UUID PRIMARY KEY,
-
-                caller_id BIGINT NOT NULL
-                    REFERENCES users(id)
-                    ON DELETE CASCADE,
-
-                receiver_id BIGINT NOT NULL
-                    REFERENCES users(id)
-                    ON DELETE CASCADE,
-
-                room_name TEXT NOT NULL UNIQUE,
-
-                call_type TEXT NOT NULL,
-
-                status TEXT NOT NULL DEFAULT 'calling',
-
-                started_at TIMESTAMPTZ,
-
-                ended_at TIMESTAMPTZ,
-
-                created_at TIMESTAMPTZ NOT NULL
-                    DEFAULT CURRENT_TIMESTAMP
-            )
-            """
-        )
-
+        """)
 
         # ----------------------------------------------------
         # BLOCKS
         # ----------------------------------------------------
 
-        conn.execute(
-            """
+        conn.execute("""
             CREATE TABLE IF NOT EXISTS blocks (
                 id BIGSERIAL PRIMARY KEY,
-
-                blocker_id BIGINT NOT NULL
-                    REFERENCES users(id)
-                    ON DELETE CASCADE,
-
-                blocked_id BIGINT NOT NULL
-                    REFERENCES users(id)
-                    ON DELETE CASCADE,
-
-                created_at TIMESTAMPTZ NOT NULL
-                    DEFAULT CURRENT_TIMESTAMP,
-
-                UNIQUE(blocker_id, blocked_id),
-
-                CHECK(blocker_id <> blocked_id)
+                blocker_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                blocked_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(blocker_id, blocked_id)
             )
-            """
-        )
-
+        """)
 
         # ----------------------------------------------------
         # REPORTS
         # ----------------------------------------------------
 
-        conn.execute(
-            """
+        conn.execute("""
             CREATE TABLE IF NOT EXISTS reports (
                 id BIGSERIAL PRIMARY KEY,
-
-                reporter_id BIGINT NOT NULL
-                    REFERENCES users(id)
-                    ON DELETE CASCADE,
-
-                reported_user_id BIGINT
-                    REFERENCES users(id)
-                    ON DELETE SET NULL,
-
-                post_id BIGINT
-                    REFERENCES posts(id)
-                    ON DELETE SET NULL,
-
-                message_id BIGINT
-                    REFERENCES messages(id)
-                    ON DELETE SET NULL,
-
-                reason TEXT NOT NULL,
-
-                created_at TIMESTAMPTZ NOT NULL
-                    DEFAULT CURRENT_TIMESTAMP
+                reporter_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                reported_user_id BIGINT REFERENCES users(id) ON DELETE CASCADE,
+                post_id BIGINT REFERENCES posts(id) ON DELETE CASCADE,
+                reason TEXT NOT NULL DEFAULT '',
+                created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
-            """
-        )
-
+        """)
 
         # ----------------------------------------------------
-        # INDEXES
+        # CALLS
         # ----------------------------------------------------
 
-        indexes = [
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS calls (
+                id BIGSERIAL PRIMARY KEY,
+                caller_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                receiver_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                room_name TEXT NOT NULL,
+                call_type TEXT NOT NULL DEFAULT 'video',
+                status TEXT NOT NULL DEFAULT 'started',
+                created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                ended_at TIMESTAMPTZ
+            )
+        """)
 
-            """
-            CREATE INDEX IF NOT EXISTS idx_users_email
-            ON users(email)
-            """,
+        # ----------------------------------------------------
+        # STATUSES
+        # ----------------------------------------------------
 
-            """
-            CREATE INDEX IF NOT EXISTS idx_sessions_user
-            ON sessions(user_id)
-            """,
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS statuses (
+                id BIGSERIAL PRIMARY KEY,
+                user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                text TEXT DEFAULT '',
+                media_url TEXT,
+                media_type TEXT,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                expires_at TIMESTAMPTZ
+            )
+        """)
 
-            """
-            CREATE INDEX IF NOT EXISTS idx_sessions_token
-            ON sessions(token_hash)
-            """,
+        # ----------------------------------------------------
+        # FINAL NORMALIZATION
+        # ----------------------------------------------------
 
-            """
-            CREATE INDEX IF NOT EXISTS idx_posts_user
-            ON posts(user_id)
-            """,
+        conn.execute("""
+            UPDATE users
+            SET bio = ''
+            WHERE bio IS NULL
+        """)
 
-            """
-            CREATE INDEX IF NOT EXISTS idx_posts_created
-            ON posts(created_at DESC)
-            """,
-
-            """
-            CREATE INDEX IF NOT EXISTS idx_likes_post
-            ON likes(post_id)
-            """,
-
-            """
-            CREATE INDEX IF NOT EXISTS idx_comments_post
-            ON comments(post_id)
-            """,
-
-            """
-            CREATE INDEX IF NOT EXISTS idx_messages_sender
-            ON messages(sender_id)
-            """,
-
-            """
-            CREATE INDEX IF NOT EXISTS idx_messages_receiver
-            ON messages(receiver_id)
-            """,
-
-            """
-            CREATE INDEX IF NOT EXISTS idx_messages_created
-            ON messages(created_at DESC)
-            """,
-
-            """
-            CREATE INDEX IF NOT EXISTS idx_followers_following
-            ON followers(following_id)
-            """,
-
-            """
-            CREATE INDEX IF NOT EXISTS idx_followers_follower
-            ON followers(follower_id)
-            """,
-        ]
-
-        for statement in indexes:
-            conn.execute(statement)
+        conn.execute("""
+            UPDATE users
+            SET updated_at = CURRENT_TIMESTAMP
+            WHERE updated_at IS NULL
+        """)
 
         conn.commit()
 
-
-# ============================================================
-# STARTUP
-# ============================================================
 
 @app.on_event("startup")
 def startup():
@@ -811,56 +401,7 @@ def startup():
 
 
 # ============================================================
-# ROOT
-# ============================================================
-
-@app.get("/", include_in_schema=False)
-def root():
-    return FileResponse(
-        str(BASE_DIR / "index.html")
-    )
-
-
-# ============================================================
-# HEALTH
-# ============================================================
-
-@app.get("/api/health")
-def health():
-    return {
-        "status": "ok",
-        "app": APP_NAME,
-        "version": "4.0.0",
-    }
-
-
-@app.get("/api/health/db")
-def database_health():
-
-    try:
-        with db() as conn:
-
-            row = conn.execute(
-                "SELECT NOW() AS server_time"
-            ).fetchone()
-
-        return {
-            "status": "ok",
-            "database": "postgresql",
-            "server_time": row["server_time"],
-        }
-
-    except Exception as e:
-
-        return {
-            "status": "error",
-            "database": "postgresql",
-            "error": str(e),
-        }
-
-
-# ============================================================
-# AUTH MODELS
+# MODELS
 # ============================================================
 
 class RegisterRequest(BaseModel):
@@ -874,84 +415,378 @@ class LoginRequest(BaseModel):
     password: str
 
 
-class ProfileUpdateRequest(BaseModel):
-    name: str | None = None
-    bio: str | None = None
+class ProfileUpdate(BaseModel):
+    name: Optional[str] = None
+    bio: Optional[str] = None
 
 
 class MessageRequest(BaseModel):
     receiver_id: int
-    text: str
+    text: str = ""
 
 
 class CommentRequest(BaseModel):
     text: str
 
 
-class CallRequest(BaseModel):
-    receiver_id: int
-    call_type: str
+class ReportRequest(BaseModel):
+    reason: str = ""
 
 
 class ChatSettingsRequest(BaseModel):
-    muted: bool | None = None
-    pinned: bool | None = None
-    blocked: bool | None = None
+    pinned: Optional[bool] = None
+    muted: Optional[bool] = None
+    blocked: Optional[bool] = None
 
 
-class ReportRequest(BaseModel):
-    reason: str
+class CallTokenRequest(BaseModel):
+    receiver_id: int
+    call_type: str = "video"
 
 
 # ============================================================
-# REGISTER
+# HELPERS
+# ============================================================
+
+def hash_token(token: str) -> str:
+    return hashlib.sha256(
+        token.encode("utf-8")
+    ).hexdigest()
+
+
+def create_token(user_id: int) -> str:
+    now = datetime.now(timezone.utc)
+
+    payload = {
+        "sub": str(user_id),
+        "iat": now,
+        "exp": now + timedelta(days=TOKEN_DAYS),
+    }
+
+    return jwt.encode(
+        payload,
+        JWT_SECRET,
+        algorithm=JWT_ALGORITHM,
+    )
+
+
+def decode_token(token: str):
+    try:
+        return jwt.decode(
+            token,
+            JWT_SECRET,
+            algorithms=[JWT_ALGORITHM],
+        )
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=401,
+            detail="Session expired",
+        )
+    except jwt.InvalidTokenError:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid token",
+        )
+
+
+def get_bearer_token(
+    authorization: Optional[str],
+) -> str:
+
+    if not authorization:
+        raise HTTPException(
+            status_code=401,
+            detail="Authorization required",
+        )
+
+    if not authorization.lower().startswith("bearer "):
+        raise HTTPException(
+            status_code=401,
+            detail="Bearer token required",
+        )
+
+    return authorization.split(" ", 1)[1].strip()
+
+
+def require_user(
+    authorization: Optional[str],
+):
+
+    token = get_bearer_token(authorization)
+
+    payload = decode_token(token)
+
+    user_id = int(payload["sub"])
+
+    token_hash = hash_token(token)
+
+    with get_conn() as conn:
+
+        user = conn.execute("""
+            SELECT
+                u.id,
+                u.name,
+                u.email,
+                u.bio,
+                u.avatar,
+                u.created_at,
+                u.updated_at
+            FROM sessions s
+            JOIN users u
+                ON u.id = s.user_id
+            WHERE s.token_hash = %s
+              AND s.revoked = FALSE
+              AND s.expires_at > CURRENT_TIMESTAMP
+              AND u.id = %s
+              AND u.deleted_at IS NULL
+            LIMIT 1
+        """, (token_hash, user_id)).fetchone()
+
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="Session not found",
+        )
+
+    return user
+
+
+def safe_filename(filename: str) -> str:
+    original = Path(filename or "file").name
+
+    ext = Path(original).suffix.lower()
+
+    allowed = {
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".gif",
+        ".webp",
+        ".mp4",
+        ".mov",
+        ".webm",
+        ".m4a",
+        ".mp3",
+        ".wav",
+        ".ogg",
+        ".pdf",
+        ".doc",
+        ".docx",
+        ".txt",
+        ".zip",
+    }
+
+    if ext not in allowed:
+        ext = ""
+
+    return secrets.token_hex(16) + ext
+
+
+def public_file_url(path: Path) -> str:
+    relative = path.relative_to(BASE_DIR)
+
+    return "/files/" + str(relative).replace("\\", "/")
+
+
+# ============================================================
+# ROOT / HEALTH
+# ============================================================
+
+@app.get("/")
+def root():
+    return {
+        "app": APP_NAME,
+        "version": "4.1.0",
+        "status": "online",
+        "database": "configured" if DATABASE_URL else "missing",
+        "livekit": bool(
+            LIVEKIT_URL
+            and LIVEKIT_API_KEY
+            and LIVEKIT_API_SECRET
+        ),
+    }
+
+
+@app.get("/api/health")
+def health():
+    return {
+        "status": "ok",
+        "app": APP_NAME,
+        "version": "4.1.0",
+    }
+
+
+@app.get("/api/health/db")
+def database_health():
+
+    if not DATABASE_URL:
+        raise HTTPException(
+            status_code=500,
+            detail="DATABASE_URL is missing",
+        )
+
+    try:
+        with get_conn() as conn:
+            row = conn.execute("""
+                SELECT CURRENT_TIMESTAMP AS server_time
+            """).fetchone()
+
+        return {
+            "status": "ok",
+            "database": "postgresql",
+            "server_time": row["server_time"],
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Database error: {str(e)}",
+        )
+
+
+# ============================================================
+# FILE SERVING
+# ============================================================
+
+@app.get("/files/{file_path:path}")
+def serve_file(file_path: str):
+
+    requested = (BASE_DIR / file_path).resolve()
+
+    upload_root = UPLOAD_DIR.resolve()
+
+    if not str(requested).startswith(
+        str(upload_root)
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Forbidden",
+        )
+
+    if not requested.exists() or not requested.is_file():
+        raise HTTPException(
+            status_code=404,
+            detail="File not found",
+        )
+
+    return FileResponse(
+        requested,
+        media_type=mimetypes.guess_type(
+            str(requested)
+        )[0] or "application/octet-stream",
+    )
+
+
+# ============================================================
+# AUTH — REGISTER
 # ============================================================
 
 @app.post("/api/register")
 def register(data: RegisterRequest):
 
-    name = clean_text(data.name, 100)
-    email = normalize_email(data.email)
+    name = data.name.strip()
+    email = str(data.email).strip().lower()
     password = data.password
 
     if len(name) < 2:
         raise HTTPException(
             status_code=400,
-            detail="Name is too short.",
+            detail="Name is too short",
         )
 
-    valid_password(password)
+    if len(password) < 6:
+        raise HTTPException(
+            status_code=400,
+            detail="Password must contain at least 6 characters",
+        )
 
-    password_h = password_hash(password)
+    password_hash = pwd_context.hash(password)
 
-    with db() as conn:
+    with get_conn() as conn:
 
-        # Check whether this email already has an account.
-        # Do NOT use deleted_at because the current users table
-        # does not contain that column.
-        existing = conn.execute(
-            """
-            SELECT id
+        existing = conn.execute("""
+            SELECT id, deleted_at
             FROM users
             WHERE email = %s
             LIMIT 1
-            """,
-            (email,),
-        ).fetchone()
+        """, (email,)).fetchone()
 
         if existing:
-            raise HTTPException(
-                status_code=409,
-                detail="An account with this email already exists.",
-            )
 
-        user = conn.execute(
-            """
-            INSERT INTO users
-                (name, email, password_hash)
-            VALUES
-                (%s, %s, %s)
-            RETURNING
+            if existing["deleted_at"] is not None:
+                conn.execute("""
+                    UPDATE users
+                    SET
+                        name = %s,
+                        password_hash = %s,
+                        deleted_at = NULL,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id = %s
+                """, (
+                    name,
+                    password_hash,
+                    existing["id"],
+                ))
+
+                user_id = existing["id"]
+
+            else:
+                raise HTTPException(
+                    status_code=409,
+                    detail="An account with this email already exists",
+                )
+
+        else:
+
+            row = conn.execute("""
+                INSERT INTO users (
+                    name,
+                    email,
+                    password_hash,
+                    bio
+                )
+                VALUES (%s, %s, %s, '')
+                RETURNING
+                    id,
+                    name,
+                    email,
+                    bio,
+                    avatar,
+                    created_at,
+                    updated_at
+            """, (
+                name,
+                email,
+                password_hash,
+            )).fetchone()
+
+            user_id = row["id"]
+
+        token = create_token(user_id)
+
+        token_hash = hash_token(token)
+
+        expires = datetime.now(
+            timezone.utc
+        ) + timedelta(days=TOKEN_DAYS)
+
+        conn.execute("""
+            INSERT INTO sessions (
+                user_id,
+                token_hash,
+                expires_at
+            )
+            VALUES (%s, %s, %s)
+        """, (
+            user_id,
+            token_hash,
+            expires,
+        ))
+
+        conn.commit()
+
+        user = conn.execute("""
+            SELECT
                 id,
                 name,
                 email,
@@ -959,103 +794,90 @@ def register(data: RegisterRequest):
                 avatar,
                 created_at,
                 updated_at
-            """,
-            (
-                name,
-                email,
-                password_h,
-            ),
-        ).fetchone()
-
-        conn.commit()
+            FROM users
+            WHERE id = %s
+        """, (user_id,)).fetchone()
 
     return {
-        "ok": True,
-        "message": "Account created successfully.",
-        "user": user_dict(user),
+        "message": "Account created successfully",
+        "token": token,
+        "access_token": token,
+        "user": user,
     }
 
 
-
 # ============================================================
-# LOGIN
+# AUTH — LOGIN
 # ============================================================
 
 @app.post("/api/login")
 def login(data: LoginRequest):
 
-    email = normalize_email(data.email)
+    email = str(data.email).strip().lower()
 
-    with db() as conn:
+    with get_conn() as conn:
 
-        user = conn.execute(
-            """
-            SELECT *
+        user = conn.execute("""
+            SELECT
+                id,
+                name,
+                email,
+                password_hash,
+                bio,
+                avatar,
+                created_at,
+                updated_at
             FROM users
             WHERE email = %s
               AND deleted_at IS NULL
             LIMIT 1
-            """,
-            (email,),
-        ).fetchone()
+        """, (email,)).fetchone()
 
         if not user:
             raise HTTPException(
                 status_code=401,
-                detail="Invalid email or password.",
+                detail="Invalid email or password",
             )
 
-        if not password_verify(
+        if not pwd_context.verify(
             data.password,
             user["password_hash"],
         ):
             raise HTTPException(
                 status_code=401,
-                detail="Invalid email or password.",
+                detail="Invalid email or password",
             )
 
-        raw_token = generate_token()
+        token = create_token(user["id"])
 
-        conn.execute(
-            """
-            INSERT INTO sessions
-                (user_id, token_hash)
-            VALUES
-                (%s, %s)
-            """,
-            (
-                user["id"],
-                hash_token(raw_token),
-            ),
-        )
+        token_hash = hash_token(token)
+
+        expires = datetime.now(
+            timezone.utc
+        ) + timedelta(days=TOKEN_DAYS)
+
+        conn.execute("""
+            INSERT INTO sessions (
+                user_id,
+                token_hash,
+                expires_at
+            )
+            VALUES (%s, %s, %s)
+        """, (
+            user["id"],
+            token_hash,
+            expires,
+        ))
 
         conn.commit()
 
-    return {
-        "ok": True,
-        "token": raw_token,
-        "user": user_dict(user),
-    }
-
-
-# ============================================================
-# ME
-# ============================================================
-
-@app.get("/api/me")
-def me(
-    authorization: str | None = Header(default=None),
-    msafiri_token: str | None = Cookie(default=None),
-):
-
-    user = require_user(
-        authorization,
-        msafiri_token,
-    )
+    user.pop("password_hash", None)
 
     return {
-        "ok": True,
-        "user": user_dict(user),
+        "message": "Login successful",
+        "token": token,
+        "access_token": token,
+        "user": user,
     }
 
 
@@ -1065,89 +887,41 @@ def me(
 
 @app.post("/api/logout")
 def logout(
-    authorization: str | None = Header(default=None),
-    msafiri_token: str | None = Cookie(default=None),
+    authorization: Optional[str] = Header(default=None),
 ):
 
-    token = get_bearer_token(
-        authorization,
-        msafiri_token,
-    )
+    token = get_bearer_token(authorization)
 
-    if not token:
-        return {
-            "ok": True,
-            "message": "Already logged out.",
-        }
+    token_hash = hash_token(token)
 
-    with db() as conn:
+    with get_conn() as conn:
 
-        conn.execute(
-            """
+        conn.execute("""
             UPDATE sessions
             SET revoked = TRUE
             WHERE token_hash = %s
-            """,
-            (hash_token(token),),
-        )
+        """, (token_hash,))
 
         conn.commit()
 
     return {
-        "ok": True,
-        "message": "Logged out successfully.",
+        "message": "Logged out successfully",
     }
 
 
 # ============================================================
-# DELETE ACCOUNT
+# CURRENT USER
 # ============================================================
 
-@app.delete("/api/account")
-def delete_account(
-    authorization: str | None = Header(default=None),
-    msafiri_token: str | None = Cookie(default=None),
+@app.get("/api/me")
+def me(
+    authorization: Optional[str] = Header(default=None),
 ):
 
-    user = require_user(
-        authorization,
-        msafiri_token,
-    )
-
-    with db() as conn:
-
-        conn.execute(
-            """
-            UPDATE users
-            SET
-                deleted_at = CURRENT_TIMESTAMP,
-                updated_at = CURRENT_TIMESTAMP,
-                email = CONCAT(
-                    'deleted_',
-                    id,
-                    '_',
-                    EXTRACT(EPOCH FROM CURRENT_TIMESTAMP),
-                    '@deleted.local'
-                )
-            WHERE id = %s
-            """,
-            (user["id"],),
-        )
-
-        conn.execute(
-            """
-            UPDATE sessions
-            SET revoked = TRUE
-            WHERE user_id = %s
-            """,
-            (user["id"],),
-        )
-
-        conn.commit()
+    user = require_user(authorization)
 
     return {
-        "ok": True,
-        "message": "Account deleted.",
+        "user": user,
     }
 
 
@@ -1155,87 +929,35 @@ def delete_account(
 # PROFILE
 # ============================================================
 
-@app.get("/api/profile/{user_id}")
-def get_profile(user_id: int):
-
-    with db() as conn:
-
-        user = conn.execute(
-            """
-            SELECT
-                id,
-                name,
-                email,
-                bio,
-                avatar,
-                created_at
-            FROM users
-            WHERE id = %s
-              AND deleted_at IS NULL
-            """,
-            (user_id,),
-        ).fetchone()
-
-        if not user:
-            raise HTTPException(
-                status_code=404,
-                detail="User not found.",
-            )
-
-        followers = conn.execute(
-            """
-            SELECT COUNT(*) AS count
-            FROM followers
-            WHERE following_id = %s
-            """,
-            (user_id,),
-        ).fetchone()["count"]
-
-        following = conn.execute(
-            """
-            SELECT COUNT(*) AS count
-            FROM followers
-            WHERE follower_id = %s
-            """,
-            (user_id,),
-        ).fetchone()["count"]
-
-    return {
-        "ok": True,
-        "user": user,
-        "followers": followers,
-        "following": following,
-    }
-
-
 @app.patch("/api/profile")
 def update_profile(
-    data: ProfileUpdateRequest,
-    authorization: str | None = Header(default=None),
-    msafiri_token: str | None = Cookie(default=None),
+    data: ProfileUpdate,
+    authorization: Optional[str] = Header(default=None),
 ):
 
-    user = require_user(
-        authorization,
-        msafiri_token,
-    )
+    user = require_user(authorization)
 
     name = (
-        clean_text(data.name, 100)
+        data.name.strip()
         if data.name is not None
         else user["name"]
     )
 
     bio = (
-        clean_text(data.bio, 1000)
+        data.bio.strip()
         if data.bio is not None
         else user["bio"]
     )
 
-    with db() as conn:
+    if len(name) < 2:
+        raise HTTPException(
+            status_code=400,
+            detail="Name is too short",
+        )
 
-        updated = conn.execute(
-            """
+    with get_conn() as conn:
+
+        updated = conn.execute("""
             UPDATE users
             SET
                 name = %s,
@@ -1250,68 +972,67 @@ def update_profile(
                 avatar,
                 created_at,
                 updated_at
-            """,
-            (
-                name,
-                bio,
-                user["id"],
-            ),
-        ).fetchone()
+        """, (
+            name,
+            bio,
+            user["id"],
+        )).fetchone()
 
         conn.commit()
 
     return {
-        "ok": True,
+        "message": "Profile updated",
         "user": updated,
     }
 
 
 # ============================================================
-# PROFILE PICTURE
+# PROFILE AVATAR
 # ============================================================
 
 @app.post("/api/profile/avatar")
 async def upload_avatar(
     file: UploadFile = File(...),
-    authorization: str | None = Header(default=None),
-    msafiri_token: str | None = Cookie(default=None),
+    authorization: Optional[str] = Header(default=None),
 ):
 
-    user = require_user(
-        authorization,
-        msafiri_token,
-    )
+    user = require_user(authorization)
 
-    content_type = file.content_type or ""
+    if not file.filename:
+        raise HTTPException(
+            status_code=400,
+            detail="No file selected",
+        )
+
+    content_type = (
+        file.content_type or ""
+    ).lower()
 
     if not content_type.startswith("image/"):
         raise HTTPException(
             status_code=400,
-            detail="Profile picture must be an image.",
+            detail="Avatar must be an image",
         )
 
-    filename = safe_filename(
-        file.filename or ""
-    )
+    filename = safe_filename(file.filename)
 
-    destination = AVATAR_UPLOAD_DIR / filename
+    destination = AVATAR_DIR / filename
 
     content = await file.read()
 
     if len(content) > 10 * 1024 * 1024:
         raise HTTPException(
             status_code=400,
-            detail="Image is too large. Maximum 10MB.",
+            detail="Avatar is too large",
         )
 
     destination.write_bytes(content)
 
-    avatar_url = f"/uploads/avatars/{filename}"
+    url = public_file_url(destination)
 
-    with db() as conn:
+    with get_conn() as conn:
 
-        updated = conn.execute(
-            """
+        updated = conn.execute("""
             UPDATE users
             SET
                 avatar = %s,
@@ -1325,47 +1046,118 @@ async def upload_avatar(
                 avatar,
                 created_at,
                 updated_at
-            """,
-            (
-                avatar_url,
-                user["id"],
-            ),
-        ).fetchone()
+        """, (
+            url,
+            user["id"],
+        )).fetchone()
 
         conn.commit()
 
     return {
-        "ok": True,
-        "avatar": avatar_url,
+        "message": "Avatar updated",
         "user": updated,
+        "avatar": url,
     }
 
 
 # ============================================================
-# CREATE POST
+# USER PROFILE
+# ============================================================
+
+@app.get("/api/users/{user_id}")
+def get_user_profile(user_id: int):
+
+    with get_conn() as conn:
+
+        user = conn.execute("""
+            SELECT
+                id,
+                name,
+                email,
+                bio,
+                avatar,
+                created_at
+            FROM users
+            WHERE id = %s
+              AND deleted_at IS NULL
+        """, (user_id,)).fetchone()
+
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found",
+        )
+
+    return {
+        "user": user,
+    }
+
+
+# ============================================================
+# SEARCH USERS
+# ============================================================
+
+@app.get("/api/search")
+def search_users(
+    q: str = Query(..., min_length=1),
+    authorization: Optional[str] = Header(default=None),
+):
+
+    require_user(authorization)
+
+    search = q.strip()
+
+    with get_conn() as conn:
+
+        users = conn.execute("""
+            SELECT
+                id,
+                name,
+                email,
+                bio,
+                avatar,
+                created_at
+            FROM users
+            WHERE deleted_at IS NULL
+              AND (
+                    name ILIKE %s
+                    OR email ILIKE %s
+              )
+            ORDER BY name ASC
+            LIMIT 50
+        """, (
+            f"%{search}%",
+            f"%{search}%",
+        )).fetchall()
+
+    return {
+        "users": users,
+    }
+
+
+# ============================================================
+# POSTS — CREATE
 # ============================================================
 
 @app.post("/api/posts")
 async def create_post(
-    caption: str = Form(default=""),
-    media: UploadFile | None = File(default=None),
-    authorization: str | None = Header(default=None),
-    msafiri_token: str | None = Cookie(default=None),
+    caption: str = Form(""),
+    file: Optional[UploadFile] = File(default=None),
+    authorization: Optional[str] = Header(default=None),
 ):
 
-    user = require_user(
-        authorization,
-        msafiri_token,
-    )
+    user = require_user(authorization)
 
-    caption = clean_text(caption, 5000)
+    caption = caption.strip()
 
     media_url = None
     media_type = None
 
-    if media:
+    if file and file.filename:
 
-        content_type = media.content_type or ""
+        content_type = (
+            file.content_type or ""
+        ).lower()
 
         if not (
             content_type.startswith("image/")
@@ -1374,87 +1166,86 @@ async def create_post(
         ):
             raise HTTPException(
                 status_code=400,
-                detail="Unsupported media type.",
+                detail="Unsupported media type",
             )
 
-        filename = safe_filename(
-            media.filename or ""
-        )
-
-        destination = POST_UPLOAD_DIR / filename
-
-        content = await media.read()
+        content = await file.read()
 
         if len(content) > 100 * 1024 * 1024:
             raise HTTPException(
                 status_code=400,
-                detail="Media is too large. Maximum 100MB.",
+                detail="File is too large",
             )
+
+        filename = safe_filename(file.filename)
+
+        if content_type.startswith("image/"):
+            folder = POST_DIR
+
+        elif content_type.startswith("video/"):
+            folder = POST_DIR
+
+        else:
+            folder = POST_DIR
+
+        destination = folder / filename
 
         destination.write_bytes(content)
 
-        media_url = f"/uploads/posts/{filename}"
-
-        if content_type.startswith("image/"):
-            media_type = "image"
-
-        elif content_type.startswith("video/"):
-            media_type = "video"
-
-        else:
-            media_type = "audio"
+        media_url = public_file_url(destination)
+        media_type = content_type
 
     if not caption and not media_url:
         raise HTTPException(
             status_code=400,
-            detail="Post must contain text or media.",
+            detail="Post cannot be empty",
         )
 
-    with db() as conn:
+    with get_conn() as conn:
 
-        post = conn.execute(
-            """
-            INSERT INTO posts
-                (
-                    user_id,
-                    caption,
-                    media_url,
-                    media_type
-                )
-            VALUES
-                (%s, %s, %s, %s)
-            RETURNING *
-            """,
-            (
-                user["id"],
+        post = conn.execute("""
+            INSERT INTO posts (
+                user_id,
+                caption,
+                media_url,
+                media_type
+            )
+            VALUES (%s, %s, %s, %s)
+            RETURNING
+                id,
+                user_id,
                 caption,
                 media_url,
                 media_type,
-            ),
-        ).fetchone()
+                created_at
+        """, (
+            user["id"],
+            caption,
+            media_url,
+            media_type,
+        )).fetchone()
 
         conn.commit()
 
     return {
-        "ok": True,
+        "message": "Post created",
         "post": post,
     }
 
 
 # ============================================================
-# FEED
+# POSTS — FEED
 # ============================================================
 
 @app.get("/api/posts")
 def get_posts(
-    limit: int = Query(default=30, ge=1, le=100),
-    offset: int = Query(default=0, ge=0),
+    limit: int = Query(30, ge=1, le=100),
+    offset: int = Query(0, ge=0),
 ):
 
-    with db() as conn:
+    with get_conn() as conn:
 
-        posts = conn.execute(
-            """
+        posts = conn.execute("""
             SELECT
                 p.id,
                 p.user_id,
@@ -1462,7 +1253,6 @@ def get_posts(
                 p.media_url,
                 p.media_type,
                 p.created_at,
-
                 u.name AS user_name,
                 u.avatar AS user_avatar,
 
@@ -1489,22 +1279,18 @@ def get_posts(
             JOIN users u
                 ON u.id = p.user_id
 
-            WHERE p.deleted_at IS NULL
-              AND u.deleted_at IS NULL
+            WHERE u.deleted_at IS NULL
 
             ORDER BY p.created_at DESC
 
             LIMIT %s
             OFFSET %s
-            """,
-            (
-                limit,
-                offset,
-            ),
-        ).fetchall()
+        """, (
+            limit,
+            offset,
+        )).fetchall()
 
     return {
-        "ok": True,
         "posts": posts,
         "limit": limit,
         "offset": offset,
@@ -1518,53 +1304,42 @@ def get_posts(
 @app.delete("/api/posts/{post_id}")
 def delete_post(
     post_id: int,
-    authorization: str | None = Header(default=None),
-    msafiri_token: str | None = Cookie(default=None),
+    authorization: Optional[str] = Header(default=None),
 ):
 
-    user = require_user(
-        authorization,
-        msafiri_token,
-    )
+    user = require_user(authorization)
 
-    with db() as conn:
+    with get_conn() as conn:
 
-        post = conn.execute(
-            """
+        post = conn.execute("""
             SELECT id
             FROM posts
             WHERE id = %s
               AND user_id = %s
-              AND deleted_at IS NULL
-            """,
-            (
-                post_id,
-                user["id"],
-            ),
-        ).fetchone()
+        """, (
+            post_id,
+            user["id"],
+        )).fetchone()
 
         if not post:
             raise HTTPException(
                 status_code=404,
-                detail="Post not found.",
+                detail="Post not found",
             )
 
-        conn.execute(
-            """
-            UPDATE posts
-            SET
-                deleted_at = CURRENT_TIMESTAMP,
-                updated_at = CURRENT_TIMESTAMP
+        conn.execute("""
+            DELETE FROM posts
             WHERE id = %s
-            """,
-            (post_id,),
-        )
+              AND user_id = %s
+        """, (
+            post_id,
+            user["id"],
+        ))
 
         conn.commit()
 
     return {
-        "ok": True,
-        "message": "Post deleted.",
+        "message": "Post deleted",
     }
 
 
@@ -1575,53 +1350,40 @@ def delete_post(
 @app.post("/api/posts/{post_id}/like")
 def like_post(
     post_id: int,
-    authorization: str | None = Header(default=None),
-    msafiri_token: str | None = Cookie(default=None),
+    authorization: Optional[str] = Header(default=None),
 ):
 
-    user = require_user(
-        authorization,
-        msafiri_token,
-    )
+    user = require_user(authorization)
 
-    with db() as conn:
+    with get_conn() as conn:
 
-        post = conn.execute(
-            """
+        post = conn.execute("""
             SELECT id
             FROM posts
             WHERE id = %s
-              AND deleted_at IS NULL
-            """,
-            (post_id,),
-        ).fetchone()
+        """, (post_id,)).fetchone()
 
         if not post:
             raise HTTPException(
                 status_code=404,
-                detail="Post not found.",
+                detail="Post not found",
             )
 
-        conn.execute(
-            """
-            INSERT INTO likes
-                (user_id, post_id)
-            VALUES
-                (%s, %s)
-            ON CONFLICT
-                (user_id, post_id)
-            DO NOTHING
-            """,
-            (
-                user["id"],
+        conn.execute("""
+            INSERT INTO likes (
                 post_id,
-            ),
-        )
+                user_id
+            )
+            VALUES (%s, %s)
+            ON CONFLICT DO NOTHING
+        """, (
+            post_id,
+            user["id"],
+        ))
 
         conn.commit()
 
     return {
-        "ok": True,
         "liked": True,
     }
 
@@ -1629,33 +1391,25 @@ def like_post(
 @app.delete("/api/posts/{post_id}/like")
 def unlike_post(
     post_id: int,
-    authorization: str | None = Header(default=None),
-    msafiri_token: str | None = Cookie(default=None),
+    authorization: Optional[str] = Header(default=None),
 ):
 
-    user = require_user(
-        authorization,
-        msafiri_token,
-    )
+    user = require_user(authorization)
 
-    with db() as conn:
+    with get_conn() as conn:
 
-        conn.execute(
-            """
+        conn.execute("""
             DELETE FROM likes
-            WHERE user_id = %s
-              AND post_id = %s
-            """,
-            (
-                user["id"],
-                post_id,
-            ),
-        )
+            WHERE post_id = %s
+              AND user_id = %s
+        """, (
+            post_id,
+            user["id"],
+        ))
 
         conn.commit()
 
     return {
-        "ok": True,
         "liked": False,
     }
 
@@ -1668,82 +1422,71 @@ def unlike_post(
 def add_comment(
     post_id: int,
     data: CommentRequest,
-    authorization: str | None = Header(default=None),
-    msafiri_token: str | None = Cookie(default=None),
+    authorization: Optional[str] = Header(default=None),
 ):
 
-    user = require_user(
-        authorization,
-        msafiri_token,
-    )
+    user = require_user(authorization)
 
-    text = clean_text(data.text, 2000)
+    text = data.text.strip()
 
     if not text:
         raise HTTPException(
             status_code=400,
-            detail="Comment cannot be empty.",
+            detail="Comment cannot be empty",
         )
 
-    with db() as conn:
+    with get_conn() as conn:
 
-        post = conn.execute(
-            """
+        post = conn.execute("""
             SELECT id
             FROM posts
             WHERE id = %s
-              AND deleted_at IS NULL
-            """,
-            (post_id,),
-        ).fetchone()
+        """, (post_id,)).fetchone()
 
         if not post:
             raise HTTPException(
                 status_code=404,
-                detail="Post not found.",
+                detail="Post not found",
             )
 
-        comment = conn.execute(
-            """
-            INSERT INTO comments
-                (
-                    user_id,
-                    post_id,
-                    text
-                )
-            VALUES
-                (%s, %s, %s)
-            RETURNING *
-            """,
-            (
-                user["id"],
+        comment = conn.execute("""
+            INSERT INTO comments (
                 post_id,
+                user_id,
+                text
+            )
+            VALUES (%s, %s, %s)
+            RETURNING
+                id,
+                post_id,
+                user_id,
                 text,
-            ),
-        ).fetchone()
+                created_at
+        """, (
+            post_id,
+            user["id"],
+            text,
+        )).fetchone()
 
         conn.commit()
 
     return {
-        "ok": True,
         "comment": comment,
     }
 
 
 @app.get("/api/posts/{post_id}/comments")
-def get_comments(
-    post_id: int,
-):
+def get_comments(post_id: int):
 
-    with db() as conn:
+    with get_conn() as conn:
 
-        comments = conn.execute(
-            """
+        comments = conn.execute("""
             SELECT
                 c.id,
+                c.post_id,
+                c.user_id,
                 c.text,
                 c.created_at,
-                c.user_id,
                 u.name AS user_name,
                 u.avatar AS user_avatar
             FROM comments c
@@ -1752,12 +1495,10 @@ def get_comments(
             WHERE c.post_id = %s
               AND u.deleted_at IS NULL
             ORDER BY c.created_at ASC
-            """,
-            (post_id,),
-        ).fetchall()
+            LIMIT 200
+        """, (post_id,)).fetchall()
 
     return {
-        "ok": True,
         "comments": comments,
     }
 
@@ -1769,37 +1510,28 @@ def get_comments(
 @app.post("/api/posts/{post_id}/save")
 def save_post(
     post_id: int,
-    authorization: str | None = Header(default=None),
-    msafiri_token: str | None = Cookie(default=None),
+    authorization: Optional[str] = Header(default=None),
 ):
 
-    user = require_user(
-        authorization,
-        msafiri_token,
-    )
+    user = require_user(authorization)
 
-    with db() as conn:
+    with get_conn() as conn:
 
-        conn.execute(
-            """
-            INSERT INTO saved_posts
-                (user_id, post_id)
-            VALUES
-                (%s, %s)
-            ON CONFLICT
-                (user_id, post_id)
-            DO NOTHING
-            """,
-            (
-                user["id"],
+        conn.execute("""
+            INSERT INTO saved_posts (
                 post_id,
-            ),
-        )
+                user_id
+            )
+            VALUES (%s, %s)
+            ON CONFLICT DO NOTHING
+        """, (
+            post_id,
+            user["id"],
+        ))
 
         conn.commit()
 
     return {
-        "ok": True,
         "saved": True,
     }
 
@@ -1807,33 +1539,25 @@ def save_post(
 @app.delete("/api/posts/{post_id}/save")
 def unsave_post(
     post_id: int,
-    authorization: str | None = Header(default=None),
-    msafiri_token: str | None = Cookie(default=None),
+    authorization: Optional[str] = Header(default=None),
 ):
 
-    user = require_user(
-        authorization,
-        msafiri_token,
-    )
+    user = require_user(authorization)
 
-    with db() as conn:
+    with get_conn() as conn:
 
-        conn.execute(
-            """
+        conn.execute("""
             DELETE FROM saved_posts
-            WHERE user_id = %s
-              AND post_id = %s
-            """,
-            (
-                user["id"],
-                post_id,
-            ),
-        )
+            WHERE post_id = %s
+              AND user_id = %s
+        """, (
+            post_id,
+            user["id"],
+        ))
 
         conn.commit()
 
     return {
-        "ok": True,
         "saved": False,
     }
 
@@ -1845,397 +1569,303 @@ def unsave_post(
 @app.post("/api/posts/{post_id}/reshare")
 def reshare_post(
     post_id: int,
-    authorization: str | None = Header(default=None),
-    msafiri_token: str | None = Cookie(default=None),
+    authorization: Optional[str] = Header(default=None),
 ):
 
-    user = require_user(
-        authorization,
-        msafiri_token,
-    )
+    user = require_user(authorization)
 
-    with db() as conn:
+    with get_conn() as conn:
 
-        conn.execute(
-            """
-            INSERT INTO reshares
-                (user_id, post_id)
-            VALUES
-                (%s, %s)
-            ON CONFLICT
-                (user_id, post_id)
-            DO NOTHING
-            """,
-            (
-                user["id"],
+        post = conn.execute("""
+            SELECT id
+            FROM posts
+            WHERE id = %s
+        """, (post_id,)).fetchone()
+
+        if not post:
+            raise HTTPException(
+                status_code=404,
+                detail="Post not found",
+            )
+
+        conn.execute("""
+            INSERT INTO reshares (
                 post_id,
-            ),
-        )
+                user_id
+            )
+            VALUES (%s, %s)
+            ON CONFLICT DO NOTHING
+        """, (
+            post_id,
+            user["id"],
+        ))
 
         conn.commit()
 
     return {
-        "ok": True,
         "reshared": True,
     }
 
 
 # ============================================================
-# FOLLOW / UNFOLLOW
-# ============================================================
-
-@app.post("/api/users/{user_id}/follow")
-def follow_user(
-    user_id: int,
-    authorization: str | None = Header(default=None),
-    msafiri_token: str | None = Cookie(default=None),
-):
-
-    user = require_user(
-        authorization,
-        msafiri_token,
-    )
-
-    if user["id"] == user_id:
-        raise HTTPException(
-            status_code=400,
-            detail="You cannot follow yourself.",
-        )
-
-    with db() as conn:
-
-        target = conn.execute(
-            """
-            SELECT id
-            FROM users
-            WHERE id = %s
-              AND deleted_at IS NULL
-            """,
-            (user_id,),
-        ).fetchone()
-
-        if not target:
-            raise HTTPException(
-                status_code=404,
-                detail="User not found.",
-            )
-
-        conn.execute(
-            """
-            INSERT INTO followers
-                (
-                    follower_id,
-                    following_id
-                )
-            VALUES
-                (%s, %s)
-            ON CONFLICT
-                (follower_id, following_id)
-            DO NOTHING
-            """,
-            (
-                user["id"],
-                user_id,
-            ),
-        )
-
-        conn.commit()
-
-    return {
-        "ok": True,
-        "following": True,
-    }
-
-
-@app.delete("/api/users/{user_id}/follow")
-def unfollow_user(
-    user_id: int,
-    authorization: str | None = Header(default=None),
-    msafiri_token: str | None = Cookie(default=None),
-):
-
-    user = require_user(
-        authorization,
-        msafiri_token,
-    )
-
-    with db() as conn:
-
-        conn.execute(
-            """
-            DELETE FROM followers
-            WHERE follower_id = %s
-              AND following_id = %s
-            """,
-            (
-                user["id"],
-                user_id,
-            ),
-        )
-
-        conn.commit()
-
-    return {
-        "ok": True,
-        "following": False,
-    }
-
-
-# ============================================================
-# CHAT USER SEARCH
-# ============================================================
-
-@app.get("/api/users/search")
-def search_users(
-    q: str = Query(min_length=1),
-    limit: int = Query(default=30, ge=1, le=100),
-    authorization: str | None = Header(default=None),
-    msafiri_token: str | None = Cookie(default=None),
-):
-
-    require_user(
-        authorization,
-        msafiri_token,
-    )
-
-    query = q.strip()
-
-    with db() as conn:
-
-        users = conn.execute(
-            """
-            SELECT
-                id,
-                name,
-                email,
-                bio,
-                avatar
-            FROM users
-            WHERE deleted_at IS NULL
-              AND (
-                    name ILIKE %s
-                    OR email ILIKE %s
-              )
-            ORDER BY name ASC
-            LIMIT %s
-            """,
-            (
-                f"%{query}%",
-                f"%{query}%",
-                limit,
-            ),
-        ).fetchall()
-
-    return {
-        "ok": True,
-        "users": users,
-    }
-
-
-# ============================================================
-# SEND MESSAGE
+# CHAT — SEND TEXT
 # ============================================================
 
 @app.post("/api/messages")
 def send_message(
     data: MessageRequest,
-    authorization: str | None = Header(default=None),
-    msafiri_token: str | None = Cookie(default=None),
+    authorization: Optional[str] = Header(default=None),
 ):
 
-    user = require_user(
-        authorization,
-        msafiri_token,
-    )
+    user = require_user(authorization)
 
-    text = clean_text(data.text, 10000)
+    text = data.text.strip()
 
     if not text:
         raise HTTPException(
             status_code=400,
-            detail="Message cannot be empty.",
+            detail="Message cannot be empty",
         )
 
-    if user["id"] == data.receiver_id:
+    if data.receiver_id == user["id"]:
         raise HTTPException(
             status_code=400,
-            detail="You cannot message yourself.",
+            detail="Cannot message yourself",
         )
 
-    with db() as conn:
+    with get_conn() as conn:
 
-        receiver = conn.execute(
-            """
+        receiver = conn.execute("""
             SELECT id
             FROM users
             WHERE id = %s
               AND deleted_at IS NULL
-            """,
-            (data.receiver_id,),
-        ).fetchone()
+        """, (data.receiver_id,)).fetchone()
 
         if not receiver:
             raise HTTPException(
                 status_code=404,
-                detail="Receiver not found.",
+                detail="Receiver not found",
             )
 
-        blocked = conn.execute(
-            """
+        blocked = conn.execute("""
             SELECT id
             FROM blocks
-            WHERE
-                (
-                    blocker_id = %s
-                    AND blocked_id = %s
-                )
-                OR
-                (
-                    blocker_id = %s
-                    AND blocked_id = %s
-                )
+            WHERE (
+                blocker_id = %s
+                AND blocked_id = %s
+            )
+            OR (
+                blocker_id = %s
+                AND blocked_id = %s
+            )
             LIMIT 1
-            """,
-            (
-                user["id"],
-                data.receiver_id,
-                data.receiver_id,
-                user["id"],
-            ),
-        ).fetchone()
+        """, (
+            user["id"],
+            data.receiver_id,
+            data.receiver_id,
+            user["id"],
+        )).fetchone()
 
         if blocked:
             raise HTTPException(
                 status_code=403,
-                detail="Messaging is blocked.",
+                detail="Messaging is blocked",
             )
 
-        message = conn.execute(
-            """
-            INSERT INTO messages
-                (
-                    sender_id,
-                    receiver_id,
-                    text
-                )
-            VALUES
-                (%s, %s, %s)
-            RETURNING *
-            """,
-            (
-                user["id"],
-                data.receiver_id,
+        message = conn.execute("""
+            INSERT INTO messages (
+                sender_id,
+                receiver_id,
+                text
+            )
+            VALUES (%s, %s, %s)
+            RETURNING
+                id,
+                sender_id,
+                receiver_id,
                 text,
-            ),
-        ).fetchone()
+                media_url,
+                media_type,
+                duration_seconds,
+                created_at,
+                seen
+        """, (
+            user["id"],
+            data.receiver_id,
+            text,
+        )).fetchone()
 
         conn.commit()
 
     return {
-        "ok": True,
         "message": message,
     }
 
 
 # ============================================================
-# CHAT HISTORY
+# CHAT — HISTORY
 # ============================================================
 
 @app.get("/api/messages/{other_user_id}")
 def get_messages(
     other_user_id: int,
-    limit: int = Query(default=100, ge=1, le=200),
-    before_id: int | None = Query(default=None),
-    authorization: str | None = Header(default=None),
-    msafiri_token: str | None = Cookie(default=None),
+    limit: int = Query(100, ge=1, le=200),
+    before_id: Optional[int] = None,
+    authorization: Optional[str] = Header(default=None),
 ):
 
-    user = require_user(
-        authorization,
-        msafiri_token,
-    )
+    user = require_user(authorization)
 
-    with db() as conn:
+    with get_conn() as conn:
 
-        if before_id:
+        if before_id is None:
 
-            messages = conn.execute(
-                """
-                SELECT *
+            messages = conn.execute("""
+                SELECT
+                    id,
+                    sender_id,
+                    receiver_id,
+                    text,
+                    media_url,
+                    media_type,
+                    duration_seconds,
+                    created_at,
+                    seen
                 FROM messages
-                WHERE
+                WHERE (
                     (
                         sender_id = %s
                         AND receiver_id = %s
+                        AND deleted_for_sender = FALSE
                     )
                     OR
                     (
                         sender_id = %s
                         AND receiver_id = %s
+                        AND deleted_for_receiver = FALSE
                     )
-                AND id < %s
-                ORDER BY id DESC
+                )
+                ORDER BY created_at DESC
                 LIMIT %s
-                """,
-                (
-                    user["id"],
-                    other_user_id,
-                    other_user_id,
-                    user["id"],
-                    before_id,
-                    limit,
-                ),
-            ).fetchall()
+            """, (
+                user["id"],
+                other_user_id,
+                other_user_id,
+                user["id"],
+                limit,
+            )).fetchall()
 
         else:
 
-            messages = conn.execute(
-                """
-                SELECT *
+            messages = conn.execute("""
+                SELECT
+                    id,
+                    sender_id,
+                    receiver_id,
+                    text,
+                    media_url,
+                    media_type,
+                    duration_seconds,
+                    created_at,
+                    seen
                 FROM messages
-                WHERE
+                WHERE (
                     (
                         sender_id = %s
                         AND receiver_id = %s
+                        AND deleted_for_sender = FALSE
                     )
                     OR
                     (
                         sender_id = %s
                         AND receiver_id = %s
+                        AND deleted_for_receiver = FALSE
                     )
-                ORDER BY id DESC
+                )
+                AND id < %s
+                ORDER BY created_at DESC
                 LIMIT %s
-                """,
-                (
-                    user["id"],
-                    other_user_id,
-                    other_user_id,
-                    user["id"],
-                    limit,
-                ),
-            ).fetchall()
-
-        conn.execute(
-            """
-            UPDATE messages
-            SET read = TRUE
-            WHERE sender_id = %s
-              AND receiver_id = %s
-              AND read = FALSE
-            """,
-            (
+            """, (
+                user["id"],
+                other_user_id,
                 other_user_id,
                 user["id"],
-            ),
-        )
+                before_id,
+                limit,
+            )).fetchall()
+
+        # Mark received messages as seen
+        conn.execute("""
+            UPDATE messages
+            SET seen = TRUE
+            WHERE sender_id = %s
+              AND receiver_id = %s
+              AND seen = FALSE
+        """, (
+            other_user_id,
+            user["id"],
+        ))
 
         conn.commit()
 
     messages.reverse()
 
     return {
-        "ok": True,
         "messages": messages,
+    }
+
+
+# ============================================================
+# CHAT LIST
+# ============================================================
+
+@app.get("/api/messages")
+def message_list(
+    authorization: Optional[str] = Header(default=None),
+):
+
+    user = require_user(authorization)
+
+    with get_conn() as conn:
+
+        contacts = conn.execute("""
+            SELECT DISTINCT ON (x.other_id)
+                x.other_id,
+                u.name,
+                u.email,
+                u.avatar,
+                x.last_message,
+                x.last_message_at
+            FROM (
+                SELECT
+                    CASE
+                        WHEN sender_id = %s
+                        THEN receiver_id
+                        ELSE sender_id
+                    END AS other_id,
+                    text AS last_message,
+                    created_at AS last_message_at
+                FROM messages
+                WHERE
+                    sender_id = %s
+                    OR receiver_id = %s
+                ORDER BY created_at DESC
+            ) x
+            JOIN users u
+                ON u.id = x.other_id
+            WHERE u.deleted_at IS NULL
+            ORDER BY
+                x.other_id,
+                x.last_message_at DESC
+        """, (
+            user["id"],
+            user["id"],
+            user["id"],
+        )).fetchall()
+
+    return {
+        "chats": contacts,
     }
 
 
@@ -2246,376 +1876,174 @@ def get_messages(
 @app.post("/api/messages/voice")
 async def send_voice_note(
     receiver_id: int = Form(...),
+    duration_seconds: int = Form(0),
     file: UploadFile = File(...),
-    authorization: str | None = Header(default=None),
-    msafiri_token: str | None = Cookie(default=None),
+    authorization: Optional[str] = Header(default=None),
 ):
 
-    user = require_user(
-        authorization,
-        msafiri_token,
-    )
+    user = require_user(authorization)
 
-    content_type = file.content_type or ""
-
-    allowed_audio = (
-        content_type.startswith("audio/")
-        or content_type in {
-            "application/ogg",
-            "application/octet-stream",
-        }
-    )
-
-    if not allowed_audio:
+    if receiver_id == user["id"]:
         raise HTTPException(
             status_code=400,
-            detail="File must be an audio recording.",
+            detail="Cannot send voice note to yourself",
         )
 
-    filename = safe_filename(
-        file.filename or ".webm"
-    )
+    content_type = (
+        file.content_type or ""
+    ).lower()
 
-    destination = VOICE_UPLOAD_DIR / filename
+    if not (
+        content_type.startswith("audio/")
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Voice note must be an audio file",
+        )
 
     content = await file.read()
 
-    if len(content) > 50 * 1024 * 1024:
+    if len(content) > 25 * 1024 * 1024:
         raise HTTPException(
             status_code=400,
-            detail="Voice note is too large.",
+            detail="Voice note is too large",
         )
+
+    filename = safe_filename(file.filename)
+
+    destination = VOICE_DIR / filename
 
     destination.write_bytes(content)
 
-    voice_url = f"/uploads/voice/{filename}"
+    media_url = public_file_url(destination)
 
-    with db() as conn:
+    with get_conn() as conn:
 
-        receiver = conn.execute(
-            """
+        receiver = conn.execute("""
             SELECT id
             FROM users
             WHERE id = %s
               AND deleted_at IS NULL
-            """,
-            (receiver_id,),
-        ).fetchone()
+        """, (receiver_id,)).fetchone()
 
         if not receiver:
             raise HTTPException(
                 status_code=404,
-                detail="Receiver not found.",
+                detail="Receiver not found",
             )
 
-        message = conn.execute(
-            """
-            INSERT INTO messages
-                (
-                    sender_id,
-                    receiver_id,
-                    voice_url,
-                    media_type
-                )
-            VALUES
-                (%s, %s, %s, 'voice')
-            RETURNING *
-            """,
-            (
-                user["id"],
+        message = conn.execute("""
+            INSERT INTO messages (
+                sender_id,
                 receiver_id,
-                voice_url,
-            ),
-        ).fetchone()
+                text,
+                media_url,
+                media_type,
+                duration_seconds
+            )
+            VALUES (%s, %s, '', %s, %s, %s)
+            RETURNING
+                id,
+                sender_id,
+                receiver_id,
+                text,
+                media_url,
+                media_type,
+                duration_seconds,
+                created_at,
+                seen
+        """, (
+            user["id"],
+            receiver_id,
+            media_url,
+            content_type,
+            duration_seconds,
+        )).fetchone()
 
         conn.commit()
 
     return {
-        "ok": True,
         "message": message,
-        "voice_url": voice_url,
     }
 
 
 # ============================================================
-# CHAT WALLPAPER UPLOAD
+# CHAT FILE
 # ============================================================
 
-@app.post("/api/chats/{chat_user_id}/wallpaper")
-async def upload_chat_wallpaper(
-    chat_user_id: int,
+@app.post("/api/messages/file")
+async def send_chat_file(
+    receiver_id: int = Form(...),
+    text: str = Form(""),
     file: UploadFile = File(...),
-    authorization: str | None = Header(default=None),
-    msafiri_token: str | None = Cookie(default=None),
+    authorization: Optional[str] = Header(default=None),
 ):
 
-    user = require_user(
-        authorization,
-        msafiri_token,
-    )
+    user = require_user(authorization)
 
-    content_type = file.content_type or ""
-
-    if not content_type.startswith("image/"):
+    if receiver_id == user["id"]:
         raise HTTPException(
             status_code=400,
-            detail="Wallpaper must be an image.",
+            detail="Cannot send file to yourself",
         )
-
-    filename = safe_filename(
-        file.filename or ""
-    )
-
-    destination = WALLPAPER_UPLOAD_DIR / filename
 
     content = await file.read()
 
-    if len(content) > 15 * 1024 * 1024:
+    if len(content) > 100 * 1024 * 1024:
         raise HTTPException(
             status_code=400,
-            detail="Wallpaper is too large. Maximum 15MB.",
+            detail="File is too large",
         )
+
+    filename = safe_filename(file.filename)
+
+    destination = CHAT_FILE_DIR / filename
 
     destination.write_bytes(content)
 
-    wallpaper_url = (
-        f"/uploads/wallpapers/{filename}"
+    media_url = public_file_url(destination)
+
+    media_type = (
+        file.content_type
+        or mimetypes.guess_type(
+            file.filename or ""
+        )[0]
+        or "application/octet-stream"
     )
 
-    with db() as conn:
+    with get_conn() as conn:
 
-        target = conn.execute(
-            """
-            SELECT id
-            FROM users
-            WHERE id = %s
-              AND deleted_at IS NULL
-            """,
-            (chat_user_id,),
-        ).fetchone()
-
-        if not target:
-            raise HTTPException(
-                status_code=404,
-                detail="Chat user not found.",
+        message = conn.execute("""
+            INSERT INTO messages (
+                sender_id,
+                receiver_id,
+                text,
+                media_url,
+                media_type
             )
-
-        conn.execute(
-            """
-            INSERT INTO chat_settings
-                (
-                    user_id,
-                    chat_user_id,
-                    wallpaper_url,
-                    updated_at
-                )
-            VALUES
-                (
-                    %s,
-                    %s,
-                    %s,
-                    CURRENT_TIMESTAMP
-                )
-            ON CONFLICT
-                (user_id, chat_user_id)
-            DO UPDATE SET
-                wallpaper_url = EXCLUDED.wallpaper_url,
-                updated_at = CURRENT_TIMESTAMP
-            """,
-            (
-                user["id"],
-                chat_user_id,
-                wallpaper_url,
-            ),
-        )
+            VALUES (%s, %s, %s, %s, %s)
+            RETURNING
+                id,
+                sender_id,
+                receiver_id,
+                text,
+                media_url,
+                media_type,
+                duration_seconds,
+                created_at,
+                seen
+        """, (
+            user["id"],
+            receiver_id,
+            text.strip(),
+            media_url,
+            media_type,
+        )).fetchone()
 
         conn.commit()
 
     return {
-        "ok": True,
-        "wallpaper_url": wallpaper_url,
-    }
-
-
-# ============================================================
-# GET CHAT SETTINGS
-# ============================================================
-
-@app.get("/api/chats/{chat_user_id}/settings")
-def get_chat_settings(
-    chat_user_id: int,
-    authorization: str | None = Header(default=None),
-    msafiri_token: str | None = Cookie(default=None),
-):
-
-    user = require_user(
-        authorization,
-        msafiri_token,
-    )
-
-    with db() as conn:
-
-        settings = conn.execute(
-            """
-            SELECT
-                wallpaper_url,
-                muted,
-                pinned,
-                blocked,
-                updated_at
-            FROM chat_settings
-            WHERE user_id = %s
-              AND chat_user_id = %s
-            LIMIT 1
-            """,
-            (
-                user["id"],
-                chat_user_id,
-            ),
-        ).fetchone()
-
-    if not settings:
-
-        settings = {
-            "wallpaper_url": None,
-            "muted": False,
-            "pinned": False,
-            "blocked": False,
-            "updated_at": None,
-        }
-
-    return {
-        "ok": True,
-        "settings": settings,
-    }
-
-
-# ============================================================
-# UPDATE CHAT SETTINGS
-# ============================================================
-
-@app.patch("/api/chats/{chat_user_id}/settings")
-def update_chat_settings(
-    chat_user_id: int,
-    data: ChatSettingsRequest,
-    authorization: str | None = Header(default=None),
-    msafiri_token: str | None = Cookie(default=None),
-):
-
-    user = require_user(
-        authorization,
-        msafiri_token,
-    )
-
-    with db() as conn:
-
-        target = conn.execute(
-            """
-            SELECT id
-            FROM users
-            WHERE id = %s
-              AND deleted_at IS NULL
-            """,
-            (chat_user_id,),
-        ).fetchone()
-
-        if not target:
-            raise HTTPException(
-                status_code=404,
-                detail="Chat user not found.",
-            )
-
-        current = conn.execute(
-            """
-            SELECT *
-            FROM chat_settings
-            WHERE user_id = %s
-              AND chat_user_id = %s
-            LIMIT 1
-            """,
-            (
-                user["id"],
-                chat_user_id,
-            ),
-        ).fetchone()
-
-        muted = (
-            data.muted
-            if data.muted is not None
-            else (
-                current["muted"]
-                if current
-                else False
-            )
-        )
-
-        pinned = (
-            data.pinned
-            if data.pinned is not None
-            else (
-                current["pinned"]
-                if current
-                else False
-            )
-        )
-
-        blocked = (
-            data.blocked
-            if data.blocked is not None
-            else (
-                current["blocked"]
-                if current
-                else False
-            )
-        )
-
-        wallpaper = (
-            current["wallpaper_url"]
-            if current
-            else None
-        )
-
-        settings = conn.execute(
-            """
-            INSERT INTO chat_settings
-                (
-                    user_id,
-                    chat_user_id,
-                    wallpaper_url,
-                    muted,
-                    pinned,
-                    blocked,
-                    updated_at
-                )
-            VALUES
-                (%s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
-
-            ON CONFLICT
-                (user_id, chat_user_id)
-
-            DO UPDATE SET
-                muted = EXCLUDED.muted,
-                pinned = EXCLUDED.pinned,
-                blocked = EXCLUDED.blocked,
-                updated_at = CURRENT_TIMESTAMP
-
-            RETURNING *
-            """,
-            (
-                user["id"],
-                chat_user_id,
-                wallpaper,
-                muted,
-                pinned,
-                blocked,
-            ),
-        ).fetchone()
-
-        conn.commit()
-
-    return {
-        "ok": True,
-        "settings": settings,
+        "message": message,
     }
 
 
@@ -2623,51 +2051,214 @@ def update_chat_settings(
 # CLEAR CHAT
 # ============================================================
 
-@app.delete("/api/chats/{chat_user_id}")
+@app.delete("/api/chats/{other_user_id}")
 def clear_chat(
-    chat_user_id: int,
-    authorization: str | None = Header(default=None),
-    msafiri_token: str | None = Cookie(default=None),
+    other_user_id: int,
+    authorization: Optional[str] = Header(default=None),
 ):
 
-    user = require_user(
-        authorization,
-        msafiri_token,
-    )
+    user = require_user(authorization)
 
-    with db() as conn:
+    with get_conn() as conn:
 
-        conn.execute(
-            """
+        conn.execute("""
             UPDATE messages
             SET deleted_for_sender = TRUE
             WHERE sender_id = %s
               AND receiver_id = %s
-            """,
-            (
-                user["id"],
-                chat_user_id,
-            ),
-        )
+        """, (
+            user["id"],
+            other_user_id,
+        ))
 
-        conn.execute(
-            """
+        conn.execute("""
             UPDATE messages
             SET deleted_for_receiver = TRUE
             WHERE sender_id = %s
               AND receiver_id = %s
-            """,
-            (
-                chat_user_id,
-                user["id"],
-            ),
-        )
+        """, (
+            other_user_id,
+            user["id"],
+        ))
 
         conn.commit()
 
     return {
-        "ok": True,
-        "message": "Chat cleared for this account.",
+        "message": "Chat cleared",
+    }
+
+
+# ============================================================
+# CHAT SETTINGS
+# ============================================================
+
+@app.post("/api/chats/{other_user_id}/settings")
+def update_chat_settings(
+    other_user_id: int,
+    data: ChatSettingsRequest,
+    authorization: Optional[str] = Header(default=None),
+):
+
+    user = require_user(authorization)
+
+    with get_conn() as conn:
+
+        existing = conn.execute("""
+            SELECT *
+            FROM chat_settings
+            WHERE user_id = %s
+              AND other_user_id = %s
+        """, (
+            user["id"],
+            other_user_id,
+        )).fetchone()
+
+        if existing:
+
+            pinned = (
+                data.pinned
+                if data.pinned is not None
+                else existing["pinned"]
+            )
+
+            muted = (
+                data.muted
+                if data.muted is not None
+                else existing["muted"]
+            )
+
+            blocked = (
+                data.blocked
+                if data.blocked is not None
+                else existing["blocked"]
+            )
+
+            conn.execute("""
+                UPDATE chat_settings
+                SET
+                    pinned = %s,
+                    muted = %s,
+                    blocked = %s,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE user_id = %s
+                  AND other_user_id = %s
+            """, (
+                pinned,
+                muted,
+                blocked,
+                user["id"],
+                other_user_id,
+            ))
+
+        else:
+
+            conn.execute("""
+                INSERT INTO chat_settings (
+                    user_id,
+                    other_user_id,
+                    pinned,
+                    muted,
+                    blocked
+                )
+                VALUES (%s, %s, %s, %s, %s)
+            """, (
+                user["id"],
+                other_user_id,
+                data.pinned or False,
+                data.muted or False,
+                data.blocked or False,
+            ))
+
+        conn.commit()
+
+        settings = conn.execute("""
+            SELECT
+                user_id,
+                other_user_id,
+                wallpaper_url,
+                pinned,
+                muted,
+                blocked,
+                updated_at
+            FROM chat_settings
+            WHERE user_id = %s
+              AND other_user_id = %s
+        """, (
+            user["id"],
+            other_user_id,
+        )).fetchone()
+
+    return {
+        "settings": settings,
+    }
+
+
+# ============================================================
+# CHAT WALLPAPER
+# ============================================================
+
+@app.post("/api/chats/{other_user_id}/wallpaper")
+async def upload_wallpaper(
+    other_user_id: int,
+    file: UploadFile = File(...),
+    authorization: Optional[str] = Header(default=None),
+):
+
+    user = require_user(authorization)
+
+    content_type = (
+        file.content_type or ""
+    ).lower()
+
+    if not content_type.startswith("image/"):
+        raise HTTPException(
+            status_code=400,
+            detail="Wallpaper must be an image",
+        )
+
+    content = await file.read()
+
+    if len(content) > 15 * 1024 * 1024:
+        raise HTTPException(
+            status_code=400,
+            detail="Wallpaper is too large",
+        )
+
+    filename = safe_filename(file.filename)
+
+    destination = WALLPAPER_DIR / filename
+
+    destination.write_bytes(content)
+
+    url = public_file_url(destination)
+
+    with get_conn() as conn:
+
+        conn.execute("""
+            INSERT INTO chat_settings (
+                user_id,
+                other_user_id,
+                wallpaper_url
+            )
+            VALUES (%s, %s, %s)
+            ON CONFLICT (
+                user_id,
+                other_user_id
+            )
+            DO UPDATE SET
+                wallpaper_url = EXCLUDED.wallpaper_url,
+                updated_at = CURRENT_TIMESTAMP
+        """, (
+            user["id"],
+            other_user_id,
+            url,
+        ))
+
+        conn.commit()
+
+    return {
+        "message": "Wallpaper updated",
+        "wallpaper_url": url,
     }
 
 
@@ -2678,100 +2269,64 @@ def clear_chat(
 @app.post("/api/users/{user_id}/block")
 def block_user(
     user_id: int,
-    authorization: str | None = Header(default=None),
-    msafiri_token: str | None = Cookie(default=None),
+    authorization: Optional[str] = Header(default=None),
 ):
 
-    user = require_user(
-        authorization,
-        msafiri_token,
-    )
+    user = require_user(authorization)
 
-    if user["id"] == user_id:
+    if user_id == user["id"]:
         raise HTTPException(
             status_code=400,
-            detail="You cannot block yourself.",
+            detail="Cannot block yourself",
         )
 
-    with db() as conn:
+    with get_conn() as conn:
 
-        target = conn.execute(
-            """
-            SELECT id
-            FROM users
-            WHERE id = %s
-              AND deleted_at IS NULL
-            """,
-            (user_id,),
-        ).fetchone()
-
-        if not target:
-            raise HTTPException(
-                status_code=404,
-                detail="User not found.",
+        conn.execute("""
+            INSERT INTO blocks (
+                blocker_id,
+                blocked_id
             )
-
-        conn.execute(
-            """
-            INSERT INTO blocks
-                (
-                    blocker_id,
-                    blocked_id
-                )
-            VALUES
-                (%s, %s)
-            ON CONFLICT
-                (blocker_id, blocked_id)
-            DO NOTHING
-            """,
-            (
-                user["id"],
-                user_id,
-            ),
-        )
+            VALUES (%s, %s)
+            ON CONFLICT DO NOTHING
+        """, (
+            user["id"],
+            user_id,
+        ))
 
         conn.commit()
 
     return {
-        "ok": True,
         "blocked": True,
     }
 
 
 # ============================================================
-# UNBLOCK
+# UNBLOCK USER
 # ============================================================
 
 @app.delete("/api/users/{user_id}/block")
 def unblock_user(
     user_id: int,
-    authorization: str | None = Header(default=None),
-    msafiri_token: str | None = Cookie(default=None),
+    authorization: Optional[str] = Header(default=None),
 ):
 
-    user = require_user(
-        authorization,
-        msafiri_token,
-    )
+    user = require_user(authorization)
 
-    with db() as conn:
+    with get_conn() as conn:
 
-        conn.execute(
-            """
+        conn.execute("""
             DELETE FROM blocks
             WHERE blocker_id = %s
               AND blocked_id = %s
-            """,
-            (
-                user["id"],
-                user_id,
-            ),
-        )
+        """, (
+            user["id"],
+            user_id,
+        ))
 
         conn.commit()
 
     return {
-        "ok": True,
         "blocked": False,
     }
 
@@ -2784,51 +2339,30 @@ def unblock_user(
 def report_user(
     user_id: int,
     data: ReportRequest,
-    authorization: str | None = Header(default=None),
-    msafiri_token: str | None = Cookie(default=None),
+    authorization: Optional[str] = Header(default=None),
 ):
 
-    user = require_user(
-        authorization,
-        msafiri_token,
-    )
+    user = require_user(authorization)
 
-    reason = clean_text(
-        data.reason,
-        1000,
-    )
+    with get_conn() as conn:
 
-    if not reason:
-        raise HTTPException(
-            status_code=400,
-            detail="Report reason is required.",
-        )
-
-    with db() as conn:
-
-        conn.execute(
-            """
-            INSERT INTO reports
-                (
-                    reporter_id,
-                    reported_user_id,
-                    reason
-                )
-            VALUES
-                (%s, %s, %s)
-            """,
-            (
-                user["id"],
-                user_id,
-                reason,
-            ),
-        )
+        conn.execute("""
+            INSERT INTO reports (
+                reporter_id,
+                reported_user_id,
+                reason
+            )
+            VALUES (%s, %s, %s)
+        """, (
+            user["id"],
+            user_id,
+            data.reason.strip(),
+        ))
 
         conn.commit()
 
     return {
-        "ok": True,
-        "message": "Report submitted.",
+        "message": "Report submitted",
     }
 
 
@@ -2840,51 +2374,30 @@ def report_user(
 def report_post(
     post_id: int,
     data: ReportRequest,
-    authorization: str | None = Header(default=None),
-    msafiri_token: str | None = Cookie(default=None),
+    authorization: Optional[str] = Header(default=None),
 ):
 
-    user = require_user(
-        authorization,
-        msafiri_token,
-    )
+    user = require_user(authorization)
 
-    reason = clean_text(
-        data.reason,
-        1000,
-    )
+    with get_conn() as conn:
 
-    if not reason:
-        raise HTTPException(
-            status_code=400,
-            detail="Report reason is required.",
-        )
-
-    with db() as conn:
-
-        conn.execute(
-            """
-            INSERT INTO reports
-                (
-                    reporter_id,
-                    post_id,
-                    reason
-                )
-            VALUES
-                (%s, %s, %s)
-            """,
-            (
-                user["id"],
+        conn.execute("""
+            INSERT INTO reports (
+                reporter_id,
                 post_id,
-                reason,
-            ),
-        )
+                reason
+            )
+            VALUES (%s, %s, %s)
+        """, (
+            user["id"],
+            post_id,
+            data.reason.strip(),
+        ))
 
         conn.commit()
 
     return {
-        "ok": True,
-        "message": "Report submitted.",
+        "message": "Report submitted",
     }
 
 
@@ -2894,26 +2407,11 @@ def report_post(
 
 @app.post("/api/calls/token")
 def create_call_token(
-    data: CallRequest,
-    authorization: str | None = Header(default=None),
-    msafiri_token: str | None = Cookie(default=None),
+    data: CallTokenRequest,
+    authorization: Optional[str] = Header(default=None),
 ):
 
-    user = require_user(
-        authorization,
-        msafiri_token,
-    )
-
-    call_type = data.call_type.lower().strip()
-
-    if call_type not in {
-        "voice",
-        "video",
-    }:
-        raise HTTPException(
-            status_code=400,
-            detail="call_type must be voice or video.",
-        )
+    user = require_user(authorization)
 
     if not (
         LIVEKIT_URL
@@ -2922,338 +2420,241 @@ def create_call_token(
     ):
         raise HTTPException(
             status_code=503,
-            detail="LiveKit is not configured on the server.",
+            detail="LiveKit is not configured",
         )
 
-    if user["id"] == data.receiver_id:
+    if data.receiver_id == user["id"]:
         raise HTTPException(
             status_code=400,
-            detail="You cannot call yourself.",
+            detail="Cannot call yourself",
         )
 
-    with db() as conn:
+    call_type = data.call_type.lower().strip()
 
-        receiver = conn.execute(
-            """
-            SELECT
-                id,
-                name,
-                avatar
-            FROM users
-            WHERE id = %s
-              AND deleted_at IS NULL
-            """,
-            (data.receiver_id,),
-        ).fetchone()
+    if call_type not in {
+        "audio",
+        "video",
+    }:
+        call_type = "video"
 
-        if not receiver:
-            raise HTTPException(
-                status_code=404,
-                detail="Receiver not found.",
-            )
+    try:
 
-        blocked = conn.execute(
-            """
-            SELECT id
-            FROM blocks
-            WHERE
-                (
-                    blocker_id = %s
-                    AND blocked_id = %s
-                )
-                OR
-                (
-                    blocker_id = %s
-                    AND blocked_id = %s
-                )
-            LIMIT 1
-            """,
-            (
-                user["id"],
-                data.receiver_id,
-                data.receiver_id,
-                user["id"],
-            ),
-        ).fetchone()
-
-        if blocked:
-            raise HTTPException(
-                status_code=403,
-                detail="Calling is blocked.",
-            )
-
-        call_id = uuid.uuid4()
+        from livekit import api
 
         room_name = (
-            f"msg-{call_id.hex}"
+            "msafiri-"
+            + secrets.token_hex(12)
         )
 
-        conn.execute(
-            """
-            INSERT INTO call_sessions
-                (
-                    id,
+        token = (
+            api.AccessToken(
+                LIVEKIT_API_KEY,
+                LIVEKIT_API_SECRET,
+            )
+            .with_identity(
+                str(user["id"])
+            )
+            .with_name(
+                user["name"]
+            )
+            .with_grants(
+                api.VideoGrants(
+                    room_join=True,
+                    room=room_name,
+                )
+            )
+        )
+
+        jwt_token = token.to_jwt()
+
+        with get_conn() as conn:
+
+            call = conn.execute("""
+                INSERT INTO calls (
                     caller_id,
                     receiver_id,
                     room_name,
+                    call_type
+                )
+                VALUES (%s, %s, %s, %s)
+                RETURNING
+                    id,
+                    room_name,
                     call_type,
-                    status
-                )
-            VALUES
-                (
-                    %s,
-                    %s,
-                    %s,
-                    %s,
-                    %s,
-                    'calling'
-                )
-            """,
-            (
-                call_id,
+                    status,
+                    created_at
+            """, (
                 user["id"],
                 data.receiver_id,
                 room_name,
                 call_type,
-            ),
+            )).fetchone()
+
+            conn.commit()
+
+        return {
+            "token": jwt_token,
+            "livekit_url": LIVEKIT_URL,
+            "room_name": room_name,
+            "call": call,
+        }
+
+    except ImportError:
+
+        raise HTTPException(
+            status_code=500,
+            detail="LiveKit package is not installed",
         )
 
-        conn.commit()
+    except Exception as e:
 
-    # --------------------------------------------------------
-    # LIVEKIT TOKEN
-    # --------------------------------------------------------
-
-    identity = f"user-{user['id']}"
-
-    token = (
-        api.AccessToken(
-            LIVEKIT_API_KEY,
-            LIVEKIT_API_SECRET,
+        raise HTTPException(
+            status_code=500,
+            detail=f"LiveKit error: {str(e)}",
         )
-        .with_identity(identity)
-        .with_name(user["name"])
-        .with_grants(
-            api.VideoGrants(
-                room_join=True,
-                room=room_name,
-            )
-        )
-        .to_jwt()
-    )
-
-    return {
-        "ok": True,
-        "call_id": str(call_id),
-        "room": room_name,
-        "token": token,
-        "livekit_url": LIVEKIT_URL,
-        "call_type": call_type,
-        "caller": {
-            "id": user["id"],
-            "name": user["name"],
-            "avatar": user["avatar"],
-        },
-        "receiver": receiver,
-    }
 
 
 # ============================================================
-# UPDATE CALL STATUS
+# END CALL
 # ============================================================
 
-@app.patch("/api/calls/{call_id}")
-def update_call(
-    call_id: str,
-    status: str = Query(...),
-    authorization: str | None = Header(default=None),
-    msafiri_token: str | None = Cookie(default=None),
+@app.post("/api/calls/{call_id}/end")
+def end_call(
+    call_id: int,
+    authorization: Optional[str] = Header(default=None),
 ):
 
-    user = require_user(
-        authorization,
-        msafiri_token,
-    )
+    user = require_user(authorization)
 
-    allowed = {
-        "calling",
-        "ringing",
-        "connected",
-        "ended",
-        "rejected",
-        "missed",
-    }
+    with get_conn() as conn:
 
-    status = status.lower().strip()
-
-    if status not in allowed:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid call status.",
-        )
-
-    try:
-        call_uuid = uuid.UUID(call_id)
-    except ValueError:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid call ID.",
-        )
-
-    with db() as conn:
-
-        call = conn.execute(
-            """
-            SELECT *
-            FROM call_sessions
+        call = conn.execute("""
+            UPDATE calls
+            SET
+                status = 'ended',
+                ended_at = CURRENT_TIMESTAMP
             WHERE id = %s
               AND (
                     caller_id = %s
                     OR receiver_id = %s
-                  )
-            LIMIT 1
-            """,
-            (
-                call_uuid,
-                user["id"],
-                user["id"],
-            ),
-        ).fetchone()
+              )
+            RETURNING *
+        """, (
+            call_id,
+            user["id"],
+            user["id"],
+        )).fetchone()
 
-        if not call:
-            raise HTTPException(
-                status_code=404,
-                detail="Call not found.",
-            )
+        conn.commit()
 
-        if status == "connected":
+    if not call:
+        raise HTTPException(
+            status_code=404,
+            detail="Call not found",
+        )
 
-            updated = conn.execute(
-                """
-                UPDATE call_sessions
-                SET
-                    status = %s,
-                    started_at = COALESCE(
-                        started_at,
-                        CURRENT_TIMESTAMP
-                    )
-                WHERE id = %s
-                RETURNING *
-                """,
-                (
-                    status,
-                    call_uuid,
-                ),
-            ).fetchone()
+    return {
+        "call": call,
+    }
 
-        elif status in {
-            "ended",
-            "rejected",
-            "missed",
-        }:
 
-            updated = conn.execute(
-                """
-                UPDATE call_sessions
-                SET
-                    status = %s,
-                    ended_at = CURRENT_TIMESTAMP
-                WHERE id = %s
-                RETURNING *
-                """,
-                (
-                    status,
-                    call_uuid,
-                ),
-            ).fetchone()
+# ============================================================
+# DELETE ACCOUNT
+# ============================================================
 
-        else:
+@app.delete("/api/account")
+def delete_account(
+    authorization: Optional[str] = Header(default=None),
+):
 
-            updated = conn.execute(
-                """
-                UPDATE call_sessions
-                SET status = %s
-                WHERE id = %s
-                RETURNING *
-                """,
-                (
-                    status,
-                    call_uuid,
-                ),
-            ).fetchone()
+    user = require_user(authorization)
+
+    with get_conn() as conn:
+
+        conn.execute("""
+            UPDATE users
+            SET
+                deleted_at = CURRENT_TIMESTAMP,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s
+        """, (user["id"],))
+
+        conn.execute("""
+            UPDATE sessions
+            SET revoked = TRUE
+            WHERE user_id = %s
+        """, (user["id"],))
 
         conn.commit()
 
     return {
-        "ok": True,
-        "call": updated,
+        "message": "Account deleted",
     }
 
 
 # ============================================================
-# CALL HISTORY
+# ADMIN / DEBUG — DATABASE STRUCTURE
 # ============================================================
 
-@app.get("/api/calls/history")
-def call_history(
-    limit: int = Query(default=50, ge=1, le=100),
-    authorization: str | None = Header(default=None),
-    msafiri_token: str | None = Cookie(default=None),
+@app.get("/api/debug/database")
+def database_debug(
+    authorization: Optional[str] = Header(default=None),
 ):
 
-    user = require_user(
-        authorization,
-        msafiri_token,
-    )
+    # Requires login.
+    # This endpoint does NOT expose passwords or secrets.
+    require_user(authorization)
 
-    with db() as conn:
+    with get_conn() as conn:
 
-        calls = conn.execute(
-            """
-            SELECT
-                c.*,
-
-                caller.name AS caller_name,
-                caller.avatar AS caller_avatar,
-
-                receiver.name AS receiver_name,
-                receiver.avatar AS receiver_avatar
-
-            FROM call_sessions c
-
-            JOIN users caller
-                ON caller.id = c.caller_id
-
-            JOIN users receiver
-                ON receiver.id = c.receiver_id
-
-            WHERE
-                c.caller_id = %s
-                OR c.receiver_id = %s
-
-            ORDER BY c.created_at DESC
-
-            LIMIT %s
-            """,
-            (
-                user["id"],
-                user["id"],
-                limit,
-            ),
-        ).fetchall()
+        tables = conn.execute("""
+            SELECT table_name
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+            ORDER BY table_name
+        """).fetchall()
 
     return {
-        "ok": True,
-        "calls": calls,
+        "tables": [
+            row["table_name"]
+            for row in tables
+        ]
     }
 
 
 # ============================================================
-# RUN DIRECTLY
+# GLOBAL ERROR HANDLER
+# ============================================================
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc):
+
+    # Keep API alive and return useful JSON instead
+    # of an unexplained browser error.
+
+    print(
+        "UNHANDLED ERROR:",
+        type(exc).__name__,
+        str(exc),
+    )
+
+    from fastapi.responses import JSONResponse
+
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": "Internal Server Error",
+            "error": str(exc),
+            "type": type(exc).__name__,
+        },
+    )
+
+
+# ============================================================
+# RUN
 # ============================================================
 
 if __name__ == "__main__":
-
     import uvicorn
 
     port = int(
@@ -3268,4 +2669,4 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=port,
         reload=False,
-    )
+    )n

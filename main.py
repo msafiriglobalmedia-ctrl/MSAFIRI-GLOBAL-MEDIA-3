@@ -906,6 +906,12 @@ def register(data: RegisterRequest):
             status_code=400,
             detail="Password must be at least 6 characters",
         )
+        
+        if len(password.encode("utf-8")) > 1024:
+    raise HTTPException(
+        status_code=400,
+        detail="Password is too long",
+    )
 
     with get_conn() as conn:
 

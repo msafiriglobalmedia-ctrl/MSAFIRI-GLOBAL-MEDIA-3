@@ -7,3 +7,4 @@ PyJWT
 psycopg[binary]
 livekit-api
 email-validator
+argon2-cffi

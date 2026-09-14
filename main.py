@@ -835,12 +835,9 @@ async def save_upload(
 # HEALTH
 # ============================================================
 
-@app.get("/")
-def root():
-    return {
-        "app": APP_NAME,
-        "status": "online",
-    }
+@app.get("/", include_in_schema=False)
+async def root():
+    return FileResponse("index.html")
 
 
 @app.get("/api/health")

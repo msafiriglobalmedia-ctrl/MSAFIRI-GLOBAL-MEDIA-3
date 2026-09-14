@@ -1026,10 +1026,28 @@ def login(data: LoginRequest):
                 detail="Account deleted",
             )
 
-        if not pwd_context.verify(
-            data.password,
-            user["password_hash"],
-        ):
+        if not stored_hash = user["password_hash"]
+
+try:
+    password_ok = password_hasher.verify(
+        stored_hash,
+        password,
+    )
+except (VerifyMismatchError, VerificationError):
+    try:
+        password_ok = pwd_context.verify(
+            password,
+            stored_hash,
+        )
+    except Exception:
+        password_ok = False
+
+if not password_ok:
+    raise HTTPException(
+        status_code=401,
+        detail="Invalid email or password",
+    )
+        
             raise HTTPException(
                 status_code=401,
                 detail="Invalid email or password",

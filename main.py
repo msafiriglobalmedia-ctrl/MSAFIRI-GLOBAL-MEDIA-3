@@ -925,7 +925,7 @@ def register(data: RegisterRequest):
                 detail="Email already registered",
             )
 
-        password_hash = pwd_context.hash(password)
+        password_hash = password_hasher.hash(password)
 
         user = conn.execute(
             """

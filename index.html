@@ -2,3597 +2,3565 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
-<meta name="theme-color" content="#070b14">
+<meta name="viewport"
+      content="width=device-width,initial-scale=1,viewport-fit=cover">
 
-<title>MSAFIRI GLOBAL MEDIA — connect beyond</title>
+<meta name="theme-color" content="#090b10">
+
+<title>MSAFIRI GLOBAL MEDIA</title>
 
 <style>
+
 :root{
-  --bg:#070b14;
-  --bg2:#0d1320;
-  --card:#101827;
-  --card2:#151f30;
-  --text:#f4f7fb;
-  --muted:#91a0b6;
-  --line:#243044;
-  --primary:#ff7a00;
-  --primary2:#ff3d00;
-  --danger:#ff4757;
-  --success:#20c997;
-  --shadow:0 15px 40px rgba(0,0,0,.25);
+    --bg:#07090d;
+    --panel:#10141b;
+    --panel2:#151a22;
+    --border:#252b35;
+    --text:#f5f7fa;
+    --muted:#9ba5b1;
+    --orange:#ff8a00;
+    --red:#e53935;
+    --green:#19c37d;
+    --blue:#4285f4;
+    --radius:18px;
 }
 
 *{
-  box-sizing:border-box;
+    box-sizing:border-box;
+}
+
+html,
+body{
+    margin:0;
+    padding:0;
+    min-height:100%;
+    background:var(--bg);
+    color:var(--text);
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
 }
 
 body{
-  margin:0;
-  font-family:Arial,Helvetica,sans-serif;
-  background:var(--bg);
-  color:var(--text);
+    overflow-x:hidden;
 }
 
 button,
 input,
 textarea,
 select{
-  font:inherit;
+    font:inherit;
 }
 
 button{
-  cursor:pointer;
+    cursor:pointer;
 }
 
-.topbar{
-  position:sticky;
-  top:0;
-  z-index:100;
-  height:64px;
-  background:rgba(7,11,20,.95);
-  border-bottom:1px solid var(--line);
-  display:flex;
-  align-items:center;
-  gap:15px;
-  padding:0 18px;
-  backdrop-filter:blur(14px);
+.hidden{
+    display:none!important;
+}
+
+
+/* ============================================================
+   AUTH
+   ============================================================ */
+
+#authScreen{
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+
+    background:
+        radial-gradient(
+            circle at top right,
+            rgba(255,138,0,.18),
+            transparent 35%
+        ),
+        radial-gradient(
+            circle at bottom left,
+            rgba(229,57,53,.15),
+            transparent 35%
+        ),
+        var(--bg);
+}
+
+.authCard{
+    width:100%;
+    max-width:430px;
+    padding:30px;
+    border:1px solid var(--border);
+    background:rgba(16,20,27,.96);
+    border-radius:24px;
+    box-shadow:
+        0 25px 80px rgba(0,0,0,.5);
 }
 
 .logo{
-  font-weight:900;
-  font-size:20px;
-  white-space:nowrap;
+    text-align:center;
+    font-size:30px;
+    font-weight:900;
+    letter-spacing:-1px;
 }
 
 .logo span{
-  color:var(--primary);
+    color:var(--orange);
 }
 
-.search{
-  flex:1;
-  max-width:550px;
+.authSubtitle{
+    text-align:center;
+    color:var(--muted);
+    margin:8px 0 25px;
 }
 
-.search input{
-  width:100%;
-  border:1px solid var(--line);
-  background:var(--bg2);
-  color:var(--text);
-  padding:11px 15px;
-  border-radius:30px;
-  outline:none;
+.authTabs{
+    display:flex;
+    gap:8px;
+    margin-bottom:20px;
 }
 
-.top-actions{
-  display:flex;
-  gap:8px;
-  margin-left:auto;
+.authTab{
+    flex:1;
+    border:1px solid var(--border);
+    background:var(--panel2);
+    color:var(--muted);
+    padding:12px;
+    border-radius:12px;
 }
 
-.icon-btn,
-.btn{
-  border:1px solid var(--line);
-  background:var(--card);
-  color:var(--text);
-  border-radius:12px;
-  padding:9px 13px;
-}
-
-.btn:hover,
-.icon-btn:hover{
-  border-color:var(--primary);
-}
-
-.btn.primary{
-  background:linear-gradient(
-    135deg,
-    var(--primary),
-    var(--primary2)
-  );
-  border:none;
-  color:white;
-  font-weight:700;
-}
-
-.btn.danger{
-  background:var(--danger);
-  border:none;
-}
-
-.container{
-  max-width:1450px;
-  margin:auto;
-  display:grid;
-  grid-template-columns:240px minmax(0,1fr) 280px;
-  gap:18px;
-  padding:18px;
-}
-
-.sidebar,
-.rightbar{
-  position:sticky;
-  top:82px;
-  height:max-content;
-}
-
-.side-card,
-.card{
-  background:var(--card);
-  border:1px solid var(--line);
-  border-radius:18px;
-  box-shadow:var(--shadow);
-}
-
-.side-card{
-  padding:15px;
-  margin-bottom:15px;
-}
-
-.nav-item{
-  padding:12px;
-  border-radius:12px;
-  margin:4px 0;
-  cursor:pointer;
-  color:var(--muted);
-}
-
-.nav-item:hover,
-.nav-item.active{
-  background:var(--card2);
-  color:white;
-}
-
-.profile-mini{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  margin-bottom:15px;
-}
-
-.avatar{
-  width:45px;
-  height:45px;
-  border-radius:50%;
-  object-fit:cover;
-  background:linear-gradient(
-    135deg,
-    var(--primary),
-    var(--primary2)
-  );
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-weight:900;
-}
-
-.avatar.small{
-  width:38px;
-  height:38px;
-}
-
-.avatar.large{
-  width:80px;
-  height:80px;
-}
-
-.muted{
-  color:var(--muted);
-}
-
-.page-title{
-  font-size:25px;
-  margin:5px 0 4px;
-}
-
-.subtitle{
-  color:var(--muted);
-  margin-bottom:18px;
-}
-
-.card{
-  padding:17px;
-  margin-bottom:18px;
-}
-
-.composer textarea{
-  width:100%;
-  min-height:90px;
-  resize:vertical;
-  background:var(--bg2);
-  border:1px solid var(--line);
-  border-radius:14px;
-  color:white;
-  padding:14px;
-  outline:none;
-}
-
-.composer-bottom{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  margin-top:10px;
-  flex-wrap:wrap;
-}
-
-.file-name{
-  color:var(--muted);
-  font-size:13px;
-  flex:1;
-}
-
-.preview{
-  margin-top:10px;
-}
-
-.preview img,
-.preview video{
-  max-width:100%;
-  max-height:450px;
-  border-radius:14px;
-}
-
-.post-head{
-  display:flex;
-  align-items:center;
-  gap:10px;
-}
-
-.post-author{
-  flex:1;
-}
-
-.post-author strong{
-  display:block;
-}
-
-.post-author small{
-  color:var(--muted);
-}
-
-.post-body{
-  margin-top:13px;
-  line-height:1.55;
-  white-space:pre-wrap;
-}
-
-.post-media{
-  margin-top:13px;
-  width:100%;
-  border-radius:15px;
-  max-height:600px;
-  object-fit:contain;
-  background:#000;
-}
-
-.post-actions{
-  display:flex;
-  gap:8px;
-  border-top:1px solid var(--line);
-  margin-top:14px;
-  padding-top:12px;
-  flex-wrap:wrap;
-}
-
-.action{
-  background:transparent;
-  border:1px solid var(--line);
-  color:var(--muted);
-  border-radius:10px;
-  padding:8px 11px;
-}
-
-.action:hover,
-.action.active{
-  color:white;
-  border-color:var(--primary);
-}
-
-.people-grid{
-  display:grid;
-  grid-template-columns:repeat(2,minmax(0,1fr));
-  gap:12px;
-}
-
-.person{
-  display:flex;
-  gap:12px;
-  align-items:center;
-  background:var(--bg2);
-  border:1px solid var(--line);
-  border-radius:15px;
-  padding:12px;
-}
-
-.person-info{
-  flex:1;
-  min-width:0;
-}
-
-.person-info strong,
-.person-info span{
-  display:block;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-}
-
-.person-info span{
-  color:var(--muted);
-  font-size:13px;
-}
-
-.empty{
-  text-align:center;
-  padding:40px 15px;
-  color:var(--muted);
-}
-
-.stat{
-  text-align:center;
-}
-
-.stat b{
-  display:block;
-  font-size:22px;
-}
-
-.profile-cover{
-  height:130px;
-  border-radius:16px;
-  background:
-    linear-gradient(
-      135deg,
-      #ff7a00,
-      #e72d00,
-      #351b72
-    );
-}
-
-.profile-main{
-  display:flex;
-  gap:15px;
-  align-items:flex-end;
-  margin-top:-40px;
-  padding:0 15px;
-}
-
-.profile-main .avatar{
-  border:5px solid var(--card);
-}
-
-.profile-data{
-  padding:15px;
-}
-
-.form-grid{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:12px;
+.authTab.active{
+    background:var(--orange);
+    color:#111;
+    border-color:var(--orange);
+    font-weight:800;
 }
 
 .field{
-  margin-bottom:12px;
+    margin-bottom:13px;
 }
 
 .field label{
-  display:block;
-  color:var(--muted);
-  font-size:13px;
-  margin-bottom:6px;
+    display:block;
+    font-size:13px;
+    color:var(--muted);
+    margin-bottom:6px;
 }
 
 .field input,
-.field textarea,
-.field select{
-  width:100%;
-  padding:11px 13px;
-  border-radius:11px;
-  border:1px solid var(--line);
-  background:var(--bg2);
-  color:white;
-  outline:none;
-}
-
 .field textarea{
-  min-height:100px;
-  resize:vertical;
+    width:100%;
+    border:1px solid var(--border);
+    background:#0a0d12;
+    color:var(--text);
+    padding:13px;
+    border-radius:12px;
+    outline:none;
 }
 
-.auth-overlay,
-.modal-overlay{
-  position:fixed;
-  inset:0;
-  z-index:500;
-  background:rgba(0,0,0,.75);
-  display:none;
-  align-items:center;
-  justify-content:center;
-  padding:15px;
+.field input:focus,
+.field textarea:focus{
+    border-color:var(--orange);
 }
 
-.auth-box,
-.modal{
-  width:min(500px,100%);
-  max-height:90vh;
-  overflow:auto;
-  background:var(--card);
-  border:1px solid var(--line);
-  border-radius:20px;
-  padding:22px;
-  box-shadow:0 25px 80px rgba(0,0,0,.45);
+.primaryBtn{
+    width:100%;
+    border:0;
+    padding:14px;
+    border-radius:13px;
+    background:linear-gradient(
+        135deg,
+        var(--orange),
+        var(--red)
+    );
+    color:white;
+    font-weight:800;
 }
 
-.auth-logo{
-  text-align:center;
-  font-size:28px;
-  font-weight:900;
-  margin-bottom:4px;
+.authMessage{
+    min-height:20px;
+    margin-top:12px;
+    text-align:center;
+    color:#ff7373;
+    font-size:14px;
 }
 
-.auth-logo span{
-  color:var(--primary);
+
+/* ============================================================
+   APP
+   ============================================================ */
+
+#app{
+    min-height:100vh;
 }
 
-.auth-caption{
-  text-align:center;
-  color:var(--muted);
-  margin-bottom:20px;
+.topbar{
+    height:64px;
+    position:sticky;
+    top:0;
+    z-index:100;
+
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+
+    padding:0 18px;
+
+    background:rgba(7,9,13,.94);
+    backdrop-filter:blur(18px);
+
+    border-bottom:1px solid var(--border);
 }
 
-.auth-tabs{
-  display:flex;
-  gap:8px;
-  margin-bottom:15px;
+.brand{
+    font-weight:900;
+    font-size:20px;
 }
 
-.auth-tabs button{
-  flex:1;
+.brand span{
+    color:var(--orange);
 }
 
-.close{
-  float:right;
-  border:none;
-  background:transparent;
-  color:var(--muted);
-  font-size:24px;
+.topActions{
+    display:flex;
+    gap:8px;
 }
 
-.toast{
-  position:fixed;
-  right:20px;
-  bottom:20px;
-  z-index:1000;
-  max-width:350px;
-  background:#151d2b;
-  border:1px solid var(--line);
-  border-radius:13px;
-  padding:13px 16px;
-  display:none;
-  box-shadow:var(--shadow);
+.iconBtn{
+    width:40px;
+    height:40px;
+    border-radius:50%;
+    border:1px solid var(--border);
+    background:var(--panel);
+    color:var(--text);
 }
 
-.loading{
-  opacity:.65;
-  pointer-events:none;
+.layout{
+    max-width:1250px;
+    margin:auto;
+    display:grid;
+    grid-template-columns:220px minmax(0,1fr) 280px;
+    gap:20px;
+    padding:20px;
 }
 
-.theme-light{
-  --bg:#f4f6f9;
-  --bg2:#ffffff;
-  --card:#ffffff;
-  --card2:#eef1f6;
-  --text:#111827;
-  --muted:#64748b;
-  --line:#d9dee8;
-  --shadow:0 12px 35px rgba(0,0,0,.08);
+.sidebar{
+    position:sticky;
+    top:84px;
+    height:max-content;
 }
 
-.theme-light .topbar{
-  background:rgba(255,255,255,.94);
+.navItem{
+    width:100%;
+    border:0;
+    background:transparent;
+    color:var(--muted);
+    text-align:left;
+    padding:13px 14px;
+    border-radius:13px;
+    margin-bottom:5px;
 }
 
-.theme-light .search input,
-.theme-light .composer textarea,
-.theme-light .field input,
-.theme-light .field textarea,
-.theme-light .field select{
-  color:#111827;
+.navItem:hover,
+.navItem.active{
+    background:var(--panel2);
+    color:var(--text);
 }
 
-@media(max-width:1050px){
-  .container{
-    grid-template-columns:190px minmax(0,1fr);
-  }
-
-  .rightbar{
-    display:none;
-  }
+.navItem.active{
+    border-left:3px solid var(--orange);
 }
 
-@media(max-width:720px){
-  .topbar{
-    height:auto;
-    padding:10px;
-    flex-wrap:wrap;
-  }
+.main{
+    min-width:0;
+}
 
-  .logo{
-    font-size:17px;
-  }
+.rightbar{
+    position:sticky;
+    top:84px;
+    height:max-content;
+}
 
-  .search{
-    order:5;
-    flex-basis:100%;
-    max-width:none;
-  }
+.card{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    margin-bottom:16px;
+    overflow:hidden;
+}
 
-  .container{
+.cardPad{
+    padding:16px;
+}
+
+
+/* ============================================================
+   PROFILE MINI
+   ============================================================ */
+
+.profileMini{
+    display:flex;
+    align-items:center;
+    gap:10px;
+}
+
+.avatar{
+    width:44px;
+    height:44px;
+    border-radius:50%;
+    object-fit:cover;
+    background:linear-gradient(
+        135deg,
+        var(--orange),
+        var(--red)
+    );
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-weight:900;
+}
+
+.avatarSmall{
+    width:38px;
+    height:38px;
+}
+
+
+/* ============================================================
+   CREATE POST
+   ============================================================ */
+
+.createBox{
+    padding:16px;
+}
+
+.createRow{
+    display:flex;
+    gap:10px;
+}
+
+.createInput{
+    flex:1;
+    border:1px solid var(--border);
+    background:var(--panel2);
+    color:var(--muted);
+    border-radius:25px;
+    padding:12px 16px;
+    cursor:pointer;
+}
+
+.mediaButtons{
+    display:flex;
+    gap:8px;
+    margin-top:12px;
+}
+
+.mediaBtn{
+    border:1px solid var(--border);
+    background:var(--panel2);
+    color:var(--text);
+    padding:10px 13px;
+    border-radius:12px;
+}
+
+.mediaBtn:hover{
+    border-color:var(--orange);
+}
+
+
+/* ============================================================
+   POST
+   ============================================================ */
+
+.postHeader{
+    padding:14px 16px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+}
+
+.postAuthor{
+    display:flex;
+    align-items:center;
+    gap:10px;
+}
+
+.authorName{
+    font-weight:800;
+}
+
+.authorUsername{
+    color:var(--muted);
+    font-size:13px;
+}
+
+.postDate{
+    color:var(--muted);
+    font-size:12px;
+}
+
+.postCaption{
+    padding:0 16px 14px;
+    white-space:pre-wrap;
+    line-height:1.5;
+}
+
+.postMedia{
+    width:100%;
+    max-height:650px;
+    object-fit:contain;
+    background:#000;
     display:block;
-    padding:10px;
-  }
-
-  .sidebar{
-    position:static;
-    display:flex;
-    overflow-x:auto;
-    gap:6px;
-    margin-bottom:10px;
-  }
-
-  .side-card{
-    display:flex;
-    min-width:max-content;
-    margin:0;
-  }
-
-  .sidebar .profile-mini{
-    display:none;
-  }
-
-  .nav-item{
-    white-space:nowrap;
-  }
-
-  .people-grid{
-    grid-template-columns:1fr;
-  }
-
-  .form-grid{
-    grid-template-columns:1fr;
-  }
 }
+
+.postStats{
+    padding:10px 16px;
+    color:var(--muted);
+    font-size:13px;
+    border-bottom:1px solid var(--border);
+}
+
+.postActions{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+}
+
+.postAction{
+    border:0;
+    background:transparent;
+    color:var(--muted);
+    padding:13px 5px;
+}
+
+.postAction:hover{
+    background:var(--panel2);
+    color:var(--text);
+}
+
+.postAction.liked{
+    color:#ff5252;
+}
+
+
+/* ============================================================
+   SECTIONS
+   ============================================================ */
+
+.sectionTitle{
+    font-size:22px;
+    font-weight:900;
+    margin:0 0 15px;
+}
+
+.empty{
+    padding:40px 20px;
+    text-align:center;
+    color:var(--muted);
+}
+
+
+/* ============================================================
+   USERS
+   ============================================================ */
+
+.searchBox{
+    width:100%;
+    padding:12px;
+    border-radius:12px;
+    border:1px solid var(--border);
+    background:var(--panel2);
+    color:var(--text);
+    outline:none;
+    margin-bottom:12px;
+}
+
+.userItem{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    padding:12px;
+    border-bottom:1px solid var(--border);
+}
+
+.userInfo{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    min-width:0;
+}
+
+.userText{
+    min-width:0;
+}
+
+.userText strong,
+.userText small{
+    display:block;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+}
+
+.userText small{
+    color:var(--muted);
+}
+
+.smallBtn{
+    border:1px solid var(--border);
+    background:var(--panel2);
+    color:var(--text);
+    padding:8px 11px;
+    border-radius:10px;
+}
+
+
+/* ============================================================
+   CHAT
+   ============================================================ */
+
+.chatLayout{
+    display:grid;
+    grid-template-columns:250px minmax(0,1fr);
+    height:650px;
+}
+
+.chatUsers{
+    border-right:1px solid var(--border);
+    overflow:auto;
+}
+
+.chatUser{
+    padding:13px;
+    border:0;
+    border-bottom:1px solid var(--border);
+    width:100%;
+    text-align:left;
+    background:transparent;
+    color:var(--text);
+}
+
+.chatUser:hover,
+.chatUser.active{
+    background:var(--panel2);
+}
+
+.chatArea{
+    display:flex;
+    flex-direction:column;
+    min-width:0;
+}
+
+.chatHeader{
+    padding:13px 16px;
+    border-bottom:1px solid var(--border);
+    font-weight:800;
+}
+
+.messages{
+    flex:1;
+    overflow:auto;
+    padding:15px;
+}
+
+.bubble{
+    max-width:75%;
+    padding:10px 13px;
+    border-radius:15px;
+    margin-bottom:9px;
+    line-height:1.4;
+}
+
+.bubble.me{
+    margin-left:auto;
+    background:#d86f00;
+    color:white;
+    border-bottom-right-radius:4px;
+}
+
+.bubble.them{
+    background:var(--panel2);
+    border-bottom-left-radius:4px;
+}
+
+.chatComposer{
+    display:flex;
+    gap:8px;
+    padding:10px;
+    border-top:1px solid var(--border);
+}
+
+.chatComposer input{
+    flex:1;
+    min-width:0;
+    background:var(--panel2);
+    border:1px solid var(--border);
+    color:var(--text);
+    border-radius:20px;
+    padding:11px 14px;
+}
+
+.sendBtn{
+    border:0;
+    border-radius:20px;
+    padding:0 18px;
+    background:var(--orange);
+    color:#111;
+    font-weight:800;
+}
+
+
+/* ============================================================
+   MODAL
+   ============================================================ */
+
+.modal{
+    position:fixed;
+    inset:0;
+    z-index:1000;
+    background:rgba(0,0,0,.75);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+}
+
+.modalBox{
+    width:100%;
+    max-width:600px;
+    max-height:90vh;
+    overflow:auto;
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:20px;
+}
+
+.modalHeader{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:16px;
+    border-bottom:1px solid var(--border);
+}
+
+.modalBody{
+    padding:16px;
+}
+
+
+/* ============================================================
+   LOADING
+   ============================================================ */
+
+.loader{
+    text-align:center;
+    padding:30px;
+    color:var(--muted);
+}
+
+.spinner{
+    width:30px;
+    height:30px;
+    margin:0 auto 10px;
+    border:3px solid var(--border);
+    border-top-color:var(--orange);
+    border-radius:50%;
+    animation:spin .8s linear infinite;
+}
+
+@keyframes spin{
+    to{
+        transform:rotate(360deg);
+    }
+}
+
+
+/* ============================================================
+   TOAST
+   ============================================================ */
+
+#toast{
+    position:fixed;
+    bottom:20px;
+    left:50%;
+    transform:translateX(-50%);
+    z-index:3000;
+
+    background:#181d25;
+    border:1px solid var(--border);
+    color:white;
+
+    padding:12px 18px;
+    border-radius:12px;
+
+    box-shadow:0 10px 40px rgba(0,0,0,.5);
+}
+
+#toast.error{
+    border-color:#e53935;
+}
+
+#toast.success{
+    border-color:#19c37d;
+}
+
+
+/* ============================================================
+   MOBILE
+   ============================================================ */
+
+@media(max-width:950px){
+
+    .layout{
+        grid-template-columns:70px minmax(0,1fr);
+    }
+
+    .rightbar{
+        display:none;
+    }
+
+    .navItem{
+        text-align:center;
+        font-size:0;
+    }
+
+    .navItem::first-letter{
+        font-size:20px;
+    }
+}
+
+@media(max-width:700px){
+
+    .topbar{
+        padding:0 10px;
+    }
+
+    .layout{
+        display:block;
+        padding:10px;
+    }
+
+    .sidebar{
+        position:fixed;
+        bottom:0;
+        left:0;
+        right:0;
+        top:auto;
+        z-index:500;
+
+        height:62px;
+
+        display:flex;
+        background:rgba(10,13,18,.97);
+        border-top:1px solid var(--border);
+    }
+
+    .navItem{
+        flex:1;
+        margin:0;
+        border-radius:0;
+        padding:8px 2px;
+        font-size:10px;
+    }
+
+    .main{
+        padding-bottom:70px;
+    }
+
+    .chatLayout{
+        grid-template-columns:1fr;
+        height:650px;
+    }
+
+    .chatUsers{
+        display:none;
+    }
+
+    .authCard{
+        padding:22px;
+    }
+
+    .postActions{
+        grid-template-columns:repeat(4,1fr);
+    }
+}
+
 </style>
 </head>
 
+
 <body>
 
-<!-- ========================================================
-     TOPBAR
+<!-- =========================================================
+     AUTH SCREEN
 ========================================================= -->
 
-<header class="topbar">
+<section id="authScreen">
 
-  <div class="logo">
-    MSAFIRI <span>GLOBAL MEDIA</span>
-  </div>
+    <div class="authCard">
 
-  <div class="search">
-    <input
-      id="globalSearch"
-      type="search"
-      placeholder="Search people..."
-      oninput="searchPeople(this.value)"
-    >
-  </div>
-
-  <div class="top-actions">
-
-    <button
-      class="icon-btn"
-      onclick="toggleTheme()"
-      title="Theme"
-    >
-      🌓
-    </button>
-
-    <button
-      id="authButton"
-      class="btn primary"
-      onclick="openAuth()"
-    >
-      Login
-    </button>
-
-  </div>
-
-</header>
-
-
-<!-- ========================================================
-     APP
-========================================================= -->
-
-<div class="container">
-
-  <!-- ======================================================
-       SIDEBAR
-  ======================================================= -->
-
-  <aside class="sidebar">
-
-    <div class="side-card">
-
-      <div class="profile-mini">
-
-        <div
-          id="miniAvatar"
-          class="avatar"
-        >
-          ?
+        <div class="logo">
+            MSAFIRI <span>GLOBAL MEDIA</span>
         </div>
 
-        <div>
-          <strong id="miniName">
-            Guest
-          </strong>
-
-          <div
-            id="miniUsername"
-            class="muted"
-          >
-            Login required
-          </div>
+        <div class="authSubtitle">
+            Connect. Create. Discover.
         </div>
 
-      </div>
+        <div class="authTabs">
 
-      <div
-        class="nav-item active"
-        onclick="showPage('home')"
-      >
-        🏠 Home
-      </div>
+            <button
+                class="authTab active"
+                id="loginTab"
+                onclick="showAuth('login')">
+                Login
+            </button>
 
-      <div
-        class="nav-item"
-        onclick="showPage('people')"
-      >
-        👥 People
-      </div>
+            <button
+                class="authTab"
+                id="registerTab"
+                onclick="showAuth('register')">
+                Register
+            </button>
 
-      <div
-        class="nav-item"
-        onclick="showPage('videos')"
-      >
-        🎥 Video Feed
-      </div>
-
-      <div
-        class="nav-item"
-        onclick="showPage('profile')"
-      >
-        👤 Profile
-      </div>
-
-      <div
-        class="nav-item"
-        onclick="showPage('messages')"
-      >
-        💬 Messages
-      </div>
-
-      <div
-        class="nav-item"
-        onclick="logoutUser()"
-      >
-        🚪 Logout
-      </div>
-
-    </div>
-
-  </aside>
+        </div>
 
 
-  <!-- ======================================================
-       MAIN
-  ======================================================= -->
+        <!-- LOGIN -->
 
-  <main>
+        <form
+            id="loginForm"
+            onsubmit="login(event)">
 
-    <!-- HOME -->
+            <div class="field">
+                <label>Email</label>
 
-    <section id="page-home">
-
-      <h1 class="page-title">
-        MSAFIRI GLOBAL MEDIA
-      </h1>
-
-      <div class="subtitle">
-        connect beyond
-      </div>
-
-
-      <!-- CREATE POST -->
-
-      <div class="card composer">
-
-        <div class="profile-mini">
-
-          <div
-            id="composerAvatar"
-            class="avatar"
-          >
-            ?
-          </div>
-
-          <div>
-            <strong id="composerName">
-              Login to post
-            </strong>
-
-            <div class="muted">
-              Share something with the world
+                <input
+                    id="loginEmail"
+                    type="email"
+                    required
+                    autocomplete="email"
+                    placeholder="you@example.com">
             </div>
-          </div>
 
-        </div>
+            <div class="field">
+                <label>Password</label>
 
-        <textarea
-          id="postText"
-          placeholder="What do you want to share?"
-        ></textarea>
+                <input
+                    id="loginPassword"
+                    type="password"
+                    required
+                    autocomplete="current-password"
+                    placeholder="Your password">
+            </div>
 
-        <div
-          id="postPreview"
-          class="preview"
-        ></div>
+            <button
+                class="primaryBtn"
+                type="submit">
+                Login
+            </button>
 
-        <div class="composer-bottom">
-
-          <button
-            class="btn"
-            onclick="requireLoginThen(()=>document.getElementById('imagePost').click())"
-          >
-            🖼️ Photo
-          </button>
-
-          <button
-            class="btn"
-            onclick="requireLoginThen(()=>document.getElementById('videoPost').click())"
-          >
-            🎥 Video
-          </button>
-
-          <input
-            id="imagePost"
-            type="file"
-            accept="image/*"
-            hidden
-            onchange="previewMedia(this)"
-          >
-
-          <input
-            id="videoPost"
-            type="file"
-            accept="video/*"
-            hidden
-            onchange="previewMedia(this)"
-          >
-
-          <span
-            id="selectedFile"
-            class="file-name"
-          ></span>
-
-          <button
-            id="createPostButton"
-            class="btn primary"
-            onclick="createPost()"
-          >
-            ＋ Create Post
-          </button>
-
-        </div>
-
-      </div>
+        </form>
 
 
-      <!-- FEED -->
+        <!-- REGISTER -->
 
-      <div
-        id="feed"
-      ></div>
+        <form
+            id="registerForm"
+            class="hidden"
+            onsubmit="register(event)">
 
-    </section>
+            <div class="field">
+                <label>Full name</label>
 
+                <input
+                    id="registerName"
+                    type="text"
+                    required
+                    maxlength="150"
+                    placeholder="Your full name">
+            </div>
 
-    <!-- PEOPLE -->
+            <div class="field">
+                <label>Username</label>
 
-    <section
-      id="page-people"
-      style="display:none"
-    >
+                <input
+                    id="registerUsername"
+                    type="text"
+                    maxlength="80"
+                    placeholder="username">
+            </div>
 
-      <h1 class="page-title">
-        People
-      </h1>
+            <div class="field">
+                <label>Email</label>
 
-      <div class="subtitle">
-        Real registered members of MSAFIRI GLOBAL MEDIA
-      </div>
+                <input
+                    id="registerEmail"
+                    type="email"
+                    required
+                    placeholder="you@example.com">
+            </div>
 
-      <div
-        id="peopleList"
-        class="people-grid"
-      ></div>
+            <div class="field">
+                <label>Password</label>
 
-    </section>
+                <input
+                    id="registerPassword"
+                    type="password"
+                    minlength="6"
+                    required
+                    placeholder="At least 6 characters">
+            </div>
 
+            <button
+                class="primaryBtn"
+                type="submit">
+                Create Account
+            </button>
 
-    <!-- VIDEOS -->
-
-    <section
-      id="page-videos"
-      style="display:none"
-    >
-
-      <h1 class="page-title">
-        Video Feed
-      </h1>
-
-      <div class="subtitle">
-        Videos published by real members.
-      </div>
-
-      <div
-        id="videoFeed"
-      ></div>
-
-    </section>
-
-
-    <!-- PROFILE -->
-
-    <section
-      id="page-profile"
-      style="display:none"
-    >
-
-      <h1 class="page-title">
-        My Profile
-      </h1>
-
-      <div
-        id="profilePage"
-        class="card"
-      ></div>
-
-    </section>
-
-
-    <!-- MESSAGES -->
-
-    <section
-      id="page-messages"
-      style="display:none"
-    >
-
-      <h1 class="page-title">
-        Messages
-      </h1>
-
-      <div class="subtitle">
-        Messaging requires a logged-in account.
-      </div>
-
-      <div class="card">
+        </form>
 
         <div
-          id="messagePeople"
-          class="people-grid"
-        ></div>
-
-      </div>
-
-    </section>
-
-  </main>
-
-
-  <!-- ======================================================
-       RIGHTBAR
-  ======================================================= -->
-
-  <aside class="rightbar">
-
-    <div class="side-card">
-
-      <strong>
-        MSAFIRI GLOBAL MEDIA
-      </strong>
-
-      <p class="muted">
-        connect beyond
-      </p>
-
-      <hr style="border-color:var(--line)">
-
-      <div class="stat">
-
-        <b id="onlineStatus">
-          Offline
-        </b>
-
-        <span class="muted">
-          account status
-        </span>
-
-      </div>
+            id="authMessage"
+            class="authMessage">
+        </div>
 
     </div>
 
-    <div class="side-card">
-
-      <strong>
-        Secure session
-      </strong>
-
-      <p
-        id="sessionStatus"
-        class="muted"
-      >
-        Not logged in.
-      </p>
-
-    </div>
-
-  </aside>
-
-</div>
+</section>
 
 
-<!-- ========================================================
-     AUTH MODAL
+<!-- =========================================================
+     MAIN APP
 ========================================================= -->
 
-<div
-  id="authOverlay"
-  class="auth-overlay"
->
-
-  <div class="auth-box">
-
-    <button
-      class="close"
-      onclick="closeAuth()"
-    >
-      ×
-    </button>
-
-    <div class="auth-logo">
-      MSAFIRI <span>GLOBAL MEDIA</span>
-    </div>
-
-    <div class="auth-caption">
-      connect beyond
-    </div>
-
-    <div class="auth-tabs">
-
-      <button
-        id="loginTab"
-        class="btn primary"
-        onclick="switchAuth('login')"
-      >
-        Login
-      </button>
-
-      <button
-        id="registerTab"
-        class="btn"
-        onclick="switchAuth('register')"
-      >
-        Register
-      </button>
-
-    </div>
-
-
-    <!-- LOGIN -->
-
-    <form
-      id="loginForm"
-      onsubmit="loginUser(event)"
-    >
-
-      <div class="field">
-
-        <label>
-          Email
-        </label>
-
-        <input
-          id="loginEmail"
-          type="email"
-          required
-          autocomplete="email"
-          placeholder="you@example.com"
-        >
-
-      </div>
-
-      <div class="field">
-
-        <label>
-          Password
-        </label>
-
-        <input
-          id="loginPassword"
-          type="password"
-          required
-          autocomplete="current-password"
-          placeholder="Your password"
-        >
-
-      </div>
-
-      <button
-        id="loginButton"
-        class="btn primary"
-        style="width:100%"
-        type="submit"
-      >
-        Login
-      </button>
-
-    </form>
-
-
-    <!-- REGISTER -->
-
-    <form
-      id="registerForm"
-      style="display:none"
-      onsubmit="registerUser(event)"
-    >
-
-      <div class="field">
-
-        <label>
-          Full name
-        </label>
-
-        <input
-          id="registerName"
-          type="text"
-          required
-          autocomplete="name"
-          placeholder="Your full name"
-        >
-
-      </div>
-
-      <div class="field">
-
-        <label>
-          Username
-        </label>
-
-        <input
-          id="registerUsername"
-          type="text"
-          placeholder="username"
-          autocomplete="username"
-        >
-
-      </div>
-
-      <div class="field">
-
-        <label>
-          Email
-        </label>
-
-        <input
-          id="registerEmail"
-          type="email"
-          required
-          autocomplete="email"
-          placeholder="you@example.com"
-        >
-
-      </div>
-
-      <div class="field">
-
-        <label>
-          Password
-        </label>
-
-        <input
-          id="registerPassword"
-          type="password"
-          required
-          minlength="6"
-          autocomplete="new-password"
-          placeholder="At least 6 characters"
-        >
-
-      </div>
-
-      <button
-        id="registerButton"
-        class="btn primary"
-        style="width:100%"
-        type="submit"
-      >
-        Create Account
-      </button>
-
-    </form>
-
-  </div>
-
-</div>
-
-
-<!-- ========================================================
-     PROFILE EDIT MODAL
-========================================================= -->
-
-<div
-  id="profileOverlay"
-  class="modal-overlay"
->
-
-  <div class="modal">
-
-    <button
-      class="close"
-      onclick="closeProfileEditor()"
-    >
-      ×
-    </button>
-
-    <h2>
-      Edit Profile
-    </h2>
-
-    <div class="field">
-
-      <label>
-        Name
-      </label>
-
-      <input
-        id="editName"
-        type="text"
-      >
-
-    </div>
-
-    <div class="field">
-
-      <label>
-        Username
-      </label>
-
-      <input
-        id="editUsername"
-        type="text"
-      >
-
-    </div>
-
-    <div class="field">
-
-      <label>
-        Bio
-      </label>
-
-      <textarea
-        id="editBio"
-      ></textarea>
-
-    </div>
-
-    <div class="field">
-
-      <label>
-        Location
-      </label>
-
-      <input
-        id="editLocation"
-        type="text"
-      >
-
-    </div>
-
-    <button
-      class="btn primary"
-      onclick="saveProfile()"
-    >
-      Save Profile
-    </button>
-
-  </div>
-
-</div>
-
-
-<!-- ========================================================
-     HIDDEN AVATAR INPUT
-========================================================= -->
-
-<input
-  id="avatarInput"
-  type="file"
-  accept="image/*"
-  hidden
-  onchange="changeAvatar(this)"
->
-
-
-<!-- ========================================================
-     TOAST
-========================================================= -->
-
-<div
-  id="toast"
-  class="toast"
-></div>
-
-
-<script>
-
-/* ==========================================================
-   API
-========================================================== */
-
-const API_BASE = "";
-
-
-/* ==========================================================
-   STATE
-========================================================== */
-
-let currentUser = null;
-let posts = [];
-let people = [];
-let selectedPostFile = null;
-
-
-/* ==========================================================
-   TOKEN
-========================================================== */
-
-function getToken(){
-
-  return (
-    localStorage.getItem("msafiri_access_token")
-    ||
-    localStorage.getItem("access_token")
-    ||
-    localStorage.getItem("token")
-    ||
-    ""
-  );
-}
-
-
-function setToken(token){
-
-  if(token){
-
-    localStorage.setItem(
-      "msafiri_access_token",
-      token
-    );
-
-    localStorage.setItem(
-      "access_token",
-      token
-    );
-
-  }
-
-}
-
-
-function clearToken(){
-
-  localStorage.removeItem(
-    "msafiri_access_token"
-  );
-
-  localStorage.removeItem(
-    "access_token"
-  );
-
-  localStorage.removeItem(
-    "token"
-  );
-
-  currentUser = null;
-
-}
-
-
-/* ==========================================================
-   API REQUEST
-========================================================== */
-
-async function api(
-  path,
-  options={}
-){
-
-  const headers = new Headers(
-    options.headers || {}
-  );
-
-  const token = getToken();
-
-  if(token){
-
-    headers.set(
-      "Authorization",
-      "Bearer " + token
-    );
-
-  }
-
-  /*
-    Do NOT manually set Content-Type when
-    body is FormData.
-  */
-
-  if(
-    options.body
-    &&
-    !(options.body instanceof FormData)
-    &&
-    !headers.has("Content-Type")
-  ){
-
-    headers.set(
-      "Content-Type",
-      "application/json"
-    );
-
-  }
-
-  const response = await fetch(
-    API_BASE + path,
-    {
-      ...options,
-      headers
-    }
-  );
-
-  const text = await response.text();
-
-  let data = {};
-
-  try{
-
-    data = text
-      ? JSON.parse(text)
-      : {};
-
-  }catch{
-
-    data = {
-      detail:text
-    };
-
-  }
-
-
-  if(!response.ok){
-
-    if(response.status === 401){
-
-      clearToken();
-
-      updateAuthUI();
-
-      openAuth();
-
-      throw new Error(
-        "Please login again to continue."
-      );
-
-    }
-
-    throw new Error(
-      data.detail
-      ||
-      "Request failed."
-    );
-
-  }
-
-  return data;
-
-}
-
-
-/* ==========================================================
-   TOAST
-========================================================== */
-
-let toastTimer;
-
-function toast(message){
-
-  const el =
-    document.getElementById(
-      "toast"
-    );
-
-  el.textContent = message;
-  el.style.display = "block";
-
-  clearTimeout(toastTimer);
-
-  toastTimer = setTimeout(
-    ()=>{
-      el.style.display = "none";
-    },
-    3500
-  );
-
-}
-
-
-/* ==========================================================
-   LOGIN REQUIREMENT
-========================================================== */
-
-function requireLoginThen(callback){
-
-  if(!getToken()){
-
-    openAuth();
-
-    toast(
-      "Please login or register first."
-    );
-
-    return;
-
-  }
-
-  callback();
-
-}
-
-
-/* ==========================================================
-   AUTH MODAL
-========================================================== */
-
-function openAuth(){
-
-  document.getElementById(
-    "authOverlay"
-  ).style.display = "flex";
-
-}
-
-
-function closeAuth(){
-
-  document.getElementById(
-    "authOverlay"
-  ).style.display = "none";
-
-}
-
-
-function switchAuth(mode){
-
-  const login =
-    document.getElementById(
-      "loginForm"
-    );
-
-  const register =
-    document.getElementById(
-      "registerForm"
-    );
-
-  const loginTab =
-    document.getElementById(
-      "loginTab"
-    );
-
-  const registerTab =
-    document.getElementById(
-      "registerTab"
-    );
-
-  if(mode === "login"){
-
-    login.style.display = "block";
-    register.style.display = "none";
-
-    loginTab.className =
-      "btn primary";
-
-    registerTab.className =
-      "btn";
-
-  }else{
-
-    login.style.display = "none";
-    register.style.display = "block";
-
-    loginTab.className =
-      "btn";
-
-    registerTab.className =
-      "btn primary";
-
-  }
-
-}
-
-
-/* ==========================================================
-   REGISTER
-========================================================== */
-
-async function registerUser(event){
-
-  event.preventDefault();
-
-  const button =
-    document.getElementById(
-      "registerButton"
-    );
-
-  button.disabled = true;
-  button.textContent =
-    "Creating account...";
-
-  try{
-
-    const data = await api(
-      "/api/auth/register",
-      {
-        method:"POST",
-        body:JSON.stringify({
-
-          name:
-            document.getElementById(
-              "registerName"
-            ).value.trim(),
-
-          username:
-            document.getElementById(
-              "registerUsername"
-            ).value.trim(),
-
-          email:
-            document.getElementById(
-              "registerEmail"
-            ).value.trim(),
-
-          password:
-            document.getElementById(
-              "registerPassword"
-            ).value
-
-        })
-      }
-    );
-
-
-    setToken(
-      data.access_token
-      ||
-      data.token
-    );
-
-    currentUser =
-      data.user;
-
-    closeAuth();
-
-    updateAuthUI();
-
-    await loadAll();
-
-    toast(
-      "Account created successfully."
-    );
-
-  }catch(error){
-
-    toast(
-      error.message
-      ||
-      "Registration failed."
-    );
-
-  }finally{
-
-    button.disabled = false;
-
-    button.textContent =
-      "Create Account";
-
-  }
-
-}
-
-
-/* ==========================================================
-   LOGIN
-========================================================== */
-
-async function loginUser(event){
-
-  event.preventDefault();
-
-  const button =
-    document.getElementById(
-      "loginButton"
-    );
-
-  button.disabled = true;
-  button.textContent =
-    "Logging in...";
-
-  try{
-
-    const data = await api(
-      "/api/auth/login",
-      {
-        method:"POST",
-        body:JSON.stringify({
-
-          email:
-            document.getElementById(
-              "loginEmail"
-            ).value.trim(),
-
-          password:
-            document.getElementById(
-              "loginPassword"
-            ).value
-
-        })
-      }
-    );
-
-
-    const token =
-      data.access_token
-      ||
-      data.token;
-
-    if(!token){
-
-      throw new Error(
-        "Server did not return an authentication token."
-      );
-
-    }
-
-    setToken(token);
-
-    currentUser =
-      data.user;
-
-    closeAuth();
-
-    updateAuthUI();
-
-    await loadAll();
-
-    toast(
-      "Login successful."
-    );
-
-  }catch(error){
-
-    toast(
-      error.message
-      ||
-      "Login failed."
-    );
-
-  }finally{
-
-    button.disabled = false;
-
-    button.textContent =
-      "Login";
-
-  }
-
-}
-
-
-/* ==========================================================
-   RESTORE SESSION
-========================================================== */
-
-async function restoreSession(){
-
-  const token = getToken();
-
-  if(!token){
-
-    updateAuthUI();
-
-    return false;
-
-  }
-
-  try{
-
-    const data =
-      await api("/api/me");
-
-    currentUser =
-      data.user;
-
-    updateAuthUI();
-
-    return true;
-
-  }catch{
-
-    clearToken();
-
-    updateAuthUI();
-
-    return false;
-
-  }
-
-}
-
-
-/* ==========================================================
-   LOGOUT
-========================================================== */
-
-async function logoutUser(){
-
-  if(!getToken()){
-
-    openAuth();
-
-    return;
-
-  }
-
-  try{
-
-    await api(
-      "/api/auth/logout",
-      {
-        method:"POST"
-      }
-    );
-
-  }catch{
-
-  }
-
-  clearToken();
-
-  updateAuthUI();
-
-  posts = [];
-  people = [];
-
-  renderFeed();
-  renderPeople();
-  renderProfile();
-
-  toast(
-    "You have been logged out."
-  );
-
-}
-
-
-/* ==========================================================
-   AUTH UI
-========================================================== */
-
-function updateAuthUI(){
-
-  const button =
-    document.getElementById(
-      "authButton"
-    );
-
-  const miniName =
-    document.getElementById(
-      "miniName"
-    );
-
-  const miniUsername =
-    document.getElementById(
-      "miniUsername"
-    );
-
-  const session =
-    document.getElementById(
-      "sessionStatus"
-    );
-
-  const status =
-    document.getElementById(
-      "onlineStatus"
-    );
-
-  const miniAvatar =
-    document.getElementById(
-      "miniAvatar"
-    );
-
-  const composerAvatar =
-    document.getElementById(
-      "composerAvatar"
-    );
-
-  const composerName =
-    document.getElementById(
-      "composerName"
-    );
-
-
-  if(currentUser){
-
-    button.textContent =
-      "Logout";
-
-    button.onclick =
-      logoutUser;
-
-    miniName.textContent =
-      currentUser.name
-      ||
-      "User";
-
-    miniUsername.textContent =
-      currentUser.username
-      ? "@" + currentUser.username
-      : currentUser.email;
-
-    session.textContent =
-      "Logged in securely.";
-
-    status.textContent =
-      "Online";
-
-    composerName.textContent =
-      currentUser.name
-      ||
-      "You";
-
-
-    setAvatar(
-      miniAvatar,
-      currentUser
-    );
-
-    setAvatar(
-      composerAvatar,
-      currentUser
-    );
-
-  }else{
-
-    button.textContent =
-      "Login";
-
-    button.onclick =
-      openAuth;
-
-    miniName.textContent =
-      "Guest";
-
-    miniUsername.textContent =
-      "Login required";
-
-    session.textContent =
-      "Not logged in.";
-
-    status.textContent =
-      "Offline";
-
-    composerName.textContent =
-      "Login to post";
-
-    setAvatar(
-      miniAvatar,
-      null
-    );
-
-    setAvatar(
-      composerAvatar,
-      null
-    );
-
-  }
-
-}
-
-
-/* ==========================================================
-   AVATAR
-========================================================== */
-
-function absoluteUrl(url){
-
-  if(!url){
-    return "";
-  }
-
-  if(
-    url.startsWith("http://")
-    ||
-    url.startsWith("https://")
-  ){
-
-    return url;
-
-  }
-
-  return (
-    API_BASE
-    +
-    (
-      url.startsWith("/")
-      ? url
-      : "/" + url
-    )
-  );
-
-}
-
-
-function initials(name){
-
-  if(!name){
-    return "?";
-  }
-
-  return name
-    .trim()
-    .split(/\s+/)
-    .slice(0,2)
-    .map(x=>x[0])
-    .join("")
-    .toUpperCase();
-
-}
-
-
-function setAvatar(
-  element,
-  user
-){
-
-  if(!element){
-    return;
-  }
-
-  if(user && user.avatar){
-
-    element.innerHTML =
-      `<img
-        src="${escapeAttr(
-          absoluteUrl(user.avatar)
-        )}"
-        style="width:100%;height:100%;object-fit:cover;border-radius:50%"
-        onerror="this.remove()"
-      >`;
-
-  }else{
-
-    element.textContent =
-      initials(
-        user?.name
-      );
-
-  }
-
-}
-
-
-/* ==========================================================
-   LOAD ALL
-========================================================== */
-
-async function loadAll(){
-
-  if(!getToken()){
-
-    return;
-
-  }
-
-  try{
-
-    await Promise.all([
-      loadPosts(),
-      loadPeople(),
-      loadProfile()
-    ]);
-
-  }catch(error){
-
-    toast(
-      error.message
-    );
-
-  }
-
-}
-
-
-/* ==========================================================
-   POSTS
-========================================================== */
-
-async function loadPosts(){
-
-  const data =
-    await api(
-      "/api/posts?limit=100"
-    );
-
-  posts =
-    Array.isArray(data.posts)
-    ? data.posts
-    : [];
-
-  renderFeed();
-  renderVideoFeed();
-
-}
-
-
-/* ==========================================================
-   MEDIA PREVIEW
-========================================================== */
-
-function previewMedia(input){
-
-  const preview =
-    document.getElementById(
-      "postPreview"
-    );
-
-  const selected =
-    document.getElementById(
-      "selectedFile"
-    );
-
-  preview.innerHTML = "";
-
-  selectedFile = null;
-
-  if(!input.files || !input.files[0]){
-
-    selected.textContent =
-      "";
-
-    return;
-
-  }
-
-  const file =
-    input.files[0];
-
-  selectedFile =
-    file;
-
-  selected.textContent =
-    file.name;
-
-  const url =
-    URL.createObjectURL(file);
-
-  if(file.type.startsWith("image/")){
-
-    preview.innerHTML =
-      `<img
-        src="${url}"
-        alt="Preview"
-      >`;
-
-  }else if(
-    file.type.startsWith("video/")
-  ){
-
-    preview.innerHTML =
-      `<video
-        src="${url}"
-        controls
-        playsinline
-      ></video>`;
-
-  }
-
-}
-
-
-/* ==========================================================
-   CREATE POST
-========================================================== */
-
-async function createPost(){
-
-  if(!getToken()){
-
-    openAuth();
-
-    toast(
-      "Please login before creating a post."
-    );
-
-    return;
-
-  }
-
-  const text =
-    document.getElementById(
-      "postText"
-    ).value.trim();
-
-  if(
-    !text
-    &&
-    !selectedPostFile
-  ){
-
-    toast(
-      "Write something or select a photo/video."
-    );
-
-    return;
-
-  }
-
-  const button =
-    document.getElementById(
-      "createPostButton"
-    );
-
-  const form =
-    new FormData();
-
-  form.append(
-    "caption",
-    text
-  );
-
-  if(selectedPostFile){
-
-    form.append(
-      "file",
-      selectedPostFile,
-      selectedPostFile.name
-    );
-
-  }
-
-  button.disabled = true;
-  button.textContent =
-    "Publishing...";
-
-  try{
-
-    await api(
-      "/api/posts",
-      {
-        method:"POST",
-        body:form
-      }
-    );
-
-    clearComposer();
-
-    await loadPosts();
-
-    toast(
-      "Post published successfully."
-    );
-
-  }catch(error){
-
-    toast(
-      error.message
-    );
-
-  }finally{
-
-    button.disabled = false;
-    button.textContent =
-      "＋ Create Post";
-
-  }
-
-}
-
-
-/* ==========================================================
-   CLEAR COMPOSER
-========================================================== */
-
-function clearComposer(){
-
-  document.getElementById(
-    "postText"
-  ).value = "";
-
-  document.getElementById(
-    "imagePost"
-  ).value = "";
-
-  document.getElementById(
-    "videoPost"
-  ).value = "";
-
-  document.getElementById(
-    "postPreview"
-  ).innerHTML = "";
-
-  document.getElementById(
-    "selectedFile"
-  ).textContent = "";
-
-  selectedPostFile = null;
-
-}
-
-
-/* ==========================================================
-   IMPORTANT:
-   Keep selected file synchronized.
-========================================================== */
-
-document.addEventListener(
-  "change",
-  function(event){
-
-    if(
-      event.target.id === "imagePost"
-      ||
-      event.target.id === "videoPost"
-    ){
-
-      selectedPostFile =
-        event.target.files?.[0]
-        ||
-        null;
-
-    }
-
-  }
-);
-
-
-/* ==========================================================
-   FEED
-========================================================== */
-
-function renderFeed(){
-
-  const feed =
-    document.getElementById(
-      "feed"
-    );
-
-  if(!posts.length){
-
-    feed.innerHTML =
-      `<div class="card empty">
-        No posts yet.<br>
-        Be the first person to publish something.
-      </div>`;
-
-    return;
-
-  }
-
-  feed.innerHTML =
-    posts
-      .map(renderPost)
-      .join("");
-
-}
-
-
-function renderPost(post){
-
-  const author =
-    post.author || {};
-
-  const mediaUrl =
-    absoluteUrl(
-      post.media_url
-    );
-
-  let mediaHTML = "";
-
-  if(
-    mediaUrl
-    &&
-    post.media_type?.startsWith(
-      "image/"
-    )
-  ){
-
-    mediaHTML =
-      `<img
-        class="post-media"
-        src="${escapeAttr(mediaUrl)}"
-        alt="Post image"
-        loading="lazy"
-      >`;
-
-  }else if(
-    mediaUrl
-    &&
-    post.media_type?.startsWith(
-      "video/"
-    )
-  ){
-
-    mediaHTML =
-      `<video
-        class="post-media"
-        src="${escapeAttr(mediaUrl)}"
-        controls
-        playsinline
-        preload="metadata"
-      ></video>`;
-
-  }else if(
-    mediaUrl
-    &&
-    post.media_type?.startsWith(
-      "audio/"
-    )
-  ){
-
-    mediaHTML =
-      `<audio
-        class="post-media"
-        src="${escapeAttr(mediaUrl)}"
-        controls
-      ></audio>`;
-
-  }
-
-
-  const mine =
-    currentUser
-    &&
-    Number(currentUser.id)
-    ===
-    Number(post.user_id);
-
-
-  return `
-    <article
-      class="card"
-      id="post-${post.id}"
-    >
-
-      <div class="post-head">
-
-        <div class="avatar small">
-
-          ${
-            author.avatar
-            ?
-            `<img
-              src="${escapeAttr(
-                absoluteUrl(author.avatar)
-              )}"
-              style="width:100%;height:100%;object-fit:cover;border-radius:50%"
-            >`
-            :
-            escapeHTML(
-              initials(author.name)
-            )
-          }
+<section
+    id="app"
+    class="hidden">
+
+    <header class="topbar">
+
+        <div class="brand">
+            MSAFIRI <span>GLOBAL MEDIA</span>
+        </div>
+
+        <div class="topActions">
+
+            <button
+                class="iconBtn"
+                onclick="refreshCurrent()"
+                title="Refresh">
+                ↻
+            </button>
+
+            <button
+                class="iconBtn"
+                onclick="logout()"
+                title="Logout">
+                ⎋
+            </button>
 
         </div>
 
-        <div class="post-author">
-
-          <strong>
-            ${escapeHTML(
-              author.name
-              ||
-              "User"
-            )}
-          </strong>
-
-          <small>
-            ${
-              author.username
-              ?
-              "@"+escapeHTML(
-                author.username
-              )
-              :
-              ""
-            }
-            ·
-            ${formatDate(
-              post.created_at
-            )}
-          </small>
-
-        </div>
-
-        ${
-          mine
-          ?
-          `<button
-            class="action"
-            onclick="deletePost(${post.id})"
-          >
-            🗑️
-          </button>`
-          :
-          ""
-        }
-
-      </div>
-
-
-      ${
-        post.caption
-        ?
-        `<div class="post-body">
-          ${escapeHTML(
-            post.caption
-          )}
-        </div>`
-        :
-        ""
-      }
-
-
-      ${mediaHTML}
-
-
-      <div class="post-actions">
-
-        <button
-          class="action ${post.liked ? "active":""}"
-          onclick="toggleLike(
-            ${post.id},
-            ${post.liked}
-          )"
-        >
-          ❤️
-          ${post.likes_count || 0}
-        </button>
-
-        <button
-          class="action"
-          onclick="commentPost(${post.id})"
-        >
-          💬
-          ${post.comments_count || 0}
-        </button>
-
-        <button
-          class="action"
-          onclick="savePost(${post.id},${post.saved})"
-        >
-          🔖
-          ${post.saved ? "Saved":"Save"}
-        </button>
-
-      </div>
-
-      <div
-        id="comments-${post.id}"
-        style="margin-top:10px"
-      ></div>
-
-    </article>
-  `;
-
-}
-
+    </header>
+
 
-/* ==========================================================
-   LIKE
-========================================================== */
+    <div class="layout">
 
-async function toggleLike(
-  postId,
-  liked
-){
 
-  try{
+        <!-- =================================================
+             SIDEBAR
+        ================================================== -->
 
-    const data =
-      await api(
-        `/api/posts/${postId}/like`,
-        {
-          method:
-            liked
-            ? "DELETE"
-            : "POST"
-        }
-      );
+        <aside class="sidebar">
 
-    const post =
-      posts.find(
-        p =>
-          Number(p.id)
-          ===
-          Number(postId)
-      );
+            <button
+                class="navItem active"
+                data-page="home"
+                onclick="showPage('home')">
+                🏠 Home
+            </button>
 
-    if(post){
+            <button
+                class="navItem"
+                data-page="users"
+                onclick="showPage('users')">
+                👥 People
+            </button>
 
-      post.liked =
-        data.liked;
+            <button
+                class="navItem"
+                data-page="chat"
+                onclick="showPage('chat')">
+                💬 Chat
+            </button>
 
-      post.likes_count =
-        data.likes_count;
+            <button
+                class="navItem"
+                data-page="profile"
+                onclick="showPage('profile')">
+                👤 Profile
+            </button>
 
-    }
+            <button
+                class="navItem"
+                data-page="ai"
+                onclick="showPage('ai')">
+                🤖 AI
+            </button>
 
-    renderFeed();
+            <button
+                class="navItem"
+                data-page="studio"
+                onclick="showPage('studio')">
+                🎬 Studio
+            </button>
 
-  }catch(error){
+            <button
+                class="navItem"
+                data-page="markets"
+                onclick="showPage('markets')">
+                📈 Markets
+            </button>
 
-    toast(
-      error.message
-    );
+            <button
+                class="navItem"
+                data-page="maps"
+                onclick="showPage('maps')">
+                🗺️ Maps
+            </button>
 
-  }
+        </aside>
 
-}
 
+        <!-- =================================================
+             MAIN
+        ================================================== -->
 
-/* ==========================================================
-   COMMENT
-========================================================== */
+        <main class="main">
 
-async function commentPost(
-  postId
-){
 
-  if(!getToken()){
+            <!-- HOME -->
 
-    openAuth();
+            <section
+                id="page-home"
+                class="page">
 
-    return;
+                <div class="card">
 
-  }
+                    <div class="createBox">
 
-  const text =
-    prompt(
-      "Write your comment:"
-    );
+                        <div class="createRow">
 
-  if(!text || !text.trim()){
+                            <div
+                                id="myAvatarHome"
+                                class="avatar">
+                                M
+                            </div>
 
-    return;
+                            <button
+                                class="createInput"
+                                onclick="openPostModal()">
+                                What is happening?
+                            </button>
 
-  }
+                        </div>
 
-  try{
+                        <div class="mediaButtons">
 
-    await api(
-      `/api/posts/${postId}/comment`,
-      {
-        method:"POST",
-        body:JSON.stringify({
-          text:text.trim()
-        })
-      }
-    );
+                            <button
+                                class="mediaBtn"
+                                onclick="openPostModal('image')">
+                                📷 Photo
+                            </button>
 
-    await loadPosts();
+                            <button
+                                class="mediaBtn"
+                                onclick="openPostModal('video')">
+                                🎥 Video
+                            </button>
 
-    toast(
-      "Comment added."
-    );
+                        </div>
 
-  }catch(error){
+                    </div>
 
-    toast(
-      error.message
-    );
+                </div>
 
-  }
 
-}
+                <div id="feed">
 
+                    <div class="loader">
+                        <div class="spinner"></div>
+                        Loading feed...
+                    </div>
 
-/* ==========================================================
-   SAVE
-========================================================== */
+                </div>
 
-async function savePost(
-  postId,
-  saved
-){
+            </section>
 
-  try{
 
-    await api(
-      `/api/posts/${postId}/save`,
-      {
-        method:
-          saved
-          ? "DELETE"
-          : "POST"
-      }
-    );
+            <!-- USERS -->
 
-    const post =
-      posts.find(
-        p =>
-          Number(p.id)
-          ===
-          Number(postId)
-      );
+            <section
+                id="page-users"
+                class="page hidden">
 
-    if(post){
+                <h2 class="sectionTitle">
+                    People
+                </h2>
 
-      post.saved =
-        !saved;
+                <div class="card cardPad">
 
-    }
+                    <input
+                        id="userSearch"
+                        class="searchBox"
+                        placeholder="Search people..."
+                        oninput="searchUsers()">
 
-    renderFeed();
+                    <div id="usersList"></div>
 
-  }catch(error){
+                </div>
 
-    toast(
-      error.message
-    );
+            </section>
 
-  }
 
-}
+            <!-- CHAT -->
 
+            <section
+                id="page-chat"
+                class="page hidden">
 
-/* ==========================================================
-   DELETE POST
-========================================================== */
+                <h2 class="sectionTitle">
+                    Messages
+                </h2>
 
-async function deletePost(
-  postId
-){
+                <div class="card">
 
-  if(
-    !confirm(
-      "Delete this post?"
-    )
-  ){
+                    <div class="chatLayout">
 
-    return;
+                        <div
+                            id="chatUsers"
+                            class="chatUsers">
+                        </div>
 
-  }
+                        <div class="chatArea">
 
-  try{
+                            <div
+                                id="chatHeader"
+                                class="chatHeader">
+                                Select a person to chat
+                            </div>
 
-    await api(
-      `/api/posts/${postId}`,
-      {
-        method:"DELETE"
-      }
-    );
+                            <div
+                                id="messages"
+                                class="messages">
 
-    posts =
-      posts.filter(
-        p =>
-          Number(p.id)
-          !==
-          Number(postId)
-      );
+                                <div class="empty">
+                                    Select someone from the list.
+                                </div>
 
-    renderFeed();
-    renderVideoFeed();
+                            </div>
 
-    toast(
-      "Post deleted."
-    );
+                            <form
+                                class="chatComposer"
+                                onsubmit="sendMessage(event)">
 
-  }catch(error){
+                                <input
+                                    id="messageInput"
+                                    autocomplete="off"
+                                    placeholder="Write a message..."
+                                    disabled>
 
-    toast(
-      error.message
-    );
+                                <button
+                                    class="sendBtn"
+                                    id="sendMessageBtn"
+                                    disabled>
+                                    Send
+                                </button>
 
-  }
+                            </form>
 
-}
+                        </div>
 
+                    </div>
 
-/* ==========================================================
-   VIDEO FEED
-========================================================== */
+                </div>
 
-function renderVideoFeed(){
+            </section>
 
-  const container =
-    document.getElementById(
-      "videoFeed"
-    );
 
-  const videos =
-    posts.filter(
-      p =>
-        p.media_url
-        &&
-        p.media_type
-        &&
-        p.media_type.startsWith(
-          "video/"
-        )
-    );
+            <!-- PROFILE -->
 
-  if(!videos.length){
+            <section
+                id="page-profile"
+                class="page hidden">
 
-    container.innerHTML =
-      `<div class="card empty">
-        No videos have been published yet.
-      </div>`;
+                <h2 class="sectionTitle">
+                    My Profile
+                </h2>
 
-    return;
+                <div class="card cardPad">
 
-  }
+                    <div
+                        id="profilePreview"
+                        style="margin-bottom:20px">
+                    </div>
 
-  container.innerHTML =
-    videos
-      .map(renderPost)
-      .join("");
+                    <div class="field">
+                        <label>Name</label>
 
-}
+                        <input
+                            id="profileName">
+                    </div>
 
+                    <div class="field">
+                        <label>Username</label>
 
-/* ==========================================================
-   PEOPLE
-========================================================== */
+                        <input
+                            id="profileUsername">
+                    </div>
 
-async function loadPeople(){
+                    <div class="field">
+                        <label>Bio</label>
 
-  const data =
-    await api(
-      "/api/users"
-    );
+                        <textarea
+                            id="profileBio"
+                            rows="4">
+                        </textarea>
+                    </div>
 
-  people =
-    Array.isArray(data.users)
-    ? data.users
-    : [];
+                    <div class="field">
+                        <label>Location</label>
 
-  renderPeople();
+                        <input
+                            id="profileLocation">
+                    </div>
 
-}
+                    <button
+                        class="primaryBtn"
+                        onclick="saveProfile()">
+                        Save Profile
+                    </button>
 
+                    <div style="height:12px"></div>
 
-function renderPeople(){
+                    <label class="smallBtn">
+                        Change Avatar
+                        <input
+                            id="avatarInput"
+                            type="file"
+                            accept="image/*"
+                            hidden
+                            onchange="uploadAvatar()">
+                    </label>
 
-  const container =
-    document.getElementById(
-      "peopleList"
-    );
+                </div>
 
-  const messageContainer =
-    document.getElementById(
-      "messagePeople"
-    );
+            </section>
 
-  if(!people.length){
 
-    const empty =
-      `<div class="card empty">
-        No other registered members yet.
-      </div>`;
+            <!-- AI -->
 
-    container.innerHTML =
-      empty;
+            <section
+                id="page-ai"
+                class="page hidden">
 
-    messageContainer.innerHTML =
-      empty;
+                <h2 class="sectionTitle">
+                    AI
+                </h2>
 
-    return;
+                <div class="card cardPad">
 
-  }
+                    <h3>MSAFIRI AI</h3>
 
-  const html =
-    people
-      .map(
-        person =>
-          `
-          <div class="person">
+                    <p style="color:var(--muted)">
+                        AI workspace foundation.
+                        You can connect your preferred
+                        AI provider later.
+                    </p>
 
-            <div class="avatar small">
+                    <textarea
+                        id="aiInput"
+                        rows="6"
+                        class="searchBox"
+                        placeholder="Ask something...">
+                    </textarea>
 
-              ${
-                person.avatar
-                ?
-                `<img
-                  src="${escapeAttr(
-                    absoluteUrl(
-                      person.avatar
-                    )
-                  )}"
-                  style="width:100%;height:100%;object-fit:cover;border-radius:50%"
-                >`
-                :
-                escapeHTML(
-                  initials(
-                    person.name
-                  )
-                )
-              }
+                    <button
+                        class="primaryBtn"
+                        onclick="runDemoAI()">
+                        Ask AI
+                    </button>
+
+                    <div
+                        id="aiOutput"
+                        style="
+                        margin-top:15px;
+                        white-space:pre-wrap;
+                        ">
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- STUDIO -->
+
+            <section
+                id="page-studio"
+                class="page hidden">
+
+                <h2 class="sectionTitle">
+                    Studio
+                </h2>
+
+                <div class="card cardPad">
+
+                    <h3>🎬 Creator Studio</h3>
+
+                    <p style="color:var(--muted)">
+                        Create and publish photos and videos
+                        directly to your MSAFIRI feed.
+                    </p>
+
+                    <button
+                        class="primaryBtn"
+                        onclick="openPostModal()">
+                        Create Post
+                    </button>
+
+                </div>
+
+            </section>
+
+
+            <!-- MARKETS -->
+
+            <section
+                id="page-markets"
+                class="page hidden">
+
+                <h2 class="sectionTitle">
+                    Markets
+                </h2>
+
+                <div class="card cardPad">
+
+                    <h3>📈 Markets</h3>
+
+                    <p style="color:var(--muted)">
+                        Market intelligence workspace.
+                        Live market API can be connected here.
+                    </p>
+
+                </div>
+
+            </section>
+
+
+            <!-- MAPS -->
+
+            <section
+                id="page-maps"
+                class="page hidden">
+
+                <h2 class="sectionTitle">
+                    Maps
+                </h2>
+
+                <div class="card cardPad">
+
+                    <h3>🗺️ Maps</h3>
+
+                    <p style="color:var(--muted)">
+                        Map and location workspace.
+                        A mapping provider can be connected here.
+                    </p>
+
+                </div>
+
+            </section>
+
+        </main>
+
+
+        <!-- =================================================
+             RIGHTBAR
+        ================================================== -->
+
+        <aside class="rightbar">
+
+            <div class="card cardPad">
+
+                <div class="profileMini">
+
+                    <div
+                        id="myAvatarSide"
+                        class="avatar">
+                        M
+                    </div>
+
+                    <div>
+
+                        <strong
+                            id="sideName">
+                            User
+                        </strong>
+
+                        <div
+                            id="sideUsername"
+                            style="
+                            color:var(--muted);
+                            font-size:13px">
+                            @user
+                        </div>
+
+                    </div>
+
+                </div>
 
             </div>
 
-            <div class="person-info">
 
-              <strong>
-                ${escapeHTML(
-                  person.name
-                )}
-              </strong>
+            <div class="card cardPad">
 
-              <span>
-                ${
-                  person.username
-                  ?
-                  "@"+
-                  escapeHTML(
-                    person.username
-                  )
-                  :
-                  person.email
-                }
-              </span>
+                <h3>MSAFIRI GLOBAL MEDIA</h3>
 
-              ${
-                person.location
-                ?
-                `<span>
-                  📍 ${escapeHTML(
-                    person.location
-                  )}
-                </span>`
-                :
-                ""
-              }
+                <p
+                    style="
+                    color:var(--muted);
+                    line-height:1.5">
+                    Connect. Create. Discover.
+                </p>
+
+            </div>
+
+        </aside>
+
+    </div>
+
+</section>
+
+
+<!-- =========================================================
+     POST MODAL
+========================================================= -->
+
+<div
+    id="postModal"
+    class="modal hidden">
+
+    <div class="modalBox">
+
+        <div class="modalHeader">
+
+            <strong>Create Post</strong>
+
+            <button
+                class="iconBtn"
+                onclick="closePostModal()">
+                ×
+            </button>
+
+        </div>
+
+        <div class="modalBody">
+
+            <div class="field">
+
+                <label>What's happening?</label>
+
+                <textarea
+                    id="postCaption"
+                    rows="5"
+                    placeholder="Write something...">
+                </textarea>
+
+            </div>
+
+            <div class="field">
+
+                <label>
+                    Photo or Video
+                </label>
+
+                <input
+                    id="postFile"
+                    type="file"
+                    accept="image/*,video/*">
 
             </div>
 
             <button
-              class="btn"
-              onclick="startMessage(${person.id})"
-            >
-              Chat
+                class="primaryBtn"
+                id="publishBtn"
+                onclick="publishPost()">
+                Publish
             </button>
 
-          </div>
-          `
-      )
-      .join("");
-
-  container.innerHTML =
-    html;
-
-  messageContainer.innerHTML =
-    html;
-
-}
-
-
-/* ==========================================================
-   SEARCH
-========================================================== */
-
-let searchTimer;
-
-async function searchPeople(
-  value
-){
-
-  clearTimeout(searchTimer);
-
-  const q =
-    value.trim();
-
-  if(!q){
-
-    loadPeople();
-
-    return;
-
-  }
-
-  searchTimer =
-    setTimeout(
-      async ()=>{
-        try{
-
-          const data =
-            await api(
-              "/api/users/search?q="
-              +
-              encodeURIComponent(q)
-            );
-
-          people =
-            data.users || [];
-
-          renderPeople();
-
-          showPage("people");
-
-        }catch(error){
-
-          toast(
-            error.message
-          );
-
-        }
-      },
-      350
-    );
-
-}
-
-
-/* ==========================================================
-   PROFILE
-========================================================== */
-
-async function loadProfile(){
-
-  const data =
-    await api(
-      "/api/me"
-    );
-
-  currentUser =
-    data.user;
-
-  updateAuthUI();
-
-  renderProfile();
-
-}
-
-
-function renderProfile(){
-
-  const container =
-    document.getElementById(
-      "profilePage"
-    );
-
-  if(!currentUser){
-
-    container.innerHTML =
-      `<div class="empty">
-        <h2>Login required</h2>
-        <p>
-          Login to view your profile.
-        </p>
-        <button
-          class="btn primary"
-          onclick="openAuth()"
-        >
-          Login
-        </button>
-      </div>`;
-
-    return;
-
-  }
-
-
-  container.innerHTML = `
-
-    <div class="profile-cover"></div>
-
-    <div class="profile-main">
-
-      <div
-        id="profileAvatar"
-        class="avatar large"
-      ></div>
-
-      <div style="padding-bottom:8px">
-
-        <h2 style="margin:0">
-          ${escapeHTML(
-            currentUser.name
-          )}
-        </h2>
-
-        <div class="muted">
-          ${
-            currentUser.username
-            ?
-            "@"+
-            escapeHTML(
-              currentUser.username
-            )
-            :
-            currentUser.email
-          }
         </div>
 
-      </div>
-
     </div>
 
+</div>
 
-    <div class="profile-data">
 
-      ${
-        currentUser.bio
-        ?
-        `<p>
-          ${escapeHTML(
-            currentUser.bio
-          )}
-        </p>`
-        :
-        `<p class="muted">
-          No bio yet.
-        </p>`
-      }
+<!-- =========================================================
+     TOAST
+========================================================= -->
 
-      ${
-        currentUser.location
-        ?
-        `<p class="muted">
-          📍 ${escapeHTML(
-            currentUser.location
-          )}
-        </p>`
-        :
-        ""
-      }
+<div
+    id="toast"
+    class="hidden">
+</div>
 
-      <div
-        style="display:flex;gap:8px;flex-wrap:wrap"
-      >
 
-        <button
-          class="btn primary"
-          onclick="openProfileEditor()"
-        >
-          ✏️ Edit Profile
-        </button>
+<script>
 
-        <button
-          class="btn"
-          onclick="document.getElementById('avatarInput').click()"
-        >
-          🖼️ Change Photo
-        </button>
+/* ============================================================
+   GLOBAL STATE
+============================================================ */
 
-      </div>
+const API = "";
 
-    </div>
+let token =
+    localStorage.getItem(
+        "msafiri_token"
+    ) || "";
 
-  `;
+let currentUser = null;
 
-  setAvatar(
+let currentPage = "home";
+
+let selectedChatUser = null;
+
+
+/* ============================================================
+   ELEMENTS
+============================================================ */
+
+const authScreen =
     document.getElementById(
-      "profileAvatar"
-    ),
-    currentUser
-  );
+        "authScreen"
+    );
 
+const app =
+    document.getElementById(
+        "app"
+    );
+
+
+/* ============================================================
+   TOAST
+============================================================ */
+
+function toast(
+    message,
+    type = ""
+){
+
+    const el =
+        document.getElementById(
+            "toast"
+        );
+
+    el.textContent = message;
+
+    el.className =
+        type
+        ? type
+        : "";
+
+    el.classList.remove(
+        "hidden"
+    );
+
+    clearTimeout(
+        window.toastTimer
+    );
+
+    window.toastTimer =
+        setTimeout(
+            () => {
+                el.classList.add(
+                    "hidden"
+                );
+            },
+            3000
+        );
 }
 
 
-/* ==========================================================
-   PROFILE EDITOR
-========================================================== */
+/* ============================================================
+   AUTH TABS
+============================================================ */
 
-function openProfileEditor(){
+function showAuth(
+    mode
+){
 
-  if(!currentUser){
+    const loginForm =
+        document.getElementById(
+            "loginForm"
+        );
 
-    openAuth();
+    const registerForm =
+        document.getElementById(
+            "registerForm"
+        );
 
-    return;
+    const loginTab =
+        document.getElementById(
+            "loginTab"
+        );
 
-  }
+    const registerTab =
+        document.getElementById(
+            "registerTab"
+        );
 
-  document.getElementById(
-    "editName"
-  ).value =
-    currentUser.name || "";
+    if(mode === "login"){
 
-  document.getElementById(
-    "editUsername"
-  ).value =
-    currentUser.username || "";
+        loginForm.classList.remove(
+            "hidden"
+        );
 
-  document.getElementById(
-    "editBio"
-  ).value =
-    currentUser.bio || "";
+        registerForm.classList.add(
+            "hidden"
+        );
 
-  document.getElementById(
-    "editLocation"
-  ).value =
-    currentUser.location || "";
+        loginTab.classList.add(
+            "active"
+        );
 
-  document.getElementById(
-    "profileOverlay"
-  ).style.display =
-    "flex";
+        registerTab.classList.remove(
+            "active"
+        );
 
+    }else{
+
+        loginForm.classList.add(
+            "hidden"
+        );
+
+        registerForm.classList.remove(
+            "hidden"
+        );
+
+        loginTab.classList.remove(
+            "active"
+        );
+
+        registerTab.classList.add(
+            "active"
+        );
+    }
+
+    document.getElementById(
+        "authMessage"
+    ).textContent = "";
 }
 
 
-function closeProfileEditor(){
+/* ============================================================
+   API REQUEST
+============================================================ */
 
-  document.getElementById(
-    "profileOverlay"
-  ).style.display =
-    "none";
+async function api(
+    path,
+    options = {},
+    retry = true
+){
 
+    const headers =
+        new Headers(
+            options.headers || {}
+        );
+
+    if(token){
+        headers.set(
+            "Authorization",
+            "Bearer " + token
+        );
+    }
+
+    /*
+     * Do NOT manually set Content-Type for FormData.
+     * Browser adds multipart boundary automatically.
+     */
+
+    if(
+        options.body &&
+        !(options.body instanceof FormData) &&
+        !headers.has(
+            "Content-Type"
+        )
+    ){
+
+        headers.set(
+            "Content-Type",
+            "application/json"
+        );
+    }
+
+    const response =
+        await fetch(
+            API + path,
+            {
+                ...options,
+                headers
+            }
+        );
+
+    let data = null;
+
+    try{
+        data =
+            await response.json();
+    }catch{
+        data = {};
+    }
+
+
+    /* ========================================================
+       SESSION EXPIRED
+    ======================================================== */
+
+    if(
+        response.status === 401 &&
+        retry
+    ){
+
+        token = "";
+
+        localStorage.removeItem(
+            "msafiri_token"
+        );
+
+        currentUser = null;
+
+        showLoggedOut();
+
+        const message =
+            data.detail === "SESSION_EXPIRED"
+            ? "Your session has expired. Please login again."
+            : "Please login first.";
+
+        toast(
+            message,
+            "error"
+        );
+
+        throw new Error(
+            message
+        );
+    }
+
+
+    if(!response.ok){
+
+        throw new Error(
+            data.detail ||
+            data.message ||
+            "Request failed."
+        );
+    }
+
+    return data;
 }
 
 
-/* ==========================================================
-   SAVE PROFILE
-========================================================== */
+/* ============================================================
+   LOGIN
+============================================================ */
+
+async function login(
+    event
+){
+
+    event.preventDefault();
+
+    const email =
+        document.getElementById(
+            "loginEmail"
+        ).value.trim();
+
+    const password =
+        document.getElementById(
+            "loginPassword"
+        ).value;
+
+    const message =
+        document.getElementById(
+            "authMessage"
+        );
+
+    message.textContent =
+        "Logging in...";
+
+    try{
+
+        const data =
+            await api(
+                "/api/auth/login",
+                {
+                    method:"POST",
+                    body:JSON.stringify({
+                        email,
+                        password
+                    })
+                },
+                false
+            );
+
+        token =
+            data.token ||
+            data.access_token ||
+            "";
+
+        if(!token){
+            throw new Error(
+                "Server did not return an authentication token."
+            );
+        }
+
+        localStorage.setItem(
+            "msafiri_token",
+            token
+        );
+
+        currentUser =
+            data.user;
+
+        showLoggedIn();
+
+        toast(
+            "Welcome back!",
+            "success"
+        );
+
+    }catch(error){
+
+        message.textContent =
+            error.message ||
+            "Login failed.";
+    }
+}
+
+
+/* ============================================================
+   REGISTER
+============================================================ */
+
+async function register(
+    event
+){
+
+    event.preventDefault();
+
+    const name =
+        document.getElementById(
+            "registerName"
+        ).value.trim();
+
+    const username =
+        document.getElementById(
+            "registerUsername"
+        ).value.trim();
+
+    const email =
+        document.getElementById(
+            "registerEmail"
+        ).value.trim();
+
+    const password =
+        document.getElementById(
+            "registerPassword"
+        ).value;
+
+    const message =
+        document.getElementById(
+            "authMessage"
+        );
+
+    message.textContent =
+        "Creating account...";
+
+    try{
+
+        const data =
+            await api(
+                "/api/auth/register",
+                {
+                    method:"POST",
+                    body:JSON.stringify({
+                        name,
+                        username:
+                            username || null,
+                        email,
+                        password
+                    })
+                },
+                false
+            );
+
+        token =
+            data.token ||
+            data.access_token ||
+            "";
+
+        if(!token){
+            throw new Error(
+                "Server did not return an authentication token."
+            );
+        }
+
+        localStorage.setItem(
+            "msafiri_token",
+            token
+        );
+
+        currentUser =
+            data.user;
+
+        showLoggedIn();
+
+        toast(
+            "Account created successfully!",
+            "success"
+        );
+
+    }catch(error){
+
+        message.textContent =
+            error.message ||
+            "Registration failed.";
+    }
+}
+
+
+/* ============================================================
+   LOGOUT
+============================================================ */
+
+async function logout(){
+
+    try{
+
+        if(token){
+
+            await api(
+                "/api/auth/logout",
+                {
+                    method:"POST"
+                },
+                false
+            );
+
+        }
+
+    }catch(error){
+
+        console.log(
+            "Logout request:",
+            error
+        );
+
+    }finally{
+
+        token = "";
+
+        currentUser = null;
+
+        localStorage.removeItem(
+            "msafiri_token"
+        );
+
+        showLoggedOut();
+
+        toast(
+            "Logged out.",
+            "success"
+        );
+    }
+}
+
+
+/* ============================================================
+   SHOW LOGIN
+============================================================ */
+
+function showLoggedOut(){
+
+    authScreen.classList.remove(
+        "hidden"
+    );
+
+    app.classList.add(
+        "hidden"
+    );
+
+    showAuth("login");
+}
+
+
+/* ============================================================
+   SHOW APP
+============================================================ */
+
+function showLoggedIn(){
+
+    authScreen.classList.add(
+        "hidden"
+    );
+
+    app.classList.remove(
+        "hidden"
+    );
+
+    updateUserUI();
+
+    loadFeed();
+}
+
+
+/* ============================================================
+   INIT SESSION
+============================================================ */
+
+async function restoreSession(){
+
+    if(!token){
+
+        showLoggedOut();
+
+        return;
+    }
+
+    try{
+
+        const data =
+            await api(
+                "/api/me",
+                {},
+                false
+            );
+
+        currentUser =
+            data.user;
+
+        showLoggedIn();
+
+    }catch(error){
+
+        token = "";
+
+        localStorage.removeItem(
+            "msafiri_token"
+        );
+
+        showLoggedOut();
+    }
+}
+
+
+/* ============================================================
+   USER UI
+============================================================ */
+
+function updateUserUI(){
+
+    if(!currentUser){
+        return;
+    }
+
+    const name =
+        currentUser.name ||
+        "User";
+
+    const username =
+        currentUser.username ||
+        "user";
+
+    document.getElementById(
+        "sideName"
+    ).textContent =
+        name;
+
+    document.getElementById(
+        "sideUsername"
+    ).textContent =
+        "@" + username;
+
+    setAvatar(
+        document.getElementById(
+            "myAvatarHome"
+        ),
+        currentUser
+    );
+
+    setAvatar(
+        document.getElementById(
+            "myAvatarSide"
+        ),
+        currentUser
+    );
+
+    document.getElementById(
+        "profileName"
+    ).value =
+        currentUser.name || "";
+
+    document.getElementById(
+        "profileUsername"
+    ).value =
+        currentUser.username || "";
+
+    document.getElementById(
+        "profileBio"
+    ).value =
+        currentUser.bio || "";
+
+    document.getElementById(
+        "profileLocation"
+    ).value =
+        currentUser.location || "";
+
+    document.getElementById(
+        "profilePreview"
+    ).innerHTML =
+        `
+        <div class="profileMini">
+            <div id="profileAvatar"
+                 class="avatar">
+                ${escapeHtml(
+                    name.charAt(0).toUpperCase()
+                )}
+            </div>
+            <div>
+                <strong>
+                    ${escapeHtml(name)}
+                </strong>
+                <div style="color:var(--muted)">
+                    @${escapeHtml(username)}
+                </div>
+            </div>
+        </div>
+        `;
+
+    setAvatar(
+        document.getElementById(
+            "profileAvatar"
+        ),
+        currentUser
+    );
+}
+
+
+function setAvatar(
+    element,
+    user
+){
+
+    if(!element){
+        return;
+    }
+
+    if(user.avatar){
+
+        element.innerHTML =
+            `<img
+                src="${escapeAttribute(
+                    user.avatar
+                )}"
+                style="
+                width:100%;
+                height:100%;
+                border-radius:50%;
+                object-fit:cover;"
+             >`;
+
+    }else{
+
+        element.textContent =
+            (
+                user.name ||
+                "U"
+            )
+            .charAt(0)
+            .toUpperCase();
+    }
+}
+
+
+/* ============================================================
+   PAGE NAVIGATION
+============================================================ */
+
+function showPage(
+    page
+){
+
+    currentPage =
+        page;
+
+    document.querySelectorAll(
+        ".page"
+    ).forEach(
+        el => {
+            el.classList.add(
+                "hidden"
+            );
+        }
+    );
+
+    const target =
+        document.getElementById(
+            "page-" + page
+        );
+
+    if(target){
+        target.classList.remove(
+            "hidden"
+        );
+    }
+
+    document.querySelectorAll(
+        ".navItem"
+    ).forEach(
+        el => {
+            el.classList.toggle(
+                "active",
+                el.dataset.page === page
+            );
+        }
+    );
+
+
+    if(page === "home"){
+        loadFeed();
+    }
+
+    if(page === "users"){
+        loadUsers();
+    }
+
+    if(page === "chat"){
+        loadChatUsers();
+    }
+
+    if(page === "profile"){
+        updateUserUI();
+    }
+}
+
+
+function refreshCurrent(){
+
+    if(currentPage === "home"){
+        loadFeed();
+    }
+
+    if(currentPage === "users"){
+        loadUsers();
+    }
+
+    if(currentPage === "chat"){
+        loadChatUsers();
+
+        if(selectedChatUser){
+            loadMessages(
+                selectedChatUser.id
+            );
+        }
+    }
+
+    toast(
+        "Refreshed.",
+        "success"
+    );
+}
+
+
+/* ============================================================
+   FEED
+============================================================ */
+
+async function loadFeed(){
+
+    const feed =
+        document.getElementById(
+            "feed"
+        );
+
+    feed.innerHTML =
+        `
+        <div class="loader">
+            <div class="spinner"></div>
+            Loading feed...
+        </div>
+        `;
+
+    try{
+
+        const data =
+            await api(
+                "/api/posts"
+            );
+
+        const posts =
+            data.posts || [];
+
+        if(!posts.length){
+
+            feed.innerHTML =
+                `
+                <div class="card">
+                    <div class="empty">
+                        No posts yet.<br>
+                        Be the first to publish something.
+                    </div>
+                </div>
+                `;
+
+            return;
+        }
+
+        feed.innerHTML =
+            posts
+            .map(
+                renderPost
+            )
+            .join("");
+
+    }catch(error){
+
+        if(
+            error.message.includes(
+                "login"
+            )
+        ){
+            return;
+        }
+
+        feed.innerHTML =
+            `
+            <div class="card">
+                <div class="empty">
+                    ${escapeHtml(
+                        error.message
+                    )}
+                </div>
+            </div>
+            `;
+    }
+}
+
+
+/* ============================================================
+   RENDER POST
+============================================================ */
+
+function renderPost(
+    post
+){
+
+    const author =
+        post.author || {};
+
+    const avatar =
+        author.avatar
+        ? `
+        <img
+            src="${escapeAttribute(
+                author.avatar
+            )}"
+            style="
+            width:100%;
+            height:100%;
+            border-radius:50%;
+            object-fit:cover">
+        `
+        : escapeHtml(
+            (
+                author.name ||
+                "U"
+            )
+            .charAt(0)
+            .toUpperCase()
+        );
+
+    let media = "";
+
+    if(
+        post.media_url &&
+        post.media_type
+    ){
+
+        if(
+            post.media_type
+            .startsWith(
+                "video/"
+            )
+        ){
+
+            media =
+                `
+                <video
+                    class="postMedia"
+                    controls
+                    playsinline
+                    preload="metadata">
+                    <source
+                        src="${escapeAttribute(
+                            post.media_url
+                        )}"
+                        type="${escapeAttribute(
+                            post.media_type
+                        )}">
+                </video>
+                `;
+
+        }else if(
+            post.media_type
+            .startsWith(
+                "image/"
+            )
+        ){
+
+            media =
+                `
+                <img
+                    class="postMedia"
+                    loading="lazy"
+                    src="${escapeAttribute(
+                        post.media_url
+                    )}"
+                    alt="Post image">
+                `;
+
+        }else if(
+            post.media_type
+            .startsWith(
+                "audio/"
+            )
+        ){
+
+            media =
+                `
+                <div class="cardPad">
+                    <audio
+                        controls
+                        style="width:100%">
+                        <source
+                            src="${escapeAttribute(
+                                post.media_url
+                            )}"
+                            type="${escapeAttribute(
+                                post.media_type
+                            )}">
+                    </audio>
+                </div>
+                `;
+        }
+    }
+
+    const likedClass =
+        post.liked
+        ? "liked"
+        : "";
+
+    return `
+    <article
+        class="card"
+        id="post-${post.id}">
+
+        <div class="postHeader">
+
+            <div class="postAuthor">
+
+                <div class="avatar avatarSmall">
+                    ${avatar}
+                </div>
+
+                <div>
+
+                    <div class="authorName">
+                        ${escapeHtml(
+                            author.name ||
+                            "User"
+                        )}
+                    </div>
+
+                    <div class="authorUsername">
+                        @${escapeHtml(
+                            author.username ||
+                            "user"
+                        )}
+                        ·
+                        ${formatDate(
+                            post.created_at
+                        )}
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        ${
+            post.caption
+            ? `
+            <div class="postCaption">
+                ${escapeHtml(
+                    post.caption
+                )}
+            </div>
+            `
+            : ""
+        }
+
+        ${media}
+
+        <div class="postStats">
+            ${post.likes_count || 0} likes
+            ·
+            ${post.comments_count || 0} comments
+            ·
+            ${post.reshares_count || 0} reshares
+        </div>
+
+        <div class="postActions">
+
+            <button
+                class="postAction ${likedClass}"
+                onclick="toggleLike(
+                    ${post.id},
+                    ${post.liked}
+                )">
+                ♥ ${post.liked ? "Liked" : "Like"}
+            </button>
+
+            <button
+                class="postAction"
+                onclick="commentPost(
+                    ${post.id}
+                )">
+                💬 Comment
+            </button>
+
+            <button
+                class="postAction"
+                onclick="toggleSave(
+                    ${post.id},
+                    ${post.saved}
+                )">
+                🔖 ${post.saved ? "Saved" : "Save"}
+            </button>
+
+            <button
+                class="postAction"
+                onclick="toggleReshare(
+                    ${post.id},
+                    ${post.reshared}
+                )">
+                🔁 Share
+            </button>
+
+        </div>
+
+    </article>
+    `;
+}
+
+
+/* ============================================================
+   LIKE
+============================================================ */
+
+async function toggleLike(
+    postId,
+    liked
+){
+
+    try{
+
+        await api(
+            "/api/posts/"
+            + postId
+            + "/like",
+            {
+                method:
+                    liked
+                    ? "DELETE"
+                    : "POST"
+            }
+        );
+
+        loadFeed();
+
+    }catch(error){
+
+        toast(
+            error.message,
+            "error"
+        );
+    }
+}
+
+
+/* ============================================================
+   COMMENT
+============================================================ */
+
+async function commentPost(
+    postId
+){
+
+    const text =
+        prompt(
+            "Write your comment:"
+        );
+
+    if(!text){
+        return;
+    }
+
+    try{
+
+        await api(
+            "/api/posts/"
+            + postId
+            + "/comment",
+            {
+                method:"POST",
+                body:JSON.stringify({
+                    text
+                })
+            }
+        );
+
+        toast(
+            "Comment added.",
+            "success"
+        );
+
+        loadFeed();
+
+    }catch(error){
+
+        toast(
+            error.message,
+            "error"
+        );
+    }
+}
+
+
+/* ============================================================
+   SAVE
+============================================================ */
+
+async function toggleSave(
+    postId,
+    saved
+){
+
+    try{
+
+        await api(
+            "/api/posts/"
+            + postId
+            + "/save",
+            {
+                method:
+                    saved
+                    ? "DELETE"
+                    : "POST"
+            }
+        );
+
+        loadFeed();
+
+    }catch(error){
+
+        toast(
+            error.message,
+            "error"
+        );
+    }
+}
+
+
+/* ============================================================
+   RESHARE
+============================================================ */
+
+async function toggleReshare(
+    postId,
+    reshared
+){
+
+    try{
+
+        await api(
+            "/api/posts/"
+            + postId
+            + "/reshare",
+            {
+                method:
+                    reshared
+                    ? "DELETE"
+                    : "POST"
+            }
+        );
+
+        loadFeed();
+
+    }catch(error){
+
+        toast(
+            error.message,
+            "error"
+        );
+    }
+}
+
+
+/* ============================================================
+   POST MODAL
+============================================================ */
+
+function openPostModal(
+    type = ""
+){
+
+    const modal =
+        document.getElementById(
+            "postModal"
+        );
+
+    modal.classList.remove(
+        "hidden"
+    );
+
+    const file =
+        document.getElementById(
+            "postFile"
+        );
+
+    if(type === "image"){
+        file.accept =
+            "image/*";
+    }else if(type === "video"){
+        file.accept =
+            "video/*";
+    }else{
+        file.accept =
+            "image/*,video/*";
+    }
+}
+
+
+function closePostModal(){
+
+    document.getElementById(
+        "postModal"
+    ).classList.add(
+        "hidden"
+    );
+}
+
+
+async function publishPost(){
+
+    const caption =
+        document.getElementById(
+            "postCaption"
+        ).value.trim();
+
+    const file =
+        document.getElementById(
+            "postFile"
+        ).files[0];
+
+    if(!caption && !file){
+
+        toast(
+            "Write something or select a photo/video.",
+            "error"
+        );
+
+        return;
+    }
+
+    const form =
+        new FormData();
+
+    form.append(
+        "caption",
+        caption
+    );
+
+    if(file){
+
+        form.append(
+            "file",
+            file
+        );
+    }
+
+    const button =
+        document.getElementById(
+            "publishBtn"
+        );
+
+    button.disabled =
+        true;
+
+    button.textContent =
+        "Publishing...";
+
+    try{
+
+        await api(
+            "/api/posts",
+            {
+                method:"POST",
+                body:form
+            }
+        );
+
+        document.getElementById(
+            "postCaption"
+        ).value = "";
+
+        document.getElementById(
+            "postFile"
+        ).value = "";
+
+        closePostModal();
+
+        toast(
+            "Post published!",
+            "success"
+        );
+
+        showPage("home");
+
+    }catch(error){
+
+        toast(
+            error.message,
+            "error"
+        );
+
+    }finally{
+
+        button.disabled =
+            false;
+
+        button.textContent =
+            "Publish";
+    }
+}
+
+
+/* ============================================================
+   USERS
+============================================================ */
+
+async function loadUsers(
+    query = ""
+){
+
+    const list =
+        document.getElementById(
+            "usersList"
+        );
+
+    list.innerHTML =
+        `
+        <div class="loader">
+            Loading people...
+        </div>
+        `;
+
+    try{
+
+        const path =
+            query
+            ? "/api/users?q="
+              + encodeURIComponent(query)
+            : "/api/users";
+
+        const data =
+            await api(path);
+
+        const users =
+            data.users || [];
+
+        if(!users.length){
+
+            list.innerHTML =
+                `
+                <div class="empty">
+                    No users found.
+                </div>
+                `;
+
+            return;
+        }
+
+        list.innerHTML =
+            users
+            .map(
+                renderUser
+            )
+            .join("");
+
+    }catch(error){
+
+        list.innerHTML =
+            `
+            <div class="empty">
+                ${escapeHtml(
+                    error.message
+                )}
+            </div>
+            `;
+    }
+}
+
+
+let searchTimer = null;
+
+function searchUsers(){
+
+    clearTimeout(
+        searchTimer
+    );
+
+    searchTimer =
+        setTimeout(
+            () => {
+
+                const query =
+                    document.getElementById(
+                        "userSearch"
+                    ).value.trim();
+
+                loadUsers(
+                    query
+                );
+
+            },
+            300
+        );
+}
+
+
+function renderUser(
+    user
+){
+
+    const avatar =
+        user.avatar
+        ? `
+        <img
+            src="${escapeAttribute(
+                user.avatar
+            )}"
+            style="
+            width:100%;
+            height:100%;
+            object-fit:cover;
+            border-radius:50%">
+        `
+        : escapeHtml(
+            (
+                user.name ||
+                "U"
+            )
+            .charAt(0)
+            .toUpperCase()
+        );
+
+    return `
+    <div class="userItem">
+
+        <div class="userInfo">
+
+            <div class="avatar avatarSmall">
+                ${avatar}
+            </div>
+
+            <div class="userText">
+
+                <strong>
+                    ${escapeHtml(
+                        user.name
+                    )}
+                </strong>
+
+                <small>
+                    @${escapeHtml(
+                        user.username ||
+                        "user"
+                    )}
+                </small>
+
+            </div>
+
+        </div>
+
+        <button
+            class="smallBtn"
+            onclick='openChatWith(
+                ${JSON.stringify(user)}
+            )'>
+            Message
+        </button>
+
+    </div>
+    `;
+}
+
+
+/* ============================================================
+   CHAT USERS
+============================================================ */
+
+async function loadChatUsers(){
+
+    const box =
+        document.getElementById(
+            "chatUsers"
+        );
+
+    box.innerHTML =
+        `
+        <div class="loader">
+            Loading...
+        </div>
+        `;
+
+    try{
+
+        const data =
+            await api(
+                "/api/users"
+            );
+
+        const users =
+            data.users || [];
+
+        box.innerHTML =
+            users.length
+            ? users
+                .map(
+                    user => `
+                    <button
+                        class="chatUser"
+                        onclick='openChatWith(
+                            ${JSON.stringify(user)}
+                        )'>
+                        <strong>
+                            ${escapeHtml(
+                                user.name
+                            )}
+                        </strong>
+                        <br>
+                        <small
+                            style="color:var(--muted)">
+                            @${escapeHtml(
+                                user.username ||
+                                "user"
+                            )}
+                        </small>
+                    </button>
+                    `
+                )
+                .join("")
+            : `
+                <div class="empty">
+                    No other users yet.
+                </div>
+            `;
+
+    }catch(error){
+
+        box.innerHTML =
+            `
+            <div class="empty">
+                ${escapeHtml(
+                    error.message
+                )}
+            </div>
+            `;
+    }
+}
+
+
+/* ============================================================
+   OPEN CHAT
+============================================================ */
+
+function openChatWith(
+    user
+){
+
+    selectedChatUser =
+        user;
+
+    showPage("chat");
+
+    document.getElementById(
+        "chatHeader"
+    ).textContent =
+        "Chat with "
+        + user.name;
+
+    document.getElementById(
+        "messageInput"
+    ).disabled =
+        false;
+
+    document.getElementById(
+        "sendMessageBtn"
+    ).disabled =
+        false;
+
+    loadMessages(
+        user.id
+    );
+}
+
+
+/* ============================================================
+   MESSAGES
+============================================================ */
+
+async function loadMessages(
+    userId
+){
+
+    const box =
+        document.getElementById(
+            "messages"
+        );
+
+    try{
+
+        const data =
+            await api(
+                "/api/messages/"
+                + userId
+            );
+
+        const messages =
+            data.messages || [];
+
+        if(!messages.length){
+
+            box.innerHTML =
+                `
+                <div class="empty">
+                    No messages yet.
+                </div>
+                `;
+
+            return;
+        }
+
+        box.innerHTML =
+            messages
+            .map(
+                message => {
+
+                    const mine =
+                        Number(
+                            message.sender_id
+                        ) === Number(
+                            currentUser.id
+                        );
+
+                    if(
+                        message.media_url &&
+                        message.media_type &&
+                        message.media_type
+                            .startsWith(
+                                "audio/"
+                            )
+                    ){
+
+                        return `
+                        <div
+                            class="bubble ${
+                                mine
+                                ? "me"
+                                : "them"
+                            }">
+                            <audio
+                                controls
+                                style="max-width:100%">
+                                <source
+                                    src="${escapeAttribute(
+                                        message.media_url
+                                    )}">
+                            </audio>
+                        </div>
+                        `;
+                    }
+
+                    if(
+                        message.media_url &&
+                        message.media_type
+                    ){
+
+                        return `
+                        <div
+                            class="bubble ${
+                                mine
+                                ? "me"
+                                : "them"
+                            }">
+
+                            <a
+                                href="${escapeAttribute(
+                                    message.media_url
+                                )}"
+                                target="_blank"
+                                style="color:white">
+                                Open attachment
+                            </a>
+
+                        </div>
+                        `;
+                    }
+
+                    return `
+                    <div
+                        class="bubble ${
+                            mine
+                            ? "me"
+                            : "them"
+                        }">
+
+                        ${escapeHtml(
+                            message.text || ""
+                        )}
+
+                    </div>
+                    `;
+                }
+            )
+            .join("");
+
+        box.scrollTop =
+            box.scrollHeight;
+
+    }catch(error){
+
+        box.innerHTML =
+            `
+            <div class="empty">
+                ${escapeHtml(
+                    error.message
+                )}
+            </div>
+            `;
+    }
+}
+
+
+/* ============================================================
+   SEND MESSAGE
+============================================================ */
+
+async function sendMessage(
+    event
+){
+
+    event.preventDefault();
+
+    if(!selectedChatUser){
+        toast(
+            "Select someone first.",
+            "error"
+        );
+        return;
+    }
+
+    const input =
+        document.getElementById(
+            "messageInput"
+        );
+
+    const text =
+        input.value.trim();
+
+    if(!text){
+        return;
+    }
+
+    try{
+
+        await api(
+            "/api/messages",
+            {
+                method:"POST",
+                body:JSON.stringify({
+                    receiver_id:
+                        selectedChatUser.id,
+                    text
+                })
+            }
+        );
+
+        input.value = "";
+
+        loadMessages(
+            selectedChatUser.id
+        );
+
+    }catch(error){
+
+        toast(
+            error.message,
+            "error"
+        );
+    }
+}
+
+
+/* ============================================================
+   PROFILE
+============================================================ */
 
 async function saveProfile(){
 
-  try{
+    try{
 
-    const data =
-      await api(
-        "/api/profile",
-        {
-          method:"PUT",
-          body:JSON.stringify({
+        const data =
+            await api(
+                "/api/profile",
+                {
+                    method:"PUT",
+                    body:JSON.stringify({
+                        name:
+                            document.getElementById(
+                                "profileName"
+                            ).value.trim(),
 
-            name:
-              document.getElementById(
-                "editName"
-              ).value.trim(),
+                        username:
+                            document.getElementById(
+                                "profileUsername"
+                            ).value.trim() || null,
 
-            username:
-              document.getElementById(
-                "editUsername"
-              ).value.trim(),
+                        bio:
+                            document.getElementById(
+                                "profileBio"
+                            ).value.trim(),
 
-            bio:
-              document.getElementById(
-                "editBio"
-              ).value.trim(),
+                        location:
+                            document.getElementById(
+                                "profileLocation"
+                            ).value.trim()
+                    })
+                }
+            );
 
-            location:
-              document.getElementById(
-                "editLocation"
-              ).value.trim()
+        currentUser =
+            data.user;
 
-          })
-        }
-      );
+        updateUserUI();
 
-    currentUser =
-      data.user;
-
-    updateAuthUI();
-    renderProfile();
-
-    closeProfileEditor();
-
-    toast(
-      "Profile updated successfully."
-    );
-
-  }catch(error){
-
-    toast(
-      error.message
-    );
-
-  }
-
-}
-
-
-/* ==========================================================
-   AVATAR CHANGE
-========================================================== */
-
-async function changeAvatar(
-  input
-){
-
-  if(!input.files?.[0]){
-
-    return;
-
-  }
-
-  try{
-
-    const form =
-      new FormData();
-
-    form.append(
-      "file",
-      input.files[0],
-      input.files[0].name
-    );
-
-    const data =
-      await api(
-        "/api/profile/avatar",
-        {
-          method:"POST",
-          body:form
-        }
-      );
-
-    currentUser =
-      data.user;
-
-    updateAuthUI();
-    renderProfile();
-
-    toast(
-      "Profile photo updated."
-    );
-
-  }catch(error){
-
-    toast(
-      error.message
-    );
-
-  }finally{
-
-    input.value = "";
-
-  }
-
-}
-
-
-/* ==========================================================
-   MESSAGES
-========================================================== */
-
-function startMessage(
-  userId
-){
-
-  showPage(
-    "messages"
-  );
-
-  const person =
-    people.find(
-      p =>
-        Number(p.id)
-        ===
-        Number(userId)
-    );
-
-  if(person){
-
-    toast(
-      "Messaging with "
-      +
-      person.name
-      +
-      " is ready."
-    );
-
-  }
-
-}
-
-
-/* ==========================================================
-   PAGES
-========================================================== */
-
-function showPage(
-  page
-){
-
-  const pages = [
-    "home",
-    "people",
-    "videos",
-    "profile",
-    "messages"
-  ];
-
-  pages.forEach(
-    name => {
-
-      const el =
-        document.getElementById(
-          "page-" + name
+        toast(
+            "Profile updated.",
+            "success"
         );
 
-      if(el){
+    }catch(error){
 
-        el.style.display =
-          name === page
-          ? "block"
-          : "none";
-
-      }
-
+        toast(
+            error.message,
+            "error"
+        );
     }
-  );
-
-
-  if(page === "people"){
-
-    if(getToken()){
-
-      loadPeople();
-
-    }else{
-
-      openAuth();
-
-    }
-
-  }
-
-
-  if(page === "profile"){
-
-    if(getToken()){
-
-      loadProfile();
-
-    }else{
-
-      openAuth();
-
-    }
-
-  }
-
-
-  if(page === "videos"){
-
-    if(getToken()){
-
-      loadPosts();
-
-    }else{
-
-      openAuth();
-
-    }
-
-  }
-
-
-  if(page === "messages"){
-
-    if(!getToken()){
-
-      openAuth();
-
-    }
-
-  }
-
 }
 
 
-/* ==========================================================
-   THEME
-========================================================== */
+/* ============================================================
+   AVATAR
+============================================================ */
 
-function toggleTheme(){
+async function uploadAvatar(){
 
-  document.body.classList.toggle(
-    "theme-light"
-  );
+    const file =
+        document.getElementById(
+            "avatarInput"
+        ).files[0];
 
-  localStorage.setItem(
-    "msafiri_theme",
-    document.body.classList.contains(
-      "theme-light"
-    )
-    ? "light"
-    : "dark"
-  );
+    if(!file){
+        return;
+    }
 
-}
+    const form =
+        new FormData();
 
-
-function restoreTheme(){
-
-  if(
-    localStorage.getItem(
-      "msafiri_theme"
-    )
-    ===
-    "light"
-  ){
-
-    document.body.classList.add(
-      "theme-light"
+    form.append(
+        "file",
+        file
     );
 
-  }
+    try{
 
+        const data =
+            await api(
+                "/api/profile/avatar",
+                {
+                    method:"POST",
+                    body:form
+                }
+            );
+
+        currentUser.avatar =
+            data.avatar;
+
+        updateUserUI();
+
+        toast(
+            "Avatar updated.",
+            "success"
+        );
+
+    }catch(error){
+
+        toast(
+            error.message,
+            "error"
+        );
+    }
 }
 
 
-/* ==========================================================
-   ESCAPE HTML
-========================================================== */
+/* ============================================================
+   DEMO AI UI
+============================================================ */
 
-function escapeHTML(
-  value
-){
+function runDemoAI(){
 
-  return String(
-    value ?? ""
-  )
-  .replaceAll(
-    "&",
-    "&amp;"
-  )
-  .replaceAll(
-    "<",
-    "&lt;"
-  )
-  .replaceAll(
-    ">",
-    "&gt;"
-  )
-  .replaceAll(
-    '"',
-    "&quot;"
-  )
-  .replaceAll(
-    "'",
-    "&#039;"
-  );
+    const input =
+        document.getElementById(
+            "aiInput"
+        ).value.trim();
 
+    const output =
+        document.getElementById(
+            "aiOutput"
+        );
+
+    if(!input){
+
+        output.textContent =
+            "Write a question first.";
+
+        return;
+    }
+
+    output.textContent =
+        "AI workspace is ready. " +
+        "Connect an AI provider/API " +
+        "to generate live answers.";
 }
 
 
-function escapeAttr(
-  value
-){
-
-  return escapeHTML(
-    value
-  );
-
-}
-
-
-/* ==========================================================
-   DATE
-========================================================== */
+/* ============================================================
+   UTILITIES
+============================================================ */
 
 function formatDate(
-  value
+    value
 ){
 
-  if(!value){
+    if(!value){
+        return "";
+    }
 
-    return "";
+    try{
 
-  }
+        return new Date(
+            value
+        ).toLocaleString(
+            undefined,
+            {
+                dateStyle:"medium",
+                timeStyle:"short"
+            }
+        );
 
-  try{
-
-    return new Date(
-      value
-    ).toLocaleString();
-
-  }catch{
-
-    return "";
-
-  }
-
+    }catch{
+        return "";
+    }
 }
 
 
-/* ==========================================================
-   INIT
-========================================================== */
+function escapeHtml(
+    value
+){
 
-async function init(){
-
-  restoreTheme();
-
-  updateAuthUI();
-
-  renderProfile();
-
-  renderFeed();
-
-  renderPeople();
-
-  const loggedIn =
-    await restoreSession();
-
-  if(loggedIn){
-
-    await loadAll();
-
-  }else{
-
-    /*
-      Show Login on first visit instead of
-      pretending the user has a session.
-    */
-
-    setTimeout(
-      ()=>{
-        openAuth();
-      },
-      500
+    return String(
+        value ?? ""
+    )
+    .replaceAll(
+        "&",
+        "&amp;"
+    )
+    .replaceAll(
+        "<",
+        "&lt;"
+    )
+    .replaceAll(
+        ">",
+        "&gt;"
+    )
+    .replaceAll(
+        '"',
+        "&quot;"
+    )
+    .replaceAll(
+        "'",
+        "&#039;"
     );
-
-  }
-
 }
 
 
-init();
+function escapeAttribute(
+    value
+){
+
+    return escapeHtml(
+        value
+    );
+}
+
+
+/* ============================================================
+   START
+============================================================ */
+
+document.addEventListener(
+    "DOMContentLoaded",
+    () => {
+
+        restoreSession();
+
+    }
+);
 
 </script>
 

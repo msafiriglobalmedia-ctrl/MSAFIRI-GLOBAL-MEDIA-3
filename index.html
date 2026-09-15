@@ -1,56 +1,37 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#050816">
-<meta name="description" content="MSAFIRI GLOBAL MEDIA — connect beyond">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="theme-color" content="#070b14">
+
 <title>MSAFIRI GLOBAL MEDIA — connect beyond</title>
 
 <style>
 :root{
-  --bg:#050816;
-  --bg2:#0b1020;
-  --card:#0d1426;
-  --card2:#111a30;
-  --text:#f7f8fc;
-  --muted:#9ba7bd;
-  --line:rgba(255,255,255,.08);
-  --primary:#ff6b35;
-  --primary2:#f39c12;
-  --danger:#e74c3c;
+  --bg:#070b14;
+  --bg2:#0d1320;
+  --card:#101827;
+  --card2:#151f30;
+  --text:#f4f7fb;
+  --muted:#91a0b6;
+  --line:#243044;
+  --primary:#ff7a00;
+  --primary2:#ff3d00;
+  --danger:#ff4757;
   --success:#20c997;
-  --blue:#3b82f6;
-  --shadow:0 15px 45px rgba(0,0,0,.28);
-  --radius:18px;
+  --shadow:0 15px 40px rgba(0,0,0,.25);
 }
 
 *{
   box-sizing:border-box;
-  margin:0;
-  padding:0;
-}
-
-html{
-  scroll-behavior:smooth;
 }
 
 body{
-  font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+  margin:0;
+  font-family:Arial,Helvetica,sans-serif;
   background:var(--bg);
   color:var(--text);
-  min-height:100vh;
-}
-
-body.light{
-  --bg:#f4f6fb;
-  --bg2:#ffffff;
-  --card:#ffffff;
-  --card2:#f7f8fc;
-  --text:#111827;
-  --muted:#667085;
-  --line:rgba(17,24,39,.09);
-  --shadow:0 12px 35px rgba(17,24,39,.10);
 }
 
 button,
@@ -64,220 +45,103 @@ button{
   cursor:pointer;
 }
 
-a{
-  color:inherit;
-  text-decoration:none;
-}
-
-img,
-video{
-  max-width:100%;
-}
-
-.hidden{
-  display:none!important;
-}
-
-.app{
-  min-height:100vh;
-}
-
-/* TOPBAR */
-
 .topbar{
   position:sticky;
   top:0;
-  z-index:1000;
-  height:70px;
+  z-index:100;
+  height:64px;
+  background:rgba(7,11,20,.95);
+  border-bottom:1px solid var(--line);
   display:flex;
   align-items:center;
-  gap:18px;
-  padding:10px 22px;
-  background:rgba(5,8,22,.92);
-  backdrop-filter:blur(18px);
-  border-bottom:1px solid var(--line);
-}
-
-.light .topbar{
-  background:rgba(255,255,255,.92);
+  gap:15px;
+  padding:0 18px;
+  backdrop-filter:blur(14px);
 }
 
 .logo{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  min-width:245px;
-}
-
-.logo-mark{
-  width:42px;
-  height:42px;
-  border-radius:13px;
-  display:grid;
-  place-items:center;
   font-weight:900;
-  color:#fff;
-  background:linear-gradient(135deg,var(--primary),var(--primary2));
-  box-shadow:0 8px 25px rgba(243,156,18,.25);
+  font-size:20px;
+  white-space:nowrap;
 }
 
-.logo-text strong{
-  display:block;
-  font-size:15px;
-  letter-spacing:.5px;
-}
-
-.logo-text span{
-  display:block;
-  font-size:11px;
-  color:var(--muted);
-  margin-top:2px;
+.logo span{
+  color:var(--primary);
 }
 
 .search{
   flex:1;
-  max-width:620px;
-  position:relative;
+  max-width:550px;
 }
 
 .search input{
   width:100%;
   border:1px solid var(--line);
-  background:var(--card);
+  background:var(--bg2);
   color:var(--text);
-  border-radius:14px;
-  padding:12px 15px 12px 42px;
+  padding:11px 15px;
+  border-radius:30px;
   outline:none;
 }
 
-.search input:focus{
-  border-color:rgba(255,107,53,.55);
-}
-
-.search-icon{
-  position:absolute;
-  left:14px;
-  top:50%;
-  transform:translateY(-50%);
-  opacity:.65;
-}
-
 .top-actions{
-  margin-left:auto;
   display:flex;
-  align-items:center;
   gap:8px;
+  margin-left:auto;
 }
 
-.icon-btn{
-  width:42px;
-  height:42px;
-  border-radius:13px;
+.icon-btn,
+.btn{
   border:1px solid var(--line);
   background:var(--card);
   color:var(--text);
-  display:grid;
-  place-items:center;
-  transition:.2s;
+  border-radius:12px;
+  padding:9px 13px;
 }
 
+.btn:hover,
 .icon-btn:hover{
-  transform:translateY(-1px);
-  border-color:rgba(255,107,53,.45);
+  border-color:var(--primary);
 }
 
-.avatar{
-  width:38px;
-  height:38px;
-  border-radius:50%;
-  object-fit:cover;
-  background:linear-gradient(135deg,#202b48,#37466d);
-  display:grid;
-  place-items:center;
-  overflow:hidden;
-  color:#fff;
-  font-weight:800;
+.btn.primary{
+  background:linear-gradient(
+    135deg,
+    var(--primary),
+    var(--primary2)
+  );
+  border:none;
+  color:white;
+  font-weight:700;
 }
 
-.avatar img{
-  width:100%;
-  height:100%;
-  object-fit:cover;
+.btn.danger{
+  background:var(--danger);
+  border:none;
 }
 
-/* LAYOUT */
-
-.layout{
-  display:grid;
-  grid-template-columns:250px minmax(0,1fr) 300px;
-  gap:20px;
-  max-width:1500px;
+.container{
+  max-width:1450px;
   margin:auto;
-  padding:20px;
+  display:grid;
+  grid-template-columns:240px minmax(0,1fr) 280px;
+  gap:18px;
+  padding:18px;
 }
 
 .sidebar,
 .rightbar{
   position:sticky;
-  top:90px;
-  height:calc(100vh - 110px);
-  overflow:auto;
+  top:82px;
+  height:max-content;
 }
 
-.sidebar::-webkit-scrollbar,
-.rightbar::-webkit-scrollbar{
-  width:4px;
-}
-
-.nav-card,
 .side-card,
 .card{
   background:var(--card);
   border:1px solid var(--line);
-  border-radius:var(--radius);
+  border-radius:18px;
   box-shadow:var(--shadow);
-}
-
-.nav-card{
-  padding:10px;
-}
-
-.nav-item{
-  width:100%;
-  border:0;
-  background:transparent;
-  color:var(--muted);
-  display:flex;
-  align-items:center;
-  gap:12px;
-  padding:12px;
-  border-radius:13px;
-  text-align:left;
-  margin-bottom:3px;
-}
-
-.nav-item:hover,
-.nav-item.active{
-  background:rgba(255,107,53,.10);
-  color:var(--text);
-}
-
-.nav-item.active{
-  color:var(--primary);
-}
-
-.nav-icon{
-  width:25px;
-  text-align:center;
-}
-
-.side-title{
-  color:var(--muted);
-  font-size:11px;
-  font-weight:800;
-  text-transform:uppercase;
-  letter-spacing:1px;
-  margin:20px 8px 9px;
 }
 
 .side-card{
@@ -285,798 +149,437 @@ video{
   margin-bottom:15px;
 }
 
-.main{
-  min-width:0;
-}
-
-.page{
-  display:none;
-}
-
-.page.active{
-  display:block;
-}
-
-.page-title{
-  font-size:26px;
-  font-weight:850;
-  margin-bottom:5px;
-}
-
-.page-subtitle{
-  color:var(--muted);
-  margin-bottom:18px;
-}
-
-/* COMMON */
-
-.card{
-  padding:16px;
-  margin-bottom:16px;
-}
-
-.btn{
-  border:1px solid var(--line);
-  background:var(--card2);
-  color:var(--text);
-  padding:10px 14px;
+.nav-item{
+  padding:12px;
   border-radius:12px;
-  transition:.2s;
+  margin:4px 0;
+  cursor:pointer;
+  color:var(--muted);
 }
 
-.btn:hover{
-  transform:translateY(-1px);
+.nav-item:hover,
+.nav-item.active{
+  background:var(--card2);
+  color:white;
 }
 
-.btn.primary{
-  border-color:transparent;
-  background:linear-gradient(135deg,var(--primary),var(--primary2));
-  color:#fff;
-  font-weight:750;
+.profile-mini{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-bottom:15px;
 }
 
-.btn.danger{
-  background:rgba(231,76,60,.12);
-  color:#ff8b80;
+.avatar{
+  width:45px;
+  height:45px;
+  border-radius:50%;
+  object-fit:cover;
+  background:linear-gradient(
+    135deg,
+    var(--primary),
+    var(--primary2)
+  );
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:900;
 }
 
-.btn.success{
-  background:rgba(32,201,151,.12);
-  color:#55ddb0;
+.avatar.small{
+  width:38px;
+  height:38px;
 }
 
-.btn.small{
-  padding:7px 10px;
-  font-size:12px;
+.avatar.large{
+  width:80px;
+  height:80px;
 }
 
 .muted{
   color:var(--muted);
 }
 
-.row{
-  display:flex;
-  align-items:center;
+.page-title{
+  font-size:25px;
+  margin:5px 0 4px;
 }
 
-.between{
-  justify-content:space-between;
-}
-
-.gap{
-  gap:10px;
-}
-
-.wrap{
-  flex-wrap:wrap;
-}
-
-.grid2{
-  display:grid;
-  grid-template-columns:repeat(2,minmax(0,1fr));
-  gap:15px;
-}
-
-.grid3{
-  display:grid;
-  grid-template-columns:repeat(3,minmax(0,1fr));
-  gap:15px;
-}
-
-.input,
-.textarea,
-.select{
-  width:100%;
-  border:1px solid var(--line);
-  background:var(--card2);
-  color:var(--text);
-  padding:12px 13px;
-  border-radius:12px;
-  outline:none;
-}
-
-.textarea{
-  min-height:110px;
-  resize:vertical;
-}
-
-.input:focus,
-.textarea:focus,
-.select:focus{
-  border-color:rgba(255,107,53,.5);
-}
-
-.section-head{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:10px;
-  margin-bottom:13px;
-}
-
-.section-head h3{
-  font-size:17px;
-}
-
-/* PROFILE MINI */
-
-.profile-mini{
-  display:flex;
-  align-items:center;
-  gap:10px;
-}
-
-.profile-mini strong{
-  display:block;
-  font-size:14px;
-}
-
-.profile-mini span{
+.subtitle{
   color:var(--muted);
-  font-size:12px;
+  margin-bottom:18px;
 }
 
-/* STORIES */
-
-.stories{
-  display:flex;
-  gap:12px;
-  overflow:auto;
-  padding-bottom:4px;
+.card{
+  padding:17px;
+  margin-bottom:18px;
 }
-
-.story{
-  min-width:90px;
-  height:120px;
-  border-radius:16px;
-  overflow:hidden;
-  position:relative;
-  border:1px solid var(--line);
-  background:linear-gradient(160deg,#121d36,#060912);
-}
-
-.story-bg{
-  width:100%;
-  height:100%;
-  object-fit:cover;
-}
-
-.story::after{
-  content:"";
-  position:absolute;
-  inset:0;
-  background:linear-gradient(transparent 35%,rgba(0,0,0,.78));
-}
-
-.story-avatar{
-  position:absolute;
-  z-index:2;
-  top:8px;
-  left:8px;
-  width:31px;
-  height:31px;
-  border-radius:50%;
-  border:2px solid var(--primary);
-  overflow:hidden;
-  background:#111827;
-}
-
-.story-name{
-  position:absolute;
-  z-index:3;
-  bottom:9px;
-  left:8px;
-  right:8px;
-  color:#fff;
-  font-size:11px;
-  font-weight:700;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
-
-/* COMPOSER */
 
 .composer textarea{
   width:100%;
-  min-height:70px;
-  border:0;
-  resize:none;
-  background:transparent;
-  color:var(--text);
+  min-height:90px;
+  resize:vertical;
+  background:var(--bg2);
+  border:1px solid var(--line);
+  border-radius:14px;
+  color:white;
+  padding:14px;
   outline:none;
-  padding:3px;
-  font-size:15px;
 }
 
 .composer-bottom{
   display:flex;
   align-items:center;
-  justify-content:space-between;
   gap:8px;
-  border-top:1px solid var(--line);
-  padding-top:12px;
-}
-
-.composer-tools{
-  display:flex;
-  gap:7px;
+  margin-top:10px;
   flex-wrap:wrap;
 }
 
-.media-preview{
-  margin-top:12px;
-  border:1px dashed var(--line);
+.file-name{
+  color:var(--muted);
+  font-size:13px;
+  flex:1;
+}
+
+.preview{
+  margin-top:10px;
+}
+
+.preview img,
+.preview video{
+  max-width:100%;
+  max-height:450px;
   border-radius:14px;
-  padding:10px;
 }
 
-.media-preview img,
-.media-preview video{
-  max-height:260px;
-  width:100%;
-  object-fit:contain;
-  border-radius:12px;
-}
-
-/* POSTS */
-
-.post-header{
+.post-head{
   display:flex;
   align-items:center;
   gap:10px;
 }
 
 .post-author{
-  min-width:0;
+  flex:1;
 }
 
 .post-author strong{
   display:block;
-  font-size:14px;
 }
 
-.post-author span{
-  display:block;
-  font-size:11px;
+.post-author small{
   color:var(--muted);
-  margin-top:2px;
 }
 
 .post-body{
   margin-top:13px;
-}
-
-.post-caption{
-  white-space:pre-wrap;
   line-height:1.55;
-  margin-bottom:12px;
+  white-space:pre-wrap;
 }
 
 .post-media{
+  margin-top:13px;
+  width:100%;
   border-radius:15px;
-  overflow:hidden;
-  background:#03050c;
-  border:1px solid var(--line);
-}
-
-.post-media img{
-  display:block;
-  width:100%;
-  max-height:650px;
+  max-height:600px;
   object-fit:contain;
-}
-
-.post-media video{
-  display:block;
-  width:100%;
-  max-height:650px;
-}
-
-.post-stats{
-  display:flex;
-  gap:18px;
-  color:var(--muted);
-  font-size:12px;
-  padding:11px 2px;
+  background:#000;
 }
 
 .post-actions{
   display:flex;
-  gap:5px;
+  gap:8px;
   border-top:1px solid var(--line);
-  padding-top:9px;
+  margin-top:14px;
+  padding-top:12px;
+  flex-wrap:wrap;
 }
 
-.post-action{
-  flex:1;
-  border:0;
+.action{
   background:transparent;
+  border:1px solid var(--line);
   color:var(--muted);
-  padding:9px 5px;
   border-radius:10px;
+  padding:8px 11px;
 }
 
-.post-action:hover{
-  background:var(--card2);
-  color:var(--text);
+.action:hover,
+.action.active{
+  color:white;
+  border-color:var(--primary);
 }
-
-.post-action.liked{
-  color:var(--primary);
-}
-
-/* PEOPLE */
 
 .people-grid{
   display:grid;
   grid-template-columns:repeat(2,minmax(0,1fr));
-  gap:13px;
+  gap:12px;
 }
 
 .person{
   display:flex;
-  gap:11px;
+  gap:12px;
   align-items:center;
-  padding:13px;
+  background:var(--bg2);
   border:1px solid var(--line);
   border-radius:15px;
-  background:var(--card2);
+  padding:12px;
 }
 
 .person-info{
-  min-width:0;
   flex:1;
+  min-width:0;
 }
 
-.person-info strong{
+.person-info strong,
+.person-info span{
   display:block;
   overflow:hidden;
-  white-space:nowrap;
   text-overflow:ellipsis;
+  white-space:nowrap;
 }
 
 .person-info span{
   color:var(--muted);
-  font-size:11px;
+  font-size:13px;
 }
 
-/* VIDEO */
-
-.video-grid{
-  display:grid;
-  grid-template-columns:repeat(2,minmax(0,1fr));
-  gap:15px;
+.empty{
+  text-align:center;
+  padding:40px 15px;
+  color:var(--muted);
 }
 
-.video-card{
-  overflow:hidden;
-  border:1px solid var(--line);
-  border-radius:16px;
-  background:var(--card);
+.stat{
+  text-align:center;
 }
 
-.video-card video{
-  width:100%;
-  aspect-ratio:16/9;
-  object-fit:cover;
-  background:#000;
-}
-
-.video-info{
-  padding:12px;
-}
-
-/* MARKET */
-
-.product-grid{
-  display:grid;
-  grid-template-columns:repeat(3,minmax(0,1fr));
-  gap:15px;
-}
-
-.product{
-  border:1px solid var(--line);
-  border-radius:16px;
-  overflow:hidden;
-  background:var(--card);
-}
-
-.product img{
-  width:100%;
-  aspect-ratio:1/1;
-  object-fit:cover;
-  background:#080c18;
-}
-
-.product-info{
-  padding:12px;
-}
-
-.price{
-  color:var(--primary);
-  font-weight:850;
-}
-
-/* CHAT */
-
-.chat-layout{
-  display:grid;
-  grid-template-columns:270px minmax(0,1fr);
-  gap:15px;
-  min-height:620px;
-}
-
-.chat-list{
-  border:1px solid var(--line);
-  border-radius:16px;
-  overflow:auto;
-  background:var(--card);
-}
-
-.chat-item{
-  display:flex;
-  gap:10px;
-  padding:12px;
-  border-bottom:1px solid var(--line);
-  cursor:pointer;
-}
-
-.chat-item:hover,
-.chat-item.active{
-  background:var(--card2);
-}
-
-.chat-window{
-  border:1px solid var(--line);
-  border-radius:16px;
-  background:var(--card);
-  display:flex;
-  flex-direction:column;
-  overflow:hidden;
-}
-
-.chat-head{
-  padding:13px;
-  border-bottom:1px solid var(--line);
-}
-
-.chat-messages{
-  flex:1;
-  padding:15px;
-  overflow:auto;
-  min-height:400px;
-}
-
-.message{
-  max-width:75%;
-  padding:9px 12px;
-  border-radius:14px;
-  margin-bottom:8px;
-  line-height:1.4;
-}
-
-.message.mine{
-  margin-left:auto;
-  background:linear-gradient(135deg,var(--primary),var(--primary2));
-  color:#fff;
-  border-bottom-right-radius:5px;
-}
-
-.message.other{
-  background:var(--card2);
-  border-bottom-left-radius:5px;
-}
-
-.chat-compose{
-  display:flex;
-  gap:7px;
-  padding:10px;
-  border-top:1px solid var(--line);
-}
-
-/* AI */
-
-.ai-card{
-  padding:18px;
-  border:1px solid var(--line);
-  border-radius:17px;
-  background:var(--card);
-}
-
-.ai-icon{
-  width:45px;
-  height:45px;
-  display:grid;
-  place-items:center;
-  border-radius:14px;
-  background:rgba(255,107,53,.12);
-  margin-bottom:10px;
+.stat b{
+  display:block;
   font-size:22px;
 }
 
-/* RIGHTBAR */
+.profile-cover{
+  height:130px;
+  border-radius:16px;
+  background:
+    linear-gradient(
+      135deg,
+      #ff7a00,
+      #e72d00,
+      #351b72
+    );
+}
 
-.quick-stat{
+.profile-main{
   display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:9px 0;
-  border-bottom:1px solid var(--line);
+  gap:15px;
+  align-items:flex-end;
+  margin-top:-40px;
+  padding:0 15px;
 }
 
-.quick-stat:last-child{
-  border-bottom:0;
+.profile-main .avatar{
+  border:5px solid var(--card);
 }
 
-.online-dot{
-  width:8px;
-  height:8px;
-  border-radius:50%;
-  background:var(--success);
-  display:inline-block;
+.profile-data{
+  padding:15px;
 }
 
-/* MODALS */
+.form-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+}
 
-.modal{
+.field{
+  margin-bottom:12px;
+}
+
+.field label{
+  display:block;
+  color:var(--muted);
+  font-size:13px;
+  margin-bottom:6px;
+}
+
+.field input,
+.field textarea,
+.field select{
+  width:100%;
+  padding:11px 13px;
+  border-radius:11px;
+  border:1px solid var(--line);
+  background:var(--bg2);
+  color:white;
+  outline:none;
+}
+
+.field textarea{
+  min-height:100px;
+  resize:vertical;
+}
+
+.auth-overlay,
+.modal-overlay{
   position:fixed;
   inset:0;
-  z-index:3000;
+  z-index:500;
+  background:rgba(0,0,0,.75);
   display:none;
   align-items:center;
   justify-content:center;
-  padding:20px;
-  background:rgba(0,0,0,.72);
-  backdrop-filter:blur(7px);
+  padding:15px;
 }
 
-.modal.open{
-  display:flex;
-}
-
-.modal-box{
-  width:min(680px,100%);
+.auth-box,
+.modal{
+  width:min(500px,100%);
   max-height:90vh;
   overflow:auto;
   background:var(--card);
   border:1px solid var(--line);
-  border-radius:22px;
-  box-shadow:0 25px 90px rgba(0,0,0,.5);
-  padding:20px;
+  border-radius:20px;
+  padding:22px;
+  box-shadow:0 25px 80px rgba(0,0,0,.45);
 }
 
-.modal-head{
+.auth-logo{
+  text-align:center;
+  font-size:28px;
+  font-weight:900;
+  margin-bottom:4px;
+}
+
+.auth-logo span{
+  color:var(--primary);
+}
+
+.auth-caption{
+  text-align:center;
+  color:var(--muted);
+  margin-bottom:20px;
+}
+
+.auth-tabs{
   display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:10px;
-  margin-bottom:17px;
+  gap:8px;
+  margin-bottom:15px;
+}
+
+.auth-tabs button{
+  flex:1;
 }
 
 .close{
-  width:36px;
-  height:36px;
-  border:1px solid var(--line);
-  background:var(--card2);
-  color:var(--text);
-  border-radius:11px;
-}
-
-/* TOAST */
-
-#toastBox{
-  position:fixed;
-  right:20px;
-  bottom:20px;
-  z-index:5000;
-  display:flex;
-  flex-direction:column;
-  gap:8px;
+  float:right;
+  border:none;
+  background:transparent;
+  color:var(--muted);
+  font-size:24px;
 }
 
 .toast{
-  max-width:360px;
-  background:#111827;
-  color:#fff;
-  border:1px solid rgba(255,255,255,.1);
-  padding:12px 15px;
+  position:fixed;
+  right:20px;
+  bottom:20px;
+  z-index:1000;
+  max-width:350px;
+  background:#151d2b;
+  border:1px solid var(--line);
   border-radius:13px;
-  box-shadow:0 15px 40px rgba(0,0,0,.3);
-  animation:toastIn .2s ease;
+  padding:13px 16px;
+  display:none;
+  box-shadow:var(--shadow);
 }
-
-@keyframes toastIn{
-  from{opacity:0;transform:translateY(10px)}
-  to{opacity:1;transform:translateY(0)}
-}
-
-/* EMPTY */
-
-.empty{
-  padding:40px 20px;
-  text-align:center;
-  color:var(--muted);
-}
-
-.empty-icon{
-  font-size:40px;
-  margin-bottom:10px;
-}
-
-/* LOADING */
 
 .loading{
-  padding:30px;
-  text-align:center;
-  color:var(--muted);
+  opacity:.65;
+  pointer-events:none;
 }
 
-/* RESPONSIVE */
+.theme-light{
+  --bg:#f4f6f9;
+  --bg2:#ffffff;
+  --card:#ffffff;
+  --card2:#eef1f6;
+  --text:#111827;
+  --muted:#64748b;
+  --line:#d9dee8;
+  --shadow:0 12px 35px rgba(0,0,0,.08);
+}
 
-@media(max-width:1150px){
-  .layout{
-    grid-template-columns:220px minmax(0,1fr);
+.theme-light .topbar{
+  background:rgba(255,255,255,.94);
+}
+
+.theme-light .search input,
+.theme-light .composer textarea,
+.theme-light .field input,
+.theme-light .field textarea,
+.theme-light .field select{
+  color:#111827;
+}
+
+@media(max-width:1050px){
+  .container{
+    grid-template-columns:190px minmax(0,1fr);
   }
 
   .rightbar{
     display:none;
   }
-
-  .logo{
-    min-width:auto;
-  }
-
-  .logo-text{
-    display:none;
-  }
 }
 
-@media(max-width:800px){
+@media(max-width:720px){
   .topbar{
-    height:62px;
-    padding:8px 12px;
-    gap:8px;
+    height:auto;
+    padding:10px;
+    flex-wrap:wrap;
+  }
+
+  .logo{
+    font-size:17px;
   }
 
   .search{
-    display:none;
+    order:5;
+    flex-basis:100%;
+    max-width:none;
   }
 
-  .layout{
+  .container{
     display:block;
-    padding:12px;
+    padding:10px;
   }
 
   .sidebar{
-    position:fixed;
-    z-index:2000;
-    left:0;
-    right:0;
-    bottom:0;
-    top:auto;
-    height:67px;
-    padding:6px;
-    background:rgba(5,8,22,.96);
-    border-top:1px solid var(--line);
-  }
-
-  .light .sidebar{
-    background:rgba(255,255,255,.96);
-  }
-
-  .nav-card{
-    height:100%;
+    position:static;
     display:flex;
-    align-items:center;
-    justify-content:space-around;
-    background:transparent;
-    border:0;
-    box-shadow:none;
-    padding:0;
+    overflow-x:auto;
+    gap:6px;
+    margin-bottom:10px;
+  }
+
+  .side-card{
+    display:flex;
+    min-width:max-content;
+    margin:0;
+  }
+
+  .sidebar .profile-mini{
+    display:none;
   }
 
   .nav-item{
-    width:auto;
-    flex-direction:column;
-    gap:2px;
-    padding:6px 8px;
-    margin:0;
-    font-size:10px;
+    white-space:nowrap;
   }
 
-  .nav-icon{
-    font-size:18px;
-  }
-
-  .nav-label{
-    display:block;
-  }
-
-  .side-title,
-  .side-card{
-    display:none;
-  }
-
-  .main{
-    padding-bottom:75px;
-  }
-
-  .people-grid,
-  .video-grid,
-  .product-grid,
-  .grid3{
+  .people-grid{
     grid-template-columns:1fr;
   }
 
-  .grid2{
+  .form-grid{
     grid-template-columns:1fr;
-  }
-
-  .chat-layout{
-    grid-template-columns:1fr;
-  }
-
-  .chat-list{
-    max-height:220px;
-  }
-
-  .logo-mark{
-    width:38px;
-    height:38px;
-  }
-
-  .top-actions .hide-mobile{
-    display:none;
-  }
-}
-
-@media(max-width:480px){
-  .card{
-    padding:13px;
-    border-radius:15px;
-  }
-
-  .composer-bottom{
-    align-items:flex-start;
-    flex-direction:column;
-  }
-
-  .composer-tools{
-    width:100%;
-  }
-
-  .composer-tools .btn{
-    flex:1;
-  }
-
-  .top-actions{
-    gap:5px;
-  }
-
-  .icon-btn{
-    width:37px;
-    height:37px;
   }
 }
 </style>
@@ -1084,45 +587,41 @@ video{
 
 <body>
 
-<div class="app">
-
-<!-- TOPBAR -->
+<!-- ========================================================
+     TOPBAR
+========================================================= -->
 
 <header class="topbar">
 
   <div class="logo">
-    <div class="logo-mark">M</div>
-    <div class="logo-text">
-      <strong>MSAFIRI GLOBAL MEDIA</strong>
-      <span>connect beyond</span>
-    </div>
+    MSAFIRI <span>GLOBAL MEDIA</span>
   </div>
 
   <div class="search">
-    <span class="search-icon">🔎</span>
     <input
       id="globalSearch"
-      placeholder="Search people, posts, marketplace..."
-      oninput="globalSearch(this.value)"
+      type="search"
+      placeholder="Search people..."
+      oninput="searchPeople(this.value)"
     >
   </div>
 
   <div class="top-actions">
 
-    <button class="icon-btn" onclick="toggleTheme()" title="Theme">
+    <button
+      class="icon-btn"
+      onclick="toggleTheme()"
+      title="Theme"
+    >
       🌓
     </button>
 
-    <button class="icon-btn" onclick="showPage('notifications')" title="Notifications">
-      🔔
-    </button>
-
-    <button class="icon-btn" onclick="showPage('chat')" title="Messages">
-      💬
-    </button>
-
-    <button class="icon-btn hide-mobile" onclick="showPage('profile')" title="Profile">
-      <span id="topAvatar" class="avatar">M</span>
+    <button
+      id="authButton"
+      class="btn primary"
+      onclick="openAuth()"
+    >
+      Login
     </button>
 
   </div>
@@ -1130,1027 +629,613 @@ video{
 </header>
 
 
-<div class="layout">
+<!-- ========================================================
+     APP
+========================================================= -->
 
-<!-- SIDEBAR -->
+<div class="container">
 
-<aside class="sidebar">
+  <!-- ======================================================
+       SIDEBAR
+  ======================================================= -->
 
-  <div class="nav-card">
+  <aside class="sidebar">
 
-    <button class="nav-item active" data-page="home" onclick="showPage('home')">
-      <span class="nav-icon">🏠</span>
-      <span class="nav-label">Home</span>
-    </button>
+    <div class="side-card">
 
-    <button class="nav-item" data-page="people" onclick="showPage('people')">
-      <span class="nav-icon">👥</span>
-      <span class="nav-label">People</span>
-    </button>
+      <div class="profile-mini">
 
-    <button class="nav-item" data-page="video" onclick="showPage('video')">
-      <span class="nav-icon">🎥</span>
-      <span class="nav-label">Video</span>
-    </button>
+        <div
+          id="miniAvatar"
+          class="avatar"
+        >
+          ?
+        </div>
 
-    <button class="nav-item" data-page="chat" onclick="showPage('chat')">
-      <span class="nav-icon">💬</span>
-      <span class="nav-label">Chat</span>
-    </button>
+        <div>
+          <strong id="miniName">
+            Guest
+          </strong>
 
-    <button class="nav-item" data-page="ai" onclick="showPage('ai')">
-      <span class="nav-icon">🤖</span>
-      <span class="nav-label">AI Council</span>
-    </button>
+          <div
+            id="miniUsername"
+            class="muted"
+          >
+            Login required
+          </div>
+        </div>
 
-    <button class="nav-item" data-page="market" onclick="showPage('market')">
-      <span class="nav-icon">🛒</span>
-      <span class="nav-label">Market</span>
-    </button>
+      </div>
 
-    <button class="nav-item" data-page="maps" onclick="showPage('maps')">
-      <span class="nav-icon">🗺️</span>
-      <span class="nav-label">Maps</span>
-    </button>
+      <div
+        class="nav-item active"
+        onclick="showPage('home')"
+      >
+        🏠 Home
+      </div>
 
-    <button class="nav-item" data-page="academy" onclick="showPage('academy')">
-      <span class="nav-icon">🎓</span>
-      <span class="nav-label">Academy</span>
-    </button>
+      <div
+        class="nav-item"
+        onclick="showPage('people')"
+      >
+        👥 People
+      </div>
 
-    <button class="nav-item" data-page="channels" onclick="showPage('channels')">
-      <span class="nav-icon">📢</span>
-      <span class="nav-label">Channels</span>
-    </button>
+      <div
+        class="nav-item"
+        onclick="showPage('videos')"
+      >
+        🎥 Video Feed
+      </div>
 
-    <button class="nav-item" data-page="profile" onclick="showPage('profile')">
-      <span class="nav-icon">👤</span>
-      <span class="nav-label">Profile</span>
-    </button>
+      <div
+        class="nav-item"
+        onclick="showPage('profile')"
+      >
+        👤 Profile
+      </div>
 
-  </div>
+      <div
+        class="nav-item"
+        onclick="showPage('messages')"
+      >
+        💬 Messages
+      </div>
 
-  <div class="side-title">Account</div>
-
-  <div class="side-card">
-
-    <div class="profile-mini">
-
-      <div id="sideAvatar" class="avatar">M</div>
-
-      <div>
-        <strong id="sideName">Guest</strong>
-        <span id="sideUsername">@user</span>
+      <div
+        class="nav-item"
+        onclick="logoutUser()"
+      >
+        🚪 Logout
       </div>
 
     </div>
 
-    <button class="btn small" style="width:100%;margin-top:12px" onclick="openProfileEditor()">
-      Edit profile
-    </button>
+  </aside>
+
+
+  <!-- ======================================================
+       MAIN
+  ======================================================= -->
+
+  <main>
+
+    <!-- HOME -->
+
+    <section id="page-home">
+
+      <h1 class="page-title">
+        MSAFIRI GLOBAL MEDIA
+      </h1>
+
+      <div class="subtitle">
+        connect beyond
+      </div>
+
+
+      <!-- CREATE POST -->
+
+      <div class="card composer">
+
+        <div class="profile-mini">
+
+          <div
+            id="composerAvatar"
+            class="avatar"
+          >
+            ?
+          </div>
+
+          <div>
+            <strong id="composerName">
+              Login to post
+            </strong>
+
+            <div class="muted">
+              Share something with the world
+            </div>
+          </div>
+
+        </div>
+
+        <textarea
+          id="postText"
+          placeholder="What do you want to share?"
+        ></textarea>
+
+        <div
+          id="postPreview"
+          class="preview"
+        ></div>
+
+        <div class="composer-bottom">
+
+          <button
+            class="btn"
+            onclick="requireLoginThen(()=>document.getElementById('imagePost').click())"
+          >
+            🖼️ Photo
+          </button>
+
+          <button
+            class="btn"
+            onclick="requireLoginThen(()=>document.getElementById('videoPost').click())"
+          >
+            🎥 Video
+          </button>
+
+          <input
+            id="imagePost"
+            type="file"
+            accept="image/*"
+            hidden
+            onchange="previewMedia(this)"
+          >
+
+          <input
+            id="videoPost"
+            type="file"
+            accept="video/*"
+            hidden
+            onchange="previewMedia(this)"
+          >
+
+          <span
+            id="selectedFile"
+            class="file-name"
+          ></span>
+
+          <button
+            id="createPostButton"
+            class="btn primary"
+            onclick="createPost()"
+          >
+            ＋ Create Post
+          </button>
+
+        </div>
+
+      </div>
+
+
+      <!-- FEED -->
+
+      <div
+        id="feed"
+      ></div>
+
+    </section>
+
+
+    <!-- PEOPLE -->
+
+    <section
+      id="page-people"
+      style="display:none"
+    >
+
+      <h1 class="page-title">
+        People
+      </h1>
+
+      <div class="subtitle">
+        Real registered members of MSAFIRI GLOBAL MEDIA
+      </div>
+
+      <div
+        id="peopleList"
+        class="people-grid"
+      ></div>
+
+    </section>
+
+
+    <!-- VIDEOS -->
+
+    <section
+      id="page-videos"
+      style="display:none"
+    >
+
+      <h1 class="page-title">
+        Video Feed
+      </h1>
+
+      <div class="subtitle">
+        Videos published by real members.
+      </div>
+
+      <div
+        id="videoFeed"
+      ></div>
+
+    </section>
+
+
+    <!-- PROFILE -->
+
+    <section
+      id="page-profile"
+      style="display:none"
+    >
+
+      <h1 class="page-title">
+        My Profile
+      </h1>
+
+      <div
+        id="profilePage"
+        class="card"
+      ></div>
+
+    </section>
+
+
+    <!-- MESSAGES -->
+
+    <section
+      id="page-messages"
+      style="display:none"
+    >
+
+      <h1 class="page-title">
+        Messages
+      </h1>
+
+      <div class="subtitle">
+        Messaging requires a logged-in account.
+      </div>
+
+      <div class="card">
+
+        <div
+          id="messagePeople"
+          class="people-grid"
+        ></div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+
+  <!-- ======================================================
+       RIGHTBAR
+  ======================================================= -->
+
+  <aside class="rightbar">
+
+    <div class="side-card">
+
+      <strong>
+        MSAFIRI GLOBAL MEDIA
+      </strong>
+
+      <p class="muted">
+        connect beyond
+      </p>
+
+      <hr style="border-color:var(--line)">
+
+      <div class="stat">
+
+        <b id="onlineStatus">
+          Offline
+        </b>
+
+        <span class="muted">
+          account status
+        </span>
+
+      </div>
+
+    </div>
+
+    <div class="side-card">
+
+      <strong>
+        Secure session
+      </strong>
+
+      <p
+        id="sessionStatus"
+        class="muted"
+      >
+        Not logged in.
+      </p>
+
+    </div>
+
+  </aside>
+
+</div>
+
+
+<!-- ========================================================
+     AUTH MODAL
+========================================================= -->
+
+<div
+  id="authOverlay"
+  class="auth-overlay"
+>
+
+  <div class="auth-box">
 
     <button
-      class="btn small danger"
-      style="width:100%;margin-top:7px"
-      onclick="logout()"
+      class="close"
+      onclick="closeAuth()"
     >
-      Logout
+      ×
     </button>
 
-  </div>
+    <div class="auth-logo">
+      MSAFIRI <span>GLOBAL MEDIA</span>
+    </div>
 
-</aside>
+    <div class="auth-caption">
+      connect beyond
+    </div>
 
+    <div class="auth-tabs">
 
-<!-- MAIN -->
+      <button
+        id="loginTab"
+        class="btn primary"
+        onclick="switchAuth('login')"
+      >
+        Login
+      </button>
 
-<main class="main">
-
-
-<!-- HOME -->
-
-<section id="page-home" class="page active">
-
-  <div class="card" style="background:linear-gradient(135deg,rgba(255,107,53,.13),rgba(243,156,18,.04))">
-
-    <div class="row between gap wrap">
-
-      <div>
-        <div class="page-title">MSAFIRI GLOBAL MEDIA</div>
-        <div class="page-subtitle" style="margin:0">
-          Connect. Create. Discover. <strong>connect beyond.</strong>
-        </div>
-      </div>
-
-      <button class="btn primary" onclick="focusComposer()">
-        ＋ Create Post
+      <button
+        id="registerTab"
+        class="btn"
+        onclick="switchAuth('register')"
+      >
+        Register
       </button>
 
     </div>
 
-  </div>
 
+    <!-- LOGIN -->
 
-  <!-- STORIES -->
+    <form
+      id="loginForm"
+      onsubmit="loginUser(event)"
+    >
 
-  <div class="card">
+      <div class="field">
 
-    <div class="section-head">
-      <h3>Stories</h3>
-      <span class="muted">Live from your network</span>
-    </div>
+        <label>
+          Email
+        </label>
 
-    <div id="stories" class="stories"></div>
+        <input
+          id="loginEmail"
+          type="email"
+          required
+          autocomplete="email"
+          placeholder="you@example.com"
+        >
 
-  </div>
-
-
-  <!-- COMPOSER -->
-
-  <div class="card composer" id="composer">
-
-    <div class="row gap" style="margin-bottom:12px">
-
-      <div id="composerAvatar" class="avatar">M</div>
-
-      <div style="flex:1">
-        <strong id="composerName">Create a post</strong>
-        <div class="muted" style="font-size:11px">
-          Share with the MSAFIRI GLOBAL MEDIA community
-        </div>
       </div>
 
-    </div>
+      <div class="field">
 
-    <textarea
-      id="postText"
-      placeholder="What do you want to share?"
-    ></textarea>
+        <label>
+          Password
+        </label>
 
-    <div id="postPreview" class="media-preview hidden"></div>
-
-    <div class="composer-bottom">
-
-      <div class="composer-tools">
-
-        <button
-          class="btn"
-          onclick="document.getElementById('imagePost').click()"
+        <input
+          id="loginPassword"
+          type="password"
+          required
+          autocomplete="current-password"
+          placeholder="Your password"
         >
-          🖼️ Photo
-        </button>
-
-        <button
-          class="btn"
-          onclick="document.getElementById('videoPost').click()"
-        >
-          🎥 Video
-        </button>
-
-        <button
-          class="btn"
-          onclick="document.getElementById('documentPost').click()"
-        >
-          📄 Document
-        </button>
-
-        <button
-          class="btn"
-          onclick="clearComposerMedia()"
-        >
-          ✕ Remove
-        </button>
 
       </div>
 
       <button
-        id="createPostBtn"
+        id="loginButton"
         class="btn primary"
-        onclick="createPost()"
+        style="width:100%"
+        type="submit"
       >
-        ＋ Create Post
+        Login
       </button>
 
-    </div>
+    </form>
 
-    <input
-      id="imagePost"
-      type="file"
-      accept="image/*"
-      hidden
-      onchange="previewPostMedia(this)"
+
+    <!-- REGISTER -->
+
+    <form
+      id="registerForm"
+      style="display:none"
+      onsubmit="registerUser(event)"
     >
 
-    <input
-      id="videoPost"
-      type="file"
-      accept="video/*"
-      hidden
-      onchange="previewPostMedia(this)"
-    >
+      <div class="field">
 
-    <input
-      id="documentPost"
-      type="file"
-      accept=".pdf,.doc,.docx,.txt"
-      hidden
-      onchange="previewPostMedia(this)"
-    >
+        <label>
+          Full name
+        </label>
 
-  </div>
+        <input
+          id="registerName"
+          type="text"
+          required
+          autocomplete="name"
+          placeholder="Your full name"
+        >
 
+      </div>
 
-  <!-- FEED -->
+      <div class="field">
 
-  <div class="section-head">
-    <h3>Latest Posts</h3>
+        <label>
+          Username
+        </label>
 
-    <button class="btn small" onclick="loadPosts(true)">
-      ↻ Refresh
-    </button>
-  </div>
+        <input
+          id="registerUsername"
+          type="text"
+          placeholder="username"
+          autocomplete="username"
+        >
 
-  <div id="feed">
-    <div class="loading">Loading posts...</div>
-  </div>
+      </div>
 
-</section>
+      <div class="field">
 
+        <label>
+          Email
+        </label>
 
-<!-- PEOPLE -->
+        <input
+          id="registerEmail"
+          type="email"
+          required
+          autocomplete="email"
+          placeholder="you@example.com"
+        >
 
-<section id="page-people" class="page">
+      </div>
 
-  <div class="page-title">People</div>
+      <div class="field">
 
-  <div class="page-subtitle">
-    Real registered members of MSAFIRI GLOBAL MEDIA.
-  </div>
+        <label>
+          Password
+        </label>
 
-  <div class="card">
+        <input
+          id="registerPassword"
+          type="password"
+          required
+          minlength="6"
+          autocomplete="new-password"
+          placeholder="At least 6 characters"
+        >
 
-    <div class="section-head">
-
-      <h3>Community Members</h3>
-
-      <button class="btn small" onclick="loadPeople()">
-        ↻ Refresh
-      </button>
-
-    </div>
-
-    <div id="peopleGrid" class="people-grid">
-      <div class="loading">Loading registered users...</div>
-    </div>
-
-  </div>
-
-</section>
-
-
-<!-- VIDEO -->
-
-<section id="page-video" class="page">
-
-  <div class="page-title">Video Feed</div>
-
-  <div class="page-subtitle">
-    Videos posted by real MSAFIRI GLOBAL MEDIA users.
-  </div>
-
-  <div class="card">
-
-    <div class="row between gap wrap">
-
-      <div>
-        <strong>Upload a video</strong>
-        <div class="muted" style="font-size:12px">
-          Videos are uploaded to the real backend.
-        </div>
       </div>
 
       <button
+        id="registerButton"
         class="btn primary"
-        onclick="document.getElementById('videoUpload').click()"
+        style="width:100%"
+        type="submit"
       >
-        🎥 Upload Video
+        Create Account
       </button>
 
-    </div>
+    </form>
 
-    <input
-      id="videoUpload"
-      type="file"
-      accept="video/*"
-      hidden
-      onchange="uploadVideoFromPage(this)"
+  </div>
+
+</div>
+
+
+<!-- ========================================================
+     PROFILE EDIT MODAL
+========================================================= -->
+
+<div
+  id="profileOverlay"
+  class="modal-overlay"
+>
+
+  <div class="modal">
+
+    <button
+      class="close"
+      onclick="closeProfileEditor()"
     >
-
-  </div>
-
-  <div id="videoFeed" class="video-grid">
-    <div class="loading">Loading videos...</div>
-  </div>
-
-</section>
-
-
-<!-- CHAT -->
-
-<section id="page-chat" class="page">
-
-  <div class="page-title">Chat</div>
-
-  <div class="page-subtitle">
-    Messaging area.
-  </div>
-
-  <div class="chat-layout">
-
-    <div class="chat-list" id="chatList">
-      <div class="empty">
-        <div class="empty-icon">💬</div>
-        No chats yet.
-      </div>
-    </div>
-
-    <div class="chat-window">
-
-      <div class="chat-head">
-
-        <div class="row between">
-
-          <div class="row gap">
-
-            <div id="chatAvatar" class="avatar">M</div>
-
-            <div>
-              <strong id="chatName">Select a conversation</strong>
-              <div id="chatStatus" class="muted" style="font-size:11px">
-                —
-              </div>
-            </div>
-
-          </div>
-
-          <div class="row gap">
-
-            <button class="icon-btn" onclick="startVoiceCall()">
-              📞
-            </button>
-
-            <button class="icon-btn" onclick="startVideoCall()">
-              🎥
-            </button>
-
-            <button class="icon-btn" onclick="chatSettings()">
-              ⋮
-            </button>
-
-          </div>
-
-        </div>
-
-      </div>
-
-      <div id="chatMessages" class="chat-messages">
-
-        <div class="empty">
-          <div class="empty-icon">💬</div>
-          Choose a person to start chatting.
-        </div>
-
-      </div>
-
-      <div class="chat-compose">
-
-        <button
-          class="icon-btn"
-          onclick="document.getElementById('chatFile').click()"
-        >
-          📎
-        </button>
-
-        <input
-          id="chatFile"
-          type="file"
-          hidden
-          onchange="sendChatFile(this)"
-        >
-
-        <input
-          id="chatInput"
-          class="input"
-          placeholder="Write a message..."
-          onkeydown="if(event.key==='Enter')sendMessage()"
-        >
-
-        <button
-          class="btn primary"
-          onclick="sendMessage()"
-        >
-          Send
-        </button>
-
-      </div>
-
-    </div>
-
-  </div>
-
-</section>
-
-
-<!-- AI -->
-
-<section id="page-ai" class="page">
-
-  <div class="page-title">AI Council</div>
-
-  <div class="page-subtitle">
-    AI tools for learning, health education and business.
-  </div>
-
-  <div class="grid3">
-
-    <div class="ai-card">
-
-      <div class="ai-icon">🎓</div>
-
-      <h3>Education AI</h3>
-
-      <p class="muted" style="margin:8px 0 14px">
-        Ask questions, study concepts and explore educational topics.
-      </p>
-
-      <button class="btn primary" onclick="openAI('education')">
-        Open Education AI
-      </button>
-
-    </div>
-
-    <div class="ai-card">
-
-      <div class="ai-icon">🩺</div>
-
-      <h3>Health AI</h3>
-
-      <p class="muted" style="margin:8px 0 14px">
-        Evidence-based health information and education.
-      </p>
-
-      <button class="btn primary" onclick="openAI('health')">
-        Open Health AI
-      </button>
-
-    </div>
-
-    <div class="ai-card">
-
-      <div class="ai-icon">💼</div>
-
-      <h3>Business AI</h3>
-
-      <p class="muted" style="margin:8px 0 14px">
-        Business ideas, planning and entrepreneurship support.
-      </p>
-
-      <button class="btn primary" onclick="openAI('business')">
-        Open Business AI
-      </button>
-
-    </div>
-
-  </div>
-
-</section>
-
-
-<!-- MARKET -->
-
-<section id="page-market" class="page">
-
-  <div class="page-title">Marketplace</div>
-
-  <div class="page-subtitle">
-    Buy and sell products and services through the community.
-  </div>
-
-  <div class="card">
-
-    <div class="row between gap wrap">
-
-      <div>
-        <strong>Marketplace</strong>
-        <div class="muted" style="font-size:12px">
-          Listings shown here depend on backend marketplace support.
-        </div>
-      </div>
-
-      <button class="btn primary" onclick="openProductModal()">
-        ＋ Add Listing
-      </button>
-
-    </div>
-
-  </div>
-
-  <div id="marketGrid" class="product-grid"></div>
-
-</section>
-
-
-<!-- MAPS -->
-
-<section id="page-maps" class="page">
-
-  <div class="page-title">Maps</div>
-
-  <div class="page-subtitle">
-    Explore locations and services.
-  </div>
-
-  <div class="card">
-
-    <div class="empty">
-
-      <div class="empty-icon">🗺️</div>
-
-      <h3>Maps</h3>
-
-      <p style="margin-top:7px">
-        Map integration can be connected to your preferred map provider.
-      </p>
-
-      <button class="btn primary" style="margin-top:14px" onclick="openMap()">
-        Open Maps
-      </button>
-
-    </div>
-
-  </div>
-
-</section>
-
-
-<!-- ACADEMY -->
-
-<section id="page-academy" class="page">
-
-  <div class="page-title">MSAFIRI Academy</div>
-
-  <div class="page-subtitle">
-    Learning resources from Nursery to higher education.
-  </div>
-
-  <div class="grid3">
-
-    <div class="card">
-      <h3>📚 Primary</h3>
-      <p class="muted" style="margin-top:7px">
-        Mathematics, Science, English and more.
-      </p>
-    </div>
-
-    <div class="card">
-      <h3>🎓 Secondary</h3>
-      <p class="muted" style="margin-top:7px">
-        Curriculum-based learning and revision.
-      </p>
-    </div>
-
-    <div class="card">
-      <h3>🏫 Higher Education</h3>
-      <p class="muted" style="margin-top:7px">
-        Certificate, Diploma, Bachelor, Master’s and PhD.
-      </p>
-    </div>
-
-  </div>
-
-</section>
-
-
-<!-- CHANNELS -->
-
-<section id="page-channels" class="page">
-
-  <div class="page-title">Channels</div>
-
-  <div class="page-subtitle">
-    Follow communities and publishers.
-  </div>
-
-  <div class="card">
-
-    <div class="empty">
-      <div class="empty-icon">📢</div>
-      <h3>Channels</h3>
-      <p style="margin-top:7px">
-        Channel creation and subscriptions can be connected to the backend.
-      </p>
-    </div>
-
-  </div>
-
-</section>
-
-
-<!-- NOTIFICATIONS -->
-
-<section id="page-notifications" class="page">
-
-  <div class="page-title">Notifications</div>
-
-  <div class="page-subtitle">
-    Your latest activity.
-  </div>
-
-  <div class="card">
-
-    <div id="notificationsList" class="empty">
-      <div class="empty-icon">🔔</div>
-      No notifications loaded.
-    </div>
-
-  </div>
-
-</section>
-
-
-<!-- PROFILE -->
-
-<section id="page-profile" class="page">
-
-  <div class="page-title">Profile</div>
-
-  <div class="page-subtitle">
-    Your real MSAFIRI GLOBAL MEDIA profile.
-  </div>
-
-  <div class="card">
-
-    <div class="row gap wrap">
-
-      <div id="profileAvatarLarge" class="avatar" style="width:90px;height:90px;font-size:30px">
-        M
-      </div>
-
-      <div style="flex:1;min-width:220px">
-
-        <h2 id="profileName">Guest</h2>
-
-        <div id="profileUsername" class="muted">
-          @user
-        </div>
-
-        <div id="profileBio" style="margin-top:8px">
-          —
-        </div>
-
-        <div id="profileLocation" class="muted" style="margin-top:5px">
-          —
-        </div>
-
-      </div>
-
-      <button class="btn primary" onclick="openProfileEditor()">
-        Edit Profile
-      </button>
-
-    </div>
-
-  </div>
-
-
-  <div class="grid3">
-
-    <div class="card">
-      <div class="muted">Posts</div>
-      <strong id="profilePostCount" style="font-size:25px">0</strong>
-    </div>
-
-    <div class="card">
-      <div class="muted">Members</div>
-      <strong id="profilePeopleCount" style="font-size:25px">0</strong>
-    </div>
-
-    <div class="card">
-      <div class="muted">Status</div>
-      <strong id="profileStatus" style="font-size:15px">Backend</strong>
-    </div>
-
-  </div>
-
-
-  <div class="card">
-
-    <div class="section-head">
-      <h3>My Posts</h3>
-
-      <button class="btn small" onclick="loadPosts(true)">
-        Refresh
-      </button>
-
-    </div>
-
-    <div id="myPosts"></div>
-
-  </div>
-
-</section>
-
-
-</main>
-
-
-<!-- RIGHTBAR -->
-
-<aside class="rightbar">
-
-  <div class="side-card">
-
-    <div class="section-head">
-      <h3>Network</h3>
-      <span class="online-dot"></span>
-    </div>
-
-    <div class="quick-stat">
-      <span class="muted">Registered users</span>
-      <strong id="rightPeopleCount">0</strong>
-    </div>
-
-    <div class="quick-stat">
-      <span class="muted">Posts</span>
-      <strong id="rightPostCount">0</strong>
-    </div>
-
-    <div class="quick-stat">
-      <span class="muted">Backend</span>
-      <strong id="backendStatus">Checking...</strong>
-    </div>
-
-  </div>
-
-
-  <div class="side-card">
-
-    <div class="section-head">
-      <h3>Quick Actions</h3>
-    </div>
-
-    <button class="btn" style="width:100%;margin-bottom:8px" onclick="focusComposer()">
-      ＋ Create Post
+      ×
     </button>
 
-    <button class="btn" style="width:100%;margin-bottom:8px" onclick="showPage('video')">
-      🎥 Video Feed
-    </button>
+    <h2>
+      Edit Profile
+    </h2>
 
-    <button class="btn" style="width:100%;margin-bottom:8px" onclick="showPage('people')">
-      👥 Find People
-    </button>
+    <div class="field">
 
-    <button class="btn" style="width:100%" onclick="showPage('ai')">
-      🤖 AI Council
-    </button>
+      <label>
+        Name
+      </label>
 
-  </div>
-
-
-  <div class="side-card">
-
-    <h3 style="margin-bottom:8px">
-      MSAFIRI GLOBAL MEDIA
-    </h3>
-
-    <p class="muted" style="line-height:1.6;font-size:13px">
-      A social platform designed to connect people, ideas,
-      education, business and media.
-    </p>
-
-    <div style="margin-top:12px;color:var(--primary);font-weight:800">
-      connect beyond.
-    </div>
-
-  </div>
-
-</aside>
-
-</div>
-</div>
-
-
-<!-- PROFILE MODAL -->
-
-<div id="profileModal" class="modal">
-
-  <div class="modal-box" onclick="event.stopPropagation()">
-
-    <div class="modal-head">
-
-      <div>
-        <h2>Edit Profile</h2>
-        <div class="muted" style="font-size:12px">
-          Changes are saved to your backend profile.
-        </div>
-      </div>
-
-      <button class="close" onclick="closeModal('profileModal')">
-        ✕
-      </button>
+      <input
+        id="editName"
+        type="text"
+      >
 
     </div>
 
-    <div class="grid2">
+    <div class="field">
 
-      <div>
-        <label class="muted">Name</label>
-        <input id="editName" class="input" style="margin-top:6px">
-      </div>
+      <label>
+        Username
+      </label>
 
-      <div>
-        <label class="muted">Username</label>
-        <input id="editUsername" class="input" style="margin-top:6px">
-      </div>
+      <input
+        id="editUsername"
+        type="text"
+      >
 
     </div>
 
-    <div style="margin-top:13px">
+    <div class="field">
 
-      <label class="muted">Bio</label>
+      <label>
+        Bio
+      </label>
 
       <textarea
         id="editBio"
-        class="textarea"
-        style="margin-top:6px;min-height:90px"
       ></textarea>
 
     </div>
 
-    <div style="margin-top:13px">
+    <div class="field">
 
-      <label class="muted">Location</label>
+      <label>
+        Location
+      </label>
 
       <input
         id="editLocation"
-        class="input"
-        style="margin-top:6px"
+        type="text"
       >
 
     </div>
-
-    <div style="margin-top:15px">
-
-      <label class="muted">Profile Photo</label>
-
-      <div class="row gap" style="margin-top:7px">
-
-        <div id="editAvatarPreview" class="avatar" style="width:58px;height:58px">
-          M
-        </div>
-
-        <button
-          class="btn"
-          onclick="document.getElementById('profilePhotoInput').click()"
-        >
-          🖼️ Change Photo
-        </button>
-
-        <input
-          id="profilePhotoInput"
-          type="file"
-          accept="image/*"
-          hidden
-          onchange="uploadProfilePhoto(this)"
-        >
-
-      </div>
-
-    </div>
-
-    <div class="row" style="justify-content:flex-end;margin-top:20px">
-
-      <button class="btn" onclick="closeModal('profileModal')">
-        Cancel
-      </button>
-
-      <button
-        id="saveProfileBtn"
-        class="btn primary"
-        style="margin-left:8px"
-        onclick="saveProfile()"
-      >
-        Save Profile
-      </button>
-
-    </div>
-
-  </div>
-
-</div>
-
-
-<!-- AI MODAL -->
-
-<div id="aiModal" class="modal">
-
-  <div class="modal-box">
-
-    <div class="modal-head">
-
-      <div>
-        <h2 id="aiTitle">AI Council</h2>
-        <div id="aiSubtitle" class="muted">
-          Ask your question.
-        </div>
-      </div>
-
-      <button class="close" onclick="closeModal('aiModal')">
-        ✕
-      </button>
-
-    </div>
-
-    <textarea
-      id="aiQuestion"
-      class="textarea"
-      placeholder="Type your question..."
-    ></textarea>
-
-    <button
-      id="aiAskBtn"
-      class="btn primary"
-      style="margin-top:10px"
-      onclick="askAI()"
-    >
-      Ask AI
-    </button>
-
-    <div
-      id="aiAnswer"
-      class="card"
-      style="margin-top:15px;display:none"
-    ></div>
-
-  </div>
-
-</div>
-
-
-<!-- PRODUCT MODAL -->
-
-<div id="productModal" class="modal">
-
-  <div class="modal-box">
-
-    <div class="modal-head">
-
-      <h2>Add Marketplace Listing</h2>
-
-      <button class="close" onclick="closeModal('productModal')">
-        ✕
-      </button>
-
-    </div>
-
-    <div class="grid2">
-
-      <input
-        id="productName"
-        class="input"
-        placeholder="Product/service name"
-      >
-
-      <input
-        id="productPrice"
-        class="input"
-        placeholder="Price"
-      >
-
-    </div>
-
-    <textarea
-      id="productDescription"
-      class="textarea"
-      style="margin-top:12px"
-      placeholder="Description"
-    ></textarea>
-
-    <input
-      id="productImage"
-      type="file"
-      accept="image/*"
-      class="input"
-      style="margin-top:12px"
-    >
 
     <button
       class="btn primary"
-      style="margin-top:12px"
-      onclick="publishProduct()"
+      onclick="saveProfile()"
     >
-      Publish Listing
+      Save Profile
     </button>
 
   </div>
@@ -2158,179 +1243,170 @@ video{
 </div>
 
 
-<!-- CALL MODAL -->
+<!-- ========================================================
+     HIDDEN AVATAR INPUT
+========================================================= -->
 
-<div id="callModal" class="modal">
-
-  <div class="modal-box" style="max-width:450px;text-align:center">
-
-    <div style="font-size:55px">📞</div>
-
-    <h2 id="callTitle" style="margin-top:8px">
-      Call
-    </h2>
-
-    <p id="callStatusText" class="muted" style="margin-top:7px">
-      Preparing call...
-    </p>
-
-    <button
-      class="btn danger"
-      style="margin-top:20px"
-      onclick="endCall()"
-    >
-      End Call
-    </button>
-
-  </div>
-
-</div>
+<input
+  id="avatarInput"
+  type="file"
+  accept="image/*"
+  hidden
+  onchange="changeAvatar(this)"
+>
 
 
-<div id="toastBox"></div>
+<!-- ========================================================
+     TOAST
+========================================================= -->
+
+<div
+  id="toast"
+  class="toast"
+></div>
 
 
 <script>
-"use strict";
 
-/*
-==========================================================
-MSAFIRI GLOBAL MEDIA
-Frontend ↔ FastAPI backend
+/* ==========================================================
+   API
+========================================================== */
 
-IMPORTANT:
-If this index.html is served directly by the same FastAPI
-Render service that contains main.py, keep API_BASE = "".
-
-If the frontend is hosted somewhere else, change it to:
-const API_BASE = "https://YOUR-RENDER-SERVICE.onrender.com";
-==========================================================
-*/
-
-const API_BASE =
-  window.MSAFIRI_API_BASE ||
-  "";
+const API_BASE = "";
 
 
-/* ========================================================
-   GLOBAL STATE
-======================================================== */
+/* ==========================================================
+   STATE
+========================================================== */
 
-const appState = {
-  me:null,
-  posts:[],
-  people:[],
-  videos:[],
-  currentPostFile:null,
-  currentAI:null,
-  currentChat:null,
-  chats:[],
-  products:[],
-  theme:"dark"
-};
+let currentUser = null;
+let posts = [];
+let people = [];
+let selectedPostFile = null;
 
 
-/* ========================================================
-   API HELPERS
-======================================================== */
+/* ==========================================================
+   TOKEN
+========================================================== */
 
 function getToken(){
 
   return (
-    localStorage.getItem("access_token") ||
-    localStorage.getItem("token") ||
-    localStorage.getItem("msafiri_token") ||
+    localStorage.getItem("msafiri_access_token")
+    ||
+    localStorage.getItem("access_token")
+    ||
+    localStorage.getItem("token")
+    ||
     ""
   );
-
 }
 
 
 function setToken(token){
 
-  if(!token) return;
+  if(token){
 
-  localStorage.setItem("access_token",token);
-  localStorage.setItem("msafiri_token",token);
+    localStorage.setItem(
+      "msafiri_access_token",
+      token
+    );
+
+    localStorage.setItem(
+      "access_token",
+      token
+    );
+
+  }
 
 }
 
 
 function clearToken(){
 
-  localStorage.removeItem("access_token");
-  localStorage.removeItem("token");
-  localStorage.removeItem("msafiri_token");
+  localStorage.removeItem(
+    "msafiri_access_token"
+  );
+
+  localStorage.removeItem(
+    "access_token"
+  );
+
+  localStorage.removeItem(
+    "token"
+  );
+
+  currentUser = null;
 
 }
 
 
-function apiUrl(path){
+/* ==========================================================
+   API REQUEST
+========================================================== */
 
-  if(!path) return API_BASE;
+async function api(
+  path,
+  options={}
+){
 
-  if(/^https?:\/\//i.test(path)){
-    return path;
-  }
+  const headers = new Headers(
+    options.headers || {}
+  );
 
-  return API_BASE + path;
-
-}
-
-
-function authHeaders(extra={}){
-
-  const headers = {...extra};
   const token = getToken();
 
   if(token){
-    headers.Authorization = "Bearer " + token;
-  }
 
-  return headers;
-
-}
-
-
-async function apiFetch(path,options={}){
-
-  const opts = {...options};
-
-  opts.headers = authHeaders(opts.headers || {});
-
-  const response = await fetch(apiUrl(path),opts);
-
-  let data = null;
-
-  const type = response.headers.get("content-type") || "";
-
-  if(type.includes("application/json")){
-
-    try{
-      data = await response.json();
-    }catch{
-      data = null;
-    }
-
-  }else{
-
-    try{
-      data = await response.text();
-    }catch{
-      data = null;
-    }
+    headers.set(
+      "Authorization",
+      "Bearer " + token
+    );
 
   }
 
+  /*
+    Do NOT manually set Content-Type when
+    body is FormData.
+  */
 
-  if(response.status === 401){
+  if(
+    options.body
+    &&
+    !(options.body instanceof FormData)
+    &&
+    !headers.has("Content-Type")
+  ){
 
-    showToast("Your session has expired. Please login again.");
+    headers.set(
+      "Content-Type",
+      "application/json"
+    );
 
-    return {
-      ok:false,
-      status:401,
-      data
+  }
+
+  const response = await fetch(
+    API_BASE + path,
+    {
+      ...options,
+      headers
+    }
+  );
+
+  const text = await response.text();
+
+  let data = {};
+
+  try{
+
+    data = text
+      ? JSON.parse(text)
+      : {};
+
+  }catch{
+
+    data = {
+      detail:text
     };
 
   }
@@ -2338,549 +1414,230 @@ async function apiFetch(path,options={}){
 
   if(!response.ok){
 
-    const message =
-      data?.detail ||
-      data?.message ||
-      data?.error ||
-      "Request failed.";
+    if(response.status === 401){
 
-    return {
-      ok:false,
-      status:response.status,
-      data,
-      message
-    };
+      clearToken();
+
+      updateAuthUI();
+
+      openAuth();
+
+      throw new Error(
+        "Please login again to continue."
+      );
+
+    }
+
+    throw new Error(
+      data.detail
+      ||
+      "Request failed."
+    );
 
   }
 
-
-  return {
-    ok:true,
-    status:response.status,
-    data
-  };
+  return data;
 
 }
 
 
-function extractArray(data,key){
-
-  if(Array.isArray(data)){
-    return data;
-  }
-
-  if(data && Array.isArray(data[key])){
-    return data[key];
-  }
-
-  if(data && Array.isArray(data.items)){
-    return data.items;
-  }
-
-  if(data && Array.isArray(data.results)){
-    return data.results;
-  }
-
-  return [];
-
-}
-
-
-/* ========================================================
+/* ==========================================================
    TOAST
-======================================================== */
+========================================================== */
 
-function showToast(message){
+let toastTimer;
 
-  const box = document.getElementById("toastBox");
+function toast(message){
 
-  const toast = document.createElement("div");
-
-  toast.className = "toast";
-
-  toast.textContent = message;
-
-  box.appendChild(toast);
-
-  setTimeout(()=>{
-    toast.remove();
-  },3500);
-
-}
-
-
-/* ========================================================
-   INITIALIZATION
-======================================================== */
-
-document.addEventListener("DOMContentLoaded",init);
-
-
-async function init(){
-
-  loadTheme();
-
-  renderStories();
-
-  bindModalEvents();
-
-  await loadMe();
-
-  await Promise.all([
-    loadPosts(),
-    loadPeople()
-  ]);
-
-  renderFeed();
-  renderPeople();
-  renderProfile();
-  renderVideoFeed();
-  renderStats();
-
-  checkBackend();
-
-}
-
-
-/* ========================================================
-   THEME
-======================================================== */
-
-function loadTheme(){
-
-  const saved =
-    localStorage.getItem("msafiri_theme") || "dark";
-
-  appState.theme = saved;
-
-  document.body.classList.toggle(
-    "light",
-    saved === "light"
-  );
-
-}
-
-
-function toggleTheme(){
-
-  appState.theme =
-    appState.theme === "dark"
-      ? "light"
-      : "dark";
-
-  document.body.classList.toggle(
-    "light",
-    appState.theme === "light"
-  );
-
-  localStorage.setItem(
-    "msafiri_theme",
-    appState.theme
-  );
-
-}
-
-
-/* ========================================================
-   NAVIGATION
-======================================================== */
-
-function showPage(page){
-
-  document.querySelectorAll(".page")
-    .forEach(el=>{
-      el.classList.remove("active");
-    });
-
-  const target =
-    document.getElementById("page-" + page);
-
-  if(target){
-    target.classList.add("active");
-  }
-
-  document.querySelectorAll(".nav-item")
-    .forEach(btn=>{
-      btn.classList.toggle(
-        "active",
-        btn.dataset.page === page
-      );
-    });
-
-
-  if(page === "people"){
-    loadPeople();
-  }
-
-  if(page === "video"){
-    loadPosts().then(renderVideoFeed);
-  }
-
-  if(page === "profile"){
-    renderProfile();
-  }
-
-  if(page === "home"){
-    loadPosts().then(renderFeed);
-  }
-
-}
-
-
-function focusComposer(){
-
-  showPage("home");
-
-  setTimeout(()=>{
-
-    const el =
-      document.getElementById("postText");
-
-    el.focus();
-
-    document.getElementById("composer")
-      .scrollIntoView({
-        behavior:"smooth",
-        block:"center"
-      });
-
-  },100);
-
-}
-
-
-/* ========================================================
-   AUTH / CURRENT USER
-======================================================== */
-
-async function loadMe(){
-
-  const result = await apiFetch("/api/me");
-
-  if(!result.ok){
-
-    if(result.status === 401){
-
-      appState.me = null;
-
-      updateUserUI();
-
-      return;
-
-    }
-
-    return;
-
-  }
-
-  appState.me =
-    result.data?.user ||
-    result.data ||
-    null;
-
-  updateUserUI();
-
-}
-
-
-function updateUserUI(){
-
-  const me = appState.me;
-
-  const name =
-    me?.name ||
-    me?.username ||
-    "Guest";
-
-  const username =
-    me?.username ||
-    "user";
-
-  const avatar =
-    me?.avatar ||
-    "";
-
-  setAvatar(
-    document.getElementById("topAvatar"),
-    avatar,
-    name
-  );
-
-  setAvatar(
-    document.getElementById("sideAvatar"),
-    avatar,
-    name
-  );
-
-  setAvatar(
-    document.getElementById("composerAvatar"),
-    avatar,
-    name
-  );
-
-  document.getElementById("sideName")
-    .textContent = name;
-
-  document.getElementById("sideUsername")
-    .textContent =
-      username.startsWith("@")
-        ? username
-        : "@" + username;
-
-  document.getElementById("composerName")
-    .textContent =
-      name + " — create a post";
-
-}
-
-
-function setAvatar(el,url,name){
-
-  if(!el) return;
-
-  el.innerHTML = "";
-
-  if(url){
-
-    const img =
-      document.createElement("img");
-
-    img.src = apiUrl(url);
-
-    img.alt = "";
-
-    img.onerror = ()=>{
-      el.textContent =
-        getInitials(name);
-    };
-
-    el.appendChild(img);
-
-  }else{
-
-    el.textContent =
-      getInitials(name);
-
-  }
-
-}
-
-
-function getInitials(name){
-
-  return String(name || "M")
-    .trim()
-    .split(/\s+/)
-    .slice(0,2)
-    .map(x=>x[0])
-    .join("")
-    .toUpperCase() || "M";
-
-}
-
-
-function logout(){
-
-  clearToken();
-
-  appState.me = null;
-
-  updateUserUI();
-
-  showToast(
-    "Logged out. Login again to create posts."
-  );
-
-}
-
-
-/* ========================================================
-   POSTS — REAL BACKEND
-======================================================== */
-
-async function loadPosts(showMessage=false){
-
-  const result =
-    await apiFetch("/api/posts");
-
-  if(!result.ok){
-
-    if(showMessage){
-      showToast(
-        result.message ||
-        "Could not load posts."
-      );
-    }
-
-    return [];
-
-  }
-
-  const posts =
-    extractArray(
-      result.data,
-      "posts"
+  const el =
+    document.getElementById(
+      "toast"
     );
 
-  appState.posts = posts;
+  el.textContent = message;
+  el.style.display = "block";
 
-  renderFeed();
-  renderVideoFeed();
-  renderMyPosts();
-  renderStats();
+  clearTimeout(toastTimer);
 
-  return posts;
+  toastTimer = setTimeout(
+    ()=>{
+      el.style.display = "none";
+    },
+    3500
+  );
 
 }
 
 
-/* ========================================================
-   CREATE POST — REAL MULTIPART UPLOAD
-======================================================== */
+/* ==========================================================
+   LOGIN REQUIREMENT
+========================================================== */
 
-async function createPost(){
-
-  const text =
-    document.getElementById("postText")
-      .value
-      .trim();
-
-  const file =
-    appState.currentPostFile;
-
-
-  if(!text && !file){
-
-    showToast(
-      "Write something or attach media."
-    );
-
-    return;
-
-  }
-
+function requireLoginThen(callback){
 
   if(!getToken()){
 
-    showToast(
-      "Please login first before creating a post."
+    openAuth();
+
+    toast(
+      "Please login or register first."
     );
 
     return;
 
   }
 
+  callback();
 
-  if(file){
+}
 
-    const type =
-      (file.type || "").toLowerCase();
 
-    const supported =
-      type.startsWith("image/") ||
-      type.startsWith("video/") ||
-      type.startsWith("audio/");
+/* ==========================================================
+   AUTH MODAL
+========================================================== */
 
-    if(!supported){
+function openAuth(){
 
-      showToast(
-        "Posts currently support images, videos and audio. PDF/DOC posts need a document endpoint in the backend."
-      );
+  document.getElementById(
+    "authOverlay"
+  ).style.display = "flex";
 
-      return;
+}
 
-    }
+
+function closeAuth(){
+
+  document.getElementById(
+    "authOverlay"
+  ).style.display = "none";
+
+}
+
+
+function switchAuth(mode){
+
+  const login =
+    document.getElementById(
+      "loginForm"
+    );
+
+  const register =
+    document.getElementById(
+      "registerForm"
+    );
+
+  const loginTab =
+    document.getElementById(
+      "loginTab"
+    );
+
+  const registerTab =
+    document.getElementById(
+      "registerTab"
+    );
+
+  if(mode === "login"){
+
+    login.style.display = "block";
+    register.style.display = "none";
+
+    loginTab.className =
+      "btn primary";
+
+    registerTab.className =
+      "btn";
+
+  }else{
+
+    login.style.display = "none";
+    register.style.display = "block";
+
+    loginTab.className =
+      "btn";
+
+    registerTab.className =
+      "btn primary";
 
   }
 
+}
+
+
+/* ==========================================================
+   REGISTER
+========================================================== */
+
+async function registerUser(event){
+
+  event.preventDefault();
 
   const button =
-    document.getElementById("createPostBtn");
-
-  const oldText =
-    button.textContent;
+    document.getElementById(
+      "registerButton"
+    );
 
   button.disabled = true;
-
   button.textContent =
-    "Publishing...";
-
+    "Creating account...";
 
   try{
 
-    const form =
-      new FormData();
+    const data = await api(
+      "/api/auth/register",
+      {
+        method:"POST",
+        body:JSON.stringify({
 
-    form.append(
-      "caption",
-      text
+          name:
+            document.getElementById(
+              "registerName"
+            ).value.trim(),
+
+          username:
+            document.getElementById(
+              "registerUsername"
+            ).value.trim(),
+
+          email:
+            document.getElementById(
+              "registerEmail"
+            ).value.trim(),
+
+          password:
+            document.getElementById(
+              "registerPassword"
+            ).value
+
+        })
+      }
     );
 
 
-    if(file){
-
-      /*
-      IMPORTANT:
-      Do NOT manually set Content-Type.
-      Browser automatically creates multipart/form-data
-      boundary.
-      */
-
-      form.append(
-        "file",
-        file,
-        file.name
-      );
-
-    }
-
-
-    const result =
-      await apiFetch(
-        "/api/posts",
-        {
-          method:"POST",
-          body:form
-        }
-      );
-
-
-    if(!result.ok){
-
-      showToast(
-        result.message ||
-        "Post upload failed."
-      );
-
-      return;
-
-    }
-
-
-    showToast(
-      "Post published successfully."
+    setToken(
+      data.access_token
+      ||
+      data.token
     );
 
+    currentUser =
+      data.user;
 
-    clearComposer();
+    closeAuth();
 
+    updateAuthUI();
 
-    /*
-    Pull the real post list from PostgreSQL.
-    */
+    await loadAll();
 
-    await loadPosts();
-
-
-    showPage("home");
-
+    toast(
+      "Account created successfully."
+    );
 
   }catch(error){
 
-    console.error(error);
-
-    showToast(
-      "Network error while publishing post."
+    toast(
+      error.message
+      ||
+      "Registration failed."
     );
 
   }finally{
@@ -2888,155 +1645,693 @@ async function createPost(){
     button.disabled = false;
 
     button.textContent =
-      oldText;
+      "Create Account";
 
   }
 
 }
 
 
-/* ========================================================
-   POST MEDIA PREVIEW
-======================================================== */
+/* ==========================================================
+   LOGIN
+========================================================== */
 
-function previewPostMedia(input){
+async function loginUser(event){
 
-  const file =
-    input.files?.[0];
+  event.preventDefault();
 
-  if(!file) return;
+  const button =
+    document.getElementById(
+      "loginButton"
+    );
 
-  appState.currentPostFile =
-    file;
+  button.disabled = true;
+  button.textContent =
+    "Logging in...";
 
-  const preview =
-    document.getElementById("postPreview");
+  try{
 
-  preview.classList.remove("hidden");
+    const data = await api(
+      "/api/auth/login",
+      {
+        method:"POST",
+        body:JSON.stringify({
 
-  preview.innerHTML = "";
+          email:
+            document.getElementById(
+              "loginEmail"
+            ).value.trim(),
 
+          password:
+            document.getElementById(
+              "loginPassword"
+            ).value
 
-  const type =
-    file.type || "";
-
-
-  const title =
-    document.createElement("div");
-
-  title.className = "row between";
-
-  title.innerHTML = `
-    <strong>${escapeHtml(file.name)}</strong>
-    <span class="muted">${formatBytes(file.size)}</span>
-  `;
-
-  preview.appendChild(title);
+        })
+      }
+    );
 
 
-  if(type.startsWith("image/")){
+    const token =
+      data.access_token
+      ||
+      data.token;
 
-    const img =
-      document.createElement("img");
+    if(!token){
 
-    img.src =
-      URL.createObjectURL(file);
+      throw new Error(
+        "Server did not return an authentication token."
+      );
 
-    preview.appendChild(img);
+    }
 
-  }else if(type.startsWith("video/")){
+    setToken(token);
 
-    const video =
-      document.createElement("video");
+    currentUser =
+      data.user;
 
-    video.controls = true;
+    closeAuth();
 
-    video.src =
-      URL.createObjectURL(file);
+    updateAuthUI();
 
-    preview.appendChild(video);
+    await loadAll();
 
-  }else{
+    toast(
+      "Login successful."
+    );
 
-    const box =
-      document.createElement("div");
+  }catch(error){
 
-    box.className = "muted";
+    toast(
+      error.message
+      ||
+      "Login failed."
+    );
 
-    box.style.marginTop = "8px";
+  }finally{
 
-    box.textContent =
-      "Selected audio/media file: " +
-      file.name;
+    button.disabled = false;
 
-    preview.appendChild(box);
+    button.textContent =
+      "Login";
 
   }
 
 }
 
 
-function clearComposerMedia(){
+/* ==========================================================
+   RESTORE SESSION
+========================================================== */
 
-  appState.currentPostFile = null;
+async function restoreSession(){
 
-  document.getElementById("imagePost")
-    .value = "";
+  const token = getToken();
 
-  document.getElementById("videoPost")
-    .value = "";
+  if(!token){
 
-  document.getElementById("documentPost")
-    .value = "";
+    updateAuthUI();
 
-  const preview =
-    document.getElementById("postPreview");
+    return false;
 
-  preview.innerHTML = "";
+  }
 
-  preview.classList.add("hidden");
+  try{
+
+    const data =
+      await api("/api/me");
+
+    currentUser =
+      data.user;
+
+    updateAuthUI();
+
+    return true;
+
+  }catch{
+
+    clearToken();
+
+    updateAuthUI();
+
+    return false;
+
+  }
 
 }
 
 
-function clearComposer(){
+/* ==========================================================
+   LOGOUT
+========================================================== */
 
-  document.getElementById("postText")
-    .value = "";
+async function logoutUser(){
 
-  clearComposerMedia();
+  if(!getToken()){
 
-}
-
-
-/* ========================================================
-   FEED RENDER
-======================================================== */
-
-function renderFeed(){
-
-  const feed =
-    document.getElementById("feed");
-
-  if(!appState.posts.length){
-
-    feed.innerHTML = `
-      <div class="card empty">
-        <div class="empty-icon">📝</div>
-        <h3>No posts yet</h3>
-        <p style="margin-top:7px">
-          Be the first person to publish something.
-        </p>
-      </div>
-    `;
+    openAuth();
 
     return;
 
   }
 
+  try{
+
+    await api(
+      "/api/auth/logout",
+      {
+        method:"POST"
+      }
+    );
+
+  }catch{
+
+  }
+
+  clearToken();
+
+  updateAuthUI();
+
+  posts = [];
+  people = [];
+
+  renderFeed();
+  renderPeople();
+  renderProfile();
+
+  toast(
+    "You have been logged out."
+  );
+
+}
+
+
+/* ==========================================================
+   AUTH UI
+========================================================== */
+
+function updateAuthUI(){
+
+  const button =
+    document.getElementById(
+      "authButton"
+    );
+
+  const miniName =
+    document.getElementById(
+      "miniName"
+    );
+
+  const miniUsername =
+    document.getElementById(
+      "miniUsername"
+    );
+
+  const session =
+    document.getElementById(
+      "sessionStatus"
+    );
+
+  const status =
+    document.getElementById(
+      "onlineStatus"
+    );
+
+  const miniAvatar =
+    document.getElementById(
+      "miniAvatar"
+    );
+
+  const composerAvatar =
+    document.getElementById(
+      "composerAvatar"
+    );
+
+  const composerName =
+    document.getElementById(
+      "composerName"
+    );
+
+
+  if(currentUser){
+
+    button.textContent =
+      "Logout";
+
+    button.onclick =
+      logoutUser;
+
+    miniName.textContent =
+      currentUser.name
+      ||
+      "User";
+
+    miniUsername.textContent =
+      currentUser.username
+      ? "@" + currentUser.username
+      : currentUser.email;
+
+    session.textContent =
+      "Logged in securely.";
+
+    status.textContent =
+      "Online";
+
+    composerName.textContent =
+      currentUser.name
+      ||
+      "You";
+
+
+    setAvatar(
+      miniAvatar,
+      currentUser
+    );
+
+    setAvatar(
+      composerAvatar,
+      currentUser
+    );
+
+  }else{
+
+    button.textContent =
+      "Login";
+
+    button.onclick =
+      openAuth;
+
+    miniName.textContent =
+      "Guest";
+
+    miniUsername.textContent =
+      "Login required";
+
+    session.textContent =
+      "Not logged in.";
+
+    status.textContent =
+      "Offline";
+
+    composerName.textContent =
+      "Login to post";
+
+    setAvatar(
+      miniAvatar,
+      null
+    );
+
+    setAvatar(
+      composerAvatar,
+      null
+    );
+
+  }
+
+}
+
+
+/* ==========================================================
+   AVATAR
+========================================================== */
+
+function absoluteUrl(url){
+
+  if(!url){
+    return "";
+  }
+
+  if(
+    url.startsWith("http://")
+    ||
+    url.startsWith("https://")
+  ){
+
+    return url;
+
+  }
+
+  return (
+    API_BASE
+    +
+    (
+      url.startsWith("/")
+      ? url
+      : "/" + url
+    )
+  );
+
+}
+
+
+function initials(name){
+
+  if(!name){
+    return "?";
+  }
+
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0,2)
+    .map(x=>x[0])
+    .join("")
+    .toUpperCase();
+
+}
+
+
+function setAvatar(
+  element,
+  user
+){
+
+  if(!element){
+    return;
+  }
+
+  if(user && user.avatar){
+
+    element.innerHTML =
+      `<img
+        src="${escapeAttr(
+          absoluteUrl(user.avatar)
+        )}"
+        style="width:100%;height:100%;object-fit:cover;border-radius:50%"
+        onerror="this.remove()"
+      >`;
+
+  }else{
+
+    element.textContent =
+      initials(
+        user?.name
+      );
+
+  }
+
+}
+
+
+/* ==========================================================
+   LOAD ALL
+========================================================== */
+
+async function loadAll(){
+
+  if(!getToken()){
+
+    return;
+
+  }
+
+  try{
+
+    await Promise.all([
+      loadPosts(),
+      loadPeople(),
+      loadProfile()
+    ]);
+
+  }catch(error){
+
+    toast(
+      error.message
+    );
+
+  }
+
+}
+
+
+/* ==========================================================
+   POSTS
+========================================================== */
+
+async function loadPosts(){
+
+  const data =
+    await api(
+      "/api/posts?limit=100"
+    );
+
+  posts =
+    Array.isArray(data.posts)
+    ? data.posts
+    : [];
+
+  renderFeed();
+  renderVideoFeed();
+
+}
+
+
+/* ==========================================================
+   MEDIA PREVIEW
+========================================================== */
+
+function previewMedia(input){
+
+  const preview =
+    document.getElementById(
+      "postPreview"
+    );
+
+  const selected =
+    document.getElementById(
+      "selectedFile"
+    );
+
+  preview.innerHTML = "";
+
+  selectedFile = null;
+
+  if(!input.files || !input.files[0]){
+
+    selected.textContent =
+      "";
+
+    return;
+
+  }
+
+  const file =
+    input.files[0];
+
+  selectedFile =
+    file;
+
+  selected.textContent =
+    file.name;
+
+  const url =
+    URL.createObjectURL(file);
+
+  if(file.type.startsWith("image/")){
+
+    preview.innerHTML =
+      `<img
+        src="${url}"
+        alt="Preview"
+      >`;
+
+  }else if(
+    file.type.startsWith("video/")
+  ){
+
+    preview.innerHTML =
+      `<video
+        src="${url}"
+        controls
+        playsinline
+      ></video>`;
+
+  }
+
+}
+
+
+/* ==========================================================
+   CREATE POST
+========================================================== */
+
+async function createPost(){
+
+  if(!getToken()){
+
+    openAuth();
+
+    toast(
+      "Please login before creating a post."
+    );
+
+    return;
+
+  }
+
+  const text =
+    document.getElementById(
+      "postText"
+    ).value.trim();
+
+  if(
+    !text
+    &&
+    !selectedPostFile
+  ){
+
+    toast(
+      "Write something or select a photo/video."
+    );
+
+    return;
+
+  }
+
+  const button =
+    document.getElementById(
+      "createPostButton"
+    );
+
+  const form =
+    new FormData();
+
+  form.append(
+    "caption",
+    text
+  );
+
+  if(selectedPostFile){
+
+    form.append(
+      "file",
+      selectedPostFile,
+      selectedPostFile.name
+    );
+
+  }
+
+  button.disabled = true;
+  button.textContent =
+    "Publishing...";
+
+  try{
+
+    await api(
+      "/api/posts",
+      {
+        method:"POST",
+        body:form
+      }
+    );
+
+    clearComposer();
+
+    await loadPosts();
+
+    toast(
+      "Post published successfully."
+    );
+
+  }catch(error){
+
+    toast(
+      error.message
+    );
+
+  }finally{
+
+    button.disabled = false;
+    button.textContent =
+      "＋ Create Post";
+
+  }
+
+}
+
+
+/* ==========================================================
+   CLEAR COMPOSER
+========================================================== */
+
+function clearComposer(){
+
+  document.getElementById(
+    "postText"
+  ).value = "";
+
+  document.getElementById(
+    "imagePost"
+  ).value = "";
+
+  document.getElementById(
+    "videoPost"
+  ).value = "";
+
+  document.getElementById(
+    "postPreview"
+  ).innerHTML = "";
+
+  document.getElementById(
+    "selectedFile"
+  ).textContent = "";
+
+  selectedPostFile = null;
+
+}
+
+
+/* ==========================================================
+   IMPORTANT:
+   Keep selected file synchronized.
+========================================================== */
+
+document.addEventListener(
+  "change",
+  function(event){
+
+    if(
+      event.target.id === "imagePost"
+      ||
+      event.target.id === "videoPost"
+    ){
+
+      selectedPostFile =
+        event.target.files?.[0]
+        ||
+        null;
+
+    }
+
+  }
+);
+
+
+/* ==========================================================
+   FEED
+========================================================== */
+
+function renderFeed(){
+
+  const feed =
+    document.getElementById(
+      "feed"
+    );
+
+  if(!posts.length){
+
+    feed.innerHTML =
+      `<div class="card empty">
+        No posts yet.<br>
+        Be the first person to publish something.
+      </div>`;
+
+    return;
+
+  }
 
   feed.innerHTML =
-    appState.posts
+    posts
       .map(renderPost)
       .join("");
 
@@ -3045,201 +2340,197 @@ function renderFeed(){
 
 function renderPost(post){
 
-  const id =
-    post.id;
-
   const author =
-    post.name ||
-    post.author ||
-    post.username ||
-    "User";
-
-  const username =
-    post.username ||
-    "user";
-
-  const avatar =
-    post.avatar ||
-    post.photo ||
-    "";
-
-  const caption =
-    post.caption ??
-    post.text ??
-    "";
+    post.author || {};
 
   const mediaUrl =
-    post.media_url ||
-    post.media ||
-    "";
-
-  const mediaType =
-    post.media_type ||
-    "";
-
-
-  const likes =
-    Number(
-      post.likes_count ??
-      post.likes ??
-      0
+    absoluteUrl(
+      post.media_url
     );
 
-  const comments =
-    Number(
-      post.comments_count ??
-      post.comments ??
-      0
-    );
+  let mediaHTML = "";
 
-  const reshares =
-    Number(
-      post.reshares_count ??
-      post.reshares ??
-      0
-    );
+  if(
+    mediaUrl
+    &&
+    post.media_type?.startsWith(
+      "image/"
+    )
+  ){
 
-  const liked =
-    Boolean(
-      post.liked
-    );
+    mediaHTML =
+      `<img
+        class="post-media"
+        src="${escapeAttr(mediaUrl)}"
+        alt="Post image"
+        loading="lazy"
+      >`;
 
+  }else if(
+    mediaUrl
+    &&
+    post.media_type?.startsWith(
+      "video/"
+    )
+  ){
 
-  let media = "";
+    mediaHTML =
+      `<video
+        class="post-media"
+        src="${escapeAttr(mediaUrl)}"
+        controls
+        playsinline
+        preload="metadata"
+      ></video>`;
 
-  if(mediaUrl){
+  }else if(
+    mediaUrl
+    &&
+    post.media_type?.startsWith(
+      "audio/"
+    )
+  ){
 
-    const url =
-      apiUrl(mediaUrl);
-
-    if(mediaType.startsWith("video/")){
-
-      media = `
-        <div class="post-media">
-          <video
-            controls
-            preload="metadata"
-            src="${escapeAttr(url)}"
-          ></video>
-        </div>
-      `;
-
-    }else if(mediaType.startsWith("audio/")){
-
-      media = `
-        <div class="post-media" style="padding:14px">
-          <audio
-            controls
-            style="width:100%"
-            src="${escapeAttr(url)}"
-          ></audio>
-        </div>
-      `;
-
-    }else{
-
-      media = `
-        <div class="post-media">
-          <img
-            src="${escapeAttr(url)}"
-            alt=""
-            loading="lazy"
-          >
-        </div>
-      `;
-
-    }
+    mediaHTML =
+      `<audio
+        class="post-media"
+        src="${escapeAttr(mediaUrl)}"
+        controls
+      ></audio>`;
 
   }
 
 
+  const mine =
+    currentUser
+    &&
+    Number(currentUser.id)
+    ===
+    Number(post.user_id);
+
+
   return `
-    <article class="card post">
+    <article
+      class="card"
+      id="post-${post.id}"
+    >
 
-      <div class="post-header">
+      <div class="post-head">
 
-        <div class="avatar">
+        <div class="avatar small">
+
           ${
-            avatar
-              ? `<img src="${escapeAttr(apiUrl(avatar))}" alt="">`
-              : escapeHtml(getInitials(author))
+            author.avatar
+            ?
+            `<img
+              src="${escapeAttr(
+                absoluteUrl(author.avatar)
+              )}"
+              style="width:100%;height:100%;object-fit:cover;border-radius:50%"
+            >`
+            :
+            escapeHTML(
+              initials(author.name)
+            )
           }
+
         </div>
 
         <div class="post-author">
 
           <strong>
-            ${escapeHtml(author)}
+            ${escapeHTML(
+              author.name
+              ||
+              "User"
+            )}
           </strong>
 
-          <span>
-            @${escapeHtml(
-              username.replace(/^@/,"")
-            )}
+          <small>
+            ${
+              author.username
+              ?
+              "@"+escapeHTML(
+                author.username
+              )
+              :
+              ""
+            }
             ·
             ${formatDate(
-              post.created_at ||
-              post.created
+              post.created_at
             )}
-          </span>
+          </small>
 
         </div>
 
-      </div>
-
-
-      <div class="post-body">
-
         ${
-          caption
-            ? `
-              <div class="post-caption">
-                ${escapeHtml(caption)}
-              </div>
-            `
-            : ""
+          mine
+          ?
+          `<button
+            class="action"
+            onclick="deletePost(${post.id})"
+          >
+            🗑️
+          </button>`
+          :
+          ""
         }
 
-        ${media}
-
       </div>
 
 
-      <div class="post-stats">
+      ${
+        post.caption
+        ?
+        `<div class="post-body">
+          ${escapeHTML(
+            post.caption
+          )}
+        </div>`
+        :
+        ""
+      }
 
-        <span>❤️ ${likes}</span>
 
-        <span>💬 ${comments}</span>
-
-        <span>🔁 ${reshares}</span>
-
-      </div>
+      ${mediaHTML}
 
 
       <div class="post-actions">
 
         <button
-          class="post-action ${liked ? "liked" : ""}"
-          onclick="toggleLike(${Number(id)},this)"
+          class="action ${post.liked ? "active":""}"
+          onclick="toggleLike(
+            ${post.id},
+            ${post.liked}
+          )"
         >
-          ❤️ Like
+          ❤️
+          ${post.likes_count || 0}
         </button>
 
         <button
-          class="post-action"
-          onclick="openComments(${Number(id)})"
+          class="action"
+          onclick="commentPost(${post.id})"
         >
-          💬 Comment
+          💬
+          ${post.comments_count || 0}
         </button>
 
         <button
-          class="post-action"
-          onclick="sharePost(${Number(id)})"
+          class="action"
+          onclick="savePost(${post.id},${post.saved})"
         >
-          ↗️ Share
+          🔖
+          ${post.saved ? "Saved":"Save"}
         </button>
 
       </div>
+
+      <div
+        id="comments-${post.id}"
+        style="margin-top:10px"
+      ></div>
 
     </article>
   `;
@@ -3247,190 +2538,52 @@ function renderPost(post){
 }
 
 
-/* ========================================================
+/* ==========================================================
    LIKE
-======================================================== */
+========================================================== */
 
-async function toggleLike(postId,button){
-
-  if(!getToken()){
-
-    showToast("Please login first.");
-
-    return;
-
-  }
-
-
-  const post =
-    appState.posts.find(
-      p => Number(p.id) === Number(postId)
-    );
-
-  if(!post) return;
-
-
-  const currentlyLiked =
-    Boolean(post.liked);
-
-
-  const endpoint =
-    currentlyLiked
-      ? `/api/posts/${postId}/unlike`
-      : `/api/posts/${postId}/like`;
-
-
-  const result =
-    await apiFetch(
-      endpoint,
-      {
-        method:"POST"
-      }
-    );
-
-
-  if(!result.ok){
-
-    showToast(
-      result.message ||
-      "Could not update like."
-    );
-
-    return;
-
-  }
-
-
-  await loadPosts();
-
-}
-
-
-/* ========================================================
-   COMMENTS
-======================================================== */
-
-async function openComments(postId){
-
-  const text =
-    prompt("Write your comment:");
-
-  if(text === null) return;
-
-  const comment =
-    text.trim();
-
-  if(!comment) return;
-
-  if(!getToken()){
-
-    showToast("Please login first.");
-
-    return;
-
-  }
-
-
-  const form =
-    new FormData();
-
-  form.append(
-    "text",
-    comment
-  );
-
-
-  let result =
-    await apiFetch(
-      `/api/posts/${postId}/comments`,
-      {
-        method:"POST",
-        body:form
-      }
-    );
-
-
-  /*
-  Some backend versions may use JSON.
-  If multipart is rejected, retry JSON.
-  */
-
-  if(!result.ok && result.status === 422){
-
-    result =
-      await apiFetch(
-        `/api/posts/${postId}/comments`,
-        {
-          method:"POST",
-          headers:{
-            "Content-Type":"application/json"
-          },
-          body:JSON.stringify({
-            text:comment,
-            content:comment
-          })
-        }
-      );
-
-  }
-
-
-  if(!result.ok){
-
-    showToast(
-      result.message ||
-      "Could not post comment."
-    );
-
-    return;
-
-  }
-
-
-  showToast("Comment posted.");
-
-  await loadPosts();
-
-}
-
-
-/* ========================================================
-   SHARE
-======================================================== */
-
-async function sharePost(postId){
-
-  if(navigator.share){
-
-    try{
-
-      await navigator.share({
-        title:"MSAFIRI GLOBAL MEDIA",
-        text:"Check out this post on MSAFIRI GLOBAL MEDIA.",
-        url:window.location.href
-      });
-
-      return;
-
-    }catch{}
-
-  }
-
+async function toggleLike(
+  postId,
+  liked
+){
 
   try{
 
-    await navigator.clipboard.writeText(
-      window.location.href
-    );
+    const data =
+      await api(
+        `/api/posts/${postId}/like`,
+        {
+          method:
+            liked
+            ? "DELETE"
+            : "POST"
+        }
+      );
 
-    showToast(
-      "Post link copied."
-    );
+    const post =
+      posts.find(
+        p =>
+          Number(p.id)
+          ===
+          Number(postId)
+      );
 
-  }catch{
+    if(post){
 
-    showToast(
-      "Share link ready."
+      post.liked =
+        data.liked;
+
+      post.likes_count =
+        data.likes_count;
+
+    }
+
+    renderFeed();
+
+  }catch(error){
+
+    toast(
+      error.message
     );
 
   }
@@ -3438,1986 +2591,1008 @@ async function sharePost(postId){
 }
 
 
-/* ========================================================
-   VIDEO FEED — REAL BACKEND POSTS
-======================================================== */
+/* ==========================================================
+   COMMENT
+========================================================== */
+
+async function commentPost(
+  postId
+){
+
+  if(!getToken()){
+
+    openAuth();
+
+    return;
+
+  }
+
+  const text =
+    prompt(
+      "Write your comment:"
+    );
+
+  if(!text || !text.trim()){
+
+    return;
+
+  }
+
+  try{
+
+    await api(
+      `/api/posts/${postId}/comment`,
+      {
+        method:"POST",
+        body:JSON.stringify({
+          text:text.trim()
+        })
+      }
+    );
+
+    await loadPosts();
+
+    toast(
+      "Comment added."
+    );
+
+  }catch(error){
+
+    toast(
+      error.message
+    );
+
+  }
+
+}
+
+
+/* ==========================================================
+   SAVE
+========================================================== */
+
+async function savePost(
+  postId,
+  saved
+){
+
+  try{
+
+    await api(
+      `/api/posts/${postId}/save`,
+      {
+        method:
+          saved
+          ? "DELETE"
+          : "POST"
+      }
+    );
+
+    const post =
+      posts.find(
+        p =>
+          Number(p.id)
+          ===
+          Number(postId)
+      );
+
+    if(post){
+
+      post.saved =
+        !saved;
+
+    }
+
+    renderFeed();
+
+  }catch(error){
+
+    toast(
+      error.message
+    );
+
+  }
+
+}
+
+
+/* ==========================================================
+   DELETE POST
+========================================================== */
+
+async function deletePost(
+  postId
+){
+
+  if(
+    !confirm(
+      "Delete this post?"
+    )
+  ){
+
+    return;
+
+  }
+
+  try{
+
+    await api(
+      `/api/posts/${postId}`,
+      {
+        method:"DELETE"
+      }
+    );
+
+    posts =
+      posts.filter(
+        p =>
+          Number(p.id)
+          !==
+          Number(postId)
+      );
+
+    renderFeed();
+    renderVideoFeed();
+
+    toast(
+      "Post deleted."
+    );
+
+  }catch(error){
+
+    toast(
+      error.message
+    );
+
+  }
+
+}
+
+
+/* ==========================================================
+   VIDEO FEED
+========================================================== */
 
 function renderVideoFeed(){
 
   const container =
-    document.getElementById("videoFeed");
+    document.getElementById(
+      "videoFeed"
+    );
 
   const videos =
-    appState.posts.filter(post=>{
-
-      const type =
-        String(
-          post.media_type || ""
-        ).toLowerCase();
-
-      return type.startsWith("video/");
-
-    });
-
+    posts.filter(
+      p =>
+        p.media_url
+        &&
+        p.media_type
+        &&
+        p.media_type.startsWith(
+          "video/"
+        )
+    );
 
   if(!videos.length){
 
-    container.innerHTML = `
-      <div class="card empty" style="grid-column:1/-1">
-        <div class="empty-icon">🎥</div>
-        <h3>No videos yet</h3>
-        <p style="margin-top:7px">
-          Upload the first video to the real backend.
-        </p>
-      </div>
-    `;
+    container.innerHTML =
+      `<div class="card empty">
+        No videos have been published yet.
+      </div>`;
 
     return;
 
   }
-
 
   container.innerHTML =
-    videos.map(post=>{
-
-      const author =
-        post.name ||
-        post.username ||
-        "User";
-
-      const avatar =
-        post.avatar ||
-        "";
-
-      const url =
-        apiUrl(post.media_url);
-
-
-      return `
-        <article class="video-card">
-
-          <video
-            controls
-            preload="metadata"
-            src="${escapeAttr(url)}"
-          ></video>
-
-          <div class="video-info">
-
-            <div class="row gap">
-
-              <div class="avatar">
-                ${
-                  avatar
-                    ? `<img src="${escapeAttr(apiUrl(avatar))}" alt="">`
-                    : escapeHtml(
-                        getInitials(author)
-                      )
-                }
-              </div>
-
-              <div style="min-width:0">
-
-                <strong>
-                  ${escapeHtml(author)}
-                </strong>
-
-                <div class="muted" style="font-size:11px">
-                  ${formatDate(
-                    post.created_at
-                  )}
-                </div>
-
-              </div>
-
-            </div>
-
-            ${
-              post.caption
-                ? `
-                  <div style="margin-top:10px;line-height:1.5">
-                    ${escapeHtml(post.caption)}
-                  </div>
-                `
-                : ""
-            }
-
-          </div>
-
-        </article>
-      `;
-
-    }).join("");
+    videos
+      .map(renderPost)
+      .join("");
 
 }
 
 
-async function uploadVideoFromPage(input){
-
-  const file =
-    input.files?.[0];
-
-  if(!file) return;
-
-
-  if(!file.type.startsWith("video/")){
-
-    showToast(
-      "Please choose a video file."
-    );
-
-    return;
-
-  }
-
-
-  if(!getToken()){
-
-    showToast(
-      "Please login first."
-    );
-
-    input.value = "";
-
-    return;
-
-  }
-
-
-  const caption =
-    prompt(
-      "Optional video caption:"
-    ) || "";
-
-
-  const form =
-    new FormData();
-
-  form.append(
-    "caption",
-    caption
-  );
-
-  form.append(
-    "file",
-    file,
-    file.name
-  );
-
-
-  showToast(
-    "Uploading video..."
-  );
-
-
-  const result =
-    await apiFetch(
-      "/api/posts",
-      {
-        method:"POST",
-        body:form
-      }
-    );
-
-
-  input.value = "";
-
-
-  if(!result.ok){
-
-    showToast(
-      result.message ||
-      "Video upload failed."
-    );
-
-    return;
-
-  }
-
-
-  showToast(
-    "Video uploaded successfully."
-  );
-
-
-  await loadPosts();
-
-  showPage("video");
-
-}
-
-
-/* ========================================================
-   PEOPLE — REAL REGISTERED USERS
-======================================================== */
+/* ==========================================================
+   PEOPLE
+========================================================== */
 
 async function loadPeople(){
 
-  const result =
-    await apiFetch("/api/users");
-
-
-  if(!result.ok){
-
-    const box =
-      document.getElementById("peopleGrid");
-
-    box.innerHTML = `
-      <div class="empty" style="grid-column:1/-1">
-        <div class="empty-icon">👥</div>
-        <h3>Could not load members</h3>
-        <p style="margin-top:7px">
-          ${escapeHtml(
-            result.message ||
-            "Backend request failed."
-          )}
-        </p>
-      </div>
-    `;
-
-    return [];
-
-  }
-
-
-  appState.people =
-    extractArray(
-      result.data,
-      "users"
+  const data =
+    await api(
+      "/api/users"
     );
 
+  people =
+    Array.isArray(data.users)
+    ? data.users
+    : [];
 
   renderPeople();
-
-  renderStats();
-
-  return appState.people;
 
 }
 
 
 function renderPeople(){
 
-  const grid =
-    document.getElementById("peopleGrid");
+  const container =
+    document.getElementById(
+      "peopleList"
+    );
 
+  const messageContainer =
+    document.getElementById(
+      "messagePeople"
+    );
 
-  if(!appState.people.length){
+  if(!people.length){
 
-    grid.innerHTML = `
-      <div class="empty" style="grid-column:1/-1">
-        <div class="empty-icon">👥</div>
-        <h3>No other registered members yet</h3>
-        <p style="margin-top:7px">
-          Registered users will appear here.
-        </p>
-      </div>
-    `;
+    const empty =
+      `<div class="card empty">
+        No other registered members yet.
+      </div>`;
+
+    container.innerHTML =
+      empty;
+
+    messageContainer.innerHTML =
+      empty;
 
     return;
 
   }
 
-
-  grid.innerHTML =
-    appState.people.map(user=>{
-
-      const name =
-        user.name ||
-        user.username ||
-        "User";
-
-      const username =
-        user.username ||
-        "user";
-
-      const avatar =
-        user.avatar ||
-        "";
-
-
-      return `
-        <div class="person">
-
-          <div class="avatar">
-
-            ${
-              avatar
-                ? `
-                  <img
-                    src="${escapeAttr(apiUrl(avatar))}"
-                    alt=""
-                  >
-                `
-                : escapeHtml(
-                    getInitials(name)
-                  )
-            }
-
-          </div>
-
-          <div class="person-info">
-
-            <strong>
-              ${escapeHtml(name)}
-            </strong>
-
-            <span>
-              @${escapeHtml(
-                username.replace(/^@/,"")
-              )}
-            </span>
-
-            ${
-              user.location
-                ? `
-                  <span>
-                    📍 ${escapeHtml(
-                      user.location
-                    )}
-                  </span>
-                `
-                : ""
-            }
-
-          </div>
-
-          <button
-            class="btn small"
-            onclick="openChatWithUser(${Number(user.id)})"
-          >
-            Chat
-          </button>
-
-        </div>
-      `;
-
-    }).join("");
-
-}
-
-
-/* ========================================================
-   PROFILE — REAL BACKEND
-======================================================== */
-
-function renderProfile(){
-
-  const me =
-    appState.me;
-
-
-  const name =
-    me?.name ||
-    me?.username ||
-    "Guest";
-
-  const username =
-    me?.username ||
-    "user";
-
-  const bio =
-    me?.bio ||
-    "—";
-
-  const location =
-    me?.location ||
-    "—";
-
-  const avatar =
-    me?.avatar ||
-    "";
-
-
-  document.getElementById("profileName")
-    .textContent = name;
-
-  document.getElementById("profileUsername")
-    .textContent =
-      username.startsWith("@")
-        ? username
-        : "@" + username;
-
-  document.getElementById("profileBio")
-    .textContent = bio;
-
-  document.getElementById("profileLocation")
-    .textContent =
-      location === "—"
-        ? "—"
-        : "📍 " + location;
-
-
-  setAvatar(
-    document.getElementById("profileAvatarLarge"),
-    avatar,
-    name
-  );
-
-
-  document.getElementById("profilePostCount")
-    .textContent =
-      appState.posts.filter(post=>{
-        return Number(post.user_id) ===
-          Number(me?.id);
-      }).length;
-
-
-  document.getElementById("profilePeopleCount")
-    .textContent =
-      appState.people.length;
-
-
-  document.getElementById("profileStatus")
-    .textContent =
-      me ? "Connected" : "Login required";
-
-
-  renderMyPosts();
-
-}
-
-
-function renderMyPosts(){
-
-  const box =
-    document.getElementById("myPosts");
-
-  if(!box) return;
-
-
-  if(!appState.me){
-
-    box.innerHTML = `
-      <div class="empty">
-        Login to view your posts.
-      </div>
-    `;
-
-    return;
-
-  }
-
-
-  const mine =
-    appState.posts.filter(post=>{
-      return Number(post.user_id) ===
-        Number(appState.me.id);
-    });
-
-
-  if(!mine.length){
-
-    box.innerHTML = `
-      <div class="empty">
-        <div class="empty-icon">📝</div>
-        You have not published any posts yet.
-      </div>
-    `;
-
-    return;
-
-  }
-
-
-  box.innerHTML =
-    mine.map(renderPost).join("");
-
-}
-
-
-/* ========================================================
-   PROFILE EDITOR
-======================================================== */
-
-function openProfileEditor(){
-
-  if(!appState.me){
-
-    showToast(
-      "Login first to edit your profile."
-    );
-
-    return;
-
-  }
-
-
-  document.getElementById("editName")
-    .value =
-      appState.me.name || "";
-
-  document.getElementById("editUsername")
-    .value =
-      appState.me.username || "";
-
-  document.getElementById("editBio")
-    .value =
-      appState.me.bio || "";
-
-  document.getElementById("editLocation")
-    .value =
-      appState.me.location || "";
-
-
-  setAvatar(
-    document.getElementById("editAvatarPreview"),
-    appState.me.avatar || "",
-    appState.me.name || "M"
-  );
-
-
-  openModal("profileModal");
-
-}
-
-
-/* ========================================================
-   PROFILE UPDATE
-======================================================== */
-
-async function saveProfile(){
-
-  if(!appState.me){
-
-    showToast(
-      "Login first."
-    );
-
-    return;
-
-  }
-
-
-  const name =
-    document.getElementById("editName")
-      .value.trim();
-
-  const username =
-    document.getElementById("editUsername")
-      .value.trim();
-
-  const bio =
-    document.getElementById("editBio")
-      .value.trim();
-
-  const location =
-    document.getElementById("editLocation")
-      .value.trim();
-
-
-  const button =
-    document.getElementById("saveProfileBtn");
-
-  button.disabled = true;
-
-  button.textContent =
-    "Saving...";
-
-
-  try{
-
-    /*
-    Try JSON first.
-    */
-
-    let result =
-      await apiFetch(
-        "/api/profile",
-        {
-          method:"PUT",
-          headers:{
-            "Content-Type":"application/json"
-          },
-          body:JSON.stringify({
-            name,
-            username,
-            bio,
-            location
-          })
-        }
-      );
-
-
-    /*
-    Support backend versions using PATCH.
-    */
-
-    if(!result.ok &&
-       (result.status === 404 ||
-        result.status === 405)){
-
-      result =
-        await apiFetch(
-          "/api/profile",
-          {
-            method:"PATCH",
-            headers:{
-              "Content-Type":"application/json"
-            },
-            body:JSON.stringify({
-              name,
-              username,
-              bio,
-              location
-            })
-          }
-        );
-
-    }
-
-
-    if(!result.ok){
-
-      showToast(
-        result.message ||
-        "Profile update failed."
-      );
-
-      return;
-
-    }
-
-
-    await loadMe();
-
-    renderProfile();
-
-    closeModal("profileModal");
-
-    showToast(
-      "Profile updated successfully."
-    );
-
-
-  }catch(error){
-
-    console.error(error);
-
-    showToast(
-      "Network error while saving profile."
-    );
-
-  }finally{
-
-    button.disabled = false;
-
-    button.textContent =
-      "Save Profile";
-
-  }
-
-}
-
-
-/* ========================================================
-   PROFILE PHOTO — REAL BACKEND
-======================================================== */
-
-async function uploadProfilePhoto(input){
-
-  const file =
-    input.files?.[0];
-
-  if(!file) return;
-
-
-  if(!file.type.startsWith("image/")){
-
-    showToast(
-      "Please choose an image."
-    );
-
-    input.value = "";
-
-    return;
-
-  }
-
-
-  if(!getToken()){
-
-    showToast(
-      "Please login first."
-    );
-
-    input.value = "";
-
-    return;
-
-  }
-
-
-  const form =
-    new FormData();
-
-  form.append(
-    "file",
-    file,
-    file.name
-  );
-
-
-  showToast(
-    "Uploading profile photo..."
-  );
-
-
-  /*
-  Main backend endpoint:
-  POST /api/profile/avatar
-  */
-
-  let result =
-    await apiFetch(
-      "/api/profile/avatar",
-      {
-        method:"POST",
-        body:form
-      }
-    );
-
-
-  /*
-  Support possible /api/avatar endpoint.
-  */
-
-  if(!result.ok &&
-     (result.status === 404 ||
-      result.status === 405)){
-
-    result =
-      await apiFetch(
-        "/api/avatar",
-        {
-          method:"POST",
-          body:form
-        }
-      );
-
-  }
-
-
-  input.value = "";
-
-
-  if(!result.ok){
-
-    showToast(
-      result.message ||
-      "Profile photo upload failed."
-    );
-
-    return;
-
-  }
-
-
-  await loadMe();
-
-  renderProfile();
-
-  setAvatar(
-    document.getElementById("editAvatarPreview"),
-    appState.me?.avatar || "",
-    appState.me?.name || "M"
-  );
-
-
-  showToast(
-    "Profile photo updated."
-  );
-
-}
-
-
-/* ========================================================
-   CHAT
-======================================================== */
-
-function openChatWithUser(userId){
-
-  const user =
-    appState.people.find(
-      u=>Number(u.id) === Number(userId)
-    );
-
-  if(!user) return;
-
-  appState.currentChat =
-    user;
-
-  showPage("chat");
-
-  renderChatHeader();
-
-  loadMessages(userId);
-
-}
-
-
-function renderChatHeader(){
-
-  const user =
-    appState.currentChat;
-
-  if(!user) return;
-
-
-  const name =
-    user.name ||
-    user.username ||
-    "User";
-
-  document.getElementById("chatName")
-    .textContent = name;
-
-  document.getElementById("chatStatus")
-    .textContent =
-      user.location ||
-      "MSAFIRI GLOBAL MEDIA";
-
-
-  setAvatar(
-    document.getElementById("chatAvatar"),
-    user.avatar || "",
-    name
-  );
-
-}
-
-
-async function loadMessages(userId){
-
-  const box =
-    document.getElementById("chatMessages");
-
-  box.innerHTML =
-    `<div class="loading">Loading messages...</div>`;
-
-
-  /*
-  Backend versions may expose:
-  GET /api/messages/{user_id}
-  */
-
-  const result =
-    await apiFetch(
-      `/api/messages/${userId}`
-    );
-
-
-  if(!result.ok){
-
-    box.innerHTML = `
-      <div class="empty">
-        <div class="empty-icon">💬</div>
-        Chat backend is not available for this conversation yet.
-      </div>
-    `;
-
-    return;
-
-  }
-
-
-  const messages =
-    extractArray(
-      result.data,
-      "messages"
-    );
-
-
-  if(!messages.length){
-
-    box.innerHTML = `
-      <div class="empty">
-        <div class="empty-icon">👋</div>
-        No messages yet. Say hello.
-      </div>
-    `;
-
-    return;
-
-  }
-
-
-  box.innerHTML =
-    messages.map(renderMessage).join("");
-
-  box.scrollTop =
-    box.scrollHeight;
-
-}
-
-
-function renderMessage(message){
-
-  const mine =
-    Number(message.sender_id) ===
-    Number(appState.me?.id);
-
-
-  const text =
-    message.text ||
-    message.content ||
-    "";
-
-
-  return `
-    <div class="message ${mine ? "mine" : "other"}">
-
-      ${
-        text
-          ? escapeHtml(text)
-          : ""
-      }
-
-      ${
-        message.media_url
-          ? `
-            <div style="margin-top:7px">
-              <a
-                href="${escapeAttr(apiUrl(message.media_url))}"
-                target="_blank"
-                rel="noopener"
-              >
-                📎 Attachment
-              </a>
-            </div>
+  const html =
+    people
+      .map(
+        person =>
           `
-          : ""
-      }
+          <div class="person">
 
-    </div>
-  `;
-
-}
-
-
-async function sendMessage(){
-
-  const input =
-    document.getElementById("chatInput");
-
-  const text =
-    input.value.trim();
-
-  if(!text) return;
-
-  if(!appState.currentChat){
-
-    showToast(
-      "Select a conversation first."
-    );
-
-    return;
-
-  }
-
-  if(!getToken()){
-
-    showToast(
-      "Please login first."
-    );
-
-    return;
-
-  }
-
-
-  const userId =
-    appState.currentChat.id;
-
-
-  /*
-  Main backend endpoint:
-  POST /api/messages
-  */
-
-  let result =
-    await apiFetch(
-      "/api/messages",
-      {
-        method:"POST",
-        headers:{
-          "Content-Type":"application/json"
-        },
-        body:JSON.stringify({
-          receiver_id:Number(userId),
-          text:text,
-          content:text
-        })
-      }
-    );
-
-
-  if(!result.ok){
-
-    /*
-    Fallback for form-based backend.
-    */
-
-    const form =
-      new FormData();
-
-    form.append(
-      "receiver_id",
-      String(userId)
-    );
-
-    form.append(
-      "text",
-      text
-    );
-
-    result =
-      await apiFetch(
-        "/api/messages",
-        {
-          method:"POST",
-          body:form
-        }
-      );
-
-  }
-
-
-  if(!result.ok){
-
-    showToast(
-      result.message ||
-      "Message failed."
-    );
-
-    return;
-
-  }
-
-
-  input.value = "";
-
-  await loadMessages(userId);
-
-}
-
-
-async function sendChatFile(input){
-
-  const file =
-    input.files?.[0];
-
-  if(!file) return;
-
-  if(!appState.currentChat){
-
-    showToast(
-      "Select a conversation first."
-    );
-
-    input.value = "";
-
-    return;
-
-  }
-
-
-  const form =
-    new FormData();
-
-  form.append(
-    "receiver_id",
-    String(appState.currentChat.id)
-  );
-
-  form.append(
-    "file",
-    file,
-    file.name
-  );
-
-
-  const result =
-    await apiFetch(
-      "/api/chat/file",
-      {
-        method:"POST",
-        body:form
-      }
-    );
-
-
-  input.value = "";
-
-
-  if(!result.ok){
-
-    showToast(
-      result.message ||
-      "File upload failed."
-    );
-
-    return;
-
-  }
-
-
-  showToast(
-    "File sent."
-  );
-
-
-  await loadMessages(
-    appState.currentChat.id
-  );
-
-}
-
-
-function renderChats(){
-
-  const list =
-    document.getElementById("chatList");
-
-  if(!appState.people.length){
-
-    list.innerHTML = `
-      <div class="empty">
-        Find people to start a chat.
-      </div>
-    `;
-
-    return;
-
-  }
-
-
-  list.innerHTML =
-    appState.people
-      .slice(0,30)
-      .map(user=>{
-
-        const name =
-          user.name ||
-          user.username ||
-          "User";
-
-        return `
-          <div
-            class="chat-item"
-            onclick="openChatWithUser(${Number(user.id)})"
-          >
-
-            <div class="avatar">
+            <div class="avatar small">
 
               ${
-                user.avatar
-                  ? `<img src="${escapeAttr(apiUrl(user.avatar))}" alt="">`
-                  : escapeHtml(
-                      getInitials(name)
+                person.avatar
+                ?
+                `<img
+                  src="${escapeAttr(
+                    absoluteUrl(
+                      person.avatar
                     )
+                  )}"
+                  style="width:100%;height:100%;object-fit:cover;border-radius:50%"
+                >`
+                :
+                escapeHTML(
+                  initials(
+                    person.name
+                  )
+                )
               }
 
             </div>
 
-            <div style="min-width:0">
+            <div class="person-info">
 
               <strong>
-                ${escapeHtml(name)}
+                ${escapeHTML(
+                  person.name
+                )}
               </strong>
 
-              <div class="muted" style="font-size:11px">
-                @${escapeHtml(
-                  String(
-                    user.username || "user"
-                  ).replace(/^@/,"")
-                )}
-              </div>
+              <span>
+                ${
+                  person.username
+                  ?
+                  "@"+
+                  escapeHTML(
+                    person.username
+                  )
+                  :
+                  person.email
+                }
+              </span>
+
+              ${
+                person.location
+                ?
+                `<span>
+                  📍 ${escapeHTML(
+                    person.location
+                  )}
+                </span>`
+                :
+                ""
+              }
 
             </div>
 
+            <button
+              class="btn"
+              onclick="startMessage(${person.id})"
+            >
+              Chat
+            </button>
+
           </div>
-        `;
+          `
+      )
+      .join("");
 
-      }).join("");
+  container.innerHTML =
+    html;
+
+  messageContainer.innerHTML =
+    html;
 
 }
 
 
-async function chatSettings(){
+/* ==========================================================
+   SEARCH
+========================================================== */
 
-  if(!appState.currentChat){
+let searchTimer;
 
-    showToast(
-      "Select a conversation first."
-    );
+async function searchPeople(
+  value
+){
+
+  clearTimeout(searchTimer);
+
+  const q =
+    value.trim();
+
+  if(!q){
+
+    loadPeople();
 
     return;
 
   }
 
+  searchTimer =
+    setTimeout(
+      async ()=>{
+        try{
 
-  const choice =
-    prompt(
-      "Chat settings:\n1 = Mute\n2 = Pin\n3 = Block\n4 = Cancel"
-    );
+          const data =
+            await api(
+              "/api/users/search?q="
+              +
+              encodeURIComponent(q)
+            );
 
+          people =
+            data.users || [];
 
-  if(choice === "3"){
+          renderPeople();
 
-    await blockUser(
-      appState.currentChat.id
-    );
+          showPage("people");
 
-  }
+        }catch(error){
 
-}
+          toast(
+            error.message
+          );
 
-
-/* ========================================================
-   BLOCK
-======================================================== */
-
-async function blockUser(userId){
-
-  const result =
-    await apiFetch(
-      `/api/users/${userId}/block`,
-      {
-        method:"POST"
-      }
-    );
-
-
-  if(!result.ok){
-
-    showToast(
-      result.message ||
-      "Could not block user."
-    );
-
-    return;
-
-  }
-
-
-  showToast(
-    "User blocked."
-  );
-
-}
-
-
-/* ========================================================
-   CALLS / LIVEKIT
-======================================================== */
-
-async function startVoiceCall(){
-
-  if(!appState.currentChat){
-
-    showToast(
-      "Select a person first."
-    );
-
-    return;
-
-  }
-
-
-  await startCall("audio");
-
-}
-
-
-async function startVideoCall(){
-
-  if(!appState.currentChat){
-
-    showToast(
-      "Select a person first."
-    );
-
-    return;
-
-  }
-
-
-  await startCall("video");
-
-}
-
-
-async function startCall(type){
-
-  const name =
-    appState.currentChat?.name ||
-    appState.currentChat?.username ||
-    "User";
-
-
-  document.getElementById("callTitle")
-    .textContent =
-      `${type === "video" ? "Video" : "Voice"} Call`;
-
-  document.getElementById("callStatusText")
-    .textContent =
-      `Connecting with ${name}...`;
-
-  openModal("callModal");
-
-
-  /*
-  The actual media connection is handled by LiveKit.
-  The endpoint below obtains a backend token.
-  */
-
-  const result =
-    await apiFetch(
-      "/api/livekit/token",
-      {
-        method:"POST",
-        headers:{
-          "Content-Type":"application/json"
-        },
-        body:JSON.stringify({
-          room:
-            "msafiri-" +
-            Math.min(
-              Number(appState.me?.id || 0),
-              Number(appState.currentChat?.id || 0)
-            ) +
-            "-" +
-            Math.max(
-              Number(appState.me?.id || 0),
-              Number(appState.currentChat?.id || 0)
-            ),
-          identity:
-            String(appState.me?.id || "user"),
-          name:
-            appState.me?.name || "User"
-        })
-      }
-    );
-
-
-  if(!result.ok){
-
-    document.getElementById("callStatusText")
-      .textContent =
-        "LiveKit connection could not be started.";
-
-    return;
-
-  }
-
-
-  /*
-  A production LiveKit client should use the returned
-  token and connect to the returned server URL.
-  */
-
-  document.getElementById("callStatusText")
-    .textContent =
-      "LiveKit token received. Media client connection can now start.";
-
-}
-
-
-function endCall(){
-
-  closeModal("callModal");
-
-  showToast(
-    "Call ended."
-  );
-
-}
-
-
-/* ========================================================
-   AI
-======================================================== */
-
-function openAI(type){
-
-  appState.currentAI =
-    type;
-
-  const titles = {
-    education:"Education AI",
-    health:"Health AI",
-    business:"Business AI"
-  };
-
-  document.getElementById("aiTitle")
-    .textContent =
-      titles[type] || "AI Council";
-
-  document.getElementById("aiSubtitle")
-    .textContent =
-      "Ask your question and get an answer from the backend AI service.";
-
-  document.getElementById("aiQuestion")
-    .value = "";
-
-  document.getElementById("aiAnswer")
-    .style.display = "none";
-
-  openModal("aiModal");
-
-}
-
-
-async function askAI(){
-
-  const question =
-    document.getElementById("aiQuestion")
-      .value
-      .trim();
-
-  if(!question){
-
-    showToast(
-      "Type a question first."
-    );
-
-    return;
-
-  }
-
-
-  const type =
-    appState.currentAI ||
-    "education";
-
-
-  const endpoint =
-    `/api/ai/${type}`;
-
-
-  const button =
-    document.getElementById("aiAskBtn");
-
-  const answer =
-    document.getElementById("aiAnswer");
-
-
-  button.disabled = true;
-
-  button.textContent =
-    "Thinking...";
-
-
-  answer.style.display =
-    "block";
-
-  answer.textContent =
-    "AI is processing your question...";
-
-
-  let result =
-    await apiFetch(
-      endpoint,
-      {
-        method:"POST",
-        headers:{
-          "Content-Type":"application/json"
-        },
-        body:JSON.stringify({
-          question,
-          prompt:question,
-          country:"",
-          level:""
-        })
-      }
-    );
-
-
-  if(!result.ok){
-
-    const form =
-      new FormData();
-
-    form.append(
-      "question",
-      question
-    );
-
-    form.append(
-      "prompt",
-      question
-    );
-
-    result =
-      await apiFetch(
-        endpoint,
-        {
-          method:"POST",
-          body:form
         }
-      );
+      },
+      350
+    );
 
-  }
+}
 
 
-  if(!result.ok){
+/* ==========================================================
+   PROFILE
+========================================================== */
 
-    answer.textContent =
-      result.message ||
-      "AI service is not available.";
-
-    button.disabled = false;
-
-    button.textContent =
-      "Ask AI";
-
-    return;
-
-  }
-
+async function loadProfile(){
 
   const data =
-    result.data;
-
-
-  answer.innerHTML =
-    escapeHtml(
-      data?.answer ||
-      data?.response ||
-      data?.message ||
-      JSON.stringify(
-        data,
-        null,
-        2
-      )
-    ).replace(/\n/g,"<br>");
-
-
-  button.disabled = false;
-
-  button.textContent =
-    "Ask AI";
-
-}
-
-
-/* ========================================================
-   MARKETPLACE UI
-======================================================== */
-
-function openProductModal(){
-
-  openModal("productModal");
-
-}
-
-
-function publishProduct(){
-
-  /*
-  Current main.py post backend is for social posts.
-  Marketplace needs its dedicated marketplace endpoints.
-  We do not create fake marketplace data.
-  */
-
-  showToast(
-    "Marketplace listing endpoint must be connected to the marketplace backend table before publishing."
-  );
-
-}
-
-
-/* ========================================================
-   MAP
-======================================================== */
-
-function openMap(){
-
-  const query =
-    prompt(
-      "Enter a place to search:"
+    await api(
+      "/api/me"
     );
 
-  if(!query) return;
+  currentUser =
+    data.user;
 
+  updateAuthUI();
 
-  const url =
-    "https://www.google.com/maps/search/" +
-    encodeURIComponent(query);
-
-
-  window.open(
-    url,
-    "_blank",
-    "noopener"
-  );
+  renderProfile();
 
 }
 
 
-/* ========================================================
-   STORIES
-======================================================== */
+function renderProfile(){
 
-function renderStories(){
+  const container =
+    document.getElementById(
+      "profilePage"
+    );
 
-  const stories =
-    document.getElementById("stories");
+  if(!currentUser){
 
-  stories.innerHTML = `
+    container.innerHTML =
+      `<div class="empty">
+        <h2>Login required</h2>
+        <p>
+          Login to view your profile.
+        </p>
+        <button
+          class="btn primary"
+          onclick="openAuth()"
+        >
+          Login
+        </button>
+      </div>`;
 
-    <div class="story">
+    return;
 
-      <div style="
-        width:100%;
-        height:100%;
-        display:grid;
-        place-items:center;
-        font-size:30px;
-      ">
-        ＋
-      </div>
+  }
 
-      <div class="story-name">
-        Create Story
+
+  container.innerHTML = `
+
+    <div class="profile-cover"></div>
+
+    <div class="profile-main">
+
+      <div
+        id="profileAvatar"
+        class="avatar large"
+      ></div>
+
+      <div style="padding-bottom:8px">
+
+        <h2 style="margin:0">
+          ${escapeHTML(
+            currentUser.name
+          )}
+        </h2>
+
+        <div class="muted">
+          ${
+            currentUser.username
+            ?
+            "@"+
+            escapeHTML(
+              currentUser.username
+            )
+            :
+            currentUser.email
+          }
+        </div>
+
       </div>
 
     </div>
 
-    <div class="story">
 
-      <div style="
-        width:100%;
-        height:100%;
-        display:grid;
-        place-items:center;
-        font-size:30px;
-      ">
-        🌍
-      </div>
+    <div class="profile-data">
 
-      <div class="story-name">
-        Global Community
+      ${
+        currentUser.bio
+        ?
+        `<p>
+          ${escapeHTML(
+            currentUser.bio
+          )}
+        </p>`
+        :
+        `<p class="muted">
+          No bio yet.
+        </p>`
+      }
+
+      ${
+        currentUser.location
+        ?
+        `<p class="muted">
+          📍 ${escapeHTML(
+            currentUser.location
+          )}
+        </p>`
+        :
+        ""
+      }
+
+      <div
+        style="display:flex;gap:8px;flex-wrap:wrap"
+      >
+
+        <button
+          class="btn primary"
+          onclick="openProfileEditor()"
+        >
+          ✏️ Edit Profile
+        </button>
+
+        <button
+          class="btn"
+          onclick="document.getElementById('avatarInput').click()"
+        >
+          🖼️ Change Photo
+        </button>
+
       </div>
 
     </div>
 
   `;
 
-}
-
-
-/* ========================================================
-   STATS
-======================================================== */
-
-function renderStats(){
-
-  const people =
-    appState.people.length;
-
-  const posts =
-    appState.posts.length;
-
-
-  document.getElementById("rightPeopleCount")
-    .textContent = people;
-
-  document.getElementById("rightPostCount")
-    .textContent = posts;
-
-  document.getElementById("profilePeopleCount")
-    .textContent = people;
-
-  document.getElementById("profilePostCount")
-    .textContent =
-      appState.posts.filter(post=>{
-        return Number(post.user_id) ===
-          Number(appState.me?.id);
-      }).length;
-
-
-  renderChats();
-
-}
-
-
-/* ========================================================
-   BACKEND HEALTH
-======================================================== */
-
-async function checkBackend(){
-
-  const status =
-    document.getElementById("backendStatus");
-
-
-  try{
-
-    const result =
-      await apiFetch("/health");
-
-
-    if(result.ok){
-
-      status.textContent =
-        "Online";
-
-    }else{
-
-      status.textContent =
-        "Error";
-
-    }
-
-  }catch{
-
-    status.textContent =
-      "Offline";
-
-  }
-
-}
-
-
-/* ========================================================
-   GLOBAL SEARCH
-======================================================== */
-
-let searchTimer = null;
-
-
-function globalSearch(value){
-
-  clearTimeout(searchTimer);
-
-
-  const q =
-    String(value || "")
-      .trim()
-      .toLowerCase();
-
-
-  if(!q){
-
-    return;
-
-  }
-
-
-  searchTimer =
-    setTimeout(
-      ()=>performSearch(q),
-      400
-    );
-
-}
-
-
-async function performSearch(q){
-
-  const result =
-    await apiFetch(
-      `/api/search?q=${encodeURIComponent(q)}`
-    );
-
-
-  if(!result.ok){
-
-    return;
-
-  }
-
-
-  const users =
-    extractArray(
-      result.data,
-      "users"
-    );
-
-
-  if(users.length){
-
-    appState.people =
-      users;
-
-    showPage("people");
-
-    renderPeople();
-
-  }
-
-}
-
-
-/* ========================================================
-   MODALS
-======================================================== */
-
-function openModal(id){
-
-  document
-    .getElementById(id)
-    .classList.add("open");
-
-}
-
-
-function closeModal(id){
-
-  document
-    .getElementById(id)
-    .classList.remove("open");
-
-}
-
-
-function bindModalEvents(){
-
-  document.querySelectorAll(".modal")
-    .forEach(modal=>{
-
-      modal.addEventListener(
-        "click",
-        event=>{
-
-          if(event.target === modal){
-
-            modal.classList.remove("open");
-
-          }
-
-        }
-      );
-
-    });
-
-}
-
-
-/* ========================================================
-   UTILITIES
-======================================================== */
-
-function escapeHtml(value){
-
-  return String(value ?? "")
-    .replace(/&/g,"&amp;")
-    .replace(/</g,"&lt;")
-    .replace(/>/g,"&gt;")
-    .replace(/"/g,"&quot;")
-    .replace(/'/g,"&#039;");
-
-}
-
-
-function escapeAttr(value){
-
-  return escapeHtml(value);
-
-}
-
-
-function formatBytes(bytes){
-
-  if(!Number.isFinite(bytes)) return "";
-
-  if(bytes < 1024){
-    return bytes + " B";
-  }
-
-  if(bytes < 1024*1024){
-    return (bytes/1024).toFixed(1) + " KB";
-  }
-
-  if(bytes < 1024*1024*1024){
-    return (bytes/(1024*1024)).toFixed(1) + " MB";
-  }
-
-  return (bytes/(1024*1024*1024)).toFixed(1) + " GB";
-
-}
-
-
-function formatDate(date){
-
-  if(!date) return "";
-
-  const d =
-    new Date(date);
-
-  if(Number.isNaN(d.getTime())){
-    return "";
-  }
-
-  return d.toLocaleString(
-    undefined,
-    {
-      dateStyle:"medium",
-      timeStyle:"short"
-    }
+  setAvatar(
+    document.getElementById(
+      "profileAvatar"
+    ),
+    currentUser
   );
 
 }
 
 
-/* ========================================================
-   KEYBOARD SHORTCUTS
-======================================================== */
+/* ==========================================================
+   PROFILE EDITOR
+========================================================== */
 
-document.addEventListener(
-  "keydown",
-  event=>{
+function openProfileEditor(){
 
-    if(
-      event.ctrlKey &&
-      event.key.toLowerCase() === "k"
-    ){
+  if(!currentUser){
 
-      event.preventDefault();
+    openAuth();
 
-      document
-        .getElementById("globalSearch")
-        .focus();
+    return;
+
+  }
+
+  document.getElementById(
+    "editName"
+  ).value =
+    currentUser.name || "";
+
+  document.getElementById(
+    "editUsername"
+  ).value =
+    currentUser.username || "";
+
+  document.getElementById(
+    "editBio"
+  ).value =
+    currentUser.bio || "";
+
+  document.getElementById(
+    "editLocation"
+  ).value =
+    currentUser.location || "";
+
+  document.getElementById(
+    "profileOverlay"
+  ).style.display =
+    "flex";
+
+}
+
+
+function closeProfileEditor(){
+
+  document.getElementById(
+    "profileOverlay"
+  ).style.display =
+    "none";
+
+}
+
+
+/* ==========================================================
+   SAVE PROFILE
+========================================================== */
+
+async function saveProfile(){
+
+  try{
+
+    const data =
+      await api(
+        "/api/profile",
+        {
+          method:"PUT",
+          body:JSON.stringify({
+
+            name:
+              document.getElementById(
+                "editName"
+              ).value.trim(),
+
+            username:
+              document.getElementById(
+                "editUsername"
+              ).value.trim(),
+
+            bio:
+              document.getElementById(
+                "editBio"
+              ).value.trim(),
+
+            location:
+              document.getElementById(
+                "editLocation"
+              ).value.trim()
+
+          })
+        }
+      );
+
+    currentUser =
+      data.user;
+
+    updateAuthUI();
+    renderProfile();
+
+    closeProfileEditor();
+
+    toast(
+      "Profile updated successfully."
+    );
+
+  }catch(error){
+
+    toast(
+      error.message
+    );
+
+  }
+
+}
+
+
+/* ==========================================================
+   AVATAR CHANGE
+========================================================== */
+
+async function changeAvatar(
+  input
+){
+
+  if(!input.files?.[0]){
+
+    return;
+
+  }
+
+  try{
+
+    const form =
+      new FormData();
+
+    form.append(
+      "file",
+      input.files[0],
+      input.files[0].name
+    );
+
+    const data =
+      await api(
+        "/api/profile/avatar",
+        {
+          method:"POST",
+          body:form
+        }
+      );
+
+    currentUser =
+      data.user;
+
+    updateAuthUI();
+    renderProfile();
+
+    toast(
+      "Profile photo updated."
+    );
+
+  }catch(error){
+
+    toast(
+      error.message
+    );
+
+  }finally{
+
+    input.value = "";
+
+  }
+
+}
+
+
+/* ==========================================================
+   MESSAGES
+========================================================== */
+
+function startMessage(
+  userId
+){
+
+  showPage(
+    "messages"
+  );
+
+  const person =
+    people.find(
+      p =>
+        Number(p.id)
+        ===
+        Number(userId)
+    );
+
+  if(person){
+
+    toast(
+      "Messaging with "
+      +
+      person.name
+      +
+      " is ready."
+    );
+
+  }
+
+}
+
+
+/* ==========================================================
+   PAGES
+========================================================== */
+
+function showPage(
+  page
+){
+
+  const pages = [
+    "home",
+    "people",
+    "videos",
+    "profile",
+    "messages"
+  ];
+
+  pages.forEach(
+    name => {
+
+      const el =
+        document.getElementById(
+          "page-" + name
+        );
+
+      if(el){
+
+        el.style.display =
+          name === page
+          ? "block"
+          : "none";
+
+      }
 
     }
+  );
 
-    if(
-      event.key === "Escape"
-    ){
 
-      document
-        .querySelectorAll(".modal.open")
-        .forEach(modal=>{
-          modal.classList.remove("open");
-        });
+  if(page === "people"){
+
+    if(getToken()){
+
+      loadPeople();
+
+    }else{
+
+      openAuth();
 
     }
 
   }
-);
 
 
-/* ========================================================
-   AUTO REFRESH FEED
-======================================================== */
+  if(page === "profile"){
 
-setInterval(
-  async ()=>{
+    if(getToken()){
 
-    if(
-      document.visibilityState ===
-      "visible"
-    ){
+      loadProfile();
 
-      await loadPosts();
+    }else{
+
+      openAuth();
 
     }
 
-  },
-  60000
-);
+  }
+
+
+  if(page === "videos"){
+
+    if(getToken()){
+
+      loadPosts();
+
+    }else{
+
+      openAuth();
+
+    }
+
+  }
+
+
+  if(page === "messages"){
+
+    if(!getToken()){
+
+      openAuth();
+
+    }
+
+  }
+
+}
+
+
+/* ==========================================================
+   THEME
+========================================================== */
+
+function toggleTheme(){
+
+  document.body.classList.toggle(
+    "theme-light"
+  );
+
+  localStorage.setItem(
+    "msafiri_theme",
+    document.body.classList.contains(
+      "theme-light"
+    )
+    ? "light"
+    : "dark"
+  );
+
+}
+
+
+function restoreTheme(){
+
+  if(
+    localStorage.getItem(
+      "msafiri_theme"
+    )
+    ===
+    "light"
+  ){
+
+    document.body.classList.add(
+      "theme-light"
+    );
+
+  }
+
+}
+
+
+/* ==========================================================
+   ESCAPE HTML
+========================================================== */
+
+function escapeHTML(
+  value
+){
+
+  return String(
+    value ?? ""
+  )
+  .replaceAll(
+    "&",
+    "&amp;"
+  )
+  .replaceAll(
+    "<",
+    "&lt;"
+  )
+  .replaceAll(
+    ">",
+    "&gt;"
+  )
+  .replaceAll(
+    '"',
+    "&quot;"
+  )
+  .replaceAll(
+    "'",
+    "&#039;"
+  );
+
+}
+
+
+function escapeAttr(
+  value
+){
+
+  return escapeHTML(
+    value
+  );
+
+}
+
+
+/* ==========================================================
+   DATE
+========================================================== */
+
+function formatDate(
+  value
+){
+
+  if(!value){
+
+    return "";
+
+  }
+
+  try{
+
+    return new Date(
+      value
+    ).toLocaleString();
+
+  }catch{
+
+    return "";
+
+  }
+
+}
+
+
+/* ==========================================================
+   INIT
+========================================================== */
+
+async function init(){
+
+  restoreTheme();
+
+  updateAuthUI();
+
+  renderProfile();
+
+  renderFeed();
+
+  renderPeople();
+
+  const loggedIn =
+    await restoreSession();
+
+  if(loggedIn){
+
+    await loadAll();
+
+  }else{
+
+    /*
+      Show Login on first visit instead of
+      pretending the user has a session.
+    */
+
+    setTimeout(
+      ()=>{
+        openAuth();
+      },
+      500
+    );
+
+  }
+
+}
+
+
+init();
 
 </script>
 

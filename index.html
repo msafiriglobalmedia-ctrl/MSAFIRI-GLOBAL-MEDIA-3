@@ -3,4042 +3,468 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#050817">
-<meta name="description" content="MSAFIRI GLOBAL MEDIA V4">
-<title>MSAFIRI GLOBAL MEDIA V4</title>
-
+<meta name="theme-color" content="#050816">
+<meta name="description" content="MSAFIRI GLOBAL MEDIA — Connect Beyond.">
+<title>MSAFIRI GLOBAL MEDIA — Connect Beyond</title>
 <style>
 :root{
-  --bg:#050817;
-  --panel:#0b1227;
-  --panel2:#101a35;
-  --panel3:#162344;
-  --border:#24365f;
-  --text:#f5f7ff;
-  --muted:#9ba9c7;
-  --accent:#ff7a18;
-  --accent2:#e94b3c;
-  --green:#25d366;
-  --danger:#ff4d67;
-  --blue:#4da3ff;
-  --shadow:0 18px 50px rgba(0,0,0,.35);
+  --bg:#030611;--panel:#07101f;--panel2:#0a1426;--line:#19304d;
+  --text:#f4f7ff;--muted:#8fa3bf;--cyan:#18d8ff;--blue:#356bff;
+  --purple:#a95cff;--pink:#ff4fc4;--green:#36e59b;--orange:#ff9d35;
+  --danger:#ff5575;--shadow:0 16px 50px rgba(0,0,0,.38);
   --radius:18px;
 }
-
-*{
-  box-sizing:border-box;
-  -webkit-tap-highlight-color:transparent;
-}
-
-html,body{
-  margin:0;
-  padding:0;
-  min-height:100%;
-  background:var(--bg);
-  color:var(--text);
-  font-family:Arial,Helvetica,sans-serif;
-}
-
-body{
-  overflow-x:hidden;
-}
-
-button,
-input,
-textarea,
-select{
-  font:inherit;
-}
-
-button{
-  border:0;
-  cursor:pointer;
-}
-
-.hidden{
-  display:none!important;
-}
-
-/* AUTH */
-
-#authScreen{
-  min-height:100vh;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding:20px;
-  background:
-    radial-gradient(circle at top left,rgba(255,122,24,.12),transparent 35%),
-    radial-gradient(circle at bottom right,rgba(77,163,255,.10),transparent 35%),
-    var(--bg);
-}
-
-.authBox{
-  width:100%;
-  max-width:430px;
-  background:rgba(11,18,39,.96);
-  border:1px solid var(--border);
-  border-radius:24px;
-  padding:28px 22px;
-  box-shadow:var(--shadow);
-}
-
-.logo{
-  text-align:center;
-  margin-bottom:25px;
-}
-
-.logoIcon{
-  width:72px;
-  height:72px;
-  border-radius:22px;
-  margin:0 auto 12px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-size:32px;
-  font-weight:900;
-  color:white;
-  background:linear-gradient(135deg,var(--accent),var(--accent2));
-  box-shadow:0 12px 30px rgba(233,75,60,.25);
-}
-
-.logo h1{
-  margin:0;
-  font-size:24px;
-}
-
-.logo p{
-  color:var(--muted);
-  margin:7px 0 0;
-  font-size:13px;
-}
-
-.authTabs{
-  display:flex;
-  gap:8px;
-  margin-bottom:18px;
-}
-
-.authTabs button{
-  flex:1;
-  padding:12px;
-  border-radius:12px;
-  background:var(--panel2);
-  color:var(--muted);
-}
-
-.authTabs button.active{
-  color:white;
-  background:linear-gradient(135deg,var(--accent),var(--accent2));
-}
-
-.field{
-  margin-bottom:13px;
-}
-
-.field label{
-  display:block;
-  color:var(--muted);
-  font-size:12px;
-  margin-bottom:7px;
-}
-
-.input,
-textarea,
-select{
-  width:100%;
-  border:1px solid var(--border);
-  background:#071027;
-  color:var(--text);
-  border-radius:12px;
-  padding:13px;
-  outline:none;
-}
-
-.input:focus,
-textarea:focus,
-select:focus{
-  border-color:var(--accent);
-}
-
-textarea{
-  min-height:100px;
-  resize:vertical;
-}
-
-.primary{
-  width:100%;
-  padding:13px 16px;
-  border-radius:12px;
-  color:white;
-  font-weight:700;
-  background:linear-gradient(135deg,var(--accent),var(--accent2));
-}
-
-.secondary{
-  padding:10px 14px;
-  border-radius:11px;
-  color:white;
-  background:var(--panel3);
-  border:1px solid var(--border);
-}
-
-.danger{
-  background:rgba(255,77,103,.14);
-  color:#ff8094;
-  border:1px solid rgba(255,77,103,.3);
-}
-
-.authMsg{
-  min-height:20px;
-  color:#ff9b9b;
-  font-size:13px;
-  margin-top:12px;
-  text-align:center;
-}
-
-/* APP */
-
-#app{
-  min-height:100vh;
-}
-
-.topbar{
-  position:sticky;
-  top:0;
-  z-index:50;
-  height:62px;
-  background:rgba(5,8,23,.94);
-  backdrop-filter:blur(14px);
-  border-bottom:1px solid var(--border);
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:0 15px;
-}
-
-.brand{
-  display:flex;
-  align-items:center;
-  gap:9px;
-  min-width:0;
-}
-
-.brandMark{
-  width:36px;
-  height:36px;
-  border-radius:11px;
-  background:linear-gradient(135deg,var(--accent),var(--accent2));
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-weight:900;
-}
-
-.brandText{
-  font-weight:800;
-  font-size:14px;
-  white-space:nowrap;
-}
-
-.topActions{
-  display:flex;
-  gap:7px;
-}
-
-.iconBtn{
-  width:40px;
-  height:40px;
-  border-radius:12px;
-  color:white;
-  background:var(--panel2);
-  border:1px solid var(--border);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-size:17px;
-}
-
-.layout{
-  max-width:1250px;
-  margin:auto;
-  display:grid;
-  grid-template-columns:220px minmax(0,650px) 280px;
-  gap:18px;
-  padding:18px;
-}
-
-.sidebar,
-.rightbar{
-  position:sticky;
-  top:80px;
-  height:max-content;
-}
-
-.card{
-  background:var(--panel);
-  border:1px solid var(--border);
-  border-radius:var(--radius);
-  box-shadow:0 10px 30px rgba(0,0,0,.16);
-}
-
-.navCard{
-  padding:10px;
-}
-
-.navItem{
-  width:100%;
-  text-align:left;
-  background:transparent;
-  color:var(--muted);
-  padding:13px 12px;
-  border-radius:12px;
-  margin-bottom:3px;
-}
-
-.navItem:hover,
-.navItem.active{
-  color:white;
-  background:var(--panel2);
-}
-
-.navItem span{
-  display:inline-block;
-  width:25px;
-}
-
-.userMini{
-  padding:14px;
-  border-top:1px solid var(--border);
-  margin-top:8px;
-}
-
-.avatar{
-  width:42px;
-  height:42px;
-  border-radius:50%;
-  object-fit:cover;
-  background:var(--panel3);
-  display:block;
-}
-
-.userRow{
-  display:flex;
-  align-items:center;
-  gap:10px;
-}
-
-.userName{
-  font-weight:700;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
-
-.userEmail{
-  color:var(--muted);
-  font-size:11px;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
-
-.content{
-  min-width:0;
-}
-
-.section{
-  display:none;
-}
-
-.section.active{
-  display:block;
-}
-
-.sectionTitle{
-  font-size:21px;
-  margin:0 0 15px;
-}
-
-/* CREATE POST */
-
-.createCard{
-  padding:15px;
-  margin-bottom:16px;
-}
-
-.createTop{
-  display:flex;
-  gap:10px;
-}
-
-.createTop textarea{
-  min-height:70px;
-}
-
-.createTools{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:8px;
-  margin-top:10px;
-  flex-wrap:wrap;
-}
-
-.fileLabel{
-  padding:10px 12px;
-  border:1px solid var(--border);
-  background:var(--panel2);
-  border-radius:10px;
-  color:white;
-  cursor:pointer;
-  font-size:13px;
-}
-
-.fileLabel input{
-  display:none;
-}
-
-.fileName{
-  color:var(--muted);
-  font-size:11px;
-  max-width:220px;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
-
-/* POSTS */
-
-.post{
-  padding:15px;
-  margin-bottom:15px;
-}
-
-.postHeader{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:10px;
-}
-
-.postUser{
-  display:flex;
-  align-items:center;
-  gap:10px;
-}
-
-.postDate{
-  color:var(--muted);
-  font-size:11px;
-}
-
-.postCaption{
-  margin:14px 0;
-  white-space:pre-wrap;
-  line-height:1.5;
-}
-
-.postMedia{
-  width:100%;
-  max-height:600px;
-  object-fit:contain;
-  border-radius:14px;
-  background:#000;
-}
-
-.postActions{
-  display:flex;
-  gap:7px;
-  margin-top:12px;
-  flex-wrap:wrap;
-}
-
-.postActions button{
-  color:var(--muted);
-  background:var(--panel2);
-  border:1px solid var(--border);
-  border-radius:10px;
-  padding:9px 12px;
-}
-
-.postActions button.active{
-  color:white;
-  border-color:var(--accent);
-}
-
-.commentBox{
-  display:flex;
-  gap:7px;
-  margin-top:11px;
-}
-
-.commentBox input{
-  flex:1;
-}
-
-/* SEARCH */
-
-.searchBox{
-  padding:15px;
-  margin-bottom:15px;
-}
-
-.searchResults{
-  display:grid;
-  gap:9px;
-}
-
-.searchUser{
-  padding:12px;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:10px;
-  background:var(--panel);
-  border:1px solid var(--border);
-  border-radius:13px;
-}
-
-/* CHAT */
-
-.chatShell{
-  display:grid;
-  grid-template-columns:210px minmax(0,1fr);
-  height:650px;
-  overflow:hidden;
-}
-
-.chatList{
-  border-right:1px solid var(--border);
-  overflow:auto;
-}
-
-.chatListHeader{
-  padding:12px;
-  border-bottom:1px solid var(--border);
-}
-
-.chatUser{
-  padding:12px;
-  display:flex;
-  gap:9px;
-  align-items:center;
-  cursor:pointer;
-  border-bottom:1px solid rgba(36,54,95,.55);
-}
-
-.chatUser:hover,
-.chatUser.active{
-  background:var(--panel2);
-}
-
-.chatWindow{
-  display:flex;
-  flex-direction:column;
-  min-width:0;
-  background:
-    radial-gradient(circle at center,rgba(255,122,24,.04),transparent 40%),
-    #070d1f;
-}
-
-.chatHeader{
-  min-height:64px;
-  padding:10px 13px;
-  border-bottom:1px solid var(--border);
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-}
-
-.chatMessages{
-  flex:1;
-  overflow:auto;
-  padding:15px;
-  display:flex;
-  flex-direction:column;
-  gap:8px;
-}
-
-.bubble{
-  max-width:78%;
-  padding:9px 11px;
-  border-radius:15px;
-  line-height:1.4;
-  font-size:14px;
-  word-break:break-word;
-}
-
-.bubble.mine{
-  align-self:flex-end;
-  background:#174f43;
-  border-bottom-right-radius:4px;
-}
-
-.bubble.theirs{
-  align-self:flex-start;
-  background:var(--panel2);
-  border-bottom-left-radius:4px;
-}
-
-.bubble small{
-  display:block;
-  color:#aab7cf;
-  font-size:9px;
-  margin-top:4px;
-}
-
-.chatComposer{
-  padding:10px;
-  border-top:1px solid var(--border);
-  display:flex;
-  gap:7px;
-  align-items:center;
-}
-
-.chatComposer input{
-  flex:1;
-}
-
-.sendBtn{
-  width:42px;
-  height:42px;
-  border-radius:12px;
-  background:linear-gradient(135deg,var(--accent),var(--accent2));
-  color:white;
-}
-
-.voiceBtn{
-  width:42px;
-  height:42px;
-  border-radius:12px;
-  background:var(--panel2);
-  border:1px solid var(--border);
-  color:white;
-}
-
-/* PROFILE */
-
-.profileCard{
-  padding:20px;
-  text-align:center;
-}
-
-.profileAvatar{
-  width:100px;
-  height:100px;
-  border-radius:50%;
-  object-fit:cover;
-  margin:0 auto 12px;
-  border:3px solid var(--border);
-}
-
-.profileName{
-  font-size:22px;
-  font-weight:800;
-}
-
-.profileEmail{
-  color:var(--muted);
-  font-size:13px;
-  margin:5px 0 18px;
-}
-
-.profileGrid{
-  display:grid;
-  gap:12px;
-  text-align:left;
-}
-
-/* SETTINGS */
-
-.settingsCard{
-  padding:18px;
-}
-
-.settingRow{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:15px;
-  padding:14px 0;
-  border-bottom:1px solid var(--border);
-}
-
-.settingRow:last-child{
-  border-bottom:0;
-}
-
-.settingTitle{
-  font-weight:700;
-}
-
-.settingDesc{
-  color:var(--muted);
-  font-size:11px;
-  margin-top:3px;
-}
-
-/* RIGHT */
-
-.infoCard{
-  padding:15px;
-  margin-bottom:14px;
-}
-
-.infoCard h3{
-  margin:0 0 10px;
-  font-size:15px;
-}
-
-.infoLine{
-  color:var(--muted);
-  font-size:12px;
-  line-height:1.7;
-}
-
-.statusDot{
-  display:inline-block;
-  width:8px;
-  height:8px;
-  border-radius:50%;
-  background:var(--green);
-  margin-right:5px;
-}
-
-/* MODAL */
-
-.modal{
-  position:fixed;
-  inset:0;
-  background:rgba(0,0,0,.7);
-  z-index:100;
-  display:none;
-  align-items:center;
-  justify-content:center;
-  padding:18px;
-}
-
-.modal.show{
-  display:flex;
-}
-
-.modalBox{
-  width:100%;
-  max-width:460px;
-  max-height:90vh;
-  overflow:auto;
-  background:var(--panel);
-  border:1px solid var(--border);
-  border-radius:20px;
-  padding:18px;
-}
-
-.modalHeader{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  margin-bottom:15px;
-}
-
-.modalHeader h3{
-  margin:0;
-}
-
-.closeBtn{
-  width:36px;
-  height:36px;
-  border-radius:10px;
-  color:white;
-  background:var(--panel2);
-}
-
-/* TOAST */
-
-#toast{
-  position:fixed;
-  left:50%;
-  bottom:25px;
-  transform:translateX(-50%);
-  z-index:200;
-  max-width:90%;
-  padding:12px 17px;
-  border-radius:12px;
-  background:#111b35;
-  color:white;
-  border:1px solid var(--border);
-  box-shadow:var(--shadow);
-  display:none;
-  text-align:center;
-  font-size:13px;
-}
-
-/* LOADING */
-
-.loading{
-  text-align:center;
-  color:var(--muted);
-  padding:30px;
-}
-
-.empty{
-  text-align:center;
-  color:var(--muted);
-  padding:30px 15px;
-}
-
-/* MOBILE */
-
-.bottomNav{
-  display:none;
-}
-
-@media(max-width:1050px){
-  .layout{
-    grid-template-columns:190px minmax(0,1fr);
-  }
-
-  .rightbar{
-    display:none;
-  }
-}
-
-@media(max-width:700px){
-  .topbar{
-    padding:0 10px;
-  }
-
-  .brandText{
-    display:none;
-  }
-
-  .layout{
-    display:block;
-    padding:10px 10px 80px;
-  }
-
-  .sidebar{
-    display:none;
-  }
-
-  .bottomNav{
-    position:fixed;
-    left:0;
-    right:0;
-    bottom:0;
-    height:64px;
-    background:rgba(5,8,23,.97);
-    border-top:1px solid var(--border);
-    z-index:80;
-    display:flex;
-    align-items:center;
-    justify-content:space-around;
-  }
-
-  .bottomNav button{
-    background:none;
-    color:var(--muted);
-    font-size:11px;
-    padding:7px;
-  }
-
-  .bottomNav button.active{
-    color:white;
-  }
-
-  .bottomNav span{
-    display:block;
-    font-size:20px;
-    margin-bottom:2px;
-  }
-
-  .chatShell{
-    height:calc(100vh - 130px);
-    min-height:500px;
-    grid-template-columns:1fr;
-  }
-
-  .chatList{
-    display:none;
-  }
-
-  .chatList.mobileShow{
-    display:block;
-  }
-
-  .chatWindow{
-    display:none;
-  }
-
-  .chatWindow.mobileShow{
-    display:flex;
-  }
-
-  .sectionTitle{
-    font-size:19px;
-  }
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:
+ radial-gradient(circle at 15% 5%,rgba(53,107,255,.14),transparent 28%),
+ radial-gradient(circle at 85% 15%,rgba(169,92,255,.12),transparent 30%),
+ var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+button,input,textarea,select{font:inherit}
+button{cursor:pointer}
+a{color:inherit;text-decoration:none}
+.hidden{display:none!important}
+.app{min-height:100vh}
+.topbar{position:sticky;top:0;z-index:50;height:68px;background:rgba(3,6,17,.88);backdrop-filter:blur(18px);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:18px;padding:0 18px}
+.brand{display:flex;align-items:center;gap:10px;min-width:225px}
+.logo{width:43px;height:43px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(135deg,#08d9ff,#6435ff 55%,#d646ff);box-shadow:0 0 30px rgba(31,197,255,.22);font-size:25px;font-weight:900}
+.brand strong{font-size:19px;letter-spacing:1.1px}
+.brand small{display:block;color:#55dfff;font-size:10px;letter-spacing:2px}
+.search{flex:1;max-width:620px;position:relative}
+.search input{width:100%;height:43px;border:1px solid #203653;background:#081326;border-radius:14px;color:white;padding:0 45px 0 15px;outline:none}
+.search input:focus{border-color:#367bff;box-shadow:0 0 0 3px rgba(54,123,255,.12)}
+.search span{position:absolute;right:15px;top:10px;color:var(--muted)}
+.top-actions{margin-left:auto;display:flex;gap:8px;align-items:center}
+.icon-btn,.avatar-btn{border:1px solid #1d3553;background:#09152a;color:white;width:40px;height:40px;border-radius:13px}
+.avatar-btn{overflow:hidden;border-radius:50%;padding:0}
+.avatar-btn img{width:100%;height:100%;object-fit:cover}
+.layout{display:grid;grid-template-columns:230px minmax(0,1fr) 310px;gap:16px;max-width:1450px;margin:auto;padding:18px}
+.sidebar,.rightbar{position:sticky;top:86px;height:calc(100vh - 104px);overflow:auto}
+.side-card,.card{background:linear-gradient(180deg,rgba(9,20,38,.96),rgba(5,13,27,.96));border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+.side-card{padding:12px}
+.nav-title{font-size:10px;text-transform:uppercase;color:#7189a8;letter-spacing:1.6px;margin:10px 9px}
+.nav{display:flex;flex-direction:column;gap:5px}
+.nav button{border:0;background:transparent;color:#b9c9df;text-align:left;padding:12px;border-radius:12px;display:flex;gap:11px;align-items:center}
+.nav button:hover,.nav button.active{background:linear-gradient(90deg,rgba(53,107,255,.2),rgba(169,92,255,.1));color:white}
+.nav .ico{width:24px;text-align:center}
+.profile-mini{padding:15px;border-bottom:1px solid #142844;margin-bottom:10px}
+.profile-row{display:flex;align-items:center;gap:10px}
+.profile-row img{width:42px;height:42px;border-radius:50%;object-fit:cover}
+.muted{color:var(--muted);font-size:12px}
+.main{min-width:0}
+.hero{padding:24px;border:1px solid #1b4264;border-radius:22px;background:
+ radial-gradient(circle at 50% 0,rgba(0,217,255,.13),transparent 42%),
+ linear-gradient(135deg,#071225,#0a0d20);margin-bottom:16px;overflow:hidden}
+.hero-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:20px;align-items:center}
+.hero h1{font-size:clamp(28px,4vw,48px);margin:0 0 7px;letter-spacing:-1.4px}
+.gradient{background:linear-gradient(90deg,#4de6ff,#9c6bff,#ff63d0);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p{color:#a9bad0;line-height:1.6;margin:7px 0 18px}
+.btn{border:1px solid #294b70;background:#0b1a31;color:white;border-radius:12px;padding:10px 14px;font-weight:700}
+.btn.primary{background:linear-gradient(135deg,#216cff,#7047ff);border-color:#497aff}
+.btn.green{background:linear-gradient(135deg,#0e9f78,#20c990);border-color:#25d5a1}
+.btn.orange{background:linear-gradient(135deg,#e97720,#ffb13d);border-color:#ffb13d;color:#111}
+.btn.danger{background:#3a1220;border-color:#72304a}
+.btn:hover{filter:brightness(1.1);transform:translateY(-1px)}
+.phone{width:235px;margin:auto;padding:8px;border-radius:31px;border:1px solid #2870a0;background:#030712;box-shadow:0 0 60px rgba(25,194,255,.18)}
+.phone-screen{height:395px;border-radius:24px;background:linear-gradient(#08152a,#030814);border:1px solid #152c47;padding:11px;overflow:hidden}
+.phone-top{display:flex;justify-content:space-between;font-size:10px;color:#90a5c2}
+.phone-logo{font-size:29px;text-align:center;margin:28px 0 12px;font-weight:900}
+.phone-pill{padding:9px;border:1px solid #203c5c;border-radius:12px;margin:7px 0;color:#bdcee2;font-size:10px}
+.quick-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.quick-grid div{padding:10px 3px;border:1px solid #1d3550;border-radius:9px;text-align:center;font-size:9px;background:#09162a}
+.section{margin-bottom:16px}
+.section-head{display:flex;justify-content:space-between;align-items:center;padding:13px 15px;border-bottom:1px solid #142a45}
+.section-head h2{font-size:15px;margin:0}
+.section-head small{color:#6882a2}
+.tabs{display:flex;gap:6px;overflow:auto;padding:10px}
+.tabs button{white-space:nowrap;border:1px solid #1c3554;background:#09152a;color:#93a7c0;border-radius:10px;padding:8px 11px}
+.tabs button.active{color:white;background:#2a49a4;border-color:#4869c8}
+.composer{padding:13px;display:flex;gap:11px;align-items:center}
+.composer img{width:42px;height:42px;border-radius:50%;object-fit:cover}
+.composer input{flex:1;background:#071326;border:1px solid #19324f;color:white;border-radius:13px;padding:12px;outline:none}
+.feed{display:flex;flex-direction:column;gap:13px;padding:0 13px 13px}
+.post{border:1px solid #18304c;border-radius:16px;background:#06101f;overflow:hidden}
+.post-head{padding:12px;display:flex;align-items:center;gap:10px}
+.post-head img{width:39px;height:39px;border-radius:50%;object-fit:cover}
+.post-head .more{margin-left:auto}
+.post-body{padding:0 13px 10px;line-height:1.55;color:#d8e4f4}
+.post-media{width:100%;max-height:500px;object-fit:cover;background:#02050b;display:block}
+.post-actions{display:flex;gap:6px;padding:8px 10px;border-top:1px solid #142842}
+.post-actions button{border:0;background:transparent;color:#93a7c0;padding:8px 10px;border-radius:9px}
+.post-actions button:hover{background:#0d1b31;color:white}
+.post-actions button.liked{color:#ff5f8a}
+.comment-box{display:flex;gap:6px;padding:0 10px 10px}
+.comment-box input{flex:1;background:#08162a;border:1px solid #19324e;color:white;border-radius:10px;padding:9px}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;padding:13px}
+.feature{padding:15px;min-height:130px;border:1px solid #193450;border-radius:15px;background:linear-gradient(145deg,#09182b,#06101f)}
+.feature .big{font-size:26px}
+.feature h3{margin:8px 0 4px;font-size:14px}
+.feature p{font-size:11px;color:#91a5bd;margin:0;line-height:1.5}
+.dashboard-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:13px}
+.stat{padding:15px}
+.stat strong{font-size:24px}
+.map{height:310px;position:relative;overflow:hidden;background:
+linear-gradient(30deg,transparent 47%,rgba(68,130,105,.35) 48%,transparent 50%),
+linear-gradient(120deg,transparent 47%,rgba(68,130,105,.3) 48%,transparent 50%),
+#172a2b}
+.map:before{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);background-size:38px 38px}
+.pin{position:absolute;width:17px;height:17px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:#ff7048;box-shadow:0 0 18px #ff7048}
+.pin i{display:block;width:6px;height:6px;background:white;border-radius:50%;margin:5px}
+.map-card{position:absolute;left:13px;right:13px;bottom:13px;background:#071326;border:1px solid #254463;border-radius:14px;padding:13px}
+.search-results{padding:13px}
+.result{padding:11px;border-bottom:1px solid #142a43}
+.market-card{display:grid;grid-template-columns:1fr 1fr;gap:13px;padding:13px}
+.product{border:1px solid #1b3857;border-radius:14px;padding:10px;background:#071326}
+.product img{width:100%;height:130px;object-fit:cover;border-radius:10px}
+.product strong{display:block;margin-top:8px}
+.product button{width:100%;margin-top:8px}
+.right-card{margin-bottom:13px}
+.right-card h3{font-size:13px;padding:13px;margin:0;border-bottom:1px solid #142a45}
+.person{display:flex;align-items:center;gap:9px;padding:10px 13px}
+.person img{width:36px;height:36px;border-radius:50%;object-fit:cover}
+.person button{margin-left:auto;padding:7px 9px}
+.footer{padding:20px;text-align:center;color:#617a9b;font-size:11px;border-top:1px solid #122641;margin-top:20px}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(8px);z-index:100;display:grid;place-items:center;padding:15px}
+.modal-card{width:min(560px,100%);max-height:90vh;overflow:auto;background:#071225;border:1px solid #294667;border-radius:20px;box-shadow:0 30px 100px #000;padding:20px}
+.modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:15px}
+.modal-head h2{margin:0;font-size:19px}
+.form{display:flex;flex-direction:column;gap:10px}
+.form input,.form textarea,.form select{width:100%;background:#050e1c;color:white;border:1px solid #203a58;border-radius:11px;padding:11px;outline:none}
+.form textarea{min-height:110px;resize:vertical}
+.form label{font-size:11px;color:#91a7c2}
+.toast{position:fixed;right:16px;bottom:18px;z-index:200;background:#09172a;border:1px solid #28517b;padding:12px 15px;border-radius:12px;box-shadow:var(--shadow);max-width:330px}
+.mobile-nav{display:none}
+.file-label{display:inline-flex;align-items:center;gap:7px;border:1px dashed #315273;padding:10px 12px;border-radius:11px;color:#a9bdd6}
+.preview{max-width:100%;max-height:240px;border-radius:12px;margin-top:8px}
+@media(max-width:1100px){.layout{grid-template-columns:190px minmax(0,1fr)}.rightbar{display:none}.dashboard-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:760px){
+ .topbar{height:60px;padding:0 10px}.brand{min-width:auto}.brand div:last-child{display:none}.brand strong{font-size:14px}.search{display:none}
+ .layout{display:block;padding:10px 10px 75px}.sidebar{display:none}.hero-grid{grid-template-columns:1fr}.phone{display:none}
+ .dashboard-grid{grid-template-columns:1fr 1fr}.grid{grid-template-columns:1fr 1fr}
+ .mobile-nav{display:flex;position:fixed;bottom:0;left:0;right:0;height:62px;background:rgba(4,9,20,.96);border-top:1px solid #1b3351;z-index:60;justify-content:space-around;padding:6px}
+ .mobile-nav button{border:0;background:transparent;color:#8ca3bf;font-size:10px;display:flex;flex-direction:column;gap:3px;align-items:center}
+ .mobile-nav button.active{color:#fff}.mobile-nav .mi{font-size:19px}
 }
 </style>
 </head>
-
 <body>
-
-<!-- AUTH SCREEN -->
-<div id="authScreen">
-
-  <div class="authBox">
-
-    <div class="logo">
-      <div class="logoIcon">M</div>
-      <h1>MSAFIRI GLOBAL MEDIA</h1>
-      <p>Connect beyond boundaries</p>
-    </div>
-
-    <div class="authTabs">
-      <button id="loginTab" class="active" onclick="showAuth('login')">
-        Login
-      </button>
-      <button id="registerTab" onclick="showAuth('register')">
-        Create Account
-      </button>
-    </div>
-
-    <form id="loginForm" onsubmit="login(event)">
-
-      <div class="field">
-        <label>Email</label>
-        <input
-          id="loginEmail"
-          class="input"
-          type="email"
-          autocomplete="email"
-          placeholder="you@example.com"
-          required
-        >
-      </div>
-
-      <div class="field">
-        <label>Password</label>
-        <input
-          id="loginPassword"
-          class="input"
-          type="password"
-          autocomplete="current-password"
-          placeholder="Your password"
-          required
-        >
-      </div>
-
-      <button class="primary" id="loginBtn" type="submit">
-        Login
-      </button>
-
-    </form>
-
-    <form id="registerForm" class="hidden" onsubmit="register(event)">
-
-      <div class="field">
-        <label>Full Name</label>
-        <input
-          id="registerName"
-          class="input"
-          type="text"
-          autocomplete="name"
-          placeholder="Your full name"
-          required
-        >
-      </div>
-
-      <div class="field">
-        <label>Email</label>
-        <input
-          id="registerEmail"
-          class="input"
-          type="email"
-          autocomplete="email"
-          placeholder="you@example.com"
-          required
-        >
-      </div>
-
-      <div class="field">
-        <label>Password</label>
-        <input
-          id="registerPassword"
-          class="input"
-          type="password"
-          autocomplete="new-password"
-          placeholder="Create a password"
-          minlength="6"
-          required
-        >
-      </div>
-
-      <button class="primary" id="registerBtn" type="submit">
-        Create Account
-      </button>
-
-    </form>
-
-    <div id="authMsg" class="authMsg"></div>
-
+<div class="app">
+<header class="topbar">
+  <div class="brand"><div class="logo">N</div><div><strong>MSAFIRI GLOBAL MEDIA</strong><small>CONNECT BEYOND</small></div></div>
+  <div class="search"><input id="globalSearch" placeholder="Search anything in MSAFIRI GLOBAL MEDIA..."><span>⌕</span></div>
+  <div class="top-actions">
+    <button class="icon-btn" onclick="openModal('notifications')" title="Notifications">🔔</button>
+    <button class="icon-btn" onclick="openModal('messages')" title="Messages">💬</button>
+    <button class="avatar-btn" onclick="openModal('profile')" title="Profile"><img id="topAvatar" src="https://i.pravatar.cc/100?img=12"></button>
   </div>
-
-</div>
-
-
-<!-- MAIN APP -->
-<div id="app" class="hidden">
-
-  <header class="topbar">
-
-    <div class="brand">
-      <div class="brandMark">M</div>
-      <div class="brandText">MSAFIRI GLOBAL MEDIA</div>
-    </div>
-
-    <div class="topActions">
-      <button class="iconBtn" onclick="openSection('search')" title="Search">⌕</button>
-      <button class="iconBtn" onclick="openSection('profile')" title="Profile">●</button>
-    </div>
-
-  </header>
-
-
-  <div class="layout">
-
-    <!-- LEFT SIDEBAR -->
-    <aside class="sidebar">
-
-      <div class="card navCard">
-
-        <button class="navItem active" data-section="home" onclick="openSection('home')">
-          <span>⌂</span> Home
-        </button>
-
-        <button class="navItem" data-section="search" onclick="openSection('search')">
-          <span>⌕</span> Search
-        </button>
-
-        <button class="navItem" data-section="create" onclick="openSection('create')">
-          <span>＋</span> Create Post
-        </button>
-
-        <button class="navItem" data-section="chat" onclick="openSection('chat')">
-          <span>◉</span> Messages
-        </button>
-
-        <button class="navItem" data-section="profile" onclick="openSection('profile')">
-          <span>●</span> Profile
-        </button>
-
-        <button class="navItem" data-section="settings" onclick="openSection('settings')">
-          <span>⚙</span> Settings
-        </button>
-
-        <div class="userMini">
-          <div class="userRow">
-            <img id="sideAvatar" class="avatar" src="" alt="Profile">
-            <div style="min-width:0">
-              <div id="sideName" class="userName">User</div>
-              <div id="sideEmail" class="userEmail">-</div>
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-    </aside>
-
-
-    <!-- MAIN CONTENT -->
-    <main class="content">
-
-
-      <!-- HOME -->
-      <section id="section-home" class="section active">
-
-        <h2 class="sectionTitle">Home</h2>
-
-        <div class="card createCard">
-
-          <div class="createTop">
-            <img id="homeAvatar" class="avatar" src="" alt="Profile">
-
-            <textarea
-              id="quickCaption"
-              placeholder="What's happening?"
-            ></textarea>
-          </div>
-
-          <div class="createTools">
-
-            <label class="fileLabel">
-              📎 Add photo/video
-              <input
-                id="quickFile"
-                type="file"
-                accept="image/*,video/*,audio/*"
-                onchange="showFileName('quickFile','quickFileName')"
-              >
-            </label>
-
-            <span id="quickFileName" class="fileName"></span>
-
-            <button class="primary" style="width:auto" onclick="quickPost()">
-              Post
-            </button>
-
-          </div>
-
-        </div>
-
-        <div id="feed">
-          <div class="loading">Loading posts...</div>
-        </div>
-
-      </section>
-
-
-      <!-- SEARCH -->
-      <section id="section-search" class="section">
-
-        <h2 class="sectionTitle">Search</h2>
-
-        <div class="card searchBox">
-
-          <div style="display:flex;gap:8px">
-
-            <input
-              id="searchInput"
-              class="input"
-              placeholder="Search users..."
-              onkeydown="if(event.key==='Enter') searchUsers()"
-            >
-
-            <button class="secondary" onclick="searchUsers()">
-              Search
-            </button>
-
-          </div>
-
-        </div>
-
-        <div id="searchResults" class="searchResults"></div>
-
-      </section>
-
-
-      <!-- CREATE -->
-      <section id="section-create" class="section">
-
-        <h2 class="sectionTitle">Create Post</h2>
-
-        <div class="card createCard">
-
-          <div class="field">
-            <label>Caption</label>
-            <textarea
-              id="postCaption"
-              placeholder="Write something..."
-            ></textarea>
-          </div>
-
-          <div class="field">
-
-            <label class="fileLabel">
-              📎 Select media
-              <input
-                id="postFile"
-                type="file"
-                accept="image/*,video/*,audio/*"
-                onchange="showFileName('postFile','postFileName')"
-              >
-            </label>
-
-            <div id="postFileName" class="fileName" style="margin-top:8px"></div>
-
-          </div>
-
-          <button class="primary" onclick="createPost()">
-            Publish Post
-          </button>
-
-          <div id="postMsg" class="authMsg"></div>
-
-        </div>
-
-      </section>
-
-
-      <!-- CHAT -->
-      <section id="section-chat" class="section">
-
-        <h2 class="sectionTitle">Messages</h2>
-
-        <div class="card chatShell">
-
-          <div id="chatList" class="chatList">
-
-            <div class="chatListHeader">
-
-              <input
-                id="chatUserIdInput"
-                class="input"
-                placeholder="Enter user ID"
-              >
-
-              <button
-                class="primary"
-                style="margin-top:8px"
-                onclick="openChatById()"
-              >
-                Open Chat
-              </button>
-
-              <div
-                id="chatListStatus"
-                style="color:var(--muted);font-size:10px;margin-top:8px"
-              >
-                Chat list will load when supported by the backend.
-              </div>
-
-            </div>
-
-            <div id="chatUsers"></div>
-
-          </div>
-
-
-          <div id="chatWindow" class="chatWindow">
-
-            <div class="chatHeader">
-
-              <div class="userRow">
-
-                <button
-                  class="iconBtn"
-                  onclick="mobileCloseChat()"
-                  style="display:none"
-                  id="backChatBtn"
-                >
-                  ‹
-                </button>
-
-                <img id="chatAvatar" class="avatar" src="" alt="User">
-
-                <div>
-                  <div id="chatName" class="userName">
-                    Select a user
-                  </div>
-                  <div id="chatStatus" class="userEmail">
-                    -
-                  </div>
-                </div>
-
-              </div>
-
-              <div style="display:flex;gap:6px">
-
-                <button
-                  class="iconBtn"
-                  onclick="startCall('audio')"
-                  title="Voice call"
-                >
-                  ☎
-                </button>
-
-                <button
-                  class="iconBtn"
-                  onclick="startCall('video')"
-                  title="Video call"
-                >
-                  ▣
-                </button>
-
-                <button
-                  class="iconBtn"
-                  onclick="openChatMenu()"
-                  title="Chat menu"
-                >
-                  ⋮
-                </button>
-
-              </div>
-
-            </div>
-
-
-            <div id="chatMessages" class="chatMessages">
-              <div class="empty">
-                Select a conversation to start chatting.
-              </div>
-            </div>
-
-
-            <div class="chatComposer">
-
-              <label class="voiceBtn" style="display:flex;align-items:center;justify-content:center">
-                📎
-                <input
-                  id="chatFile"
-                  type="file"
-                  hidden
-                  onchange="sendChatFile()"
-                >
-              </label>
-
-              <button
-                id="voiceButton"
-                class="voiceBtn"
-                onclick="toggleVoiceRecording()"
-                title="Voice note"
-              >
-                🎙
-              </button>
-
-              <input
-                id="chatInput"
-                class="input"
-                placeholder="Type a message..."
-                onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();sendMessage()}"
-              >
-
-              <button
-                class="sendBtn"
-                onclick="sendMessage()"
-              >
-                ➤
-              </button>
-
-            </div>
-
-          </div>
-
-        </div>
-
-      </section>
-
-
-      <!-- PROFILE -->
-      <section id="section-profile" class="section">
-
-        <h2 class="sectionTitle">My Profile</h2>
-
-        <div class="card profileCard">
-
-          <img id="profileAvatar" class="profileAvatar" src="" alt="Profile">
-
-          <div id="profileName" class="profileName">
-            User
-          </div>
-
-          <div id="profileEmail" class="profileEmail">
-            -
-          </div>
-
-          <div class="profileGrid">
-
-            <div class="field">
-              <label>Name</label>
-              <input id="editName" class="input">
-            </div>
-
-            <div class="field">
-              <label>Bio</label>
-              <textarea id="editBio" placeholder="Tell people about yourself"></textarea>
-            </div>
-
-            <div class="field">
-              <label>Profile Picture</label>
-              <input
-                id="avatarFile"
-                class="input"
-                type="file"
-                accept="image/*"
-              >
-            </div>
-
-            <button class="primary" onclick="saveProfile()">
-              Save Profile
-            </button>
-
-            <div id="profileMsg" class="authMsg"></div>
-
-          </div>
-
-        </div>
-
-      </section>
-
-
-      <!-- SETTINGS -->
-      <section id="section-settings" class="section">
-
-        <h2 class="sectionTitle">Settings</h2>
-
-        <div class="card settingsCard">
-
-          <div class="settingRow">
-            <div>
-              <div class="settingTitle">Account</div>
-              <div class="settingDesc">Your account remains active until you log out or delete it.</div>
-            </div>
-            <span>👤</span>
-          </div>
-
-          <div class="settingRow">
-            <div>
-              <div class="settingTitle">Notifications</div>
-              <div class="settingDesc">Notification settings are controlled by the server when available.</div>
-            </div>
-            <span>🔔</span>
-          </div>
-
-          <div class="settingRow">
-            <div>
-              <div class="settingTitle">Privacy</div>
-              <div class="settingDesc">Keep your account credentials private.</div>
-            </div>
-            <span>🔒</span>
-          </div>
-
-          <div class="settingRow">
-
-            <div>
-              <div class="settingTitle">Logout</div>
-              <div class="settingDesc">
-                Sign out from this device.
-              </div>
-            </div>
-
-            <button class="secondary" onclick="logout()">
-              Logout
-            </button>
-
-          </div>
-
-          <div class="settingRow">
-
-            <div>
-              <div class="settingTitle" style="color:#ff8094">
-                Delete Account
-              </div>
-
-              <div class="settingDesc">
-                Permanently request account deletion.
-              </div>
-            </div>
-
-            <button class="secondary danger" onclick="deleteAccount()">
-              Delete
-            </button>
-
-          </div>
-
-        </div>
-
-      </section>
-
-    </main>
-
-
-    <!-- RIGHT SIDEBAR -->
-    <aside class="rightbar">
-
-      <div class="card infoCard">
-
-        <h3>MSAFIRI GLOBAL MEDIA</h3>
-
-        <div class="infoLine">
-          <span class="statusDot"></span>
-          Platform online
-        </div>
-
-        <div class="infoLine">
-          Version 4.0
-        </div>
-
-      </div>
-
-      <div class="card infoCard">
-
-        <h3>Features</h3>
-
-        <div class="infoLine">
-          • Social feed
-        </div>
-
-        <div class="infoLine">
-          • Media posts
-        </div>
-
-        <div class="infoLine">
-          • Messaging
-        </div>
-
-        <div class="infoLine">
-          • Voice notes
-        </div>
-
-        <div class="infoLine">
-          • Voice & video calls
-        </div>
-
-        <div class="infoLine">
-          • Profiles
-        </div>
-
-      </div>
-
-    </aside>
-
-  </div>
-
-
-  <!-- MOBILE NAV -->
-  <nav class="bottomNav">
-
-    <button data-section="home" class="active" onclick="openSection('home')">
-      <span>⌂</span>
-      Home
-    </button>
-
-    <button data-section="search" onclick="openSection('search')">
-      <span>⌕</span>
-      Search
-    </button>
-
-    <button data-section="create" onclick="openSection('create')">
-      <span>＋</span>
-      Post
-    </button>
-
-    <button data-section="chat" onclick="openSection('chat')">
-      <span>◉</span>
-      Chat
-    </button>
-
-    <button data-section="profile" onclick="openSection('profile')">
-      <span>●</span>
-      Profile
-    </button>
-
+</header>
+
+<div class="layout">
+<aside class="sidebar">
+ <div class="side-card">
+  <div class="profile-mini"><div class="profile-row"><img id="sideAvatar" src="https://i.pravatar.cc/100?img=12"><div><b id="sideName">Guest User</b><div class="muted">@guest</div></div></div></div>
+  <div class="nav-title">MSAFIRI</div>
+  <nav class="nav">
+   <button class="active" data-page="home"><span class="ico">🏠</span>Home</button>
+   <button data-page="people"><span class="ico">👥</span>People</button>
+   <button data-page="knowledge"><span class="ico">📚</span>Knowledge</button>
+   <button data-page="ai"><span class="ico">🧠</span>AI Council</button>
+   <button data-page="video"><span class="ico">▶️</span>Video</button>
+   <button data-page="connect"><span class="ico">💬</span>Connect</button>
+   <button data-page="studio"><span class="ico">🎬</span>Studio</button>
+   <button data-page="search"><span class="ico">🔎</span>Search</button>
+   <button data-page="maps"><span class="ico">🌍</span>Maps</button>
+   <button data-page="market"><span class="ico">🛒</span>Market</button>
+   <button data-page="vault"><span class="ico">🗂️</span>Knowledge Vault</button>
+   <button data-page="academy"><span class="ico">🎓</span>Academy</button>
+   <button data-page="reality"><span class="ico">🔬</span>Reality Lab</button>
+   <button data-page="collaborate"><span class="ico">🤝</span>Collaborate</button>
+   <button data-page="channels"><span class="ico">📺</span>Channels</button>
   </nav>
+  <div class="nav-title">ACCOUNT</div>
+  <nav class="nav">
+   <button onclick="openModal('auth')"><span class="ico">🔐</span>Login / Register</button>
+   <button onclick="logout()"><span class="ico">↪</span>Logout</button>
+  </nav>
+ </div>
+</aside>
 
-</div>
-
-
-<!-- CHAT MENU MODAL -->
-<div id="chatMenuModal" class="modal">
-
-  <div class="modalBox">
-
-    <div class="modalHeader">
-
-      <h3>Chat options</h3>
-
-      <button class="closeBtn" onclick="closeModal('chatMenuModal')">
-        ×
-      </button>
-
-    </div>
-
-    <div style="display:grid;gap:8px">
-
-      <button class="secondary" onclick="pinChat()">
-        📌 Pin chat
-      </button>
-
-      <button class="secondary" onclick="muteChat()">
-        🔕 Mute chat
-      </button>
-
-      <button class="secondary" onclick="showChatInfo()">
-        👤 View profile
-      </button>
-
-      <button class="secondary" onclick="showChatSearch()">
-        🔍 Search messages
-      </button>
-
-      <button class="secondary" onclick="openWallpaperPicker()">
-        🖼 Change wallpaper
-      </button>
-
-      <button class="secondary" onclick="clearChat()">
-        🗑 Clear chat
-      </button>
-
-      <button class="secondary danger" onclick="blockChatUser()">
-        🚫 Block user
-      </button>
-
-      <button class="secondary danger" onclick="reportChatUser()">
-        ⚠ Report user
-      </button>
-
-    </div>
-
+<main class="main" id="main">
+<section class="hero">
+ <div class="hero-grid">
+  <div>
+   <div class="muted">WELCOME TO YOUR DIGITAL WORLD</div>
+   <h1>MSAFIRI GLOBAL <span class="gradient">MEDIA</span></h1>
+   <p><b>Connect Beyond.</b> People, knowledge, AI, communication, media, commerce, maps, education and creation — brought together in one social platform.</p>
+   <button class="btn primary" onclick="openComposer()">＋ Create Post</button>
+   <button class="btn" onclick="showPage('ai')">Ask AI Council</button>
   </div>
+  <div class="phone"><div class="phone-screen">
+   <div class="phone-top"><span>9:41</span><span>▮▮▮ ◉ 🔋</span></div>
+   <div class="phone-logo gradient">MSAFIRI</div>
+   <div class="phone-pill">🔎 Search anything...</div>
+   <div class="muted" style="margin:10px 3px">What do you want to do today?</div>
+   <div class="quick-grid">
+    <div>📘<br>Learn</div><div>🌍<br>Discover</div><div>✨<br>Create</div>
+    <div>💼<br>Work</div><div>🛒<br>Shop</div><div>🔭<br>Explore</div>
+   </div>
+   <div class="phone-pill">🤖 Ask MSAFIRI AI</div>
+   <div class="phone-pill">📡 Network • Online</div>
+  </div></div>
+ </div>
+</section>
 
+<section class="section card">
+ <div class="section-head"><h2>① MSAFIRI SOCIAL</h2><small>Feed • Stories • Live • Spaces</small></div>
+ <div class="tabs" id="feedTabs"><button class="active" onclick="filterFeed('all',this)">Feed</button><button onclick="filterFeed('following',this)">Following</button><button onclick="filterFeed('video',this)">Video</button><button onclick="filterFeed('photos',this)">Photos</button></div>
+ <div class="composer" onclick="openComposer()"><img id="composerAvatar" src="https://i.pravatar.cc/100?img=12"><input readonly placeholder="What is happening? Share something with the world..."><button class="btn primary">Post</button></div>
+ <div class="feed" id="feed"></div>
+</section>
+
+<section class="section card" id="connect">
+ <div class="section-head"><h2>② MSAFIRI CONNECT</h2><small>Chat • Voice • Video • Voice Notes • Files</small></div>
+ <div class="grid">
+  <div class="feature" onclick="openModal('messages')"><div class="big">💬</div><h3>Chat</h3><p>Send messages and build conversations.</p></div>
+  <div class="feature" onclick="openModal('call')"><div class="big">📞</div><h3>Voice / Video Call</h3><p>Call interface ready for backend/WebRTC integration.</p></div>
+  <div class="feature" onclick="openModal('voice')"><div class="big">🎙️</div><h3>Voice Note</h3><p>Record and play a voice note directly in the browser.</p></div>
+  <div class="feature" onclick="openModal('files')"><div class="big">📁</div><h3>File Sharing</h3><p>Choose documents, images or other files for upload.</p></div>
+ </div>
+</section>
+
+<section class="section card" id="ai">
+ <div class="section-head"><h2>⑩ MSAFIRI AI COUNCIL</h2><small>AI assistants for life and work</small></div>
+ <div class="grid">
+  <div class="feature"><div class="big">🎓</div><h3>EduAI</h3><p>Learn from nursery level to advanced academic topics.</p></div>
+  <div class="feature"><div class="big">❤️</div><h3>HealthAI</h3><p>General health education and information.</p></div>
+  <div class="feature"><div class="big">🌱</div><h3>AgroAI</h3><p>Farming knowledge, crop ideas and planning.</p></div>
+  <div class="feature"><div class="big">💼</div><h3>BizAI</h3><p>Business ideas, planning and analysis.</p></div>
+  <div class="feature"><div class="big">🔬</div><h3>ResearchAI</h3><p>Research assistance, summaries and study guidance.</p></div>
+  <div class="feature"><div class="big">💻</div><h3>TechAI</h3><p>Programming, technology and digital project support.</p></div>
+ </div>
+ <div style="padding:13px"><div class="post" style="padding:13px">
+  <div class="muted">MSAFIRI AI — Online</div>
+  <p id="aiAnswer" style="margin:8px 0">Habari! Mimi ni MSAFIRI AI Council. Niambie unahitaji msaada katika nini leo?</p>
+  <div style="display:flex;gap:7px"><input id="aiInput" class="form" style="flex:1;background:#071326;border:1px solid #19324e;color:white;border-radius:10px;padding:10px" placeholder="Ask anything..."><button class="btn primary" onclick="askAI()">Ask</button></div>
+ </div></div>
+</section>
+
+<section class="section card" id="video">
+ <div class="section-head"><h2>③ MSAFIRI VIDEO</h2><small>For You • Following • Channels</small></div>
+ <div class="grid" id="videoGrid"></div>
+</section>
+
+<section class="section card" id="studio">
+ <div class="section-head"><h2>④ MSAFIRI STUDIO</h2><small>AI editor • Create • Export</small></div>
+ <div class="grid">
+  <div class="feature"><div class="big">✂️</div><h3>Trim</h3><p>Prepare your media for publishing.</p></div>
+  <div class="feature"><div class="big">📝</div><h3>Captions</h3><p>Add captions to your video workflow.</p></div>
+  <div class="feature"><div class="big">✨</div><h3>AI Effects</h3><p>Plan creative effects and transformations.</p></div>
+  <div class="feature"><div class="big">🌐</div><h3>Translate</h3><p>Prepare multilingual content.</p></div>
+ </div>
+ <div style="padding:13px"><label class="file-label">🎬 Choose video/image<input id="studioFile" type="file" accept="image/*,video/*" hidden onchange="studioPreview(this)"></label><div id="studioPreview"></div></div>
+</section>
+
+<section class="section card" id="search">
+ <div class="section-head"><h2>⑤ MSAFIRI SEARCH</h2><small>Web • Images • Videos • Docs • People</small></div>
+ <div class="search-results"><input id="searchPageInput" style="width:100%;padding:12px;background:#061225;border:1px solid #1b3552;color:white;border-radius:12px" placeholder="Search anything..." oninput="runSearch(this.value)"><div class="tabs"><button class="active">All</button><button>Web</button><button>Images</button><button>Videos</button><button>Docs</button><button>People</button></div><div id="searchResults"><div class="result"><b>AI Answer</b><p class="muted">Type a query above to search your local MSAFIRI content.</p></div></div></div>
+</section>
+
+<section class="section card" id="maps">
+ <div class="section-head"><h2>⑥ MSAFIRI MAPS</h2><small>Places • Businesses • Events • Routes</small></div>
+ <div class="map">
+  <div class="pin" style="left:22%;top:28%"><i></i></div><div class="pin" style="left:57%;top:22%"><i></i></div><div class="pin" style="left:71%;top:52%"><i></i></div><div class="pin" style="left:40%;top:64%"><i></i></div>
+  <div class="map-card"><b>📍 Tech Hub</b><div class="muted">Electronics / community location</div><button class="btn primary" style="width:100%;margin-top:8px" onclick="toast('Map directions module opened')">Directions</button></div>
+ </div>
+</section>
+
+<section class="section card" id="market">
+ <div class="section-head"><h2>⑦ MSAFIRI MARKET</h2><small>Products • Shops • Cart</small></div>
+ <div class="market-card" id="products"></div>
+</section>
+
+<section class="section card" id="vault">
+ <div class="section-head"><h2>⑧ MSAFIRI KNOWLEDGE VAULT</h2><small>Your private knowledge space</small></div>
+ <div class="grid">
+  <div class="feature"><div class="big">🗂️</div><h3>My Vault</h3><p>Documents, images, audio, video and notes.</p><button class="btn" onclick="openModal('files')">Open Vault</button></div>
+  <div class="feature"><div class="big">🤖</div><h3>AI Document Assistant</h3><p>Summarize, generate questions, extract data and translate.</p><button class="btn primary" onclick="toast('Document assistant ready')">Use Assistant</button></div>
+ </div>
+</section>
+
+<section class="section card" id="academy">
+ <div class="section-head"><h2>⑨ MSAFIRI ACADEMY</h2><small>Learn • Practice • Progress</small></div>
+ <div class="dashboard-grid" style="padding:13px">
+  <div class="card stat"><div class="muted">COURSE</div><strong>Communication Systems</strong><p class="muted">Module: Digital Modulation</p><progress value="60" max="100" style="width:100%"></progress></div>
+  <div class="card stat"><div class="muted">AI EXAM ASSISTANT</div><strong>82/100</strong><p class="muted">Good job. Keep improving.</p><progress value="82" max="100" style="width:100%"></progress></div>
+  <div class="card stat"><div class="muted">LESSON</div><strong>4 / 12</strong><p class="muted">Continue learning.</p><button class="btn primary" onclick="toast('Lesson opened')">Continue</button></div>
+ </div>
+</section>
+
+<section class="section card" id="reality">
+ <div class="section-head"><h2>⑫ MSAFIRI REALITY LAB</h2><small>AI-powered camera tools</small></div>
+ <div class="grid">
+  <div class="feature"><div class="big">📏</div><h3>Measure Length</h3><p>Upload an image and prepare measurement analysis.</p><button class="btn" onclick="openModal('reality')">Open</button></div>
+  <div class="feature"><div class="big">🍊</div><h3>Object Counter</h3><p>Count visible objects in an image.</p><button class="btn" onclick="openModal('reality')">Open</button></div>
+  <div class="feature"><div class="big">📄</div><h3>Text Scanner (OCR)</h3><p>Extract text from a photo using an OCR backend.</p><button class="btn" onclick="openModal('reality')">Open</button></div>
+  <div class="feature"><div class="big">🌈</div><h3>Color Analyzer</h3><p>Analyze colors from an uploaded image.</p><button class="btn" onclick="openModal('reality')">Open</button></div>
+  <div class="feature"><div class="big">🌺</div><h3>Plant Identifier</h3><p>Prepare an image for plant identification.</p><button class="btn" onclick="openModal('reality')">Open</button></div>
+ </div>
+</section>
+
+<section class="section card" id="collaborate">
+ <div class="section-head"><h2>⑬ MSAFIRI COLLABORATE</h2><small>Projects • Tasks • Team</small></div>
+ <div style="padding:15px"><b>Project: Smart Irrigation System</b><div style="margin:12px 0"><progress value="72" max="100" style="width:100%"></progress><span class="muted">72% complete</span></div><div class="tabs"><button>Overview</button><button>Tasks</button><button>Files</button><button>Team</button><button>Chat</button></div><button class="btn primary" onclick="toast('Collaboration workspace opened')">Open Project</button></div>
+</section>
+
+<section class="section card" id="channels">
+ <div class="section-head"><h2>⑭ MSAFIRI CHANNELS</h2><small>News • Education • Science • Entertainment</small></div>
+ <div class="grid">
+  <div class="feature"><div class="big">📰</div><h3>World News</h3><p>Follow channels and creators.</p><button class="btn primary" onclick="toast('Channel followed')">Follow</button></div>
+  <div class="feature"><div class="big">🎓</div><h3>Education</h3><p>Learning channels and communities.</p><button class="btn primary" onclick="toast('Channel followed')">Follow</button></div>
+  <div class="feature"><div class="big">🔬</div><h3>Science</h3><p>Research and discovery content.</p><button class="btn primary" onclick="toast('Channel followed')">Follow</button></div>
+  <div class="feature"><div class="big">🎙️</div><h3>Creators</h3><p>Discover new voices.</p><button class="btn primary" onclick="toast('Channel followed')">Follow</button></div>
+ </div>
+</section>
+
+<footer class="footer">MSAFIRI GLOBAL MEDIA • CONNECT BEYOND • One App. Endless Possibilities. • Secure • Fast • Cross Platform</footer>
+</main>
+
+<aside class="rightbar">
+ <div class="side-card right-card"><h3>MSAFIRI AI</h3><div style="padding:13px"><div class="post" style="padding:11px;font-size:12px">Habari! Mimi ni MSAFIRI AI. Niko tayari kukusaidia.</div><div class="tabs"><button onclick="showPage('ai')">Ask AI</button><button onclick="showPage('academy')">Learn</button></div></div></div>
+ <div class="side-card right-card"><h3>People you may know</h3>
+  <div class="person"><img src="https://i.pravatar.cc/80?img=5"><span><b>Asha M.</b><small class="muted"> Creator</small></span><button class="btn" onclick="toast('Followed Asha M.')">+</button></div>
+  <div class="person"><img src="https://i.pravatar.cc/80?img=11"><span><b>John O.</b><small class="muted"> Engineer</small></span><button class="btn" onclick="toast('Followed John O.')">+</button></div>
+  <div class="person"><img src="https://i.pravatar.cc/80?img=32"><span><b>Amira K.</b><small class="muted"> Student</small></span><button class="btn" onclick="toast('Followed Amira K.')">+</button></div>
+ </div>
+ <div class="side-card right-card"><h3>Trending</h3><div style="padding:13px;line-height:2;font-size:12px"><div>#Technology</div><div>#Education</div><div>#Africa</div><div>#Innovation</div><div>#MSAFIRI</div></div></div>
+</aside>
 </div>
 
+<nav class="mobile-nav">
+ <button class="active" onclick="showPage('home')"><span class="mi">🏠</span>Home</button>
+ <button onclick="showPage('people')"><span class="mi">👥</span>People</button>
+ <button onclick="openComposer()"><span class="mi">＋</span>Create</button>
+ <button onclick="showPage('video')"><span class="mi">▶️</span>Video</button>
+ <button onclick="openModal('profile')"><span class="mi">👤</span>Me</button>
+</nav>
 
-<!-- WALLPAPER MODAL -->
-<div id="wallpaperModal" class="modal">
-
-  <div class="modalBox">
-
-    <div class="modalHeader">
-
-      <h3>Chat Wallpaper</h3>
-
-      <button class="closeBtn" onclick="closeModal('wallpaperModal')">
-        ×
-      </button>
-
-    </div>
-
-    <input
-      id="wallpaperFile"
-      class="input"
-      type="file"
-      accept="image/*"
-      onchange="previewWallpaper()"
-    >
-
-    <img
-      id="wallpaperPreview"
-      style="display:none;width:100%;max-height:300px;object-fit:cover;border-radius:13px;margin-top:12px"
-      alt="Wallpaper preview"
-    >
-
-    <button
-      class="primary"
-      style="margin-top:12px"
-      onclick="saveWallpaper()"
-    >
-      Save Wallpaper
-    </button>
-
-  </div>
-
+<div id="modalRoot"></div><div id="toastRoot"></div>
 </div>
-
-
-<!-- CALL MODAL -->
-<div id="callModal" class="modal">
-
-  <div class="modalBox">
-
-    <div class="modalHeader">
-
-      <h3 id="callTitle">Call</h3>
-
-      <button class="closeBtn" onclick="endCall()">
-        ×
-      </button>
-
-    </div>
-
-    <div
-      id="callStatus"
-      class="empty"
-    >
-      Preparing call...
-    </div>
-
-    <div
-      id="callRoom"
-      style="min-height:150px;background:#02040d;border-radius:15px"
-    ></div>
-
-  </div>
-
-</div>
-
-
-<div id="toast"></div>
-
 
 <script>
-
 /* ============================================================
-   MSAFIRI GLOBAL MEDIA V4
-   SINGLE FILE FRONTEND
+   MSAFIRI GLOBAL MEDIA — frontend
+   Change API_BASE to your Render backend URL when deployed.
+   The UI also works in demo/offline mode with localStorage.
    ============================================================ */
-
-const API = "https://msafiri-global-media-3-1.onrender.com";
-const TOKEN_KEY = "msafiri_token";
-
-let TOKEN = localStorage.getItem(TOKEN_KEY) || "";
-let ME = null;
-let CURRENT_CHAT_USER = null;
-let CURRENT_CHAT_ID = null;
-let MEDIA_RECORDER = null;
-let AUDIO_CHUNKS = [];
-let LIVEKIT_ROOM = null;
-let liveKitLoaded = false;
-
-
-/* ============================================================
-   HELPERS
-   ============================================================ */
-
-const $ = id => document.getElementById(id);
-
-function toast(message){
-
-  const box = $("toast");
-
-  box.textContent = String(message || "");
-
-  box.style.display = "block";
-
-  clearTimeout(window.__toastTimer);
-
-  window.__toastTimer = setTimeout(() => {
-    box.style.display = "none";
-  },3000);
+const API_BASE = window.MSAFIRI_API_BASE || "";
+const STORE="msafiri_global_media_v1";
+const demoPosts=[
+ {id:"1",user:"Amina K.",handle:"@amina",text:"Karibu MSAFIRI GLOBAL MEDIA — Connect Beyond. Tujenge dunia bora pamoja. 🌍✨",type:"text",likes:245,comments:32,created:Date.now()-3600000,avatar:"https://i.pravatar.cc/100?img=47"},
+ {id:"2",user:"David S.",handle:"@davids",text:"Beautiful day with nature. 📸",type:"image",media:"https://images.unsplash.com/photo-1500534623283-312aade485b7?auto=format&fit=crop&w=1200&q=80",likes:128,comments:18,created:Date.now()-7200000,avatar:"https://i.pravatar.cc/100?img=12"},
+ {id:"3",user:"Communication Engineers TZ",handle:"@engineers",text:"Engineering & technology discussion. What are you building today? ⚙️",type:"text",likes:76,comments:11,created:Date.now()-10800000,avatar:"https://i.pravatar.cc/100?img=68"}
+];
+const products=[
+ {name:"4K Camera Drone",price:"TZS 560,000",img:"https://images.unsplash.com/photo-1473968512647-3e447244af8f?auto=format&fit=crop&w=700&q=80"},
+ {name:"Smart Inverter",price:"TZS 490,000",img:"https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?auto=format&fit=crop&w=700&q=80"},
+ {name:"ESP32 Board",price:"TZS 18,000",img:"https://images.unsplash.com/photo-1553406830-ef2513450d52?auto=format&fit=crop&w=700&q=80"},
+ {name:"Tech Drone",price:"TZS 210,000",img:"https://images.unsplash.com/photo-1508614589041-895b88991e3e?auto=format&fit=crop&w=700&q=80"}
+];
+let state=loadState();
+function loadState(){
+ try{return JSON.parse(localStorage.getItem(STORE))||{posts:demoPosts,user:null,likes:{},cart:[]}}catch(e){return{posts:demoPosts,user:null,likes:{},cart:[]}}
 }
-
-
-function safeText(value){
-
-  if(value === null || value === undefined){
-    return "";
-  }
-
-  return String(value);
+function save(){localStorage.setItem(STORE,JSON.stringify(state))}
+function toast(msg){const r=document.getElementById("toastRoot");r.innerHTML=`<div class="toast">${escapeHtml(msg)}</div>`;setTimeout(()=>r.innerHTML="",2800)}
+function escapeHtml(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
+function fmtTime(t){let m=Math.floor((Date.now()-t)/60000);if(m<1)return"now";if(m<60)return m+"m";let h=Math.floor(m/60);if(h<24)return h+"h";return Math.floor(h/24)+"d"}
+function currentAvatar(){return state.user?.avatar||"https://i.pravatar.cc/100?img=12"}
+function renderIdentity(){
+ document.getElementById("topAvatar").src=currentAvatar();document.getElementById("sideAvatar").src=currentAvatar();document.getElementById("composerAvatar").src=currentAvatar();
+ document.getElementById("sideName").textContent=state.user?.name||"Guest User";
 }
-
-
-function escapeHtml(value){
-
-  return safeText(value)
-    .replaceAll("&","&amp;")
-    .replaceAll("<","&lt;")
-    .replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;")
-    .replaceAll("'","&#039;");
+function renderFeed(filter="all"){
+ const feed=document.getElementById("feed");let posts=state.posts||[];
+ if(filter==="video")posts=posts.filter(p=>p.type==="video");
+ if(filter==="photos")posts=posts.filter(p=>p.type==="image");
+ if(filter==="following")posts=posts.slice(1);
+ feed.innerHTML=posts.map(p=>{
+  const liked=!!state.likes[p.id];
+  const media=p.type==="image"?`<img class="post-media" src="${escapeHtml(p.media)}" alt="post image">`:p.type==="video"?`<video class="post-media" src="${escapeHtml(p.media)}" controls playsinline></video>`:"";
+  return `<article class="post">
+   <div class="post-head"><img src="${escapeHtml(p.avatar||currentAvatar())}"><div><b>${escapeHtml(p.user)}</b><div class="muted">${escapeHtml(p.handle||"@user")} • ${fmtTime(p.created)}</div></div><button class="icon-btn more" onclick="toast('Post options opened')">⋯</button></div>
+   <div class="post-body">${escapeHtml(p.text||"")}</div>${media}
+   <div class="post-actions"><button class="${liked?"liked":""}" onclick="likePost('${p.id}')">♥ ${p.likes||0}</button><button onclick="focusComment('${p.id}')">💬 ${p.comments||0}</button><button onclick="sharePost('${p.id}')">↗ Share</button><button onclick="savePost('${p.id}')">🔖 Save</button></div>
+   <div class="comment-box"><input id="comment-${p.id}" placeholder="Write a comment..." onkeydown="if(event.key==='Enter')commentPost('${p.id}')"><button class="btn" onclick="commentPost('${p.id}')">Send</button></div>
+  </article>`
+ }).join("")||`<div class="muted" style="padding:20px">No posts in this view.</div>`;
 }
-
-
-function mediaUrl(url){
-
-  if(!url){
-    return "";
-  }
-
-  try{
-    return new URL(url,API).href;
-  }catch{
-    return url;
-  }
+function likePost(id){const p=state.posts.find(x=>x.id===id);if(!p)return;if(state.likes[id]){p.likes=Math.max(0,(p.likes||0)-1);delete state.likes[id]}else{p.likes=(p.likes||0)+1;state.likes[id]=1}save();renderFeed()}
+function commentPost(id){const i=document.getElementById("comment-"+id);if(!i.value.trim())return;const p=state.posts.find(x=>x.id===id);p.comments=(p.comments||0)+1;save();i.value="";renderFeed();toast("Comment added")}
+function focusComment(id){setTimeout(()=>document.getElementById("comment-"+id)?.focus(),50)}
+function sharePost(id){navigator.clipboard?.writeText(location.href+"#post-"+id);toast("Post link copied")}
+function savePost(id){toast("Post saved to Knowledge Vault")}
+function filterFeed(f,b){document.querySelectorAll("#feedTabs button").forEach(x=>x.classList.remove("active"));b.classList.add("active");renderFeed(f)}
+function openComposer(){
+ document.getElementById("modalRoot").innerHTML=`<div class="modal" onclick="if(event.target===this)closeModal()"><div class="modal-card"><div class="modal-head"><h2>Create Post</h2><button class="icon-btn" onclick="closeModal()">×</button></div>
+ <form class="form" onsubmit="publishPost(event)"><textarea id="postText" placeholder="What do you want to share with the world?"></textarea>
+ <label class="file-label">📎 Add image/video<input id="postFile" type="file" accept="image/*,video/*" hidden onchange="previewPostFile(this)"></label><div id="postPreview"></div>
+ <div style="display:flex;justify-content:flex-end;gap:8px"><button type="button" class="btn" onclick="closeModal()">Cancel</button><button class="btn primary">Publish</button></div></form></div></div>`
 }
-
-
-function showFileName(inputId,targetId){
-
-  const input = $(inputId);
-  const target = $(targetId);
-
-  if(!input || !target){
-    return;
-  }
-
-  target.textContent =
-    input.files && input.files[0]
-      ? input.files[0].name
-      : "";
+let selectedPostFile=null;
+function previewPostFile(input){selectedPostFile=input.files[0]||null;if(!selectedPostFile)return;const u=URL.createObjectURL(selectedPostFile);document.getElementById("postPreview").innerHTML=selectedPostFile.type.startsWith("video/")?`<video class="preview" controls src="${u}"></video>`:`<img class="preview" src="${u}">`}
+async function publishPost(e){
+ e.preventDefault();const text=document.getElementById("postText").value.trim();if(!text&&!selectedPostFile){toast("Write something or select media");return}
+ let media="",type="text";
+ if(selectedPostFile){media=await fileToDataUrl(selectedPostFile);type=selectedPostFile.type.startsWith("video/")?"video":"image"}
+ const p={id:crypto.randomUUID?.()||String(Date.now()),user:state.user?.name||"Guest User",handle:state.user?"@"+state.user.username:"@guest",text,type,media,likes:0,comments:0,created:Date.now(),avatar:currentAvatar()};
+ state.posts.unshift(p);save();selectedPostFile=null;closeModal();renderFeed();toast("Post published")}
+function fileToDataUrl(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(file)})}
+function showPage(page){
+ if(page==="home"){window.scrollTo({top:0,behavior:"smooth"});return}
+ const el=document.getElementById(page);if(el){el.scrollIntoView({behavior:"smooth",block:"start"});return}
+ if(page==="people"){toast("People discovery opened");return}
+ toast(page+" module opened")
 }
-
-
-function setAuthMessage(message){
-
-  $("authMsg").textContent = safeText(message);
+document.querySelectorAll(".nav button[data-page]").forEach(b=>b.addEventListener("click",()=>{document.querySelectorAll(".nav button[data-page]").forEach(x=>x.classList.remove("active"));b.classList.add("active");showPage(b.dataset.page)}));
+document.getElementById("globalSearch").addEventListener("keydown",e=>{if(e.key==="Enter"){document.getElementById("searchPageInput").value=e.target.value;showPage("search");runSearch(e.target.value)}})
+function runSearch(q){q=q.trim().toLowerCase();const r=document.getElementById("searchResults");if(!q){r.innerHTML=`<div class="result"><b>Search</b><p class="muted">Type something to search.</p></div>`;return}const hits=state.posts.filter(p=>(p.text+" "+p.user).toLowerCase().includes(q));r.innerHTML=(hits.length?hits.map(p=>`<div class="result"><b>${escapeHtml(p.user)}</b><p>${escapeHtml(p.text)}</p></div>`).join(""):`<div class="result"><b>AI Answer</b><p>No local result for <b>${escapeHtml(q)}</b>. Connect a web-search endpoint in your backend for global search.</p></div>`) }
+function renderVideos(){
+ const vids=state.posts.filter(p=>p.type==="video");document.getElementById("videoGrid").innerHTML=(vids.length?vids:demoPosts.filter(p=>p.type==="image")).map(p=>`<div class="feature">${p.type==="video"?`<video style="width:100%;height:180px;object-fit:cover;border-radius:11px" controls src="${escapeHtml(p.media)}"></video>`:`<img style="width:100%;height:180px;object-fit:cover;border-radius:11px" src="${escapeHtml(p.media)}">`}<h3>${escapeHtml(p.text||"MSAFIRI video")}</h3><p>${escapeHtml(p.user)}</p></div>`).join("")}
+function renderProducts(){document.getElementById("products").innerHTML=products.map((p,i)=>`<div class="product"><img src="${p.img}" alt=""><strong>${p.name}</strong><div class="muted">${p.price}</div><button class="btn primary" onclick="addCart(${i})">Add to Cart</button></div>`).join("")}
+function addCart(i){state.cart.push(products[i]);save();toast(products[i].name+" added to cart")}
+function askAI(){
+ const q=document.getElementById("aiInput").value.trim();if(!q)return;
+ document.getElementById("aiAnswer").textContent="Thinking...";
+ setTimeout(()=>{document.getElementById("aiAnswer").textContent=`Demo AI response: I can help you explore “${q}”. Connect your backend AI endpoint to make this assistant fully server-powered.`},500)
 }
-
-
-function setBusy(buttonId,busy,text){
-
-  const button = $(buttonId);
-
-  if(!button){
-    return;
-  }
-
-  if(busy){
-
-    button.dataset.oldText = button.textContent;
-
-    button.disabled = true;
-
-    button.textContent = text || "Please wait...";
-
-  }else{
-
-    button.disabled = false;
-
-    button.textContent =
-      button.dataset.oldText || button.textContent;
-  }
+function studioPreview(input){const f=input.files[0];if(!f)return;const u=URL.createObjectURL(f);document.getElementById("studioPreview").innerHTML=f.type.startsWith("video/")?`<video class="preview" controls src="${u}"></video>`:`<img class="preview" src="${u}">`}
+function openModal(type){
+ let content="";
+ if(type==="auth")content=`<div class="modal-card"><div class="modal-head"><h2>MSAFIRI Account</h2><button class="icon-btn" onclick="closeModal()">×</button></div><div class="tabs"><button class="active" onclick="switchAuth('login',this)">Login</button><button onclick="switchAuth('register',this)">Register</button></div><div id="authForm"><form class="form" onsubmit="login(event)"><label>Email</label><input id="authEmail" type="email" required placeholder="you@example.com"><label>Password</label><input id="authPassword" type="password" required placeholder="••••••••"><button class="btn primary">Login</button><p class="muted">Backend API: ${API_BASE||"local demo mode"}</p></form></div></div>`;
+ else if(type==="profile")content=`<div class="modal-card"><div class="modal-head"><h2>Your Profile</h2><button class="icon-btn" onclick="closeModal()">×</button></div><div class="profile-row"><img src="${currentAvatar()}" style="width:70px;height:70px;border-radius:50%;object-fit:cover"><div><b>${escapeHtml(state.user?.name||"Guest User")}</b><div class="muted">${escapeHtml(state.user?"@"+state.user.username:"@guest")}</div></div></div><hr style="border-color:#19324e;margin:18px 0"><button class="btn primary" onclick="openModal('auth')">Login / Register</button></div>`;
+ else if(type==="notifications")content=`<div class="modal-card"><div class="modal-head"><h2>Notifications</h2><button class="icon-btn" onclick="closeModal()">×</button></div><div class="result">❤️ Someone liked your post.</div><div class="result">💬 New comment on your post.</div><div class="result">🤝 New collaboration invitation.</div></div>`;
+ else if(type==="messages")content=`<div class="modal-card"><div class="modal-head"><h2>MSAFIRI Chat</h2><button class="icon-btn" onclick="closeModal()">×</button></div><div class="post" style="padding:12px;margin-bottom:10px"><b>Asha M.</b><p class="muted">Welcome to Connect Beyond! 👋</p></div><form class="form" onsubmit="sendMessage(event)"><input id="messageInput" placeholder="Type a message..." required><button class="btn primary">Send</button></form></div>`;
+ else if(type==="voice")content=`<div class="modal-card"><div class="modal-head"><h2>Voice Note</h2><button class="icon-btn" onclick="closeModal()">×</button></div><p class="muted">Record a voice note using your browser microphone.</p><button id="recordBtn" class="btn primary" onclick="toggleRecord()">🎙️ Start Recording</button><audio id="recordedAudio" controls class="hidden" style="width:100%;margin-top:12px"></audio><p id="recordStatus" class="muted"></p></div>`;
+ else if(type==="files")content=`<div class="modal-card"><div class="modal-head"><h2>File Sharing / Vault</h2><button class="icon-btn" onclick="closeModal()">×</button></div><label class="file-label">📁 Choose files<input type="file" multiple hidden onchange="listFiles(this)"></label><div id="fileList" style="margin-top:13px"></div></div>`;
+ else if(type==="call")content=`<div class="modal-card"><div class="modal-head"><h2>Call Center</h2><button class="icon-btn" onclick="closeModal()">×</button></div><div class="grid"><div class="feature"><div class="big">📞</div><h3>Voice Call</h3><button class="btn primary" onclick="toast('Voice call requested')">Start</button></div><div class="feature"><div class="big">📹</div><h3>Video Call</h3><button class="btn primary" onclick="toast('Video call requested')">Start</button></div></div><p class="muted">For production calls, connect this UI to your WebRTC/LiveKit backend.</p></div>`;
+ else if(type==="reality")content=`<div class="modal-card"><div class="modal-head"><h2>Reality Lab</h2><button class="icon-btn" onclick="closeModal()">×</button></div><label class="file-label">📷 Choose an image<input type="file" accept="image/*" hidden onchange="realityPreview(this)"></label><div id="realityPreview"></div><div class="grid"><button class="btn" onclick="toast('OCR request queued')">Text OCR</button><button class="btn" onclick="toast('Object analysis queued')">Count Objects</button><button class="btn" onclick="toast('Color analysis queued')">Analyze Color</button><button class="btn" onclick="toast('Plant identification queued')">Identify Plant</button></div></div>`;
+ document.getElementById("modalRoot").innerHTML=`<div class="modal" onclick="if(event.target===this)closeModal()">${content}</div>`;
 }
-
-
-/* ============================================================
-   API HELPER
-   ============================================================ */
-
-async function api(path,options={}){
-
-  const config = {...options};
-
-  const headers = new Headers(config.headers || {});
-
-  if(TOKEN){
-    headers.set("Authorization","Bearer " + TOKEN);
-  }
-
-  const body = config.body;
-
-  if(
-    body &&
-    !(body instanceof FormData) &&
-    !(body instanceof Blob) &&
-    !(body instanceof URLSearchParams) &&
-    typeof body === "object"
-  ){
-
-    config.body = JSON.stringify(body);
-
-    if(!headers.has("Content-Type")){
-      headers.set("Content-Type","application/json");
-    }
-
-  }
-
-  config.headers = headers;
-
-  let response;
-
-  try{
-
-    response = await fetch(API + path,config);
-
-  }catch(error){
-
-    throw new Error(
-      "Unable to connect to the server. Please check your internet connection or try again."
-    );
-
-  }
-
-  const raw = await response.text();
-
-  let data = null;
-
-  if(raw){
-
-    try{
-      data = JSON.parse(raw);
-    }catch{
-      data = raw;
-    }
-
-  }
-
-  if(!response.ok){
-
-    let message =
-      "Request failed (" +
-      response.status +
-      ")";
-
-    if(data){
-
-      if(typeof data === "string"){
-        message = data.slice(0,300);
-      }else{
-
-        message =
-          data.detail ||
-          data.message ||
-          data.error ||
-          message;
-
-      }
-
-    }
-
-    if(response.status === 401){
-
-      TOKEN = "";
-
-      localStorage.removeItem(TOKEN_KEY);
-
-    }
-
-    throw new Error(message);
-
-  }
-
-  return data;
-
-}
-
-
-/* ============================================================
-   AUTH
-   ============================================================ */
-
-function showAuth(mode){
-
-  const login = mode === "login";
-
-  $("loginForm").classList.toggle("hidden",!login);
-  $("registerForm").classList.toggle("hidden",login);
-
-  $("loginTab").classList.toggle("active",login);
-  $("registerTab").classList.toggle("active",!login);
-
-  setAuthMessage("");
-}
-
-
-async function login(event){
-
-  event.preventDefault();
-
-  const email = $("loginEmail").value.trim();
-  const password = $("loginPassword").value;
-
-  if(!email || !password){
-    setAuthMessage("Please enter your email and password.");
-    return;
-  }
-
-  setBusy("loginBtn",true,"Logging in...");
-
-  try{
-
-    const data = await api("/api/login",{
-      method:"POST",
-      body:{
-        email,
-        password
-      }
-    });
-
-    const token =
-      data?.token ||
-      data?.access_token ||
-      data?.accessToken;
-
-    if(!token){
-      throw new Error(
-        "Login succeeded but the server did not return an access token."
-      );
-    }
-
-    TOKEN = token;
-
-    localStorage.setItem(TOKEN_KEY,TOKEN);
-
-    await loadMe();
-
-    showApp();
-
-    toast("Welcome back!");
-
-  }catch(error){
-
-    setAuthMessage(error.message);
-
-  }finally{
-
-    setBusy("loginBtn",false);
-
-  }
-
-}
-
-
-async function register(event){
-
-  event.preventDefault();
-
-  const name = $("registerName").value.trim();
-  const email = $("registerEmail").value.trim();
-  const password = $("registerPassword").value;
-
-  if(!name || !email || !password){
-    setAuthMessage("Please complete all fields.");
-    return;
-  }
-
-  setBusy("registerBtn",true,"Creating account...");
-
-  try{
-
-    const data = await api("/api/register",{
-      method:"POST",
-      body:{
-        name,
-        email,
-        password
-      }
-    });
-
-    const token =
-      data?.token ||
-      data?.access_token ||
-      data?.accessToken;
-
-    if(token){
-
-      TOKEN = token;
-
-      localStorage.setItem(TOKEN_KEY,TOKEN);
-
-      await loadMe();
-
-      showApp();
-
-      toast("Account created successfully!");
-
-    }else{
-
-      setAuthMessage(
-        "Account created. Please login with your new account."
-      );
-
-      showAuth("login");
-
-      $("loginEmail").value = email;
-
-    }
-
-  }catch(error){
-
-    setAuthMessage(error.message);
-
-  }finally{
-
-    setBusy("registerBtn",false);
-
-  }
-
-}
-
-
-async function loadMe(){
-
-  const data = await api("/api/me");
-
-  ME =
-    data?.user ||
-    data?.data ||
-    data;
-
-  updateUserUI();
-
-  return ME;
-}
-
-
-function updateUserUI(){
-
-  if(!ME){
-    return;
-  }
-
-  const name =
-    ME.name ||
-    ME.full_name ||
-    ME.username ||
-    "User";
-
-  const email =
-    ME.email ||
-    "-";
-
-  const avatar =
-    mediaUrl(
-      ME.avatar ||
-      ME.avatar_url ||
-      ME.profile_picture ||
-      ""
-    );
-
-  $("sideName").textContent = name;
-  $("sideEmail").textContent = email;
-
-  $("profileName").textContent = name;
-  $("profileEmail").textContent = email;
-
-  $("editName").value = name;
-
-  $("editBio").value =
-    ME.bio ||
-    "";
-
-  const fallback =
-    "https://ui-avatars.com/api/?name=" +
-    encodeURIComponent(name) +
-    "&background=101a35&color=ffffff";
-
-  const avatarSrc = avatar || fallback;
-
-  $("sideAvatar").src = avatarSrc;
-  $("homeAvatar").src = avatarSrc;
-  $("profileAvatar").src = avatarSrc;
-}
-
-
-function showApp(){
-
-  $("authScreen").classList.add("hidden");
-  $("app").classList.remove("hidden");
-
-  updateUserUI();
-
-  openSection("home");
-
-  loadFeed();
-  loadChatList();
-}
-
-
-function showAuthScreen(){
-
-  $("app").classList.add("hidden");
-  $("authScreen").classList.remove("hidden");
-
-  showAuth("login");
-}
-
-
-/* ============================================================
-   LOGOUT / DELETE
-   ============================================================ */
-
-async function logout(){
-
-  try{
-
-    if(TOKEN){
-
-      await api("/api/logout",{
-        method:"POST"
-      });
-
-    }
-
-  }catch{}
-
-  TOKEN = "";
-  ME = null;
-
-  localStorage.removeItem(TOKEN_KEY);
-
-  showAuthScreen();
-
-  toast("Logged out.");
-
-}
-
-
-async function deleteAccount(){
-
-  const ok = confirm(
-    "Are you sure you want to delete your account?"
-  );
-
-  if(!ok){
-    return;
-  }
-
-  try{
-
-    await api("/api/account",{
-      method:"DELETE"
-    });
-
-    TOKEN = "";
-
-    ME = null;
-
-    localStorage.removeItem(TOKEN_KEY);
-
-    showAuthScreen();
-
-    toast("Account deletion request completed.");
-
-  }catch(error){
-
-    toast(error.message);
-
-  }
-
-}
-
-
-/* ============================================================
-   NAVIGATION
-   ============================================================ */
-
-function openSection(name){
-
-  document.querySelectorAll(".section").forEach(section => {
-    section.classList.remove("active");
-  });
-
-  const target = $("section-" + name);
-
-  if(target){
-    target.classList.add("active");
-  }
-
-  document.querySelectorAll("[data-section]").forEach(button => {
-
-    button.classList.toggle(
-      "active",
-      button.dataset.section === name
-    );
-
-  });
-
-  if(name === "home"){
-    loadFeed();
-  }
-
-  if(name === "chat"){
-    loadChatList();
-  }
-
-  if(name === "profile"){
-    updateUserUI();
-  }
-
-  window.scrollTo({
-    top:0,
-    behavior:"smooth"
-  });
-
-}
-
-
-/* ============================================================
-   FEED
-   ============================================================ */
-
-async function loadFeed(){
-
-  const box = $("feed");
-
-  box.innerHTML =
-    '<div class="loading">Loading posts...</div>';
-
-  try{
-
-    const result = await api("/api/posts");
-
-    let posts = [];
-
-    if(Array.isArray(result)){
-      posts = result;
-    }else if(Array.isArray(result?.posts)){
-      posts = result.posts;
-    }else if(Array.isArray(result?.data)){
-      posts = result.data;
-    }else if(Array.isArray(result?.data?.posts)){
-      posts = result.data.posts;
-    }
-
-    if(!posts.length){
-
-      box.innerHTML =
-        '<div class="card empty">No posts yet. Be the first to post.</div>';
-
-      return;
-    }
-
-    box.innerHTML = "";
-
-    posts.forEach(post => {
-      box.appendChild(renderPost(post));
-    });
-
-  }catch(error){
-
-    box.innerHTML =
-      '<div class="card empty">' +
-      escapeHtml(error.message) +
-      "</div>";
-
-  }
-
-}
-
-
-function renderPost(post){
-
-  const article = document.createElement("article");
-
-  article.className = "card post";
-
-  const id =
-    post.id ||
-    post.post_id ||
-    "";
-
-  const user =
-    post.user ||
-    post.author ||
-    {};
-
-  const name =
-    post.user_name ||
-    post.author_name ||
-    user.name ||
-    user.username ||
-    "User";
-
-  const avatar =
-    mediaUrl(
-      post.avatar ||
-      post.user_avatar ||
-      user.avatar ||
-      ""
-    ) ||
-    "https://ui-avatars.com/api/?name=" +
-    encodeURIComponent(name) +
-    "&background=101a35&color=ffffff";
-
-  const caption =
-    post.caption ||
-    post.content ||
-    "";
-
-  const date =
-    post.created_at ||
-    post.created ||
-    "";
-
-  let media = "";
-
-  const url =
-    mediaUrl(
-      post.media_url ||
-      post.file_url ||
-      post.url ||
-      post.media ||
-      ""
-    );
-
-  const type =
-    post.media_type ||
-    post.mime_type ||
-    "";
-
-  if(url){
-
-    if(type.startsWith("video") || /\.(mp4|webm|mov|m4v)$/i.test(url)){
-
-      media =
-        '<video class="postMedia" controls preload="metadata" src="' +
-        escapeHtml(url) +
-        '"></video>';
-
-    }else if(type.startsWith("audio") || /\.(mp3|wav|ogg|m4a|aac)$/i.test(url)){
-
-      media =
-        '<audio style="width:100%" controls src="' +
-        escapeHtml(url) +
-        '"></audio>';
-
-    }else{
-
-      media =
-        '<img class="postMedia" loading="lazy" src="' +
-        escapeHtml(url) +
-        '" alt="Post media">';
-
-    }
-
-  }
-
-  article.innerHTML = `
-
-    <div class="postHeader">
-
-      <div class="postUser">
-
-        <img
-          class="avatar"
-          src="${escapeHtml(avatar)}"
-          alt=""
-        >
-
-        <div>
-
-          <div class="userName">
-            ${escapeHtml(name)}
-          </div>
-
-          <div class="postDate">
-            ${escapeHtml(formatDate(date))}
-          </div>
-
-        </div>
-
-      </div>
-
-    </div>
-
-    ${
-      caption
-      ?
-      `<div class="postCaption">${escapeHtml(caption)}</div>`
-      :
-      ""
-    }
-
-    ${media}
-
-    <div class="postActions">
-
-      <button onclick="likePost('${escapeHtml(id)}',this)">
-        ♥ Like
-      </button>
-
-      <button onclick="focusComment('${escapeHtml(id)}')">
-        💬 Comment
-      </button>
-
-      <button onclick="savePost('${escapeHtml(id)}',this)">
-        🔖 Save
-      </button>
-
-      <button onclick="sharePost('${escapeHtml(id)}')">
-        ↗ Share
-      </button>
-
-    </div>
-
-    <div class="commentBox">
-
-      <input
-        id="comment-${escapeHtml(id)}"
-        class="input"
-        placeholder="Write a comment..."
-      >
-
-      <button
-        class="secondary"
-        onclick="sendComment('${escapeHtml(id)}')"
-      >
-        Send
-      </button>
-
-    </div>
-
-  `;
-
-  return article;
-
-}
-
-
-function formatDate(value){
-
-  if(!value){
-    return "";
-  }
-
-  try{
-    return new Date(value).toLocaleString();
-  }catch{
-    return String(value);
-  }
-
-}
-
-
-/* ============================================================
-   CREATE POSTS
-   ============================================================ */
-
-async function quickPost(){
-
-  const caption = $("quickCaption").value.trim();
-  const file = $("quickFile").files[0];
-
-  if(!caption && !file){
-
-    toast("Write a caption or select a file.");
-
-    return;
-  }
-
-  try{
-
-    const form = new FormData();
-
-    form.append("caption",caption);
-
-    if(file){
-      form.append("file",file);
-    }
-
-    await api("/api/posts",{
-      method:"POST",
-      body:form
-    });
-
-    $("quickCaption").value = "";
-    $("quickFile").value = "";
-    $("quickFileName").textContent = "";
-
-    toast("Post published.");
-
-    await loadFeed();
-
-  }catch(error){
-
-    toast(error.message);
-
-  }
-
-}
-
-
-async function createPost(){
-
-  const caption = $("postCaption").value.trim();
-  const file = $("postFile").files[0];
-
-  if(!caption && !file){
-
-    $("postMsg").textContent =
-      "Write a caption or select a media file.";
-
-    return;
-  }
-
-  try{
-
-    const form = new FormData();
-
-    form.append("caption",caption);
-
-    if(file){
-      form.append("file",file);
-    }
-
-    await api("/api/posts",{
-      method:"POST",
-      body:form
-    });
-
-    $("postCaption").value = "";
-    $("postFile").value = "";
-    $("postFileName").textContent = "";
-
-    $("postMsg").textContent =
-      "Post published successfully.";
-
-    toast("Post published.");
-
-    await loadFeed();
-
-    openSection("home");
-
-  }catch(error){
-
-    $("postMsg").textContent =
-      error.message;
-
-  }
-
-}
-
-
-/* ============================================================
-   POST ACTIONS
-   ============================================================ */
-
-async function likePost(id,button){
-
-  if(!id){
-    toast("Post ID unavailable.");
-    return;
-  }
-
-  const endpoints = [
-    `/api/posts/${encodeURIComponent(id)}/like`,
-    `/api/posts/${encodeURIComponent(id)}/likes`
-  ];
-
-  for(const endpoint of endpoints){
-
-    try{
-
-      await api(endpoint,{
-        method:"POST"
-      });
-
-      button.classList.toggle("active");
-
-      return;
-
-    }catch{}
-
-  }
-
-  toast("Like endpoint is not available yet.");
-
-}
-
-
-function focusComment(id){
-
-  const input = $("comment-" + id);
-
-  if(input){
-    input.focus();
-  }
-
-}
-
-
-async function sendComment(id){
-
-  const input = $("comment-" + id);
-
-  if(!input){
-    return;
-  }
-
-  const text = input.value.trim();
-
-  if(!text){
-    return;
-  }
-
-  const endpoints = [
-    `/api/posts/${encodeURIComponent(id)}/comments`,
-    `/api/comments`
-  ];
-
-  for(const endpoint of endpoints){
-
-    try{
-
-      let body;
-
-      if(endpoint === "/api/comments"){
-
-        body = {
-          post_id:id,
-          content:text
-        };
-
-      }else{
-
-        body = {
-          content:text,
-          text
-        };
-
-      }
-
-      await api(endpoint,{
-        method:"POST",
-        body
-      });
-
-      input.value = "";
-
-      toast("Comment sent.");
-
-      return;
-
-    }catch{}
-
-  }
-
-  toast("Comment endpoint is not available yet.");
-
-}
-
-
-async function savePost(id,button){
-
-  try{
-
-    await api(
-      `/api/posts/${encodeURIComponent(id)}/save`,
-      {method:"POST"}
-    );
-
-    button.classList.toggle("active");
-
-  }catch{
-
-    toast("Save feature is not available yet.");
-
-  }
-
-}
-
-
-function sharePost(id){
-
-  const link =
-    location.origin +
-    location.pathname +
-    "?post=" +
-    encodeURIComponent(id);
-
-  if(navigator.share){
-
-    navigator.share({
-      title:"MSAFIRI GLOBAL MEDIA",
-      text:"Check this post",
-      url:link
-    }).catch(()=>{});
-
-  }else{
-
-    navigator.clipboard?.writeText(link);
-
-    toast("Post link copied.");
-
-  }
-
-}
-
-
-/* ============================================================
-   SEARCH
-   ============================================================ */
-
-async function searchUsers(){
-
-  const q = $("searchInput").value.trim();
-
-  if(!q){
-
-    toast("Enter a name or email.");
-
-    return;
-  }
-
-  const box = $("searchResults");
-
-  box.innerHTML =
-    '<div class="loading">Searching...</div>';
-
-  const endpoints = [
-    "/api/users?search=" + encodeURIComponent(q),
-    "/api/search?q=" + encodeURIComponent(q)
-  ];
-
-  for(const endpoint of endpoints){
-
-    try{
-
-      const result = await api(endpoint);
-
-      let users = [];
-
-      if(Array.isArray(result)){
-        users = result;
-      }else if(Array.isArray(result?.users)){
-        users = result.users;
-      }else if(Array.isArray(result?.data)){
-        users = result.data;
-      }
-
-      if(users.length){
-
-        box.innerHTML = "";
-
-        users.forEach(user => {
-
-          const item = document.createElement("div");
-
-          item.className = "searchUser";
-
-          const id =
-            user.id ||
-            user.user_id ||
-            "";
-
-          const name =
-            user.name ||
-            user.username ||
-            "User";
-
-          const avatar =
-            mediaUrl(user.avatar || "") ||
-            "https://ui-avatars.com/api/?name=" +
-            encodeURIComponent(name) +
-            "&background=101a35&color=ffffff";
-
-          item.innerHTML = `
-
-            <div class="userRow">
-
-              <img
-                class="avatar"
-                src="${escapeHtml(avatar)}"
-                alt=""
-              >
-
-              <div>
-
-                <div class="userName">
-                  ${escapeHtml(name)}
-                </div>
-
-                <div class="userEmail">
-                  ${escapeHtml(user.email || ("ID: " + id))}
-                </div>
-
-              </div>
-
-            </div>
-
-            <button
-              class="secondary"
-              onclick="openChatWithUser('${escapeHtml(id)}','${escapeHtml(name)}','${escapeHtml(avatar)}')"
-            >
-              Message
-            </button>
-
-          `;
-
-          box.appendChild(item);
-
-        });
-
-        return;
-
-      }
-
-    }catch{}
-
-  }
-
-  box.innerHTML =
-    '<div class="card empty">No users found or user-search endpoint is not available yet.</div>';
-
-}
-
-
-/* ============================================================
-   CHAT LIST
-   ============================================================ */
-
-async function loadChatList(){
-
-  const box = $("chatUsers");
-
-  if(!box){
-    return;
-  }
-
-  box.innerHTML =
-    '<div class="empty">Loading chats...</div>';
-
-  try{
-
-    const result = await api("/api/messages");
-
-    let users = [];
-
-    if(Array.isArray(result)){
-      users = result;
-    }else if(Array.isArray(result?.users)){
-      users = result.users;
-    }else if(Array.isArray(result?.chats)){
-      users = result.chats;
-    }else if(Array.isArray(result?.data)){
-      users = result.data;
-    }
-
-    if(!users.length){
-
-      box.innerHTML =
-        '<div class="empty">No conversations yet.</div>';
-
-      return;
-    }
-
-    box.innerHTML = "";
-
-    users.forEach(user => {
-
-      const id =
-        user.id ||
-        user.user_id ||
-        user.other_user_id;
-
-      const name =
-        user.name ||
-        user.username ||
-        "User";
-
-      const avatar =
-        mediaUrl(user.avatar || "") ||
-        "https://ui-avatars.com/api/?name=" +
-        encodeURIComponent(name) +
-        "&background=101a35&color=ffffff";
-
-      const item = document.createElement("div");
-
-      item.className = "chatUser";
-
-      item.innerHTML = `
-
-        <img
-          class="avatar"
-          src="${escapeHtml(avatar)}"
-          alt=""
-        >
-
-        <div style="min-width:0">
-
-          <div class="userName">
-            ${escapeHtml(name)}
-          </div>
-
-          <div class="userEmail">
-            ${escapeHtml(user.last_message || "")}
-          </div>
-
-        </div>
-
-      `;
-
-      item.onclick = () => {
-        openChatWithUser(id,name,avatar);
-      };
-
-      box.appendChild(item);
-
-    });
-
-  }catch(error){
-
-    box.innerHTML =
-      '<div class="empty">' +
-      'Chat list is not available from the current backend.<br><br>' +
-      'You can still enter a User ID above to open a chat.' +
-      '</div>';
-
-    $("chatListStatus").textContent =
-      "Use User ID to open a conversation.";
-
-  }
-
-}
-
-
-/* ============================================================
-   OPEN CHAT
-   ============================================================ */
-
-async function openChatById(){
-
-  const id = $("chatUserIdInput").value.trim();
-
-  if(!id){
-
-    toast("Enter the user ID.");
-
-    return;
-  }
-
-  openChatWithUser(
-    id,
-    "User " + id,
-    ""
-  );
-
-}
-
-
-function openChatWithUser(id,name,avatar){
-
-  if(!id){
-
-    toast("User ID is missing.");
-
-    return;
-  }
-
-  CURRENT_CHAT_USER = {
-    id,
-    name:name || "User",
-    avatar:avatar || ""
-  };
-
-  CURRENT_CHAT_ID = id;
-
-  $("chatName").textContent =
-    CURRENT_CHAT_USER.name;
-
-  $("chatStatus").textContent =
-    "Conversation";
-
-  $("chatAvatar").src =
-    CURRENT_CHAT_USER.avatar ||
-    "https://ui-avatars.com/api/?name=" +
-    encodeURIComponent(CURRENT_CHAT_USER.name) +
-    "&background=101a35&color=ffffff";
-
-  $("chatMessages").innerHTML =
-    '<div class="loading">Loading messages...</div>';
-
-  $("chatList").classList.remove("mobileShow");
-  $("chatWindow").classList.add("mobileShow");
-  $("backChatBtn").style.display = "flex";
-
-  loadMessages(id);
-
-}
-
-
-async function loadMessages(userId){
-
-  const box = $("chatMessages");
-
-  try{
-
-    const result =
-      await api(
-        "/api/messages/" +
-        encodeURIComponent(userId)
-      );
-
-    let messages = [];
-
-    if(Array.isArray(result)){
-      messages = result;
-    }else if(Array.isArray(result?.messages)){
-      messages = result.messages;
-    }else if(Array.isArray(result?.data)){
-      messages = result.data;
-    }
-
-    if(!messages.length){
-
-      box.innerHTML =
-        '<div class="empty">No messages yet. Say hello.</div>';
-
-      return;
-
-    }
-
-    box.innerHTML = "";
-
-    messages.forEach(message => {
-
-      renderMessage(message);
-
-    });
-
-    box.scrollTop = box.scrollHeight;
-
-  }catch(error){
-
-    box.innerHTML =
-      '<div class="empty">' +
-      escapeHtml(error.message) +
-      '</div>';
-
-  }
-
-}
-
-
-function renderMessage(message){
-
-  const box = $("chatMessages");
-
-  const sender =
-    message.sender_id ||
-    message.from_user_id ||
-    message.user_id;
-
-  const mine =
-    ME &&
-    String(sender) === String(ME.id);
-
-  const text =
-    message.content ||
-    message.text ||
-    message.message ||
-    "";
-
-  const media =
-    mediaUrl(
-      message.file_url ||
-      message.media_url ||
-      message.audio_url ||
-      ""
-    );
-
-  const bubble = document.createElement("div");
-
-  bubble.className =
-    "bubble " +
-    (mine ? "mine" : "theirs");
-
-  let html =
-    escapeHtml(text);
-
-  if(media){
-
-    if(/\.(mp3|wav|ogg|m4a|aac)$/i.test(media)){
-
-      html +=
-        '<br><audio controls style="max-width:100%;margin-top:5px" src="' +
-        escapeHtml(media) +
-        '"></audio>';
-
-    }else{
-
-      html +=
-        '<br><a target="_blank" rel="noopener" href="' +
-        escapeHtml(media) +
-        '">Open file</a>';
-
-    }
-
-  }
-
-  html +=
-    '<small>' +
-    escapeHtml(
-      formatDate(
-        message.created_at ||
-        message.created ||
-        ""
-      )
-    ) +
-    '</small>';
-
-  bubble.innerHTML = html;
-
-  box.appendChild(bubble);
-
-}
-
-
-async function sendMessage(){
-
-  if(!CURRENT_CHAT_USER){
-
-    toast("Select a user first.");
-
-    return;
-  }
-
-  const input = $("chatInput");
-
-  const text = input.value.trim();
-
-  if(!text){
-    return;
-  }
-
-  input.disabled = true;
-
-  try{
-
-    const body = {
-      receiver_id:CURRENT_CHAT_USER.id,
-      recipient_id:CURRENT_CHAT_USER.id,
-      content:text,
-      text:text
-    };
-
-    await api("/api/messages",{
-      method:"POST",
-      body
-    });
-
-    input.value = "";
-
-    await loadMessages(CURRENT_CHAT_USER.id);
-
-  }catch(error){
-
-    toast(error.message);
-
-  }finally{
-
-    input.disabled = false;
-    input.focus();
-
-  }
-
-}
-
-
-/* ============================================================
-   CHAT FILE
-   ============================================================ */
-
-async function sendChatFile(){
-
-  const file = $("chatFile").files[0];
-
-  if(!file || !CURRENT_CHAT_USER){
-    return;
-  }
-
-  try{
-
-    const form = new FormData();
-
-    form.append("receiver_id",CURRENT_CHAT_USER.id);
-    form.append("recipient_id",CURRENT_CHAT_USER.id);
-    form.append("file",file);
-
-    await api("/api/messages/file",{
-      method:"POST",
-      body:form
-    });
-
-    toast("File sent.");
-
-    await loadMessages(CURRENT_CHAT_USER.id);
-
-  }catch{
-
-    toast("File messaging is not available yet on the backend.");
-
-  }finally{
-
-    $("chatFile").value = "";
-
-  }
-
-}
-
-
-/* ============================================================
-   VOICE NOTE
-   ============================================================ */
-
-async function toggleVoiceRecording(){
-
-  if(MEDIA_RECORDER){
-
-    MEDIA_RECORDER.stop();
-
-    return;
-
-  }
-
-  if(!navigator.mediaDevices?.getUserMedia){
-
-    toast("Voice recording is not supported by this browser.");
-
-    return;
-
-  }
-
-  if(!CURRENT_CHAT_USER){
-
-    toast("Open a chat first.");
-
-    return;
-  }
-
-  try{
-
-    const stream =
-      await navigator.mediaDevices.getUserMedia({
-        audio:true
-      });
-
-    AUDIO_CHUNKS = [];
-
-    MEDIA_RECORDER =
-      new MediaRecorder(stream);
-
-    MEDIA_RECORDER.ondataavailable = event => {
-
-      if(event.data.size > 0){
-        AUDIO_CHUNKS.push(event.data);
-      }
-
-    };
-
-    MEDIA_RECORDER.onstop = async () => {
-
-      stream.getTracks().forEach(track => {
-        track.stop();
-      });
-
-      const blob =
-        new Blob(
-          AUDIO_CHUNKS,
-          {type:"audio/webm"}
-        );
-
-      MEDIA_RECORDER = null;
-
-      await uploadVoice(blob);
-
-    };
-
-    MEDIA_RECORDER.start();
-
-    $("voiceButton").textContent = "⏹";
-
-    toast("Recording... tap again to stop.");
-
-  }catch(error){
-
-    toast(
-      "Microphone permission was not granted."
-    );
-
-  }
-
-}
-
-
-async function uploadVoice(blob){
-
-  try{
-
-    const form = new FormData();
-
-    form.append(
-      "receiver_id",
-      CURRENT_CHAT_USER.id
-    );
-
-    form.append(
-      "recipient_id",
-      CURRENT_CHAT_USER.id
-    );
-
-    form.append(
-      "file",
-      blob,
-      "voice-note.webm"
-    );
-
-    await api("/api/messages/voice",{
-      method:"POST",
-      body:form
-    });
-
-    toast("Voice note sent.");
-
-    await loadMessages(CURRENT_CHAT_USER.id);
-
-  }catch(error){
-
-    toast(
-      "Voice note endpoint is not available yet."
-    );
-
-  }finally{
-
-    $("voiceButton").textContent = "🎙";
-
-  }
-
-}
-
-
-/* ============================================================
-   CHAT MENU
-   ============================================================ */
-
-function openChatMenu(){
-
-  if(!CURRENT_CHAT_USER){
-
-    toast("Open a chat first.");
-
-    return;
-  }
-
-  $("chatMenuModal").classList.add("show");
-
-}
-
-
-function closeModal(id){
-
-  $(id)?.classList.remove("show");
-
-}
-
-
-function pinChat(){
-
-  closeModal("chatMenuModal");
-
-  toast("Pin request sent.");
-
-  if(!CURRENT_CHAT_USER){
-    return;
-  }
-
-  api(
-    "/api/chats/" +
-    encodeURIComponent(CURRENT_CHAT_USER.id) +
-    "/settings",
-    {
-      method:"PATCH",
-      body:{
-        pinned:true
-      }
-    }
-  ).catch(()=>{});
-
-}
-
-
-function muteChat(){
-
-  closeModal("chatMenuModal");
-
-  toast("Mute request sent.");
-
-  if(!CURRENT_CHAT_USER){
-    return;
-  }
-
-  api(
-    "/api/chats/" +
-    encodeURIComponent(CURRENT_CHAT_USER.id) +
-    "/settings",
-    {
-      method:"PATCH",
-      body:{
-        muted:true
-      }
-    }
-  ).catch(()=>{});
-
-}
-
-
-function showChatInfo(){
-
-  closeModal("chatMenuModal");
-
-  if(!CURRENT_CHAT_USER){
-    return;
-  }
-
-  alert(
-    "User\n\n" +
-    "Name: " +
-    CURRENT_CHAT_USER.name +
-    "\nID: " +
-    CURRENT_CHAT_USER.id
-  );
-
-}
-
-
-function showChatSearch(){
-
-  closeModal("chatMenuModal");
-
-  const text =
-    prompt("Enter a word to search in this chat:");
-
-  if(!text){
-    return;
-  }
-
-  const bubbles =
-    [...document.querySelectorAll(".bubble")];
-
-  let found = 0;
-
-  bubbles.forEach(bubble => {
-
-    if(
-      bubble.textContent
-        .toLowerCase()
-        .includes(text.toLowerCase())
-    ){
-
-      bubble.scrollIntoView({
-        behavior:"smooth",
-        block:"center"
-      });
-
-      found++;
-
-    }
-
-  });
-
-  toast(
-    found
-      ? found + " message(s) found."
-      : "No matching message found."
-  );
-
-}
-
-
-function clearChat(){
-
-  closeModal("chatMenuModal");
-
-  if(!CURRENT_CHAT_USER){
-    return;
-  }
-
-  const ok =
-    confirm("Clear this conversation?");
-
-  if(!ok){
-    return;
-  }
-
-  api(
-    "/api/chats/" +
-    encodeURIComponent(CURRENT_CHAT_USER.id),
-    {
-      method:"DELETE"
-    }
-  )
-  .then(() => {
-
-    $("chatMessages").innerHTML =
-      '<div class="empty">Chat cleared.</div>';
-
-  })
-  .catch(error => {
-
-    toast(error.message);
-
-  });
-
-}
-
-
-function blockChatUser(){
-
-  closeModal("chatMenuModal");
-
-  if(!CURRENT_CHAT_USER){
-    return;
-  }
-
-  api(
-    "/api/users/" +
-    encodeURIComponent(CURRENT_CHAT_USER.id) +
-    "/block",
-    {
-      method:"POST"
-    }
-  )
-  .then(() => toast("Block request sent."))
-  .catch(() => toast("Block endpoint is not available yet."));
-
-}
-
-
-function reportChatUser(){
-
-  closeModal("chatMenuModal");
-
-  if(!CURRENT_CHAT_USER){
-    return;
-  }
-
-  api(
-    "/api/reports",
-    {
-      method:"POST",
-      body:{
-        user_id:CURRENT_CHAT_USER.id,
-        reason:"Reported from chat"
-      }
-    }
-  )
-  .then(() => toast("Report submitted."))
-  .catch(() => toast("Report endpoint is not available yet."));
-
-}
-
-
-/* ============================================================
-   WALLPAPER
-   ============================================================ */
-
-function openWallpaperPicker(){
-
-  closeModal("chatMenuModal");
-
-  $("wallpaperModal").classList.add("show");
-
-}
-
-
-function previewWallpaper(){
-
-  const file =
-    $("wallpaperFile").files[0];
-
-  const img =
-    $("wallpaperPreview");
-
-  if(!file){
-
-    img.style.display = "none";
-
-    return;
-  }
-
-  const url =
-    URL.createObjectURL(file);
-
-  img.src = url;
-
-  img.style.display = "block";
-
-}
-
-
-async function saveWallpaper(){
-
-  if(!CURRENT_CHAT_USER){
-
-    toast("Open a chat first.");
-
-    return;
-  }
-
-  const file =
-    $("wallpaperFile").files[0];
-
-  if(!file){
-
-    toast("Select an image first.");
-
-    return;
-  }
-
-  try{
-
-    const form = new FormData();
-
-    form.append("file",file);
-
-    await api(
-      "/api/chats/" +
-      encodeURIComponent(CURRENT_CHAT_USER.id) +
-      "/wallpaper",
-      {
-        method:"POST",
-        body:form
-      }
-    );
-
-    const localUrl =
-      URL.createObjectURL(file);
-
-    $("chatWindow").style.backgroundImage =
-      `url("${localUrl}")`;
-
-    $("chatWindow").style.backgroundSize =
-      "cover";
-
-    $("chatWindow").style.backgroundPosition =
-      "center";
-
-    closeModal("wallpaperModal");
-
-    toast("Wallpaper saved.");
-
-  }catch(error){
-
-    toast(error.message);
-
-  }
-
-}
-
-
-/* ============================================================
-   PROFILE
-   ============================================================ */
-
-async function saveProfile(){
-
-  const name =
-    $("editName").value.trim();
-
-  const bio =
-    $("editBio").value.trim();
-
-  if(!name){
-
-    $("profileMsg").textContent =
-      "Name cannot be empty.";
-
-    return;
-  }
-
-  try{
-
-    const result =
-      await api("/api/profile",{
-        method:"PATCH",
-        body:{
-          name,
-          bio
-        }
-      });
-
-    const avatarFile =
-      $("avatarFile").files[0];
-
-    if(avatarFile){
-
-      const form =
-        new FormData();
-
-      form.append(
-        "file",
-        avatarFile
-      );
-
-      try{
-
-        await api("/api/profile/avatar",{
-          method:"POST",
-          body:form
-        });
-
-      }catch(error){
-
-        $("profileMsg").textContent =
-          "Profile saved, but avatar upload failed: " +
-          error.message;
-
-        await loadMe();
-
-        return;
-      }
-
-    }
-
-    await loadMe();
-
-    $("profileMsg").textContent =
-      "Profile updated successfully.";
-
-    $("avatarFile").value = "";
-
-    toast("Profile updated.");
-
-  }catch(error){
-
-    $("profileMsg").textContent =
-      error.message;
-
-  }
-
-}
-
-
-/* ============================================================
-   LIVEKIT — LAZY LOADING ONLY
-   ============================================================ */
-
-async function loadLiveKit(){
-
-  if(window.LivekitClient){
-    liveKitLoaded = true;
-    return window.LivekitClient;
-  }
-
-  if(liveKitLoaded){
-    return window.LivekitClient;
-  }
-
-  return new Promise((resolve,reject) => {
-
-    const script =
-      document.createElement("script");
-
-    script.src =
-      "https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js";
-
-    script.onload = () => {
-
-      liveKitLoaded = true;
-
-      if(window.LivekitClient){
-
-        resolve(window.LivekitClient);
-
-      }else{
-
-        reject(
-          new Error("LiveKit SDK loaded but was not found.")
-        );
-
-      }
-
-    };
-
-    script.onerror = () => {
-
-      reject(
-        new Error("Could not load the LiveKit SDK.")
-      );
-
-    };
-
-    document.head.appendChild(script);
-
-  });
-
-}
-
-
-async function startCall(type){
-
-  if(!CURRENT_CHAT_USER){
-
-    toast("Open a chat first.");
-
-    return;
-  }
-
-  $("callModal").classList.add("show");
-
-  $("callTitle").textContent =
-    type === "video"
-      ? "Video Call"
-      : "Voice Call";
-
-  $("callStatus").textContent =
-    "Preparing secure call...";
-
-  try{
-
-    await loadLiveKit();
-
-    const roomName =
-      "msafiri-" +
-      [String(ME?.id || "me"),String(CURRENT_CHAT_USER.id)]
-      .sort()
-      .join("-");
-
-    let tokenData;
-
-    try{
-
-      tokenData =
-        await api("/api/calls/token",{
-          method:"POST",
-          body:{
-            room_name:roomName,
-            participant_name:
-              ME?.name ||
-              ME?.username ||
-              "User",
-            call_type:type,
-            receiver_id:CURRENT_CHAT_USER.id,
-            user_id:CURRENT_CHAT_USER.id
-          }
-        });
-
-    }catch(error){
-
-      throw new Error(
-        "The server could not create a call token. Live calls are not configured yet."
-      );
-
-    }
-
-    const token =
-      tokenData?.token ||
-      tokenData?.access_token;
-
-    const url =
-      tokenData?.url ||
-      tokenData?.livekit_url ||
-      tokenData?.server_url;
-
-    if(!token || !url){
-
-      throw new Error(
-        "Live call service is not configured on the server yet."
-      );
-
-    }
-
-    const LK =
-      window.LivekitClient;
-
-    LIVEKIT_ROOM =
-      new LK.Room();
-
-    await LIVEKIT_ROOM.connect(
-      url,
-      token
-    );
-
-    $("callStatus").textContent =
-      "Connected to call room.";
-
-    toast(
-      type === "video"
-        ? "Video call connected."
-        : "Voice call connected."
-    );
-
-    if(type === "video"){
-
-      await LIVEKIT_ROOM.localParticipant.setCameraEnabled(true);
-
-    }
-
-    await LIVEKIT_ROOM.localParticipant.setMicrophoneEnabled(true);
-
-  }catch(error){
-
-    $("callStatus").textContent =
-      error.message;
-
-    toast(error.message);
-
-  }
-
-}
-
-
-async function endCall(){
-
-  try{
-
-    if(LIVEKIT_ROOM){
-
-      LIVEKIT_ROOM.disconnect();
-
-      LIVEKIT_ROOM = null;
-
-    }
-
-  }catch{}
-
-  closeModal("callModal");
-
-  if(CURRENT_CHAT_ID){
-
-    api(
-      "/api/calls/" +
-      encodeURIComponent(CURRENT_CHAT_ID),
-      {
-        method:"PATCH",
-        body:{
-          status:"ended"
-        }
-      }
-    ).catch(()=>{});
-
-  }
-
-}
-
-
-/* ============================================================
-   MOBILE CHAT
-   ============================================================ */
-
-function mobileCloseChat(){
-
-  $("chatWindow").classList.remove("mobileShow");
-  $("chatList").classList.add("mobileShow");
-  $("backChatBtn").style.display = "none";
-
-}
-
-
-/* ============================================================
-   STARTUP
-   ============================================================ */
-
-async function startup(){
-
-  if(!TOKEN){
-
-    showAuthScreen();
-
-    return;
-
-  }
-
-  try{
-
-    await loadMe();
-
-    showApp();
-
-  }catch(error){
-
-    TOKEN = "";
-
-    localStorage.removeItem(TOKEN_KEY);
-
-    showAuthScreen();
-
-  }
-
-}
-
-
-/* ============================================================
-   CLOSE MODALS WHEN CLICKING OUTSIDE
-   ============================================================ */
-
-document.querySelectorAll(".modal").forEach(modal => {
-
-  modal.addEventListener("click",event => {
-
-    if(event.target === modal){
-
-      modal.classList.remove("show");
-
-    }
-
-  });
-
-});
-
-
-/* ============================================================
-   INITIALIZE
-   ============================================================ */
-
-startup();
-
+function switchAuth(mode,b){document.querySelectorAll(".tabs button").forEach(x=>x.classList.remove("active"));b.classList.add("active");document.getElementById("authForm").innerHTML=mode==="register"?`<form class="form" onsubmit="register(event)"><label>Full name</label><input id="regName" required><label>Username</label><input id="regUser" required><label>Email</label><input id="regEmail" type="email" required><label>Password</label><input id="regPass" type="password" required minlength="6"><button class="btn primary">Create Account</button></form>`:`<form class="form" onsubmit="login(event)"><label>Email</label><input id="authEmail" type="email" required><label>Password</label><input id="authPassword" type="password" required><button class="btn primary">Login</button></form>`}
+async function api(path,options={}){const r=await fetch(API_BASE+path,{...options,headers:{"Content-Type":"application/json",...(options.headers||{})}});if(!r.ok)throw new Error(await r.text());return r.json()}
+async function login(e){e.preventDefault();const email=document.getElementById("authEmail").value,password=document.getElementById("authPassword").value;try{if(API_BASE){const d=await api("/api/login",{method:"POST",body:JSON.stringify({email,password})});state.user=d.user||d;save()}else{state.user={name:email.split("@")[0],username:email.split("@")[0],email,avatar:"https://i.pravatar.cc/100?img=12"};save()}closeModal();renderIdentity();toast("Welcome back!")}catch(err){toast("Login failed: "+(err.message||"Check your backend endpoint"))}}
+async function register(e){e.preventDefault();const user={name:document.getElementById("regName").value,username:document.getElementById("regUser").value,email:document.getElementById("regEmail").value,password:document.getElementById("regPass").value};try{if(API_BASE){const d=await api("/api/register",{method:"POST",body:JSON.stringify(user)});state.user=d.user||d}else{delete user.password;state.user=user;state.user.avatar="https://i.pravatar.cc/100?img=12"}save();closeModal();renderIdentity();toast("Account created successfully")}catch(err){toast("Registration failed: "+err.message)}}
+function logout(){state.user=null;save();renderIdentity();toast("Logged out")}
+function closeModal(){document.getElementById("modalRoot").innerHTML=""}
+function listFiles(input){document.getElementById("fileList").innerHTML=[...input.files].map(f=>`<div class="result">📄 ${escapeHtml(f.name)} <span class="muted">${Math.round(f.size/1024)} KB</span></div>`).join("")}
+function realityPreview(input){const f=input.files[0];if(!f)return;document.getElementById("realityPreview").innerHTML=`<img class="preview" src="${URL.createObjectURL(f)}">`}
+let recorder,chunks=[];
+async function toggleRecord(){
+ const b=document.getElementById("recordBtn");
+ if(recorder?.state==="recording"){recorder.stop();b.textContent="🎙️ Start Recording";return}
+ try{const stream=await navigator.mediaDevices.getUserMedia({audio:true});chunks=[];recorder=new MediaRecorder(stream);recorder.ondataavailable=e=>chunks.push(e.data);recorder.onstop=()=>{const blob=new Blob(chunks,{type:"audio/webm"});document.getElementById("recordedAudio").src=URL.createObjectURL(blob);document.getElementById("recordedAudio").classList.remove("hidden");document.getElementById("recordStatus").textContent="Recording saved locally.";stream.getTracks().forEach(t=>t.stop())};recorder.start();b.textContent="⏹ Stop Recording";document.getElementById("recordStatus").textContent="Recording..."}catch(e){toast("Microphone permission is required.")}}
+function sendMessage(e){e.preventDefault();const i=document.getElementById("messageInput");toast("Message sent: "+i.value);i.value=""}
+renderIdentity();renderFeed();renderVideos();renderProducts();
 </script>
-
 </body>
 </html>

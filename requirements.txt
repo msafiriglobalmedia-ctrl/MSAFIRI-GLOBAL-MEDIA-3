@@ -1,10 +1,5 @@
 fastapi
 uvicorn[standard]
 python-multipart
-python-dotenv
-passlib[bcrypt]
-PyJWT
-psycopg[binary]
-livekit-api
-email-validator
-argon2-cffi
+psycopg2-binary
+python-jose[cryptography]

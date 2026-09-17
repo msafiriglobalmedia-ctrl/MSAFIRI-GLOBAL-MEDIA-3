@@ -3,7 +3,7 @@ uvicorn[standard]
 python-multipart
 psycopg[binary]
 PyJWT
-passlib==1.7.4
-bcrypt==4.3.0
-email-validator
+passlib
+bcrypt
+pydantic[email]
 livekit-api

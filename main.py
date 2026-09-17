@@ -1,5 +1,5 @@
 # ============================================================
-# MSAFIRI GLOBAL MEDIA V4.3
+# MSAFIRI GLOBAL MEDIA V4.4
 # CLEAN FULL BACKEND
 # FastAPI + PostgreSQL + JWT + LiveKit
 # ============================================================
@@ -13,7 +13,6 @@ from typing import Optional
 
 import jwt
 import psycopg
-
 from psycopg.rows import dict_row
 from psycopg.errors import UniqueViolation
 
@@ -47,7 +46,7 @@ except Exception:
 # CONFIG
 # ============================================================
 
-APP_NAME = "MSAFIRI GLOBAL MEDIA V4.3"
+APP_NAME = "MSAFIRI GLOBAL MEDIA V4.4"
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -83,7 +82,7 @@ DATABASE_URL = (
 JWT_SECRET = os.getenv("JWT_SECRET", "").strip()
 
 if not JWT_SECRET:
-    JWT_SECRET = "CHANGE_ME_IN_RENDER"
+    JWT_SECRET = "CHANGE_THIS_JWT_SECRET_IN_RENDER"
 
 JWT_ALGORITHM = "HS256"
 
@@ -91,16 +90,14 @@ try:
     JWT_EXPIRE_DAYS = int(
         os.getenv("JWT_EXPIRE_DAYS", "30")
     )
-except ValueError:
+except Exception:
     JWT_EXPIRE_DAYS = 30
-
 
 PUBLIC_BASE_URL = (
     os.getenv("PUBLIC_BASE_URL", "")
     .strip()
     .rstrip("/")
 )
-
 
 LIVEKIT_URL = (
     os.getenv("LIVEKIT_URL", "")
@@ -128,7 +125,9 @@ logging.basicConfig(
     format="%(asctime)s | %(levelname)s | %(message)s",
 )
 
-logger = logging.getLogger("msafiri-global-media")
+logger = logging.getLogger(
+    "msafiri-global-media"
+)
 
 
 # ============================================================
@@ -137,7 +136,7 @@ logger = logging.getLogger("msafiri-global-media")
 
 app = FastAPI(
     title=APP_NAME,
-    version="4.3",
+    version="4.4",
     description="MSAFIRI GLOBAL MEDIA social platform",
 )
 
@@ -165,15 +164,77 @@ pwd_context = CryptContext(
 )
 
 
+def hash_password(password: str):
+
+    password_bytes = password.encode(
+        "utf-8"
+    )
+
+    if len(password_bytes) > 72:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Password is too long. "
+                "Please use a shorter password."
+            ),
+        )
+
+    try:
+        return pwd_context.hash(password)
+    except Exception as exc:
+        logger.exception(
+            "Password hashing error: %s",
+            exc,
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail="Unable to secure password.",
+        )
+
+
+def verify_password(
+    password: str,
+    password_hash: str,
+):
+
+    try:
+
+        password_bytes = password.encode(
+            "utf-8"
+        )
+
+        if len(password_bytes) > 72:
+            return False
+
+        return pwd_context.verify(
+            password,
+            password_hash,
+        )
+
+    except Exception as exc:
+
+        logger.error(
+            "Password verification error: %s",
+            exc,
+        )
+
+        return False
+
+
 # ============================================================
-# DATABASE
+# DATABASE CONNECTION
 # ============================================================
 
 def get_conn():
+
     if not DATABASE_URL:
+
         raise HTTPException(
             status_code=500,
-            detail="DATABASE_URL is not configured.",
+            detail=(
+                "DATABASE_URL is not configured."
+            ),
         )
 
     return psycopg.connect(
@@ -184,23 +245,30 @@ def get_conn():
 
 
 # ============================================================
-# HELPERS
+# GENERAL HELPERS
 # ============================================================
 
 def now_utc():
+
     return datetime.now(timezone.utc)
 
 
 def serialize_datetime(value):
+
     if isinstance(value, datetime):
         return value.isoformat()
+
     return value
 
 
 def public_url(path: Path):
-    relative = "/" + str(
-        path.relative_to(BASE_DIR)
-    ).replace("\\", "/")
+
+    relative = (
+        "/"
+        + str(
+            path.relative_to(BASE_DIR)
+        ).replace("\\", "/")
+    )
 
     if PUBLIC_BASE_URL:
         return PUBLIC_BASE_URL + relative
@@ -208,40 +276,32 @@ def public_url(path: Path):
     return relative
 
 
-def hash_password(password: str):
-    return pwd_context.hash(password)
-
-
-def verify_password(password: str, password_hash: str):
-    try:
-        return pwd_context.verify(
-            password,
-            password_hash,
-        )
-    except Exception:
-        return False
-
-
 # ============================================================
-# DATABASE INITIALIZATION
+# DATABASE INITIALIZATION + MIGRATION
 # ============================================================
 
 def init_database():
 
     if not DATABASE_URL:
+
         logger.warning(
             "DATABASE_URL is not configured."
         )
+
         return
 
     with get_conn() as conn:
+
+        # ----------------------------------------------------
+        # USERS
+        # ----------------------------------------------------
 
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS users (
                 id BIGSERIAL PRIMARY KEY,
                 name VARCHAR(150) NOT NULL,
-                username VARCHAR(80) UNIQUE,
+                username VARCHAR(80),
                 email VARCHAR(255) UNIQUE NOT NULL,
                 password_hash TEXT NOT NULL,
                 bio TEXT DEFAULT '',
@@ -253,6 +313,126 @@ def init_database():
             )
             """
         )
+
+        # ----------------------------------------------------
+        # IMPORTANT:
+        # Existing PostgreSQL database may have been created
+        # by an older version of the application.
+        #
+        # CREATE TABLE IF NOT EXISTS DOES NOT ALTER an
+        # existing table.
+        #
+        # Therefore we explicitly migrate old users table.
+        # ----------------------------------------------------
+
+        conn.execute(
+            """
+            ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS username VARCHAR(80)
+            """
+        )
+
+        conn.execute(
+            """
+            ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS bio TEXT DEFAULT ''
+            """
+        )
+
+        conn.execute(
+            """
+            ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS location VARCHAR(255)
+            DEFAULT ''
+            """
+        )
+
+        conn.execute(
+            """
+            ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS avatar TEXT
+            """
+        )
+
+        conn.execute(
+            """
+            ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS created_at
+            TIMESTAMPTZ DEFAULT NOW()
+            """
+        )
+
+        conn.execute(
+            """
+            ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS updated_at
+            TIMESTAMPTZ DEFAULT NOW()
+            """
+        )
+
+        conn.execute(
+            """
+            ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS deleted_at
+            TIMESTAMPTZ
+            """
+        )
+
+        # ----------------------------------------------------
+        # Ensure NULL/default values are safe for old records.
+        # ----------------------------------------------------
+
+        conn.execute(
+            """
+            UPDATE users
+            SET bio=''
+            WHERE bio IS NULL
+            """
+        )
+
+        conn.execute(
+            """
+            UPDATE users
+            SET location=''
+            WHERE location IS NULL
+            """
+        )
+
+        conn.execute(
+            """
+            UPDATE users
+            SET created_at=NOW()
+            WHERE created_at IS NULL
+            """
+        )
+
+        conn.execute(
+            """
+            UPDATE users
+            SET updated_at=NOW()
+            WHERE updated_at IS NULL
+            """
+        )
+
+        # ----------------------------------------------------
+        # Username unique index.
+        #
+        # NULL usernames are allowed.
+        # Existing duplicate NULL values do not matter.
+        # ----------------------------------------------------
+
+        conn.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS
+            idx_users_username_unique
+            ON users(username)
+            WHERE username IS NOT NULL
+            """
+        )
+
+        # ----------------------------------------------------
+        # SESSIONS
+        # ----------------------------------------------------
 
         conn.execute(
             """
@@ -267,6 +447,10 @@ def init_database():
             )
             """
         )
+
+        # ----------------------------------------------------
+        # POSTS
+        # ----------------------------------------------------
 
         conn.execute(
             """
@@ -285,6 +469,10 @@ def init_database():
             """
         )
 
+        # ----------------------------------------------------
+        # LIKES
+        # ----------------------------------------------------
+
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS likes (
@@ -300,6 +488,10 @@ def init_database():
             )
             """
         )
+
+        # ----------------------------------------------------
+        # COMMENTS
+        # ----------------------------------------------------
 
         conn.execute(
             """
@@ -317,6 +509,10 @@ def init_database():
             """
         )
 
+        # ----------------------------------------------------
+        # SAVED POSTS
+        # ----------------------------------------------------
+
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS saved_posts (
@@ -333,6 +529,10 @@ def init_database():
             """
         )
 
+        # ----------------------------------------------------
+        # RESHARES
+        # ----------------------------------------------------
+
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS reshares (
@@ -348,6 +548,10 @@ def init_database():
             )
             """
         )
+
+        # ----------------------------------------------------
+        # MESSAGES
+        # ----------------------------------------------------
 
         conn.execute(
             """
@@ -368,6 +572,10 @@ def init_database():
             """
         )
 
+        # ----------------------------------------------------
+        # BLOCKS
+        # ----------------------------------------------------
+
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS blocks (
@@ -383,6 +591,10 @@ def init_database():
             )
             """
         )
+
+        # ----------------------------------------------------
+        # REPORTS
+        # ----------------------------------------------------
 
         conn.execute(
             """
@@ -403,6 +615,10 @@ def init_database():
             """
         )
 
+        # ----------------------------------------------------
+        # CHAT SETTINGS
+        # ----------------------------------------------------
+
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS chat_settings (
@@ -421,6 +637,10 @@ def init_database():
             )
             """
         )
+
+        # ----------------------------------------------------
+        # CALLS
+        # ----------------------------------------------------
 
         conn.execute(
             """
@@ -441,16 +661,22 @@ def init_database():
             """
         )
 
+        # ----------------------------------------------------
+        # INDEXES
+        # ----------------------------------------------------
+
         conn.execute(
             """
-            CREATE INDEX IF NOT EXISTS idx_posts_created
+            CREATE INDEX IF NOT EXISTS
+            idx_posts_created
             ON posts(created_at DESC)
             """
         )
 
         conn.execute(
             """
-            CREATE INDEX IF NOT EXISTS idx_messages_conv
+            CREATE INDEX IF NOT EXISTS
+            idx_messages_conversation
             ON messages(
                 sender_id,
                 receiver_id,
@@ -459,16 +685,34 @@ def init_database():
             """
         )
 
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS
+            idx_users_email
+            ON users(email)
+            """
+        )
+
         conn.commit()
 
-    logger.info("Database initialized.")
+    logger.info(
+        "Database initialized and migrated successfully."
+    )
 
+
+# ============================================================
+# STARTUP
+# ============================================================
 
 @app.on_event("startup")
 def startup():
+
     try:
+
         init_database()
+
     except Exception as exc:
+
         logger.exception(
             "Database initialization error: %s",
             exc,
@@ -487,7 +731,9 @@ def create_jwt(user_id: int):
 
     expires_at = (
         issued_at
-        + timedelta(days=JWT_EXPIRE_DAYS)
+        + timedelta(
+            days=JWT_EXPIRE_DAYS
+        )
     )
 
     payload = {
@@ -503,12 +749,17 @@ def create_jwt(user_id: int):
         algorithm=JWT_ALGORITHM,
     )
 
-    return token, token_id, expires_at
+    return (
+        token,
+        token_id,
+        expires_at,
+    )
 
 
 def decode_jwt(token: str):
 
     try:
+
         return jwt.decode(
             token,
             JWT_SECRET,
@@ -535,6 +786,7 @@ def extract_bearer(
 ):
 
     if not authorization:
+
         raise HTTPException(
             status_code=401,
             detail="LOGIN_REQUIRED",
@@ -543,6 +795,7 @@ def extract_bearer(
     if not authorization.lower().startswith(
         "bearer "
     ):
+
         raise HTTPException(
             status_code=401,
             detail="INVALID_AUTHORIZATION",
@@ -551,6 +804,7 @@ def extract_bearer(
     token = authorization[7:].strip()
 
     if not token:
+
         raise HTTPException(
             status_code=401,
             detail="LOGIN_REQUIRED",
@@ -559,13 +813,19 @@ def extract_bearer(
     return token
 
 
+# ============================================================
+# AUTHENTICATED USER
+# ============================================================
+
 def require_user(
     authorization: Optional[str] = Header(
         default=None
     ),
 ):
 
-    token = extract_bearer(authorization)
+    token = extract_bearer(
+        authorization
+    )
 
     payload = decode_jwt(token)
 
@@ -573,22 +833,22 @@ def require_user(
     token_id = payload.get("jti")
 
     if not user_id:
+
         raise HTTPException(
             status_code=401,
             detail="INVALID_TOKEN",
         )
 
     try:
+
         user_id = int(user_id)
-    except (TypeError, ValueError):
+
+    except Exception:
+
         raise HTTPException(
             status_code=401,
             detail="INVALID_USER_ID",
         )
-
-    # --------------------------------------------------------
-    # Verify session still exists in PostgreSQL
-    # --------------------------------------------------------
 
     with get_conn() as conn:
 
@@ -607,6 +867,7 @@ def require_user(
         ).fetchone()
 
         if not session:
+
             raise HTTPException(
                 status_code=401,
                 detail="SESSION_EXPIRED",
@@ -631,6 +892,7 @@ def require_user(
         ).fetchone()
 
     if not user:
+
         raise HTTPException(
             status_code=401,
             detail="USER_NOT_FOUND",
@@ -651,7 +913,7 @@ def clean_user(user):
     return {
         "id": user["id"],
         "name": user["name"],
-        "username": user["username"],
+        "username": user.get("username"),
         "email": user["email"],
         "bio": user.get("bio") or "",
         "location": user.get("location") or "",
@@ -674,7 +936,9 @@ async def save_upload(
 
     filename = upload.filename or "file"
 
-    extension = Path(filename).suffix.lower()
+    extension = Path(
+        filename
+    ).suffix.lower()
 
     if len(extension) > 15:
         extension = ""
@@ -684,13 +948,17 @@ async def save_upload(
         + extension
     )
 
-    destination = directory / unique_name
+    destination = (
+        directory / unique_name
+    )
 
     total = 0
 
     try:
 
-        with destination.open("wb") as output:
+        with destination.open(
+            "wb"
+        ) as output:
 
             while True:
 
@@ -711,7 +979,9 @@ async def save_upload(
 
                     max_mb = (
                         max_size
-                        // (1024 * 1024)
+                        // (
+                            1024 * 1024
+                        )
                     )
 
                     raise HTTPException(
@@ -727,9 +997,12 @@ async def save_upload(
                 output.write(chunk)
 
     finally:
+
         await upload.close()
 
-    return public_url(destination)
+    return public_url(
+        destination
+    )
 
 
 # ============================================================
@@ -829,9 +1102,12 @@ class CallRequest(BaseModel):
 @app.get("/")
 def root():
 
-    index_file = BASE_DIR / "index.html"
+    index_file = (
+        BASE_DIR / "index.html"
+    )
 
     if index_file.exists():
+
         return FileResponse(
             index_file,
             media_type="text/html",
@@ -857,6 +1133,7 @@ def health():
         try:
 
             with get_conn() as conn:
+
                 conn.execute(
                     "SELECT 1"
                 ).fetchone()
@@ -892,6 +1169,7 @@ def health():
 
 @app.get("/api/health")
 def api_health():
+
     return health()
 
 
@@ -900,18 +1178,45 @@ def api_health():
 # ============================================================
 
 @app.post("/api/auth/register")
-def register(data: RegisterRequest):
+def register(
+    data: RegisterRequest
+):
 
     name = data.name.strip()
+
+    if not name:
+
+        raise HTTPException(
+            status_code=400,
+            detail="Name is required.",
+        )
 
     username = None
 
     if data.username:
+
         username = (
             data.username
             .strip()
             .lower()
         )
+
+        username = username[:80]
+
+        if username:
+
+            cleaned = (
+                username
+                .replace("_", "")
+                .replace(".", "")
+            )
+
+            if not cleaned.isalnum():
+
+                raise HTTPException(
+                    status_code=400,
+                    detail="Invalid username.",
+                )
 
     email = (
         str(data.email)
@@ -919,29 +1224,86 @@ def register(data: RegisterRequest):
         .lower()
     )
 
-    if not name:
-        raise HTTPException(
-            status_code=400,
-            detail="Name is required.",
-        )
+    # --------------------------------------------------------
+    # Check existing email / username before password hashing.
+    # --------------------------------------------------------
 
-    if username:
+    try:
 
-        cleaned = (
-            username
-            .replace("_", "")
-            .replace(".", "")
-        )
+        with get_conn() as conn:
 
-        if not cleaned.isalnum():
+            existing = conn.execute(
+                """
+                SELECT
+                    id,
+                    email,
+                    username
+                FROM users
+                WHERE
+                    LOWER(email)=LOWER(%s)
+                    OR (
+                        %s IS NOT NULL
+                        AND LOWER(username)=LOWER(%s)
+                    )
+                LIMIT 1
+                """,
+                (
+                    email,
+                    username,
+                    username,
+                ),
+            ).fetchone()
+
+        if existing:
+
+            if (
+                existing["email"]
+                and existing["email"].lower()
+                == email.lower()
+            ):
+
+                raise HTTPException(
+                    status_code=409,
+                    detail=(
+                        "Email already exists."
+                    ),
+                )
+
             raise HTTPException(
-                status_code=400,
-                detail="Invalid username.",
+                status_code=409,
+                detail=(
+                    "Username already exists."
+                ),
             )
+
+    except HTTPException:
+        raise
+
+    except Exception as exc:
+
+        logger.exception(
+            "Register pre-check error: %s",
+            exc,
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Unable to check account information."
+            ),
+        )
+
+    # --------------------------------------------------------
+    # Hash password
+    # --------------------------------------------------------
 
     password_hash = hash_password(
         data.password
     )
+
+    # --------------------------------------------------------
+    # Create user
+    # --------------------------------------------------------
 
     try:
 
@@ -954,10 +1316,12 @@ def register(data: RegisterRequest):
                         name,
                         username,
                         email,
-                        password_hash
+                        password_hash,
+                        bio,
+                        location
                     )
                 VALUES
-                    (%s,%s,%s,%s)
+                    (%s,%s,%s,%s,%s,%s)
                 RETURNING
                     id,
                     name,
@@ -973,6 +1337,8 @@ def register(data: RegisterRequest):
                     username,
                     email,
                     password_hash,
+                    "",
+                    "",
                 ),
             ).fetchone()
 
@@ -987,31 +1353,70 @@ def register(data: RegisterRequest):
             ),
         )
 
-    token, token_id, expires_at = create_jwt(
-        user["id"]
-    )
+    except Exception as exc:
 
-    with get_conn() as conn:
+        logger.exception(
+            "Register database error: %s",
+            exc,
+        )
 
-        conn.execute(
-            """
-            INSERT INTO sessions
-                (
-                    user_id,
-                    token_id,
-                    expires_at
-                )
-            VALUES
-                (%s,%s,%s)
-            """,
-            (
-                user["id"],
-                token_id,
-                expires_at,
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Unable to create account."
             ),
         )
 
-        conn.commit()
+    # --------------------------------------------------------
+    # Create session
+    # --------------------------------------------------------
+
+    try:
+
+        (
+            token,
+            token_id,
+            expires_at,
+        ) = create_jwt(
+            user["id"]
+        )
+
+        with get_conn() as conn:
+
+            conn.execute(
+                """
+                INSERT INTO sessions
+                    (
+                        user_id,
+                        token_id,
+                        expires_at
+                    )
+                VALUES
+                    (%s,%s,%s)
+                """,
+                (
+                    user["id"],
+                    token_id,
+                    expires_at,
+                ),
+            )
+
+            conn.commit()
+
+    except Exception as exc:
+
+        logger.exception(
+            "Session creation error: %s",
+            exc,
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Account created but session "
+                "could not be created."
+            ),
+        )
 
     return {
         "success": True,
@@ -1027,6 +1432,7 @@ def register(data: RegisterRequest):
 def register_alias(
     data: RegisterRequest
 ):
+
     return register(data)
 
 
@@ -1035,7 +1441,9 @@ def register_alias(
 # ============================================================
 
 @app.post("/api/auth/login")
-def login(data: LoginRequest):
+def login(
+    data: LoginRequest
+):
 
     email = (
         str(data.email)
@@ -1043,58 +1451,115 @@ def login(data: LoginRequest):
         .lower()
     )
 
-    with get_conn() as conn:
+    try:
 
-        user = conn.execute(
-            """
-            SELECT *
-            FROM users
-            WHERE LOWER(email)=LOWER(%s)
-              AND deleted_at IS NULL
-            """,
-            (email,),
-        ).fetchone()
+        with get_conn() as conn:
+
+            user = conn.execute(
+                """
+                SELECT *
+                FROM users
+                WHERE LOWER(email)=LOWER(%s)
+                  AND deleted_at IS NULL
+                LIMIT 1
+                """,
+                (email,),
+            ).fetchone()
+
+    except Exception as exc:
+
+        logger.exception(
+            "Login database error: %s",
+            exc,
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Unable to access account database."
+            ),
+        )
 
     if not user:
+
         raise HTTPException(
             status_code=401,
-            detail="Invalid email or password.",
+            detail=(
+                "Invalid email or password."
+            ),
+        )
+
+    password_hash = (
+        user.get("password_hash")
+    )
+
+    if not password_hash:
+
+        raise HTTPException(
+            status_code=401,
+            detail=(
+                "This account has no valid password."
+            ),
         )
 
     if not verify_password(
         data.password,
-        user["password_hash"],
+        password_hash,
     ):
+
         raise HTTPException(
             status_code=401,
-            detail="Invalid email or password.",
-        )
-
-    token, token_id, expires_at = create_jwt(
-        user["id"]
-    )
-
-    with get_conn() as conn:
-
-        conn.execute(
-            """
-            INSERT INTO sessions
-                (
-                    user_id,
-                    token_id,
-                    expires_at
-                )
-            VALUES
-                (%s,%s,%s)
-            """,
-            (
-                user["id"],
-                token_id,
-                expires_at,
+            detail=(
+                "Invalid email or password."
             ),
         )
 
-        conn.commit()
+    try:
+
+        (
+            token,
+            token_id,
+            expires_at,
+        ) = create_jwt(
+            user["id"]
+        )
+
+        with get_conn() as conn:
+
+            conn.execute(
+                """
+                INSERT INTO sessions
+                    (
+                        user_id,
+                        token_id,
+                        expires_at
+                    )
+                VALUES
+                    (%s,%s,%s)
+                """,
+                (
+                    user["id"],
+                    token_id,
+                    expires_at,
+                ),
+            )
+
+            conn.commit()
+
+    except Exception as exc:
+
+        logger.exception(
+            "Login session error: %s",
+            exc,
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Login succeeded but session "
+                "could not be created."
+            ),
+        )
 
     return {
         "success": True,
@@ -1110,6 +1575,7 @@ def login(data: LoginRequest):
 def login_alias(
     data: LoginRequest
 ):
+
     return login(data)
 
 
@@ -1294,6 +1760,7 @@ def get_user(
         ).fetchone()
 
     if not row:
+
         raise HTTPException(
             status_code=404,
             detail="User not found.",
@@ -1319,33 +1786,77 @@ def update_profile(
     values = []
 
     if data.name is not None:
-        fields.append("name=%s")
+
+        new_name = data.name.strip()
+
+        if not new_name:
+
+            raise HTTPException(
+                status_code=400,
+                detail="Name cannot be empty.",
+            )
+
+        fields.append(
+            "name=%s"
+        )
+
         values.append(
-            data.name.strip()
+            new_name
         )
 
     if data.username is not None:
+
         username = (
             data.username
             .strip()
             .lower()
         )
-        fields.append("username=%s")
-        values.append(username)
+
+        if username:
+
+            cleaned = (
+                username
+                .replace("_", "")
+                .replace(".", "")
+            )
+
+            if not cleaned.isalnum():
+
+                raise HTTPException(
+                    status_code=400,
+                    detail="Invalid username.",
+                )
+
+        fields.append(
+            "username=%s"
+        )
+
+        values.append(
+            username or None
+        )
 
     if data.bio is not None:
-        fields.append("bio=%s")
+
+        fields.append(
+            "bio=%s"
+        )
+
         values.append(
             data.bio.strip()
         )
 
     if data.location is not None:
-        fields.append("location=%s")
+
+        fields.append(
+            "location=%s"
+        )
+
         values.append(
             data.location.strip()
         )
 
     if not fields:
+
         return {
             "success": True,
             "message": "Nothing to update.",
@@ -1355,7 +1866,9 @@ def update_profile(
         "updated_at=NOW()"
     )
 
-    values.append(user["id"])
+    values.append(
+        user["id"]
+    )
 
     try:
 
@@ -1409,6 +1922,7 @@ async def upload_avatar(
     if not content_type.startswith(
         "image/"
     ):
+
         raise HTTPException(
             status_code=400,
             detail="Avatar must be an image.",
@@ -1425,7 +1939,8 @@ async def upload_avatar(
         conn.execute(
             """
             UPDATE users
-            SET avatar=%s,
+            SET
+                avatar=%s,
                 updated_at=NOW()
             WHERE id=%s
             """,
@@ -1576,11 +2091,19 @@ def serialize_post(
         "author": {
             "id": row["author_id"],
             "name": row["author_name"],
-            "username": row["author_username"],
+            "username": row[
+                "author_username"
+            ],
             "email": row["author_email"],
-            "bio": row["author_bio"] or "",
-            "location": row["author_location"] or "",
-            "avatar": row["author_avatar"],
+            "bio": row[
+                "author_bio"
+            ] or "",
+            "location": row[
+                "author_location"
+            ] or "",
+            "avatar": row[
+                "author_avatar"
+            ],
         },
     }
 
@@ -1672,18 +2195,32 @@ async def create_post(
         )
 
         if not allowed:
+
             raise HTTPException(
                 status_code=400,
-                detail="Unsupported media type.",
+                detail=(
+                    "Unsupported media type."
+                ),
             )
 
         if content_type.startswith(
             "video/"
         ):
+
             max_size = (
                 200 * 1024 * 1024
             )
+
+        elif content_type.startswith(
+            "audio/"
+        ):
+
+            max_size = (
+                50 * 1024 * 1024
+            )
+
         else:
+
             max_size = (
                 50 * 1024 * 1024
             )
@@ -1697,6 +2234,7 @@ async def create_post(
         media_type = content_type
 
     if not caption and not media_url:
+
         raise HTTPException(
             status_code=400,
             detail=(
@@ -1771,15 +2309,20 @@ def delete_post(
         ).fetchone()
 
         if not post:
+
             raise HTTPException(
                 status_code=404,
                 detail="Post not found.",
             )
 
         if post["user_id"] != user["id"]:
+
             raise HTTPException(
                 status_code=403,
-                detail="You can only delete your own post.",
+                detail=(
+                    "You can only delete "
+                    "your own post."
+                ),
             )
 
         conn.execute(
@@ -1900,12 +2443,30 @@ def add_comment(
     text = data.text.strip()
 
     if not text:
+
         raise HTTPException(
             status_code=400,
             detail="Comment cannot be empty.",
         )
 
     with get_conn() as conn:
+
+        post = conn.execute(
+            """
+            SELECT id
+            FROM posts
+            WHERE id=%s
+              AND deleted_at IS NULL
+            """,
+            (post_id,),
+        ).fetchone()
+
+        if not post:
+
+            raise HTTPException(
+                status_code=404,
+                detail="Post not found.",
+            )
 
         row = conn.execute(
             """
@@ -1989,8 +2550,12 @@ def get_comments(
                 "author": {
                     "id": row["user_id"],
                     "name": row["name"],
-                    "username": row["username"],
-                    "avatar": row["avatar"],
+                    "username": row[
+                        "username"
+                    ],
+                    "avatar": row[
+                        "avatar"
+                    ],
                 },
             }
             for row in rows
@@ -2141,15 +2706,19 @@ def send_message(
     text = data.text.strip()
 
     if not text:
+
         raise HTTPException(
             status_code=400,
             detail="Message cannot be empty.",
         )
 
     if data.receiver_id == user["id"]:
+
         raise HTTPException(
             status_code=400,
-            detail="You cannot message yourself.",
+            detail=(
+                "You cannot message yourself."
+            ),
         )
 
     with get_conn() as conn:
@@ -2165,6 +2734,7 @@ def send_message(
         ).fetchone()
 
         if not receiver:
+
             raise HTTPException(
                 status_code=404,
                 detail="Receiver not found.",
@@ -2195,6 +2765,7 @@ def send_message(
         ).fetchone()
 
         if blocked:
+
             raise HTTPException(
                 status_code=403,
                 detail="Messaging is blocked.",
@@ -2335,9 +2906,12 @@ async def send_voice_note(
     if not content_type.startswith(
         "audio/"
     ):
+
         raise HTTPException(
             status_code=400,
-            detail="Voice note must be audio.",
+            detail=(
+                "Voice note must be audio."
+            ),
         )
 
     media_url = await save_upload(
@@ -2469,12 +3043,32 @@ def block_user(
 ):
 
     if other_user_id == user["id"]:
+
         raise HTTPException(
             status_code=400,
-            detail="You cannot block yourself.",
+            detail=(
+                "You cannot block yourself."
+            ),
         )
 
     with get_conn() as conn:
+
+        receiver = conn.execute(
+            """
+            SELECT id
+            FROM users
+            WHERE id=%s
+              AND deleted_at IS NULL
+            """,
+            (other_user_id,),
+        ).fetchone()
+
+        if not receiver:
+
+            raise HTTPException(
+                status_code=404,
+                detail="User not found.",
+            )
 
         conn.execute(
             """
@@ -2541,6 +3135,15 @@ def report(
     user=Depends(require_user),
 ):
 
+    reason = data.reason.strip()
+
+    if not reason:
+
+        raise HTTPException(
+            status_code=400,
+            detail="Report reason is required.",
+        )
+
     with get_conn() as conn:
 
         conn.execute(
@@ -2559,7 +3162,7 @@ def report(
                 user["id"],
                 data.reported_user_id,
                 data.post_id,
-                data.reason.strip(),
+                reason,
             ),
         )
 
@@ -2614,27 +3217,51 @@ def livekit_token_get(
 ):
 
     if not LIVEKIT_URL:
+
         raise HTTPException(
             status_code=503,
-            detail="LIVEKIT_URL is not configured.",
+            detail=(
+                "LIVEKIT_URL is not configured."
+            ),
         )
 
     if not LIVEKIT_API_KEY:
+
         raise HTTPException(
             status_code=503,
-            detail="LIVEKIT_API_KEY is not configured.",
+            detail=(
+                "LIVEKIT_API_KEY is not configured."
+            ),
         )
 
     if not LIVEKIT_API_SECRET:
+
         raise HTTPException(
             status_code=503,
-            detail="LIVEKIT_API_SECRET is not configured.",
+            detail=(
+                "LIVEKIT_API_SECRET is not configured."
+            ),
         )
 
     if livekit_api is None:
+
         raise HTTPException(
             status_code=503,
-            detail="LiveKit package is not installed.",
+            detail=(
+                "LiveKit package is not installed."
+            ),
+        )
+
+    if call_type not in [
+        "audio",
+        "video",
+    ]:
+
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Call type must be audio or video."
+            ),
         )
 
     try:
@@ -2677,7 +3304,9 @@ def livekit_token_get(
 
         raise HTTPException(
             status_code=500,
-            detail="Failed to create LiveKit token.",
+            detail=(
+                "Failed to create LiveKit token."
+            ),
         )
 
 
@@ -2715,9 +3344,21 @@ def create_call(
         "audio",
         "video",
     ]:
+
         raise HTTPException(
             status_code=400,
-            detail="Call type must be audio or video.",
+            detail=(
+                "Call type must be audio or video."
+            ),
+        )
+
+    if data.receiver_id == user["id"]:
+
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "You cannot call yourself."
+            ),
         )
 
     room_name = (
@@ -2738,6 +3379,7 @@ def create_call(
         ).fetchone()
 
         if not receiver:
+
             raise HTTPException(
                 status_code=404,
                 detail="Receiver not found.",
@@ -2800,6 +3442,7 @@ def update_call(
     ]
 
     if status not in allowed:
+
         raise HTTPException(
             status_code=400,
             detail="Invalid call status.",
@@ -2845,6 +3488,7 @@ def update_call(
         conn.commit()
 
     if not row:
+
         raise HTTPException(
             status_code=404,
             detail="Call not found.",
@@ -2869,11 +3513,16 @@ def update_call(
 # ============================================================
 
 @app.get("/uploads/{filename}")
-def uploaded_file(filename: str):
+def uploaded_file(
+    filename: str
+):
 
-    path = UPLOAD_DIR / filename
+    path = (
+        UPLOAD_DIR / filename
+    )
 
     if not path.exists():
+
         raise HTTPException(
             status_code=404,
             detail="File not found.",
@@ -2883,11 +3532,16 @@ def uploaded_file(filename: str):
 
 
 @app.get("/posts/{filename}")
-def post_file(filename: str):
+def post_file(
+    filename: str
+):
 
-    path = POST_DIR / filename
+    path = (
+        POST_DIR / filename
+    )
 
     if not path.exists():
+
         raise HTTPException(
             status_code=404,
             detail="Post media not found.",
@@ -2897,11 +3551,16 @@ def post_file(filename: str):
 
 
 @app.get("/avatars/{filename}")
-def avatar_file(filename: str):
+def avatar_file(
+    filename: str
+):
 
-    path = AVATAR_DIR / filename
+    path = (
+        AVATAR_DIR / filename
+    )
 
     if not path.exists():
+
         raise HTTPException(
             status_code=404,
             detail="Avatar not found.",
@@ -2911,11 +3570,16 @@ def avatar_file(filename: str):
 
 
 @app.get("/voice/{filename}")
-def voice_file(filename: str):
+def voice_file(
+    filename: str
+):
 
-    path = VOICE_DIR / filename
+    path = (
+        VOICE_DIR / filename
+    )
 
     if not path.exists():
+
         raise HTTPException(
             status_code=404,
             detail="Voice file not found.",
@@ -2925,11 +3589,16 @@ def voice_file(filename: str):
 
 
 @app.get("/chat_files/{filename}")
-def chat_file(filename: str):
+def chat_file(
+    filename: str
+):
 
-    path = CHAT_FILE_DIR / filename
+    path = (
+        CHAT_FILE_DIR / filename
+    )
 
     if not path.exists():
+
         raise HTTPException(
             status_code=404,
             detail="Chat file not found.",
@@ -2939,11 +3608,16 @@ def chat_file(filename: str):
 
 
 @app.get("/wallpapers/{filename}")
-def wallpaper_file(filename: str):
+def wallpaper_file(
+    filename: str
+):
 
-    path = WALLPAPER_DIR / filename
+    path = (
+        WALLPAPER_DIR / filename
+    )
 
     if not path.exists():
+
         raise HTTPException(
             status_code=404,
             detail="Wallpaper not found.",
@@ -2986,7 +3660,9 @@ try:
     app.mount(
         "/static-uploads",
         StaticFiles(
-            directory=str(UPLOAD_DIR)
+            directory=str(
+                UPLOAD_DIR
+            )
         ),
         name="static-uploads",
     )
@@ -2994,7 +3670,9 @@ try:
     app.mount(
         "/static-posts",
         StaticFiles(
-            directory=str(POST_DIR)
+            directory=str(
+                POST_DIR
+            )
         ),
         name="static-posts",
     )
@@ -3002,7 +3680,9 @@ try:
     app.mount(
         "/static-avatars",
         StaticFiles(
-            directory=str(AVATAR_DIR)
+            directory=str(
+                AVATAR_DIR
+            )
         ),
         name="static-avatars",
     )

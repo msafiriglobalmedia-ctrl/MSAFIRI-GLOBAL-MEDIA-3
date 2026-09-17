@@ -227,21 +227,22 @@ def verify_password(
 # ============================================================
 
 def get_conn():
-
     if not DATABASE_URL:
-
         raise HTTPException(
             status_code=500,
-            detail=(
-                "DATABASE_URL is not configured."
-            ),
+            detail="DATABASE_URL is not configured.",
         )
 
-    return psycopg.connect(
+    conn = psycopg.connect(
         DATABASE_URL,
         row_factory=dict_row,
         connect_timeout=15,
     )
+
+    conn.execute("SET lock_timeout = '5s'")
+    conn.execute("SET statement_timeout = '15s'")
+
+    return conn
 
 
 # ============================================================

@@ -313,6 +313,46 @@ def init_database():
             )
             """
         )
+        # ============================================================
+# MIGRATE EXISTING USERS TABLE
+# ============================================================
+
+conn.execute("""
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS username VARCHAR(80)
+""")
+
+conn.execute("""
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS bio TEXT DEFAULT ''
+""")
+
+conn.execute("""
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS location VARCHAR(255) DEFAULT ''
+""")
+
+conn.execute("""
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS avatar TEXT
+""")
+
+conn.execute("""
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ
+    NOT NULL DEFAULT NOW()
+""")
+
+conn.execute("""
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ
+""")
+
+conn.execute("""
+    CREATE UNIQUE INDEX IF NOT EXISTS users_username_unique
+    ON users(username)
+    WHERE username IS NOT NULL
+""")
 
         # ----------------------------------------------------
         # IMPORTANT:

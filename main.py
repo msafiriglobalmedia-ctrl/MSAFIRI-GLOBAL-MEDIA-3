@@ -66,7 +66,6 @@ for directory in (
 
 DATABASE_URL = (os.getenv("DATABASE_URL") or "").strip()
 
-# Render/PostgreSQL may sometimes provide postgres://
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace(
         "postgres://",
@@ -142,17 +141,9 @@ def get_conn():
 # ============================================================
 
 def init_db():
-    """
-    Create required tables and safely migrate older
-    V3/V4/V5 databases without deleting existing data.
-    """
-
     with get_conn() as conn:
 
-        # ----------------------------------------------------
         # USERS
-        # ----------------------------------------------------
-
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS users (
@@ -174,15 +165,12 @@ def init_db():
         conn.execute(
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT DEFAULT ''"
         )
-
         conn.execute(
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar TEXT"
         )
-
         conn.execute(
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ"
         )
-
         conn.execute(
             """
             ALTER TABLE users
@@ -190,7 +178,6 @@ def init_db():
             TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
             """
         )
-
         conn.execute(
             """
             ALTER TABLE users
@@ -199,10 +186,7 @@ def init_db():
             """
         )
 
-        # ----------------------------------------------------
         # SESSIONS
-        # ----------------------------------------------------
-
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS sessions (
@@ -224,7 +208,6 @@ def init_db():
             ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ
             """
         )
-
         conn.execute(
             """
             ALTER TABLE sessions
@@ -232,7 +215,6 @@ def init_db():
             BOOLEAN NOT NULL DEFAULT FALSE
             """
         )
-
         conn.execute(
             """
             ALTER TABLE sessions
@@ -240,7 +222,6 @@ def init_db():
             TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
             """
         )
-
         conn.execute(
             """
             UPDATE sessions
@@ -249,14 +230,12 @@ def init_db():
             WHERE expires_at IS NULL
             """
         )
-
         conn.execute(
             """
             CREATE INDEX IF NOT EXISTS idx_sessions_token
             ON sessions(token_hash)
             """
         )
-
         conn.execute(
             """
             CREATE INDEX IF NOT EXISTS idx_sessions_user
@@ -264,10 +243,7 @@ def init_db():
             """
         )
 
-        # ----------------------------------------------------
         # POSTS
-        # ----------------------------------------------------
-
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS posts (
@@ -293,21 +269,18 @@ def init_db():
             TEXT NOT NULL DEFAULT ''
             """
         )
-
         conn.execute(
             """
             ALTER TABLE posts
             ADD COLUMN IF NOT EXISTS media_url TEXT
             """
         )
-
         conn.execute(
             """
             ALTER TABLE posts
             ADD COLUMN IF NOT EXISTS media_type TEXT
             """
         )
-
         conn.execute(
             """
             ALTER TABLE posts
@@ -315,7 +288,6 @@ def init_db():
             TIMESTAMPTZ
             """
         )
-
         conn.execute(
             """
             ALTER TABLE posts
@@ -323,7 +295,6 @@ def init_db():
             TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
             """
         )
-
         conn.execute(
             """
             ALTER TABLE posts
@@ -331,14 +302,12 @@ def init_db():
             TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
             """
         )
-
         conn.execute(
             """
             CREATE INDEX IF NOT EXISTS idx_posts_created
             ON posts(created_at DESC)
             """
         )
-
         conn.execute(
             """
             CREATE INDEX IF NOT EXISTS idx_posts_user
@@ -346,10 +315,7 @@ def init_db():
             """
         )
 
-        # ----------------------------------------------------
         # LIKES
-        # ----------------------------------------------------
-
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS likes (
@@ -365,10 +331,7 @@ def init_db():
             """
         )
 
-        # ----------------------------------------------------
         # COMMENTS
-        # ----------------------------------------------------
-
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS comments (
@@ -384,10 +347,7 @@ def init_db():
             """
         )
 
-        # ----------------------------------------------------
         # SAVED POSTS
-        # ----------------------------------------------------
-
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS saved_posts (
@@ -403,10 +363,7 @@ def init_db():
             """
         )
 
-        # ----------------------------------------------------
         # RESHARES
-        # ----------------------------------------------------
-
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS reshares (
@@ -422,10 +379,7 @@ def init_db():
             """
         )
 
-        # ----------------------------------------------------
         # MESSAGES
-        # ----------------------------------------------------
-
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS messages (
@@ -500,7 +454,6 @@ def init_db():
             ON messages(sender_id, receiver_id, created_at DESC)
             """
         )
-
         conn.execute(
             """
             CREATE INDEX IF NOT EXISTS idx_messages_rs
@@ -508,10 +461,7 @@ def init_db():
             """
         )
 
-        # ----------------------------------------------------
         # CHAT SETTINGS
-        # ----------------------------------------------------
-
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS chat_settings (
@@ -568,10 +518,7 @@ def init_db():
         for sql in chat_migrations:
             conn.execute(sql)
 
-        # ----------------------------------------------------
         # BLOCKS
-        # ----------------------------------------------------
-
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS blocks (
@@ -587,10 +534,7 @@ def init_db():
             """
         )
 
-        # ----------------------------------------------------
         # REPORTS
-        # ----------------------------------------------------
-
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS reports (
@@ -608,7 +552,6 @@ def init_db():
             )
             """
         )
-
         conn.execute(
             """
             ALTER TABLE reports
@@ -616,10 +559,7 @@ def init_db():
             """
         )
 
-        # ----------------------------------------------------
         # CALLS
-        # ----------------------------------------------------
-
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS calls (
@@ -637,7 +577,6 @@ def init_db():
             )
             """
         )
-
         conn.execute(
             """
             CREATE UNIQUE INDEX IF NOT EXISTS idx_calls_room
@@ -645,10 +584,7 @@ def init_db():
             """
         )
 
-        # ----------------------------------------------------
         # STATUSES
-        # ----------------------------------------------------
-
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS statuses (
@@ -665,10 +601,7 @@ def init_db():
             """
         )
 
-        # ----------------------------------------------------
         # CLEAN NULL VALUES
-        # ----------------------------------------------------
-
         conn.execute(
             """
             UPDATE users
@@ -676,7 +609,6 @@ def init_db():
             WHERE bio IS NULL
             """
         )
-
         conn.execute(
             """
             UPDATE users
@@ -694,9 +626,6 @@ def init_db():
 
 @app.on_event("startup")
 def startup():
-    """
-    Initialize database on application startup.
-    """
     try:
         init_db()
         print("==========================================")
@@ -802,13 +731,11 @@ def decode_token(token: str):
             JWT_SECRET,
             algorithms=[JWT_ALGORITHM],
         )
-
     except jwt.ExpiredSignatureError:
         raise HTTPException(
             status_code=401,
             detail="Session expired",
         )
-
     except jwt.InvalidTokenError:
         raise HTTPException(
             status_code=401,
@@ -826,10 +753,7 @@ def bearer(authorization: Optional[str]):
             detail="Bearer token required",
         )
 
-    token = authorization.split(
-        " ",
-        1,
-    )[1].strip()
+    token = authorization.split(" ", 1)[1].strip()
 
     if not token:
         raise HTTPException(
@@ -840,20 +764,13 @@ def bearer(authorization: Optional[str]):
     return token
 
 
-def require_user(
-    authorization: Optional[str],
-):
+def require_user(authorization: Optional[str]):
     token = bearer(authorization)
-
     payload = decode_token(token)
 
     try:
         user_id = int(payload["sub"])
-    except (
-        KeyError,
-        TypeError,
-        ValueError,
-    ):
+    except (KeyError, TypeError, ValueError):
         raise HTTPException(
             status_code=401,
             detail="Invalid token subject",
@@ -901,83 +818,40 @@ def require_user(
 # ============================================================
 
 def safe_filename(name):
-    extension = Path(
-        name or "file"
-    ).suffix.lower()
+    extension = Path(name or "file").suffix.lower()
 
     allowed_extensions = {
-        ".jpg",
-        ".jpeg",
-        ".png",
-        ".gif",
-        ".webp",
-        ".mp4",
-        ".mov",
-        ".webm",
-        ".m4a",
-        ".mp3",
-        ".wav",
-        ".ogg",
-        ".pdf",
-        ".doc",
-        ".docx",
-        ".txt",
-        ".zip",
+        ".jpg", ".jpeg", ".png", ".gif", ".webp",
+        ".mp4", ".mov", ".webm",
+        ".m4a", ".mp3", ".wav", ".ogg",
+        ".pdf", ".doc", ".docx", ".txt", ".zip",
     }
 
     if extension not in allowed_extensions:
         extension = ""
 
-    return (
-        secrets.token_hex(16)
-        + extension
-    )
+    return secrets.token_hex(16) + extension
 
 
 def public_url(path: Path):
     relative = path.relative_to(BASE_DIR)
-
-    return (
-        "/files/"
-        + str(relative).replace(
-            "\\",
-            "/",
-        )
-    )
+    return "/files/" + str(relative).replace("\\", "/")
 
 
 def user_public(user):
     fields = (
-        "id",
-        "name",
-        "email",
-        "bio",
-        "avatar",
-        "created_at",
-        "updated_at",
+        "id", "name", "email", "bio", "avatar",
+        "created_at", "updated_at",
     )
-
-    return {
-        key: user[key]
-        for key in fields
-        if key in user
-    }
+    return {key: user[key] for key in fields if key in user}
 
 
 # ============================================================
 # FRONTEND / ROOT ROUTE
 # ============================================================
 
-@app.get(
-    "/",
-    include_in_schema=False,
-)
+@app.get("/", include_in_schema=False)
 def root():
-    """
-    V5.1 FIX:
-    Serve the frontend index.html instead of returning JSON.
-    """
-
     index_file = BASE_DIR / "index.html"
 
     if not index_file.exists():
@@ -995,33 +869,21 @@ def root():
             },
         )
 
-    return FileResponse(
-        index_file,
-        media_type="text/html",
-    )
+    return FileResponse(index_file, media_type="text/html")
 
 
 # ============================================================
 # FAVICON
 # ============================================================
 
-@app.get(
-    "/favicon.ico",
-    include_in_schema=False,
-)
+@app.get("/favicon.ico", include_in_schema=False)
 def favicon():
     favicon_file = BASE_DIR / "favicon.ico"
 
     if favicon_file.exists():
-        return FileResponse(
-            favicon_file,
-            media_type="image/x-icon",
-        )
+        return FileResponse(favicon_file, media_type="image/x-icon")
 
-    raise HTTPException(
-        status_code=404,
-        detail="Favicon not found",
-    )
+    raise HTTPException(status_code=404, detail="Favicon not found")
 
 
 # ============================================================
@@ -1050,10 +912,7 @@ def health():
 def db_health():
     with get_conn() as conn:
         result = conn.execute(
-            """
-            SELECT CURRENT_TIMESTAMP
-            AS server_time
-            """
+            "SELECT CURRENT_TIMESTAMP AS server_time"
         ).fetchone()
 
     return {
@@ -1067,86 +926,53 @@ def db_health():
 # FILE SERVING
 # ============================================================
 
-@app.get(
-    "/files/{file_path:path}"
-)
+@app.get("/files/{file_path:path}")
 def serve_file(file_path: str):
-
-    requested = (
-        BASE_DIR / file_path
-    ).resolve()
-
+    requested = (BASE_DIR / file_path).resolve()
     upload_root = UPLOAD_DIR.resolve()
 
-    # Prevent directory traversal.
     if not (
         requested == upload_root
-        or str(requested).startswith(
-            str(upload_root) + os.sep
-        )
+        or str(requested).startswith(str(upload_root) + os.sep)
     ):
-        raise HTTPException(
-            status_code=403,
-            detail="Forbidden",
-        )
+        raise HTTPException(status_code=403, detail="Forbidden")
 
     if not requested.is_file():
-        raise HTTPException(
-            status_code=404,
-            detail="File not found",
-        )
+        raise HTTPException(status_code=404, detail="File not found")
 
     media_type = (
-        mimetypes.guess_type(
-            str(requested)
-        )[0]
+        mimetypes.guess_type(str(requested))[0]
         or "application/octet-stream"
     )
 
-    return FileResponse(
-        requested,
-        media_type=media_type,
-    )
+    return FileResponse(requested, media_type=media_type)
 
 
 # ============================================================
-# REGISTER
+# REGISTER  (with /api/auth alias)
 # ============================================================
 
 @app.post("/api/register")
-def register(
-    data: RegisterRequest,
-):
+@app.post("/api/auth/register")
+def register(data: RegisterRequest):
     name = data.name.strip()
     email = str(data.email).strip().lower()
 
     if len(name) < 2:
-        raise HTTPException(
-            status_code=400,
-            detail="Name is too short",
-        )
+        raise HTTPException(status_code=400, detail="Name is too short")
 
     if len(name) > 100:
-        raise HTTPException(
-            status_code=400,
-            detail="Name is too long",
-        )
+        raise HTTPException(status_code=400, detail="Name is too long")
 
     if len(data.password) < 6:
         raise HTTPException(
             status_code=400,
-            detail=(
-                "Password must contain "
-                "at least 6 characters"
-            ),
+            detail="Password must contain at least 6 characters",
         )
 
-    password_hash = pwd_context.hash(
-        data.password
-    )
+    password_hash = pwd_context.hash(data.password)
 
     with get_conn() as conn:
-
         existing = conn.execute(
             """
             SELECT id, deleted_at
@@ -1158,14 +984,10 @@ def register(
         ).fetchone()
 
         if existing:
-
             if existing["deleted_at"] is None:
                 raise HTTPException(
                     status_code=409,
-                    detail=(
-                        "An account with this "
-                        "email already exists"
-                    ),
+                    detail="An account with this email already exists",
                 )
 
             user_id = existing["id"]
@@ -1182,44 +1004,23 @@ def register(
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = %s
                 """,
-                (
-                    name,
-                    password_hash,
-                    user_id,
-                ),
+                (name, password_hash, user_id),
             )
-
         else:
-
             row = conn.execute(
                 """
                 INSERT INTO users (
-                    name,
-                    email,
-                    password_hash,
-                    bio
+                    name, email, password_hash, bio
                 )
-                VALUES (
-                    %s,
-                    %s,
-                    %s,
-                    ''
-                )
+                VALUES (%s, %s, %s, '')
                 RETURNING id
                 """,
-                (
-                    name,
-                    email,
-                    password_hash,
-                ),
+                (name, email, password_hash),
             ).fetchone()
 
             user_id = row["id"]
 
-        token = create_token(
-            user_id
-        )
-
+        token = create_token(user_id)
         expires_at = (
             datetime.now(timezone.utc)
             + timedelta(days=TOKEN_DAYS)
@@ -1228,33 +1029,18 @@ def register(
         conn.execute(
             """
             INSERT INTO sessions (
-                user_id,
-                token_hash,
-                expires_at
+                user_id, token_hash, expires_at
             )
-            VALUES (
-                %s,
-                %s,
-                %s
-            )
+            VALUES (%s, %s, %s)
             """,
-            (
-                user_id,
-                hash_token(token),
-                expires_at,
-            ),
+            (user_id, hash_token(token), expires_at),
         )
 
         user = conn.execute(
             """
             SELECT
-                id,
-                name,
-                email,
-                bio,
-                avatar,
-                created_at,
-                updated_at
+                id, name, email, bio, avatar,
+                created_at, updated_at
             FROM users
             WHERE id = %s
             """,
@@ -1272,36 +1058,22 @@ def register(
 
 
 # ============================================================
-# LOGIN
+# LOGIN  (with /api/auth alias)
 # ============================================================
 
 @app.post("/api/login")
-def login(
-    data: LoginRequest,
-):
-    email = (
-        str(data.email)
-        .strip()
-        .lower()
-    )
+@app.post("/api/auth/login")
+def login(data: LoginRequest):
+    email = str(data.email).strip().lower()
 
     with get_conn() as conn:
-
         user = conn.execute(
             """
             SELECT
-                id,
-                name,
-                email,
-                password_hash,
-                bio,
-                avatar,
-                created_at,
-                updated_at
+                id, name, email, password_hash,
+                bio, avatar, created_at, updated_at
             FROM users
-            WHERE
-                email = %s
-                AND deleted_at IS NULL
+            WHERE email = %s AND deleted_at IS NULL
             LIMIT 1
             """,
             (email,),
@@ -1314,11 +1086,8 @@ def login(
             )
 
         try:
-            valid_password = (
-                pwd_context.verify(
-                    data.password,
-                    user["password_hash"],
-                )
+            valid_password = pwd_context.verify(
+                data.password, user["password_hash"]
             )
         except Exception:
             valid_password = False
@@ -1329,10 +1098,7 @@ def login(
                 detail="Invalid email or password",
             )
 
-        token = create_token(
-            user["id"]
-        )
-
+        token = create_token(user["id"])
         expires_at = (
             datetime.now(timezone.utc)
             + timedelta(days=TOKEN_DAYS)
@@ -1341,29 +1107,16 @@ def login(
         conn.execute(
             """
             INSERT INTO sessions (
-                user_id,
-                token_hash,
-                expires_at
+                user_id, token_hash, expires_at
             )
-            VALUES (
-                %s,
-                %s,
-                %s
-            )
+            VALUES (%s, %s, %s)
             """,
-            (
-                user["id"],
-                hash_token(token),
-                expires_at,
-            ),
+            (user["id"], hash_token(token), expires_at),
         )
 
         conn.commit()
 
-    user.pop(
-        "password_hash",
-        None,
-    )
+    user.pop("password_hash", None)
 
     return {
         "message": "Login successful",
@@ -1374,18 +1127,15 @@ def login(
 
 
 # ============================================================
-# LOGOUT
+# LOGOUT  (with /api/auth alias)
 # ============================================================
 
 @app.post("/api/logout")
+@app.post("/api/auth/logout")
 def logout(
-    authorization: Optional[str] = Header(
-        default=None
-    ),
+    authorization: Optional[str] = Header(default=None),
 ):
-    token = bearer(
-        authorization
-    )
+    token = bearer(authorization)
 
     with get_conn() as conn:
         conn.execute(
@@ -1394,33 +1144,23 @@ def logout(
             SET revoked = TRUE
             WHERE token_hash = %s
             """,
-            (
-                hash_token(token),
-            ),
+            (hash_token(token),),
         )
-
         conn.commit()
 
-    return {
-        "message": "Logged out successfully"
-    }
+    return {"message": "Logged out successfully"}
 
 
 # ============================================================
-# CURRENT USER
+# CURRENT USER  (with /api/auth alias)
 # ============================================================
 
 @app.get("/api/me")
+@app.get("/api/auth/me")
 def me(
-    authorization: Optional[str] = Header(
-        default=None
-    ),
+    authorization: Optional[str] = Header(default=None),
 ):
-    return {
-        "user": require_user(
-            authorization
-        )
-    }
+    return {"user": require_user(authorization)}
 
 
 # ============================================================
@@ -1430,13 +1170,9 @@ def me(
 @app.patch("/api/profile")
 def update_profile(
     data: ProfileUpdate,
-    authorization: Optional[str] = Header(
-        default=None
-    ),
+    authorization: Optional[str] = Header(default=None),
 ):
-    user = require_user(
-        authorization
-    )
+    user = require_user(authorization)
 
     name = (
         data.name.strip()
@@ -1451,25 +1187,15 @@ def update_profile(
     )
 
     if len(name) < 2:
-        raise HTTPException(
-            status_code=400,
-            detail="Name is too short",
-        )
+        raise HTTPException(status_code=400, detail="Name is too short")
 
     if len(name) > 100:
-        raise HTTPException(
-            status_code=400,
-            detail="Name is too long",
-        )
+        raise HTTPException(status_code=400, detail="Name is too long")
 
     if len(bio) > 1000:
-        raise HTTPException(
-            status_code=400,
-            detail="Bio is too long",
-        )
+        raise HTTPException(status_code=400, detail="Bio is too long")
 
     with get_conn() as conn:
-
         row = conn.execute(
             """
             UPDATE users
@@ -1479,27 +1205,15 @@ def update_profile(
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = %s
             RETURNING
-                id,
-                name,
-                email,
-                bio,
-                avatar,
-                created_at,
-                updated_at
+                id, name, email, bio, avatar,
+                created_at, updated_at
             """,
-            (
-                name,
-                bio,
-                user["id"],
-            ),
+            (name, bio, user["id"]),
         ).fetchone()
 
         conn.commit()
 
-    return {
-        "message": "Profile updated",
-        "user": row,
-    }
+    return {"message": "Profile updated", "user": row}
 
 
 # ============================================================
@@ -1509,21 +1223,13 @@ def update_profile(
 @app.post("/api/profile/avatar")
 async def avatar(
     file: UploadFile = File(...),
-    authorization: Optional[str] = Header(
-        default=None
-    ),
+    authorization: Optional[str] = Header(default=None),
 ):
-    user = require_user(
-        authorization
-    )
+    user = require_user(authorization)
 
-    content_type = (
-        file.content_type or ""
-    ).lower()
+    content_type = (file.content_type or "").lower()
 
-    if not content_type.startswith(
-        "image/"
-    ):
+    if not content_type.startswith("image/"):
         raise HTTPException(
             status_code=400,
             detail="Avatar must be an image",
@@ -1537,23 +1243,11 @@ async def avatar(
             detail="Avatar is too large",
         )
 
-    destination = (
-        AVATAR_DIR
-        / safe_filename(
-            file.filename
-        )
-    )
-
-    destination.write_bytes(
-        content
-    )
-
-    url = public_url(
-        destination
-    )
+    destination = AVATAR_DIR / safe_filename(file.filename)
+    destination.write_bytes(content)
+    url = public_url(destination)
 
     with get_conn() as conn:
-
         row = conn.execute(
             """
             UPDATE users
@@ -1562,18 +1256,10 @@ async def avatar(
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = %s
             RETURNING
-                id,
-                name,
-                email,
-                bio,
-                avatar,
-                created_at,
-                updated_at
+                id, name, email, bio, avatar,
+                created_at, updated_at
             """,
-            (
-                url,
-                user["id"],
-            ),
+            (url, user["id"]),
         ).fetchone()
 
         conn.commit()
@@ -1591,38 +1277,23 @@ async def avatar(
 
 @app.get("/api/users/{user_id}")
 @app.get("/api/profile/{user_id}")
-def profile(
-    user_id: int,
-):
+def profile(user_id: int):
     with get_conn() as conn:
-
         user = conn.execute(
             """
             SELECT
-                id,
-                name,
-                email,
-                bio,
-                avatar,
-                created_at,
-                updated_at
+                id, name, email, bio, avatar,
+                created_at, updated_at
             FROM users
-            WHERE
-                id = %s
-                AND deleted_at IS NULL
+            WHERE id = %s AND deleted_at IS NULL
             """,
             (user_id,),
         ).fetchone()
 
     if not user:
-        raise HTTPException(
-            status_code=404,
-            detail="User not found",
-        )
+        raise HTTPException(status_code=404, detail="User not found")
 
-    return {
-        "user": user
-    }
+    return {"user": user}
 
 
 # ============================================================
@@ -1631,66 +1302,36 @@ def profile(
 
 @app.get("/api/search")
 def search(
-    q: str = Query(
-        ...,
-        min_length=1,
-    ),
-    authorization: Optional[str] = Header(
-        default=None
-    ),
+    q: str = Query(..., min_length=1),
+    authorization: Optional[str] = Header(default=None),
 ):
-    require_user(
-        authorization
-    )
-
+    require_user(authorization)
     search_text = q.strip()
 
     with get_conn() as conn:
-
         users = conn.execute(
             """
             SELECT
-                id,
-                name,
-                email,
-                bio,
-                avatar,
-                created_at
+                id, name, email, bio, avatar, created_at
             FROM users
             WHERE
                 deleted_at IS NULL
-                AND (
-                    name ILIKE %s
-                    OR email ILIKE %s
-                )
+                AND (name ILIKE %s OR email ILIKE %s)
             ORDER BY name
             LIMIT 50
             """,
-            (
-                f"%{search_text}%",
-                f"%{search_text}%",
-            ),
+            (f"%{search_text}%", f"%{search_text}%"),
         ).fetchall()
 
-    return {
-        "users": users
-    }
+    return {"users": users}
 
 
 @app.get("/api/users/search")
 def users_search(
-    q: str = Query(
-        ...,
-        min_length=1,
-    ),
-    authorization: Optional[str] = Header(
-        default=None
-    ),
+    q: str = Query(..., min_length=1),
+    authorization: Optional[str] = Header(default=None),
 ):
-    return search(
-        q,
-        authorization,
-    )
+    return search(q, authorization)
 
 
 # ============================================================
@@ -1700,38 +1341,22 @@ def users_search(
 @app.post("/api/posts")
 async def create_post(
     caption: str = Form(""),
-    file: Optional[UploadFile] = File(
-        default=None
-    ),
-    authorization: Optional[str] = Header(
-        default=None
-    ),
+    file: Optional[UploadFile] = File(default=None),
+    authorization: Optional[str] = Header(default=None),
 ):
-    user = require_user(
-        authorization
-    )
-
+    user = require_user(authorization)
     caption = caption.strip()
 
     media_url = None
     media_type = None
 
     if file and file.filename:
-
-        content_type = (
-            file.content_type or ""
-        ).lower()
+        content_type = (file.content_type or "").lower()
 
         if not (
-            content_type.startswith(
-                "image/"
-            )
-            or content_type.startswith(
-                "video/"
-            )
-            or content_type.startswith(
-                "audio/"
-            )
+            content_type.startswith("image/")
+            or content_type.startswith("video/")
+            or content_type.startswith("audio/")
         ):
             raise HTTPException(
                 status_code=400,
@@ -1746,21 +1371,9 @@ async def create_post(
                 detail="File is too large",
             )
 
-        destination = (
-            POST_DIR
-            / safe_filename(
-                file.filename
-            )
-        )
-
-        destination.write_bytes(
-            content
-        )
-
-        media_url = public_url(
-            destination
-        )
-
+        destination = POST_DIR / safe_filename(file.filename)
+        destination.write_bytes(content)
+        media_url = public_url(destination)
         media_type = content_type
 
     if not caption and not media_url:
@@ -1770,43 +1383,22 @@ async def create_post(
         )
 
     with get_conn() as conn:
-
         post = conn.execute(
             """
             INSERT INTO posts (
-                user_id,
-                caption,
-                media_url,
-                media_type
+                user_id, caption, media_url, media_type
             )
-            VALUES (
-                %s,
-                %s,
-                %s,
-                %s
-            )
+            VALUES (%s, %s, %s, %s)
             RETURNING
-                id,
-                user_id,
-                caption,
-                media_url,
-                media_type,
-                created_at
+                id, user_id, caption, media_url,
+                media_type, created_at
             """,
-            (
-                user["id"],
-                caption,
-                media_url,
-                media_type,
-            ),
+            (user["id"], caption, media_url, media_type),
         ).fetchone()
 
         conn.commit()
 
-    return {
-        "message": "Post created",
-        "post": post,
-    }
+    return {"message": "Post created", "post": post}
 
 
 # ============================================================
@@ -1815,74 +1407,41 @@ async def create_post(
 
 @app.get("/api/posts")
 def posts(
-    limit: int = Query(
-        30,
-        ge=1,
-        le=100,
-    ),
-    offset: int = Query(
-        0,
-        ge=0,
-    ),
+    limit: int = Query(30, ge=1, le=100),
+    offset: int = Query(0, ge=0),
 ):
     with get_conn() as conn:
-
         rows = conn.execute(
             """
             SELECT
-                p.id,
-                p.user_id,
-                p.caption,
-                p.media_url,
-                p.media_type,
-                p.created_at,
+                p.id, p.user_id, p.caption,
+                p.media_url, p.media_type, p.created_at,
                 u.name AS user_name,
                 u.avatar AS user_avatar,
-
                 (
-                    SELECT COUNT(*)
-                    FROM likes l
+                    SELECT COUNT(*) FROM likes l
                     WHERE l.post_id = p.id
                 ) AS likes_count,
-
                 (
-                    SELECT COUNT(*)
-                    FROM comments x
+                    SELECT COUNT(*) FROM comments x
                     WHERE x.post_id = p.id
                 ) AS comments_count,
-
                 (
-                    SELECT COUNT(*)
-                    FROM reshares r
+                    SELECT COUNT(*) FROM reshares r
                     WHERE r.post_id = p.id
                 ) AS reshares_count
-
             FROM posts p
-
-            JOIN users u
-                ON u.id = p.user_id
-
+            JOIN users u ON u.id = p.user_id
             WHERE
                 p.deleted_at IS NULL
                 AND u.deleted_at IS NULL
-
-            ORDER BY
-                p.created_at DESC
-
-            LIMIT %s
-            OFFSET %s
+            ORDER BY p.created_at DESC
+            LIMIT %s OFFSET %s
             """,
-            (
-                limit,
-                offset,
-            ),
+            (limit, offset),
         ).fetchall()
 
-    return {
-        "posts": rows,
-        "limit": limit,
-        "offset": offset,
-    }
+    return {"posts": rows, "limit": limit, "offset": offset}
 
 
 # ============================================================
@@ -1892,16 +1451,11 @@ def posts(
 @app.delete("/api/posts/{post_id}")
 def delete_post(
     post_id: int,
-    authorization: Optional[str] = Header(
-        default=None
-    ),
+    authorization: Optional[str] = Header(default=None),
 ):
-    user = require_user(
-        authorization
-    )
+    user = require_user(authorization)
 
     with get_conn() as conn:
-
         row = conn.execute(
             """
             UPDATE posts
@@ -1914,10 +1468,7 @@ def delete_post(
                 AND deleted_at IS NULL
             RETURNING id
             """,
-            (
-                post_id,
-                user["id"],
-            ),
+            (post_id, user["id"]),
         ).fetchone()
 
         if not row:
@@ -1928,26 +1479,18 @@ def delete_post(
 
         conn.commit()
 
-    return {
-        "message": "Post deleted"
-    }
+    return {"message": "Post deleted"}
 
 
 # ============================================================
 # POST EXISTENCE HELPER
 # ============================================================
 
-def post_exists(
-    conn,
-    post_id: int,
-):
+def post_exists(conn, post_id: int):
     row = conn.execute(
         """
-        SELECT id
-        FROM posts
-        WHERE
-            id = %s
-            AND deleted_at IS NULL
+        SELECT id FROM posts
+        WHERE id = %s AND deleted_at IS NULL
         """,
         (post_id,),
     ).fetchone()
@@ -1966,81 +1509,45 @@ def post_exists(
 @app.post("/api/posts/{post_id}/like")
 def like(
     post_id: int,
-    authorization: Optional[str] = Header(
-        default=None
-    ),
+    authorization: Optional[str] = Header(default=None),
 ):
-    user = require_user(
-        authorization
-    )
+    user = require_user(authorization)
 
     with get_conn() as conn:
-
-        post_exists(
-            conn,
-            post_id,
-        )
+        post_exists(conn, post_id)
 
         conn.execute(
             """
-            INSERT INTO likes (
-                post_id,
-                user_id
-            )
-            VALUES (
-                %s,
-                %s
-            )
+            INSERT INTO likes (post_id, user_id)
+            VALUES (%s, %s)
             ON CONFLICT DO NOTHING
             """,
-            (
-                post_id,
-                user["id"],
-            ),
+            (post_id, user["id"]),
         )
 
         conn.commit()
 
-    return {
-        "liked": True
-    }
+    return {"liked": True}
 
-
-# ============================================================
-# UNLIKE
-# ============================================================
 
 @app.delete("/api/posts/{post_id}/like")
 def unlike(
     post_id: int,
-    authorization: Optional[str] = Header(
-        default=None
-    ),
+    authorization: Optional[str] = Header(default=None),
 ):
-    user = require_user(
-        authorization
-    )
+    user = require_user(authorization)
 
     with get_conn() as conn:
-
         conn.execute(
             """
             DELETE FROM likes
-            WHERE
-                post_id = %s
-                AND user_id = %s
+            WHERE post_id = %s AND user_id = %s
             """,
-            (
-                post_id,
-                user["id"],
-            ),
+            (post_id, user["id"]),
         )
-
         conn.commit()
 
-    return {
-        "liked": False
-    }
+    return {"liked": False}
 
 
 # ============================================================
@@ -2051,14 +1558,9 @@ def unlike(
 def comment(
     post_id: int,
     data: CommentRequest,
-    authorization: Optional[str] = Header(
-        default=None
-    ),
+    authorization: Optional[str] = Header(default=None),
 ):
-    user = require_user(
-        authorization
-    )
-
+    user = require_user(authorization)
     text = data.text.strip()
 
     if not text:
@@ -2074,82 +1576,45 @@ def comment(
         )
 
     with get_conn() as conn:
-
-        post_exists(
-            conn,
-            post_id,
-        )
+        post_exists(conn, post_id)
 
         row = conn.execute(
             """
-            INSERT INTO comments (
-                post_id,
-                user_id,
-                text
-            )
-            VALUES (
-                %s,
-                %s,
-                %s
-            )
+            INSERT INTO comments (post_id, user_id, text)
+            VALUES (%s, %s, %s)
             RETURNING
-                id,
-                post_id,
-                user_id,
-                text,
-                created_at
+                id, post_id, user_id, text, created_at
             """,
-            (
-                post_id,
-                user["id"],
-                text,
-            ),
+            (post_id, user["id"], text),
         ).fetchone()
 
         conn.commit()
 
-    return {
-        "comment": row
-    }
+    return {"comment": row}
 
 
 @app.get("/api/posts/{post_id}/comments")
-def comments(
-    post_id: int,
-):
+def comments(post_id: int):
     with get_conn() as conn:
-
         rows = conn.execute(
             """
             SELECT
-                c.id,
-                c.post_id,
-                c.user_id,
-                c.text,
+                c.id, c.post_id, c.user_id, c.text,
                 c.created_at,
                 u.name AS user_name,
                 u.avatar AS user_avatar
-
             FROM comments c
-
-            JOIN users u
-                ON u.id = c.user_id
-
+            JOIN users u ON u.id = c.user_id
             WHERE
                 c.post_id = %s
                 AND u.deleted_at IS NULL
-
-            ORDER BY
-                c.created_at
-
+            ORDER BY c.created_at
             LIMIT 200
             """,
             (post_id,),
         ).fetchall()
 
-    return {
-        "comments": rows
-    }
+    return {"comments": rows}
 
 
 # ============================================================
@@ -2159,77 +1624,45 @@ def comments(
 @app.post("/api/posts/{post_id}/save")
 def save(
     post_id: int,
-    authorization: Optional[str] = Header(
-        default=None
-    ),
+    authorization: Optional[str] = Header(default=None),
 ):
-    user = require_user(
-        authorization
-    )
+    user = require_user(authorization)
 
     with get_conn() as conn:
-
-        post_exists(
-            conn,
-            post_id,
-        )
+        post_exists(conn, post_id)
 
         conn.execute(
             """
-            INSERT INTO saved_posts (
-                post_id,
-                user_id
-            )
-            VALUES (
-                %s,
-                %s
-            )
+            INSERT INTO saved_posts (post_id, user_id)
+            VALUES (%s, %s)
             ON CONFLICT DO NOTHING
             """,
-            (
-                post_id,
-                user["id"],
-            ),
+            (post_id, user["id"]),
         )
 
         conn.commit()
 
-    return {
-        "saved": True
-    }
+    return {"saved": True}
 
 
 @app.delete("/api/posts/{post_id}/save")
 def unsave(
     post_id: int,
-    authorization: Optional[str] = Header(
-        default=None
-    ),
+    authorization: Optional[str] = Header(default=None),
 ):
-    user = require_user(
-        authorization
-    )
+    user = require_user(authorization)
 
     with get_conn() as conn:
-
         conn.execute(
             """
             DELETE FROM saved_posts
-            WHERE
-                post_id = %s
-                AND user_id = %s
+            WHERE post_id = %s AND user_id = %s
             """,
-            (
-                post_id,
-                user["id"],
-            ),
+            (post_id, user["id"]),
         )
-
         conn.commit()
 
-    return {
-        "saved": False
-    }
+    return {"saved": False}
 
 
 # ============================================================
@@ -2239,44 +1672,25 @@ def unsave(
 @app.post("/api/posts/{post_id}/reshare")
 def reshare(
     post_id: int,
-    authorization: Optional[str] = Header(
-        default=None
-    ),
+    authorization: Optional[str] = Header(default=None),
 ):
-    user = require_user(
-        authorization
-    )
+    user = require_user(authorization)
 
     with get_conn() as conn:
-
-        post_exists(
-            conn,
-            post_id,
-        )
+        post_exists(conn, post_id)
 
         conn.execute(
             """
-            INSERT INTO reshares (
-                post_id,
-                user_id
-            )
-            VALUES (
-                %s,
-                %s
-            )
+            INSERT INTO reshares (post_id, user_id)
+            VALUES (%s, %s)
             ON CONFLICT DO NOTHING
             """,
-            (
-                post_id,
-                user["id"],
-            ),
+            (post_id, user["id"]),
         )
 
         conn.commit()
 
-    return {
-        "reshared": True
-    }
+    return {"reshared": True}
 
 
 # ============================================================
@@ -2286,13 +1700,9 @@ def reshare(
 @app.post("/api/messages")
 def send_message(
     data: MessageRequest,
-    authorization: Optional[str] = Header(
-        default=None
-    ),
+    authorization: Optional[str] = Header(default=None),
 ):
-    user = require_user(
-        authorization
-    )
+    user = require_user(authorization)
 
     if data.receiver_id == user["id"]:
         raise HTTPException(
@@ -2315,18 +1725,12 @@ def send_message(
         )
 
     with get_conn() as conn:
-
         receiver = conn.execute(
             """
-            SELECT id
-            FROM users
-            WHERE
-                id = %s
-                AND deleted_at IS NULL
+            SELECT id FROM users
+            WHERE id = %s AND deleted_at IS NULL
             """,
-            (
-                data.receiver_id,
-            ),
+            (data.receiver_id,),
         ).fetchone()
 
         if not receiver:
@@ -2337,18 +1741,11 @@ def send_message(
 
         blocked = conn.execute(
             """
-            SELECT id
-            FROM blocks
+            SELECT id FROM blocks
             WHERE
-                (
-                    blocker_id = %s
-                    AND blocked_id = %s
-                )
+                (blocker_id = %s AND blocked_id = %s)
                 OR
-                (
-                    blocker_id = %s
-                    AND blocked_id = %s
-                )
+                (blocker_id = %s AND blocked_id = %s)
             LIMIT 1
             """,
             (
@@ -2368,39 +1765,20 @@ def send_message(
         message = conn.execute(
             """
             INSERT INTO messages (
-                sender_id,
-                receiver_id,
-                text
+                sender_id, receiver_id, text
             )
-            VALUES (
-                %s,
-                %s,
-                %s
-            )
+            VALUES (%s, %s, %s)
             RETURNING
-                id,
-                sender_id,
-                receiver_id,
-                text,
-                media_url,
-                media_type,
-                voice_url,
-                duration_seconds,
-                created_at,
-                seen
+                id, sender_id, receiver_id, text,
+                media_url, media_type, voice_url,
+                duration_seconds, created_at, seen
             """,
-            (
-                user["id"],
-                data.receiver_id,
-                text,
-            ),
+            (user["id"], data.receiver_id, text),
         ).fetchone()
 
         conn.commit()
 
-    return {
-        "message": message
-    }
+    return {"message": message}
 
 
 # ============================================================
@@ -2410,19 +1788,11 @@ def send_message(
 @app.get("/api/messages/{other_user_id}")
 def history(
     other_user_id: int,
-    limit: int = Query(
-        100,
-        ge=1,
-        le=200,
-    ),
+    limit: int = Query(100, ge=1, le=200),
     before_id: Optional[int] = None,
-    authorization: Optional[str] = Header(
-        default=None
-    ),
+    authorization: Optional[str] = Header(default=None),
 ):
-    user = require_user(
-        authorization
-    )
+    user = require_user(authorization)
 
     params = (
         user["id"],
@@ -2432,24 +1802,14 @@ def history(
     )
 
     with get_conn() as conn:
-
         if before_id is None:
-
             rows = conn.execute(
                 """
                 SELECT
-                    id,
-                    sender_id,
-                    receiver_id,
-                    text,
-                    media_url,
-                    media_type,
-                    voice_url,
-                    duration_seconds,
-                    created_at,
-                    seen
+                    id, sender_id, receiver_id, text,
+                    media_url, media_type, voice_url,
+                    duration_seconds, created_at, seen
                 FROM messages
-
                 WHERE
                     (
                         sender_id = %s
@@ -2462,55 +1822,38 @@ def history(
                         AND receiver_id = %s
                         AND deleted_for_receiver = FALSE
                     )
-
-                ORDER BY
-                    created_at DESC
-
+                ORDER BY created_at DESC
                 LIMIT %s
                 """,
                 params + (limit,),
             ).fetchall()
-
         else:
-
             rows = conn.execute(
                 """
                 SELECT
-                    id,
-                    sender_id,
-                    receiver_id,
-                    text,
-                    media_url,
-                    media_type,
-                    voice_url,
-                    duration_seconds,
-                    created_at,
-                    seen
+                    id, sender_id, receiver_id, text,
+                    media_url, media_type, voice_url,
+                    duration_seconds, created_at, seen
                 FROM messages
-
                 WHERE
                     (
-                        sender_id = %s
-                        AND receiver_id = %s
-                        AND deleted_for_sender = FALSE
-                    )
-                    OR
-                    (
-                        sender_id = %s
-                        AND receiver_id = %s
-                        AND deleted_for_receiver = FALSE
+                        (
+                            sender_id = %s
+                            AND receiver_id = %s
+                            AND deleted_for_sender = FALSE
+                        )
+                        OR
+                        (
+                            sender_id = %s
+                            AND receiver_id = %s
+                            AND deleted_for_receiver = FALSE
+                        )
                     )
                     AND id < %s
-
-                ORDER BY
-                    created_at DESC
-
+                ORDER BY created_at DESC
                 LIMIT %s
                 """,
-                params + (
-                    before_id,
-                    limit,
-                ),
+                params + (before_id, limit),
             ).fetchall()
 
         conn.execute(
@@ -2521,19 +1864,13 @@ def history(
                 sender_id = %s
                 AND receiver_id = %s
             """,
-            (
-                other_user_id,
-                user["id"],
-            ),
+            (other_user_id, user["id"]),
         )
 
         conn.commit()
 
     rows.reverse()
-
-    return {
-        "messages": rows
-    }
+    return {"messages": rows}
 
 
 # ============================================================
@@ -2542,16 +1879,11 @@ def history(
 
 @app.get("/api/messages")
 def chat_list(
-    authorization: Optional[str] = Header(
-        default=None
-    ),
+    authorization: Optional[str] = Header(default=None),
 ):
-    user = require_user(
-        authorization
-    )
+    user = require_user(authorization)
 
     with get_conn() as conn:
-
         rows = conn.execute(
             """
             SELECT DISTINCT ON (x.other_id)
@@ -2561,7 +1893,6 @@ def chat_list(
                 u.avatar,
                 x.last_message,
                 x.last_message_at
-
             FROM (
                 SELECT
                     CASE
@@ -2569,51 +1900,31 @@ def chat_list(
                         THEN receiver_id
                         ELSE sender_id
                     END AS other_id,
-
                     text AS last_message,
                     created_at AS last_message_at
-
                 FROM messages
-
                 WHERE
                     sender_id = %s
                     OR receiver_id = %s
-
-                ORDER BY
-                    created_at DESC
+                ORDER BY created_at DESC
             ) x
-
-            JOIN users u
-                ON u.id = x.other_id
-
-            WHERE
-                u.deleted_at IS NULL
-
+            JOIN users u ON u.id = x.other_id
+            WHERE u.deleted_at IS NULL
             ORDER BY
                 x.other_id,
                 x.last_message_at DESC
             """,
-            (
-                user["id"],
-                user["id"],
-                user["id"],
-            ),
+            (user["id"], user["id"], user["id"]),
         ).fetchall()
 
-    return {
-        "chats": rows
-    }
+    return {"chats": rows}
 
 
 # ============================================================
 # UPLOAD HELPER
 # ============================================================
 
-async def save_upload(
-    file,
-    directory: Path,
-    max_bytes: int,
-):
+async def save_upload(file, directory: Path, max_bytes: int):
     content = await file.read()
 
     if len(content) > max_bytes:
@@ -2622,20 +1933,10 @@ async def save_upload(
             detail="File is too large",
         )
 
-    destination = (
-        directory
-        / safe_filename(
-            file.filename
-        )
-    )
+    destination = directory / safe_filename(file.filename)
+    destination.write_bytes(content)
 
-    destination.write_bytes(
-        content
-    )
-
-    return public_url(
-        destination
-    )
+    return public_url(destination)
 
 
 # ============================================================
@@ -2647,53 +1948,30 @@ async def voice(
     receiver_id: int = Form(...),
     duration_seconds: int = Form(0),
     file: UploadFile = File(...),
-    authorization: Optional[str] = Header(
-        default=None
-    ),
+    authorization: Optional[str] = Header(default=None),
 ):
-    user = require_user(
-        authorization
-    )
-
-    content_type = (
-        file.content_type or ""
-    ).lower()
+    user = require_user(authorization)
+    content_type = (file.content_type or "").lower()
 
     if receiver_id == user["id"]:
         raise HTTPException(
             status_code=400,
-            detail=(
-                "Cannot send voice note "
-                "to yourself"
-            ),
+            detail="Cannot send voice note to yourself",
         )
 
-    if not content_type.startswith(
-        "audio/"
-    ):
+    if not content_type.startswith("audio/"):
         raise HTTPException(
             status_code=400,
-            detail=(
-                "Voice note must be "
-                "an audio file"
-            ),
+            detail="Voice note must be an audio file",
         )
 
-    url = await save_upload(
-        file,
-        VOICE_DIR,
-        25 * 1024 * 1024,
-    )
+    url = await save_upload(file, VOICE_DIR, 25 * 1024 * 1024)
 
     with get_conn() as conn:
-
         receiver = conn.execute(
             """
-            SELECT id
-            FROM users
-            WHERE
-                id = %s
-                AND deleted_at IS NULL
+            SELECT id FROM users
+            WHERE id = %s AND deleted_at IS NULL
             """,
             (receiver_id,),
         ).fetchone()
@@ -2707,34 +1985,15 @@ async def voice(
         message = conn.execute(
             """
             INSERT INTO messages (
-                sender_id,
-                receiver_id,
-                text,
-                media_url,
-                voice_url,
-                media_type,
+                sender_id, receiver_id, text,
+                media_url, voice_url, media_type,
                 duration_seconds
             )
-            VALUES (
-                %s,
-                %s,
-                '',
-                %s,
-                %s,
-                %s,
-                %s
-            )
+            VALUES (%s, %s, '', %s, %s, %s, %s)
             RETURNING
-                id,
-                sender_id,
-                receiver_id,
-                text,
-                media_url,
-                media_type,
-                voice_url,
-                duration_seconds,
-                created_at,
-                seen
+                id, sender_id, receiver_id, text,
+                media_url, media_type, voice_url,
+                duration_seconds, created_at, seen
             """,
             (
                 user["id"],
@@ -2748,9 +2007,7 @@ async def voice(
 
         conn.commit()
 
-    return {
-        "message": message
-    }
+    return {"message": message}
 
 
 # ============================================================
@@ -2762,13 +2019,9 @@ async def chat_file(
     receiver_id: int = Form(...),
     text: str = Form(""),
     file: UploadFile = File(...),
-    authorization: Optional[str] = Header(
-        default=None
-    ),
+    authorization: Optional[str] = Header(default=None),
 ):
-    user = require_user(
-        authorization
-    )
+    user = require_user(authorization)
 
     if receiver_id == user["id"]:
         raise HTTPException(
@@ -2776,29 +2029,19 @@ async def chat_file(
             detail="Cannot send file to yourself",
         )
 
-    url = await save_upload(
-        file,
-        CHAT_FILE_DIR,
-        100 * 1024 * 1024,
-    )
+    url = await save_upload(file, CHAT_FILE_DIR, 100 * 1024 * 1024)
 
     content_type = (
         file.content_type
-        or mimetypes.guess_type(
-            file.filename or ""
-        )[0]
+        or mimetypes.guess_type(file.filename or "")[0]
         or "application/octet-stream"
     )
 
     with get_conn() as conn:
-
         receiver = conn.execute(
             """
-            SELECT id
-            FROM users
-            WHERE
-                id = %s
-                AND deleted_at IS NULL
+            SELECT id FROM users
+            WHERE id = %s AND deleted_at IS NULL
             """,
             (receiver_id,),
         ).fetchone()
@@ -2812,30 +2055,14 @@ async def chat_file(
         message = conn.execute(
             """
             INSERT INTO messages (
-                sender_id,
-                receiver_id,
-                text,
-                media_url,
-                media_type
+                sender_id, receiver_id, text,
+                media_url, media_type
             )
-            VALUES (
-                %s,
-                %s,
-                %s,
-                %s,
-                %s
-            )
+            VALUES (%s, %s, %s, %s, %s)
             RETURNING
-                id,
-                sender_id,
-                receiver_id,
-                text,
-                media_url,
-                media_type,
-                voice_url,
-                duration_seconds,
-                created_at,
-                seen
+                id, sender_id, receiver_id, text,
+                media_url, media_type, voice_url,
+                duration_seconds, created_at, seen
             """,
             (
                 user["id"],
@@ -2848,9 +2075,7 @@ async def chat_file(
 
         conn.commit()
 
-    return {
-        "message": message
-    }
+    return {"message": message}
 
 
 # ============================================================
@@ -2860,16 +2085,11 @@ async def chat_file(
 @app.delete("/api/chats/{other_user_id}")
 def clear_chat(
     other_user_id: int,
-    authorization: Optional[str] = Header(
-        default=None
-    ),
+    authorization: Optional[str] = Header(default=None),
 ):
-    user = require_user(
-        authorization
-    )
+    user = require_user(authorization)
 
     with get_conn() as conn:
-
         conn.execute(
             """
             UPDATE messages
@@ -2878,10 +2098,7 @@ def clear_chat(
                 sender_id = %s
                 AND receiver_id = %s
             """,
-            (
-                user["id"],
-                other_user_id,
-            ),
+            (user["id"], other_user_id),
         )
 
         conn.execute(
@@ -2892,67 +2109,48 @@ def clear_chat(
                 sender_id = %s
                 AND receiver_id = %s
             """,
-            (
-                other_user_id,
-                user["id"],
-            ),
+            (other_user_id, user["id"]),
         )
 
         conn.commit()
 
-    return {
-        "message": "Chat cleared"
-    }
+    return {"message": "Chat cleared"}
 
 
 # ============================================================
 # CHAT SETTINGS
 # ============================================================
 
-@app.post(
-    "/api/chats/{other_user_id}/settings"
-)
+@app.post("/api/chats/{other_user_id}/settings")
 def settings(
     other_user_id: int,
     data: ChatSettingsRequest,
-    authorization: Optional[str] = Header(
-        default=None
-    ),
+    authorization: Optional[str] = Header(default=None),
 ):
-    user = require_user(
-        authorization
-    )
+    user = require_user(authorization)
 
     with get_conn() as conn:
-
         old = conn.execute(
             """
-            SELECT *
-            FROM chat_settings
+            SELECT * FROM chat_settings
             WHERE
                 user_id = %s
                 AND other_user_id = %s
             """,
-            (
-                user["id"],
-                other_user_id,
-            ),
+            (user["id"], other_user_id),
         ).fetchone()
 
         if old:
-
             pinned = (
                 data.pinned
                 if data.pinned is not None
                 else old["pinned"]
             )
-
             muted = (
                 data.muted
                 if data.muted is not None
                 else old["muted"]
             )
-
             blocked = (
                 data.blocked
                 if data.blocked is not None
@@ -2979,25 +2177,14 @@ def settings(
                     other_user_id,
                 ),
             )
-
         else:
-
             conn.execute(
                 """
                 INSERT INTO chat_settings (
-                    user_id,
-                    other_user_id,
-                    pinned,
-                    muted,
-                    blocked
+                    user_id, other_user_id,
+                    pinned, muted, blocked
                 )
-                VALUES (
-                    %s,
-                    %s,
-                    %s,
-                    %s,
-                    %s
-                )
+                VALUES (%s, %s, %s, %s, %s)
                 """,
                 (
                     user["id"],
@@ -3011,96 +2198,56 @@ def settings(
         result = conn.execute(
             """
             SELECT
-                user_id,
-                other_user_id,
-                wallpaper_url,
-                pinned,
-                muted,
-                blocked,
-                updated_at
+                user_id, other_user_id,
+                wallpaper_url, pinned, muted,
+                blocked, updated_at
             FROM chat_settings
             WHERE
                 user_id = %s
                 AND other_user_id = %s
             """,
-            (
-                user["id"],
-                other_user_id,
-            ),
+            (user["id"], other_user_id),
         ).fetchone()
 
         conn.commit()
 
-    return {
-        "settings": result
-    }
+    return {"settings": result}
 
 
 # ============================================================
 # CHAT WALLPAPER
 # ============================================================
 
-@app.post(
-    "/api/chats/{other_user_id}/wallpaper"
-)
+@app.post("/api/chats/{other_user_id}/wallpaper")
 async def wallpaper(
     other_user_id: int,
     file: UploadFile = File(...),
-    authorization: Optional[str] = Header(
-        default=None
-    ),
+    authorization: Optional[str] = Header(default=None),
 ):
-    user = require_user(
-        authorization
-    )
+    user = require_user(authorization)
+    content_type = (file.content_type or "").lower()
 
-    content_type = (
-        file.content_type or ""
-    ).lower()
-
-    if not content_type.startswith(
-        "image/"
-    ):
+    if not content_type.startswith("image/"):
         raise HTTPException(
             status_code=400,
             detail="Wallpaper must be an image",
         )
 
-    url = await save_upload(
-        file,
-        WALLPAPER_DIR,
-        15 * 1024 * 1024,
-    )
+    url = await save_upload(file, WALLPAPER_DIR, 15 * 1024 * 1024)
 
     with get_conn() as conn:
-
         conn.execute(
             """
             INSERT INTO chat_settings (
-                user_id,
-                other_user_id,
-                wallpaper_url
+                user_id, other_user_id, wallpaper_url
             )
-            VALUES (
-                %s,
-                %s,
-                %s
-            )
-            ON CONFLICT (
-                user_id,
-                other_user_id
-            )
+            VALUES (%s, %s, %s)
+            ON CONFLICT (user_id, other_user_id)
             DO UPDATE SET
-                wallpaper_url =
-                    EXCLUDED.wallpaper_url,
-                updated_at =
-                    CURRENT_TIMESTAMP
+                wallpaper_url = EXCLUDED.wallpaper_url,
+                updated_at = CURRENT_TIMESTAMP
             """,
-            (
-                user["id"],
-                other_user_id,
-                url,
-            ),
+            (user["id"], other_user_id, url),
         )
 
         conn.commit()
@@ -3118,13 +2265,9 @@ async def wallpaper(
 @app.post("/api/users/{user_id}/block")
 def block(
     user_id: int,
-    authorization: Optional[str] = Header(
-        default=None
-    ),
+    authorization: Optional[str] = Header(default=None),
 ):
-    user = require_user(
-        authorization
-    )
+    user = require_user(authorization)
 
     if user_id == user["id"]:
         raise HTTPException(
@@ -3133,14 +2276,10 @@ def block(
         )
 
     with get_conn() as conn:
-
         target = conn.execute(
             """
-            SELECT id
-            FROM users
-            WHERE
-                id = %s
-                AND deleted_at IS NULL
+            SELECT id FROM users
+            WHERE id = %s AND deleted_at IS NULL
             """,
             (user_id,),
         ).fetchone()
@@ -3153,27 +2292,16 @@ def block(
 
         conn.execute(
             """
-            INSERT INTO blocks (
-                blocker_id,
-                blocked_id
-            )
-            VALUES (
-                %s,
-                %s
-            )
+            INSERT INTO blocks (blocker_id, blocked_id)
+            VALUES (%s, %s)
             ON CONFLICT DO NOTHING
             """,
-            (
-                user["id"],
-                user_id,
-            ),
+            (user["id"], user_id),
         )
 
         conn.commit()
 
-    return {
-        "blocked": True
-    }
+    return {"blocked": True}
 
 
 # ============================================================
@@ -3183,16 +2311,11 @@ def block(
 @app.delete("/api/users/{user_id}/block")
 def unblock(
     user_id: int,
-    authorization: Optional[str] = Header(
-        default=None
-    ),
+    authorization: Optional[str] = Header(default=None),
 ):
-    user = require_user(
-        authorization
-    )
+    user = require_user(authorization)
 
     with get_conn() as conn:
-
         conn.execute(
             """
             DELETE FROM blocks
@@ -3200,17 +2323,11 @@ def unblock(
                 blocker_id = %s
                 AND blocked_id = %s
             """,
-            (
-                user["id"],
-                user_id,
-            ),
+            (user["id"], user_id),
         )
-
         conn.commit()
 
-    return {
-        "blocked": False
-    }
+    return {"blocked": False}
 
 
 # ============================================================
@@ -3221,41 +2338,23 @@ def unblock(
 def report_user(
     user_id: int,
     data: ReportRequest,
-    authorization: Optional[str] = Header(
-        default=None
-    ),
+    authorization: Optional[str] = Header(default=None),
 ):
-    user = require_user(
-        authorization
-    )
+    user = require_user(authorization)
 
     with get_conn() as conn:
-
         conn.execute(
             """
             INSERT INTO reports (
-                reporter_id,
-                reported_user_id,
-                reason
+                reporter_id, reported_user_id, reason
             )
-            VALUES (
-                %s,
-                %s,
-                %s
-            )
+            VALUES (%s, %s, %s)
             """,
-            (
-                user["id"],
-                user_id,
-                data.reason.strip(),
-            ),
+            (user["id"], user_id, data.reason.strip()),
         )
-
         conn.commit()
 
-    return {
-        "message": "Report submitted"
-    }
+    return {"message": "Report submitted"}
 
 
 # ============================================================
@@ -3266,41 +2365,23 @@ def report_user(
 def report_post(
     post_id: int,
     data: ReportRequest,
-    authorization: Optional[str] = Header(
-        default=None
-    ),
+    authorization: Optional[str] = Header(default=None),
 ):
-    user = require_user(
-        authorization
-    )
+    user = require_user(authorization)
 
     with get_conn() as conn:
-
         conn.execute(
             """
             INSERT INTO reports (
-                reporter_id,
-                post_id,
-                reason
+                reporter_id, post_id, reason
             )
-            VALUES (
-                %s,
-                %s,
-                %s
-            )
+            VALUES (%s, %s, %s)
             """,
-            (
-                user["id"],
-                post_id,
-                data.reason.strip(),
-            ),
+            (user["id"], post_id, data.reason.strip()),
         )
-
         conn.commit()
 
-    return {
-        "message": "Report submitted"
-    }
+    return {"message": "Report submitted"}
 
 
 # ============================================================
@@ -3310,13 +2391,9 @@ def report_post(
 @app.post("/api/calls/token")
 def call_token(
     data: CallTokenRequest,
-    authorization: Optional[str] = Header(
-        default=None
-    ),
+    authorization: Optional[str] = Header(default=None),
 ):
-    user = require_user(
-        authorization
-    )
+    user = require_user(authorization)
 
     if not (
         LIVEKIT_URL
@@ -3334,38 +2411,23 @@ def call_token(
             detail="Cannot call yourself",
         )
 
-    call_type = (
-        data.call_type
-        .lower()
-        .strip()
-    )
+    call_type = data.call_type.lower().strip()
 
-    if call_type not in {
-        "audio",
-        "video",
-    }:
+    if call_type not in {"audio", "video"}:
         call_type = "video"
 
     try:
-
         from livekit import api
 
-        room_name = (
-            "msafiri-"
-            + secrets.token_hex(12)
-        )
+        room_name = "msafiri-" + secrets.token_hex(12)
 
         token = (
             api.AccessToken(
                 LIVEKIT_API_KEY,
                 LIVEKIT_API_SECRET,
             )
-            .with_identity(
-                str(user["id"])
-            )
-            .with_name(
-                user["name"]
-            )
+            .with_identity(str(user["id"]))
+            .with_name(user["name"])
             .with_grants(
                 api.VideoGrants(
                     room_join=True,
@@ -3376,27 +2438,16 @@ def call_token(
         )
 
         with get_conn() as conn:
-
             call = conn.execute(
                 """
                 INSERT INTO calls (
-                    caller_id,
-                    receiver_id,
-                    room_name,
-                    call_type
+                    caller_id, receiver_id,
+                    room_name, call_type
                 )
-                VALUES (
-                    %s,
-                    %s,
-                    %s,
-                    %s
-                )
+                VALUES (%s, %s, %s, %s)
                 RETURNING
-                    id,
-                    room_name,
-                    call_type,
-                    status,
-                    created_at
+                    id, room_name, call_type,
+                    status, created_at
                 """,
                 (
                     user["id"],
@@ -3418,9 +2469,7 @@ def call_token(
     except ImportError:
         raise HTTPException(
             status_code=500,
-            detail=(
-                "LiveKit package is not installed"
-            ),
+            detail="LiveKit package is not installed",
         )
 
     except HTTPException:
@@ -3440,16 +2489,11 @@ def call_token(
 @app.post("/api/calls/{call_id}/end")
 def end_call(
     call_id: int,
-    authorization: Optional[str] = Header(
-        default=None
-    ),
+    authorization: Optional[str] = Header(default=None),
 ):
-    user = require_user(
-        authorization
-    )
+    user = require_user(authorization)
 
     with get_conn() as conn:
-
         row = conn.execute(
             """
             UPDATE calls
@@ -3464,11 +2508,7 @@ def end_call(
                 )
             RETURNING *
             """,
-            (
-                call_id,
-                user["id"],
-                user["id"],
-            ),
+            (call_id, user["id"], user["id"]),
         ).fetchone()
 
         conn.commit()
@@ -3479,9 +2519,7 @@ def end_call(
             detail="Call not found",
         )
 
-    return {
-        "call": row
-    }
+    return {"call": row}
 
 
 # ============================================================
@@ -3490,16 +2528,11 @@ def end_call(
 
 @app.delete("/api/account")
 def delete_account(
-    authorization: Optional[str] = Header(
-        default=None
-    ),
+    authorization: Optional[str] = Header(default=None),
 ):
-    user = require_user(
-        authorization
-    )
+    user = require_user(authorization)
 
     with get_conn() as conn:
-
         conn.execute(
             """
             UPDATE users
@@ -3522,9 +2555,7 @@ def delete_account(
 
         conn.commit()
 
-    return {
-        "message": "Account deleted"
-    }
+    return {"message": "Account deleted"}
 
 
 # ============================================================
@@ -3533,31 +2564,22 @@ def delete_account(
 
 @app.get("/api/debug/database")
 def database_debug(
-    authorization: Optional[str] = Header(
-        default=None
-    ),
+    authorization: Optional[str] = Header(default=None),
 ):
-    require_user(
-        authorization
-    )
+    require_user(authorization)
 
     with get_conn() as conn:
-
         rows = conn.execute(
             """
             SELECT table_name
             FROM information_schema.tables
-            WHERE
-                table_schema = 'public'
+            WHERE table_schema = 'public'
             ORDER BY table_name
             """
         ).fetchall()
 
     return {
-        "tables": [
-            row["table_name"]
-            for row in rows
-        ]
+        "tables": [row["table_name"] for row in rows]
     }
 
 
@@ -3566,10 +2588,7 @@ def database_debug(
 # ============================================================
 
 @app.exception_handler(Exception)
-async def global_error(
-    request: Request,
-    exc: Exception,
-):
+async def global_error(request: Request, exc: Exception):
     print(
         "UNHANDLED ERROR:",
         type(exc).__name__,
@@ -3592,15 +2611,9 @@ async def global_error(
 # ============================================================
 
 if __name__ == "__main__":
-
     import uvicorn
 
-    port = int(
-        os.getenv(
-            "PORT",
-            "8000",
-        )
-    )
+    port = int(os.getenv("PORT", "8000"))
 
     uvicorn.run(
         "main:app",

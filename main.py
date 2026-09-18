@@ -1,13 +1,13 @@
 # ============================================================
-# MSAFIRI GLOBAL MEDIA V5.0
+# MSAFIRI GLOBAL MEDIA V5.1
 # FastAPI + PostgreSQL + JWT + LiveKit
+# FULL SINGLE-FILE BACKEND
 # ============================================================
 
 import os
 import hashlib
 import secrets
 import mimetypes
-
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -23,26 +23,25 @@ from fastapi import (
     Form,
     Header,
     Query,
+    Request,
 )
-
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
-
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, EmailStr
-
-import bcrypt
+from passlib.context import CryptContext
 import jwt
 
 
 # ============================================================
-# APP CONFIG
+# APP CONFIGURATION
 # ============================================================
 
-APP_NAME = "MSAFIRI GLOBAL MEDIA V5.0"
-APP_VERSION = "5.0.0"
+APP_NAME = "MSAFIRI GLOBAL MEDIA V5.1"
+APP_VERSION = "5.1.0"
 
 BASE_DIR = Path(__file__).resolve().parent
 
+# Upload directories
 UPLOAD_DIR = BASE_DIR / "uploads"
 AVATAR_DIR = UPLOAD_DIR / "avatars"
 POST_DIR = UPLOAD_DIR / "posts"
@@ -61,8 +60,13 @@ for directory in (
     directory.mkdir(parents=True, exist_ok=True)
 
 
+# ============================================================
+# ENVIRONMENT VARIABLES
+# ============================================================
+
 DATABASE_URL = (os.getenv("DATABASE_URL") or "").strip()
 
+# Render/PostgreSQL may sometimes provide postgres://
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace(
         "postgres://",
@@ -70,16 +74,13 @@ if DATABASE_URL.startswith("postgres://"):
         1,
     )
 
-
-JWT_SECRET = (os.getenv("JWT_SECRET") or "").strip()
-
-if not JWT_SECRET:
-    JWT_SECRET = "CHANGE_THIS_SECRET_IN_RENDER"
-
+JWT_SECRET = os.getenv(
+    "JWT_SECRET",
+    "CHANGE_THIS_SECRET_IN_RENDER",
+)
 
 JWT_ALGORITHM = "HS256"
 TOKEN_DAYS = 30
-
 
 LIVEKIT_URL = (os.getenv("LIVEKIT_URL") or "").strip()
 LIVEKIT_API_KEY = (os.getenv("LIVEKIT_API_KEY") or "").strip()
@@ -87,14 +88,29 @@ LIVEKIT_API_SECRET = (os.getenv("LIVEKIT_API_SECRET") or "").strip()
 
 
 # ============================================================
-# FASTAPI
+# PASSWORD HASHING
+# ============================================================
+
+pwd_context = CryptContext(
+    schemes=["bcrypt"],
+    deprecated="auto",
+)
+
+
+# ============================================================
+# FASTAPI APP
 # ============================================================
 
 app = FastAPI(
     title=APP_NAME,
     version=APP_VERSION,
+    description="Msafiri Global Media social and communication backend",
 )
 
+
+# ============================================================
+# CORS
+# ============================================================
 
 app.add_middleware(
     CORSMiddleware,
@@ -118,99 +134,60 @@ def get_conn():
     return psycopg.connect(
         DATABASE_URL,
         row_factory=dict_row,
-        connect_timeout=10,
     )
 
 
 # ============================================================
-# DATABASE INITIALIZATION + MIGRATIONS
+# DATABASE INITIALIZATION / MIGRATION
 # ============================================================
 
 def init_db():
     """
-    Creates missing tables and safely upgrades old
-    MSAFIRI GLOBAL MEDIA V3/V4 databases.
-
-    Existing data is NOT deleted.
+    Create required tables and safely migrate older
+    V3/V4/V5 databases without deleting existing data.
     """
 
     with get_conn() as conn:
 
-        # ====================================================
+        # ----------------------------------------------------
         # USERS
-        # ====================================================
+        # ----------------------------------------------------
 
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS users (
                 id BIGSERIAL PRIMARY KEY,
-                name VARCHAR(150) NOT NULL,
-                username VARCHAR(80),
-                email VARCHAR(255) UNIQUE NOT NULL,
+                name TEXT NOT NULL,
+                email TEXT NOT NULL UNIQUE,
                 password_hash TEXT NOT NULL,
                 bio TEXT DEFAULT '',
-                location VARCHAR(255) DEFAULT '',
                 avatar TEXT,
+                deleted_at TIMESTAMPTZ,
                 created_at TIMESTAMPTZ NOT NULL
                     DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMPTZ NOT NULL
-                    DEFAULT CURRENT_TIMESTAMP,
-                deleted_at TIMESTAMPTZ
+                    DEFAULT CURRENT_TIMESTAMP
             )
             """
         )
 
-        # ----------------------------------------------------
-        # IMPORTANT:
-        # CREATE TABLE IF NOT EXISTS DOES NOT ADD COLUMNS
-        # TO AN EXISTING TABLE.
-        #
-        # These statements repair the old users table.
-        # ----------------------------------------------------
-
         conn.execute(
-            """
-            ALTER TABLE users
-            ADD COLUMN IF NOT EXISTS username VARCHAR(80)
-            """
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT DEFAULT ''"
         )
 
         conn.execute(
-            """
-            ALTER TABLE users
-            ADD COLUMN IF NOT EXISTS bio TEXT DEFAULT ''
-            """
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar TEXT"
         )
 
         conn.execute(
-            """
-            ALTER TABLE users
-            ADD COLUMN IF NOT EXISTS location
-            VARCHAR(255) DEFAULT ''
-            """
-        )
-
-        conn.execute(
-            """
-            ALTER TABLE users
-            ADD COLUMN IF NOT EXISTS avatar TEXT
-            """
-        )
-
-        conn.execute(
-            """
-            ALTER TABLE users
-            ADD COLUMN IF NOT EXISTS deleted_at
-            TIMESTAMPTZ
-            """
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ"
         )
 
         conn.execute(
             """
             ALTER TABLE users
             ADD COLUMN IF NOT EXISTS created_at
-            TIMESTAMPTZ NOT NULL
-            DEFAULT CURRENT_TIMESTAMP
+            TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
             """
         )
 
@@ -218,74 +195,20 @@ def init_db():
             """
             ALTER TABLE users
             ADD COLUMN IF NOT EXISTS updated_at
-            TIMESTAMPTZ NOT NULL
-            DEFAULT CURRENT_TIMESTAMP
+            TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
             """
         )
 
-        conn.execute(
-            """
-            UPDATE users
-            SET bio = ''
-            WHERE bio IS NULL
-            """
-        )
-
-        conn.execute(
-            """
-            UPDATE users
-            SET location = ''
-            WHERE location IS NULL
-            """
-        )
-
-        conn.execute(
-            """
-            UPDATE users
-            SET updated_at = CURRENT_TIMESTAMP
-            WHERE updated_at IS NULL
-            """
-        )
-
-        # Username uniqueness.
-        # NULL values are allowed for old accounts.
-        conn.execute(
-            """
-            CREATE UNIQUE INDEX IF NOT EXISTS
-            idx_users_username_lower
-            ON users (LOWER(username))
-            WHERE username IS NOT NULL
-            """
-        )
-
-        conn.execute(
-            """
-            CREATE INDEX IF NOT EXISTS
-            idx_users_name
-            ON users(name)
-            """
-        )
-
-        conn.execute(
-            """
-            CREATE INDEX IF NOT EXISTS
-            idx_users_email
-            ON users(email)
-            """
-        )
-
-
-        # ====================================================
+        # ----------------------------------------------------
         # SESSIONS
-        # ====================================================
+        # ----------------------------------------------------
 
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS sessions (
                 id BIGSERIAL PRIMARY KEY,
                 user_id BIGINT NOT NULL
-                    REFERENCES users(id)
-                    ON DELETE CASCADE,
+                    REFERENCES users(id) ON DELETE CASCADE,
                 token_hash TEXT NOT NULL UNIQUE,
                 created_at TIMESTAMPTZ NOT NULL
                     DEFAULT CURRENT_TIMESTAMP,
@@ -298,24 +221,7 @@ def init_db():
         conn.execute(
             """
             ALTER TABLE sessions
-            ADD COLUMN IF NOT EXISTS token_hash TEXT
-            """
-        )
-
-        conn.execute(
-            """
-            ALTER TABLE sessions
-            ADD COLUMN IF NOT EXISTS created_at
-            TIMESTAMPTZ NOT NULL
-            DEFAULT CURRENT_TIMESTAMP
-            """
-        )
-
-        conn.execute(
-            """
-            ALTER TABLE sessions
-            ADD COLUMN IF NOT EXISTS expires_at
-            TIMESTAMPTZ
+            ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ
             """
         )
 
@@ -324,6 +230,14 @@ def init_db():
             ALTER TABLE sessions
             ADD COLUMN IF NOT EXISTS revoked
             BOOLEAN NOT NULL DEFAULT FALSE
+            """
+        )
+
+        conn.execute(
+            """
+            ALTER TABLE sessions
+            ADD COLUMN IF NOT EXISTS created_at
+            TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
             """
         )
 
@@ -338,32 +252,28 @@ def init_db():
 
         conn.execute(
             """
-            CREATE INDEX IF NOT EXISTS
-            idx_sessions_token
+            CREATE INDEX IF NOT EXISTS idx_sessions_token
             ON sessions(token_hash)
             """
         )
 
         conn.execute(
             """
-            CREATE INDEX IF NOT EXISTS
-            idx_sessions_user
+            CREATE INDEX IF NOT EXISTS idx_sessions_user
             ON sessions(user_id)
             """
         )
 
-
-        # ====================================================
+        # ----------------------------------------------------
         # POSTS
-        # ====================================================
+        # ----------------------------------------------------
 
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS posts (
                 id BIGSERIAL PRIMARY KEY,
                 user_id BIGINT NOT NULL
-                    REFERENCES users(id)
-                    ON DELETE CASCADE,
+                    REFERENCES users(id) ON DELETE CASCADE,
                 caption TEXT NOT NULL DEFAULT '',
                 media_url TEXT,
                 media_type TEXT,
@@ -410,8 +320,7 @@ def init_db():
             """
             ALTER TABLE posts
             ADD COLUMN IF NOT EXISTS created_at
-            TIMESTAMPTZ NOT NULL
-            DEFAULT CURRENT_TIMESTAMP
+            TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
             """
         )
 
@@ -419,42 +328,36 @@ def init_db():
             """
             ALTER TABLE posts
             ADD COLUMN IF NOT EXISTS updated_at
-            TIMESTAMPTZ NOT NULL
-            DEFAULT CURRENT_TIMESTAMP
+            TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
             """
         )
 
         conn.execute(
             """
-            CREATE INDEX IF NOT EXISTS
-            idx_posts_created
+            CREATE INDEX IF NOT EXISTS idx_posts_created
             ON posts(created_at DESC)
             """
         )
 
         conn.execute(
             """
-            CREATE INDEX IF NOT EXISTS
-            idx_posts_user
+            CREATE INDEX IF NOT EXISTS idx_posts_user
             ON posts(user_id)
             """
         )
 
-
-        # ====================================================
+        # ----------------------------------------------------
         # LIKES
-        # ====================================================
+        # ----------------------------------------------------
 
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS likes (
                 id BIGSERIAL PRIMARY KEY,
                 post_id BIGINT NOT NULL
-                    REFERENCES posts(id)
-                    ON DELETE CASCADE,
+                    REFERENCES posts(id) ON DELETE CASCADE,
                 user_id BIGINT NOT NULL
-                    REFERENCES users(id)
-                    ON DELETE CASCADE,
+                    REFERENCES users(id) ON DELETE CASCADE,
                 created_at TIMESTAMPTZ NOT NULL
                     DEFAULT CURRENT_TIMESTAMP,
                 UNIQUE(post_id, user_id)
@@ -462,21 +365,18 @@ def init_db():
             """
         )
 
-
-        # ====================================================
+        # ----------------------------------------------------
         # COMMENTS
-        # ====================================================
+        # ----------------------------------------------------
 
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS comments (
                 id BIGSERIAL PRIMARY KEY,
                 post_id BIGINT NOT NULL
-                    REFERENCES posts(id)
-                    ON DELETE CASCADE,
+                    REFERENCES posts(id) ON DELETE CASCADE,
                 user_id BIGINT NOT NULL
-                    REFERENCES users(id)
-                    ON DELETE CASCADE,
+                    REFERENCES users(id) ON DELETE CASCADE,
                 text TEXT NOT NULL,
                 created_at TIMESTAMPTZ NOT NULL
                     DEFAULT CURRENT_TIMESTAMP
@@ -484,21 +384,18 @@ def init_db():
             """
         )
 
-
-        # ====================================================
+        # ----------------------------------------------------
         # SAVED POSTS
-        # ====================================================
+        # ----------------------------------------------------
 
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS saved_posts (
                 id BIGSERIAL PRIMARY KEY,
                 post_id BIGINT NOT NULL
-                    REFERENCES posts(id)
-                    ON DELETE CASCADE,
+                    REFERENCES posts(id) ON DELETE CASCADE,
                 user_id BIGINT NOT NULL
-                    REFERENCES users(id)
-                    ON DELETE CASCADE,
+                    REFERENCES users(id) ON DELETE CASCADE,
                 created_at TIMESTAMPTZ NOT NULL
                     DEFAULT CURRENT_TIMESTAMP,
                 UNIQUE(post_id, user_id)
@@ -506,21 +403,18 @@ def init_db():
             """
         )
 
-
-        # ====================================================
+        # ----------------------------------------------------
         # RESHARES
-        # ====================================================
+        # ----------------------------------------------------
 
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS reshares (
                 id BIGSERIAL PRIMARY KEY,
                 post_id BIGINT NOT NULL
-                    REFERENCES posts(id)
-                    ON DELETE CASCADE,
+                    REFERENCES posts(id) ON DELETE CASCADE,
                 user_id BIGINT NOT NULL
-                    REFERENCES users(id)
-                    ON DELETE CASCADE,
+                    REFERENCES users(id) ON DELETE CASCADE,
                 created_at TIMESTAMPTZ NOT NULL
                     DEFAULT CURRENT_TIMESTAMP,
                 UNIQUE(post_id, user_id)
@@ -528,21 +422,18 @@ def init_db():
             """
         )
 
-
-        # ====================================================
+        # ----------------------------------------------------
         # MESSAGES
-        # ====================================================
+        # ----------------------------------------------------
 
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS messages (
                 id BIGSERIAL PRIMARY KEY,
                 sender_id BIGINT NOT NULL
-                    REFERENCES users(id)
-                    ON DELETE CASCADE,
+                    REFERENCES users(id) ON DELETE CASCADE,
                 receiver_id BIGINT NOT NULL
-                    REFERENCES users(id)
-                    ON DELETE CASCADE,
+                    REFERENCES users(id) ON DELETE CASCADE,
                 text TEXT DEFAULT '',
                 media_url TEXT,
                 media_type TEXT,
@@ -550,10 +441,8 @@ def init_db():
                 duration_seconds INTEGER,
                 created_at TIMESTAMPTZ NOT NULL
                     DEFAULT CURRENT_TIMESTAMP,
-                deleted_for_sender BOOLEAN NOT NULL
-                    DEFAULT FALSE,
-                deleted_for_receiver BOOLEAN NOT NULL
-                    DEFAULT FALSE,
+                deleted_for_sender BOOLEAN NOT NULL DEFAULT FALSE,
+                deleted_for_receiver BOOLEAN NOT NULL DEFAULT FALSE,
                 seen BOOLEAN NOT NULL DEFAULT FALSE
             )
             """
@@ -564,53 +453,41 @@ def init_db():
             ALTER TABLE messages
             ADD COLUMN IF NOT EXISTS text TEXT DEFAULT ''
             """,
-
             """
             ALTER TABLE messages
             ADD COLUMN IF NOT EXISTS media_url TEXT
             """,
-
             """
             ALTER TABLE messages
             ADD COLUMN IF NOT EXISTS media_type TEXT
             """,
-
             """
             ALTER TABLE messages
             ADD COLUMN IF NOT EXISTS voice_url TEXT
             """,
-
             """
             ALTER TABLE messages
             ADD COLUMN IF NOT EXISTS duration_seconds INTEGER
             """,
-
             """
             ALTER TABLE messages
-            ADD COLUMN IF NOT EXISTS
-            deleted_for_sender
+            ADD COLUMN IF NOT EXISTS deleted_for_sender
             BOOLEAN NOT NULL DEFAULT FALSE
             """,
-
             """
             ALTER TABLE messages
-            ADD COLUMN IF NOT EXISTS
-            deleted_for_receiver
+            ADD COLUMN IF NOT EXISTS deleted_for_receiver
             BOOLEAN NOT NULL DEFAULT FALSE
             """,
-
             """
             ALTER TABLE messages
-            ADD COLUMN IF NOT EXISTS
-            seen
+            ADD COLUMN IF NOT EXISTS seen
             BOOLEAN NOT NULL DEFAULT FALSE
             """,
-
             """
             ALTER TABLE messages
             ADD COLUMN IF NOT EXISTS created_at
-            TIMESTAMPTZ NOT NULL
-            DEFAULT CURRENT_TIMESTAMP
+            TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
             """,
         ]
 
@@ -619,43 +496,30 @@ def init_db():
 
         conn.execute(
             """
-            CREATE INDEX IF NOT EXISTS
-            idx_messages_sr
-            ON messages(
-                sender_id,
-                receiver_id,
-                created_at DESC
-            )
+            CREATE INDEX IF NOT EXISTS idx_messages_sr
+            ON messages(sender_id, receiver_id, created_at DESC)
             """
         )
 
         conn.execute(
             """
-            CREATE INDEX IF NOT EXISTS
-            idx_messages_rs
-            ON messages(
-                receiver_id,
-                sender_id,
-                created_at DESC
-            )
+            CREATE INDEX IF NOT EXISTS idx_messages_rs
+            ON messages(receiver_id, sender_id, created_at DESC)
             """
         )
 
-
-        # ====================================================
+        # ----------------------------------------------------
         # CHAT SETTINGS
-        # ====================================================
+        # ----------------------------------------------------
 
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS chat_settings (
                 id BIGSERIAL PRIMARY KEY,
                 user_id BIGINT NOT NULL
-                    REFERENCES users(id)
-                    ON DELETE CASCADE,
+                    REFERENCES users(id) ON DELETE CASCADE,
                 other_user_id BIGINT NOT NULL
-                    REFERENCES users(id)
-                    ON DELETE CASCADE,
+                    REFERENCES users(id) ON DELETE CASCADE,
                 wallpaper_url TEXT,
                 pinned BOOLEAN NOT NULL DEFAULT FALSE,
                 muted BOOLEAN NOT NULL DEFAULT FALSE,
@@ -674,58 +538,48 @@ def init_db():
             ALTER TABLE chat_settings
             ADD COLUMN IF NOT EXISTS wallpaper_url TEXT
             """,
-
             """
             ALTER TABLE chat_settings
             ADD COLUMN IF NOT EXISTS pinned
             BOOLEAN NOT NULL DEFAULT FALSE
             """,
-
             """
             ALTER TABLE chat_settings
             ADD COLUMN IF NOT EXISTS muted
             BOOLEAN NOT NULL DEFAULT FALSE
             """,
-
             """
             ALTER TABLE chat_settings
             ADD COLUMN IF NOT EXISTS blocked
             BOOLEAN NOT NULL DEFAULT FALSE
             """,
-
             """
             ALTER TABLE chat_settings
             ADD COLUMN IF NOT EXISTS created_at
-            TIMESTAMPTZ NOT NULL
-            DEFAULT CURRENT_TIMESTAMP
+            TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
             """,
-
             """
             ALTER TABLE chat_settings
             ADD COLUMN IF NOT EXISTS updated_at
-            TIMESTAMPTZ NOT NULL
-            DEFAULT CURRENT_TIMESTAMP
+            TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
             """,
         ]
 
         for sql in chat_migrations:
             conn.execute(sql)
 
-
-        # ====================================================
+        # ----------------------------------------------------
         # BLOCKS
-        # ====================================================
+        # ----------------------------------------------------
 
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS blocks (
                 id BIGSERIAL PRIMARY KEY,
                 blocker_id BIGINT NOT NULL
-                    REFERENCES users(id)
-                    ON DELETE CASCADE,
+                    REFERENCES users(id) ON DELETE CASCADE,
                 blocked_id BIGINT NOT NULL
-                    REFERENCES users(id)
-                    ON DELETE CASCADE,
+                    REFERENCES users(id) ON DELETE CASCADE,
                 created_at TIMESTAMPTZ NOT NULL
                     DEFAULT CURRENT_TIMESTAMP,
                 UNIQUE(blocker_id, blocked_id)
@@ -733,24 +587,20 @@ def init_db():
             """
         )
 
-
-        # ====================================================
+        # ----------------------------------------------------
         # REPORTS
-        # ====================================================
+        # ----------------------------------------------------
 
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS reports (
                 id BIGSERIAL PRIMARY KEY,
                 reporter_id BIGINT NOT NULL
-                    REFERENCES users(id)
-                    ON DELETE CASCADE,
+                    REFERENCES users(id) ON DELETE CASCADE,
                 reported_user_id BIGINT
-                    REFERENCES users(id)
-                    ON DELETE CASCADE,
+                    REFERENCES users(id) ON DELETE CASCADE,
                 post_id BIGINT
-                    REFERENCES posts(id)
-                    ON DELETE CASCADE,
+                    REFERENCES posts(id) ON DELETE CASCADE,
                 message_id BIGINT,
                 reason TEXT NOT NULL DEFAULT '',
                 created_at TIMESTAMPTZ NOT NULL
@@ -766,21 +616,18 @@ def init_db():
             """
         )
 
-
-        # ====================================================
+        # ----------------------------------------------------
         # CALLS
-        # ====================================================
+        # ----------------------------------------------------
 
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS calls (
                 id BIGSERIAL PRIMARY KEY,
                 caller_id BIGINT NOT NULL
-                    REFERENCES users(id)
-                    ON DELETE CASCADE,
+                    REFERENCES users(id) ON DELETE CASCADE,
                 receiver_id BIGINT NOT NULL
-                    REFERENCES users(id)
-                    ON DELETE CASCADE,
+                    REFERENCES users(id) ON DELETE CASCADE,
                 room_name TEXT NOT NULL,
                 call_type TEXT NOT NULL DEFAULT 'video',
                 status TEXT NOT NULL DEFAULT 'started',
@@ -793,24 +640,21 @@ def init_db():
 
         conn.execute(
             """
-            CREATE UNIQUE INDEX IF NOT EXISTS
-            idx_calls_room
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_calls_room
             ON calls(room_name)
             """
         )
 
-
-        # ====================================================
+        # ----------------------------------------------------
         # STATUSES
-        # ====================================================
+        # ----------------------------------------------------
 
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS statuses (
                 id BIGSERIAL PRIMARY KEY,
                 user_id BIGINT NOT NULL
-                    REFERENCES users(id)
-                    ON DELETE CASCADE,
+                    REFERENCES users(id) ON DELETE CASCADE,
                 text TEXT DEFAULT '',
                 media_url TEXT,
                 media_type TEXT,
@@ -821,10 +665,25 @@ def init_db():
             """
         )
 
+        # ----------------------------------------------------
+        # CLEAN NULL VALUES
+        # ----------------------------------------------------
 
-        # ====================================================
-        # FINISH DATABASE MIGRATION
-        # ====================================================
+        conn.execute(
+            """
+            UPDATE users
+            SET bio = ''
+            WHERE bio IS NULL
+            """
+        )
+
+        conn.execute(
+            """
+            UPDATE users
+            SET updated_at = CURRENT_TIMESTAMP
+            WHERE updated_at IS NULL
+            """
+        )
 
         conn.commit()
 
@@ -835,16 +694,43 @@ def init_db():
 
 @app.on_event("startup")
 def startup():
-    init_db()
+    """
+    Initialize database on application startup.
+    """
+    try:
+        init_db()
+        print("==========================================")
+        print(f"{APP_NAME} STARTED")
+        print("Database initialization: SUCCESS")
+        print(
+            "PostgreSQL:",
+            "CONFIGURED" if DATABASE_URL else "MISSING",
+        )
+        print(
+            "LiveKit:",
+            "CONFIGURED"
+            if (
+                LIVEKIT_URL
+                and LIVEKIT_API_KEY
+                and LIVEKIT_API_SECRET
+            )
+            else "NOT CONFIGURED",
+        )
+        print("==========================================")
+    except Exception as exc:
+        print("==========================================")
+        print("DATABASE STARTUP ERROR")
+        print(type(exc).__name__, str(exc))
+        print("==========================================")
+        raise
 
 
 # ============================================================
-# REQUEST MODELS
+# PYDANTIC MODELS
 # ============================================================
 
 class RegisterRequest(BaseModel):
     name: str
-    username: str
     email: EmailStr
     password: str
 
@@ -856,9 +742,7 @@ class LoginRequest(BaseModel):
 
 class ProfileUpdate(BaseModel):
     name: Optional[str] = None
-    username: Optional[str] = None
     bio: Optional[str] = None
-    location: Optional[str] = None
 
 
 class MessageRequest(BaseModel):
@@ -886,51 +770,16 @@ class CallTokenRequest(BaseModel):
 
 
 # ============================================================
-# PASSWORD / TOKEN HELPERS
+# JWT / AUTH HELPERS
 # ============================================================
 
-def hash_password(password: str) -> str:
-    password_bytes = password.encode("utf-8")
-
-    if len(password_bytes) > 72:
-        raise HTTPException(
-            400,
-            "Password is too long",
-        )
-
-    return bcrypt.hashpw(
-        password_bytes,
-        bcrypt.gensalt(),
-    ).decode("utf-8")
-
-
-def verify_password(
-    password: str,
-    password_hash: str,
-) -> bool:
-
-    try:
-        password_bytes = password.encode("utf-8")
-
-        if len(password_bytes) > 72:
-            return False
-
-        return bcrypt.checkpw(
-            password_bytes,
-            password_hash.encode("utf-8"),
-        )
-
-    except (ValueError, TypeError):
-        return False
-
-
-def hash_token(token: str) -> str:
+def hash_token(token: str):
     return hashlib.sha256(
         token.encode("utf-8")
     ).hexdigest()
 
 
-def create_token(user_id: int) -> str:
+def create_token(user_id: int):
     now = datetime.now(timezone.utc)
 
     payload = {
@@ -947,7 +796,6 @@ def create_token(user_id: int) -> str:
 
 
 def decode_token(token: str):
-
     try:
         return jwt.decode(
             token,
@@ -957,33 +805,25 @@ def decode_token(token: str):
 
     except jwt.ExpiredSignatureError:
         raise HTTPException(
-            401,
-            "Session expired",
+            status_code=401,
+            detail="Session expired",
         )
 
     except jwt.InvalidTokenError:
         raise HTTPException(
-            401,
-            "Invalid token",
+            status_code=401,
+            detail="Invalid token",
         )
 
 
-def bearer(
-    authorization: Optional[str],
-) -> str:
-
-    if not authorization:
-        raise HTTPException(
-            401,
-            "Bearer token required",
-        )
-
-    if not authorization.lower().startswith(
-        "bearer "
+def bearer(authorization: Optional[str]):
+    if (
+        not authorization
+        or not authorization.lower().startswith("bearer ")
     ):
         raise HTTPException(
-            401,
-            "Bearer token required",
+            status_code=401,
+            detail="Bearer token required",
         )
 
     token = authorization.split(
@@ -993,8 +833,8 @@ def bearer(
 
     if not token:
         raise HTTPException(
-            401,
-            "Bearer token required",
+            status_code=401,
+            detail="Bearer token required",
         )
 
     return token
@@ -1003,8 +843,8 @@ def bearer(
 def require_user(
     authorization: Optional[str],
 ):
-
     token = bearer(authorization)
+
     payload = decode_token(token)
 
     try:
@@ -1015,32 +855,30 @@ def require_user(
         ValueError,
     ):
         raise HTTPException(
-            401,
-            "Invalid token",
+            status_code=401,
+            detail="Invalid token subject",
         )
 
     with get_conn() as conn:
-
         user = conn.execute(
             """
             SELECT
                 u.id,
                 u.name,
-                u.username,
                 u.email,
                 u.bio,
-                u.location,
                 u.avatar,
                 u.created_at,
                 u.updated_at
             FROM sessions s
             JOIN users u
                 ON u.id = s.user_id
-            WHERE s.token_hash = %s
-              AND s.revoked = FALSE
-              AND s.expires_at > CURRENT_TIMESTAMP
-              AND u.id = %s
-              AND u.deleted_at IS NULL
+            WHERE
+                s.token_hash = %s
+                AND s.revoked = FALSE
+                AND s.expires_at > CURRENT_TIMESTAMP
+                AND u.id = %s
+                AND u.deleted_at IS NULL
             LIMIT 1
             """,
             (
@@ -1051,68 +889,23 @@ def require_user(
 
     if not user:
         raise HTTPException(
-            401,
-            "Session not found",
+            status_code=401,
+            detail="Session not found",
         )
 
     return user
-
-
-def normalize_username(
-    value: str,
-) -> str:
-
-    username = value.strip().lower()
-
-    if not username:
-        raise HTTPException(
-            400,
-            "Username is required",
-        )
-
-    if len(username) < 3:
-        raise HTTPException(
-            400,
-            "Username must contain at least 3 characters",
-        )
-
-    if len(username) > 80:
-        raise HTTPException(
-            400,
-            "Username is too long",
-        )
-
-    allowed = set(
-        "abcdefghijklmnopqrstuvwxyz"
-        "0123456789"
-        "._-"
-    )
-
-    if any(
-        character not in allowed
-        for character in username
-    ):
-        raise HTTPException(
-            400,
-            "Username may contain letters, numbers, dot, underscore and hyphen only",
-        )
-
-    return username
 
 
 # ============================================================
 # FILE HELPERS
 # ============================================================
 
-def safe_filename(
-    name: Optional[str],
-) -> str:
-
+def safe_filename(name):
     extension = Path(
         name or "file"
     ).suffix.lower()
 
-    allowed = {
+    allowed_extensions = {
         ".jpg",
         ".jpeg",
         ".png",
@@ -1132,7 +925,7 @@ def safe_filename(
         ".zip",
     }
 
-    if extension not in allowed:
+    if extension not in allowed_extensions:
         extension = ""
 
     return (
@@ -1141,11 +934,8 @@ def safe_filename(
     )
 
 
-def public_url(path: Path) -> str:
-
-    relative = path.relative_to(
-        BASE_DIR
-    )
+def public_url(path: Path):
+    relative = path.relative_to(BASE_DIR)
 
     return (
         "/files/"
@@ -1156,58 +946,99 @@ def public_url(path: Path) -> str:
     )
 
 
-async def save_upload(
-    file: UploadFile,
-    directory: Path,
-    max_bytes: int,
-) -> str:
-
-    content = await file.read()
-
-    if len(content) > max_bytes:
-        raise HTTPException(
-            400,
-            "File is too large",
-        )
-
-    destination = (
-        directory
-        / safe_filename(file.filename)
+def user_public(user):
+    fields = (
+        "id",
+        "name",
+        "email",
+        "bio",
+        "avatar",
+        "created_at",
+        "updated_at",
     )
 
-    destination.write_bytes(content)
-
-    return public_url(destination)
-
-
-# ============================================================
-# ROOT / HEALTH
-# ============================================================
-
-@app.get("/")
-def root():
-
     return {
-        "app": APP_NAME,
-        "version": APP_VERSION,
-        "status": "online",
-        "database": (
-            "configured"
-            if DATABASE_URL
-            else "missing"
-        ),
-        "livekit": bool(
-            LIVEKIT_URL
-            and LIVEKIT_API_KEY
-            and LIVEKIT_API_SECRET
-        ),
+        key: user[key]
+        for key in fields
+        if key in user
     }
 
 
+# ============================================================
+# FRONTEND / ROOT ROUTE
+# ============================================================
+
+@app.get(
+    "/",
+    include_in_schema=False,
+)
+def root():
+    """
+    V5.1 FIX:
+    Serve the frontend index.html instead of returning JSON.
+    """
+
+    index_file = BASE_DIR / "index.html"
+
+    if not index_file.exists():
+        return JSONResponse(
+            status_code=404,
+            content={
+                "status": "error",
+                "message": "index.html not found",
+                "app": APP_NAME,
+                "version": APP_VERSION,
+                "hint": (
+                    "Upload index.html to the same "
+                    "directory as main.py."
+                ),
+            },
+        )
+
+    return FileResponse(
+        index_file,
+        media_type="text/html",
+    )
+
+
+# ============================================================
+# FAVICON
+# ============================================================
+
+@app.get(
+    "/favicon.ico",
+    include_in_schema=False,
+)
+def favicon():
+    favicon_file = BASE_DIR / "favicon.ico"
+
+    if favicon_file.exists():
+        return FileResponse(
+            favicon_file,
+            media_type="image/x-icon",
+        )
+
+    raise HTTPException(
+        status_code=404,
+        detail="Favicon not found",
+    )
+
+
+# ============================================================
+# HEALTH
+# ============================================================
+
 @app.get("/health")
+def health_simple():
+    return {
+        "status": "ok",
+        "app": APP_NAME,
+        "version": APP_VERSION,
+    }
+
+
 @app.get("/api/health")
 def health():
-
     return {
         "status": "ok",
         "app": APP_NAME,
@@ -1217,9 +1048,7 @@ def health():
 
 @app.get("/api/health/db")
 def db_health():
-
     with get_conn() as conn:
-
         result = conn.execute(
             """
             SELECT CURRENT_TIMESTAMP
@@ -1230,9 +1059,7 @@ def db_health():
     return {
         "status": "ok",
         "database": "postgresql",
-        "server_time": result[
-            "server_time"
-        ],
+        "server_time": result["server_time"],
     }
 
 
@@ -1240,19 +1067,18 @@ def db_health():
 # FILE SERVING
 # ============================================================
 
-@app.get("/files/{file_path:path}")
-def serve_file(
-    file_path: str,
-):
+@app.get(
+    "/files/{file_path:path}"
+)
+def serve_file(file_path: str):
 
     requested = (
         BASE_DIR / file_path
     ).resolve()
 
-    upload_root = (
-        UPLOAD_DIR.resolve()
-    )
+    upload_root = UPLOAD_DIR.resolve()
 
+    # Prevent directory traversal.
     if not (
         requested == upload_root
         or str(requested).startswith(
@@ -1260,14 +1086,14 @@ def serve_file(
         )
     ):
         raise HTTPException(
-            403,
-            "Forbidden",
+            status_code=403,
+            detail="Forbidden",
         )
 
     if not requested.is_file():
         raise HTTPException(
-            404,
-            "File not found",
+            status_code=404,
+            detail="File not found",
         )
 
     media_type = (
@@ -1291,101 +1117,66 @@ def serve_file(
 def register(
     data: RegisterRequest,
 ):
-
     name = data.name.strip()
-
-    username = normalize_username(
-        data.username
-    )
-
-    email = str(
-        data.email
-    ).strip().lower()
+    email = str(data.email).strip().lower()
 
     if len(name) < 2:
         raise HTTPException(
-            400,
-            "Name is too short",
+            status_code=400,
+            detail="Name is too short",
         )
 
-    if len(name) > 150:
+    if len(name) > 100:
         raise HTTPException(
-            400,
-            "Name is too long",
+            status_code=400,
+            detail="Name is too long",
         )
 
     if len(data.password) < 6:
         raise HTTPException(
-            400,
-            "Password must contain at least 6 characters",
+            status_code=400,
+            detail=(
+                "Password must contain "
+                "at least 6 characters"
+            ),
         )
 
-    password_hash = hash_password(
+    password_hash = pwd_context.hash(
         data.password
     )
 
     with get_conn() as conn:
 
-        # ----------------------------------------------------
-        # CHECK USERNAME FIRST
-        # ----------------------------------------------------
-
-        existing_username = conn.execute(
-            """
-            SELECT id
-            FROM users
-            WHERE LOWER(username) = LOWER(%s)
-              AND deleted_at IS NULL
-            LIMIT 1
-            """,
-            (username,),
-        ).fetchone()
-
-        if existing_username:
-            raise HTTPException(
-                409,
-                "This username is already taken",
-            )
-
-
-        # ----------------------------------------------------
-        # CHECK EMAIL
-        # ----------------------------------------------------
-
-        existing_email = conn.execute(
+        existing = conn.execute(
             """
             SELECT id, deleted_at
             FROM users
-            WHERE LOWER(email) = LOWER(%s)
+            WHERE email = %s
             LIMIT 1
             """,
             (email,),
         ).fetchone()
 
+        if existing:
 
-        # ----------------------------------------------------
-        # RESTORE DELETED ACCOUNT
-        # ----------------------------------------------------
-
-        if existing_email:
-
-            if existing_email["deleted_at"] is None:
+            if existing["deleted_at"] is None:
                 raise HTTPException(
-                    409,
-                    "An account with this email already exists",
+                    status_code=409,
+                    detail=(
+                        "An account with this "
+                        "email already exists"
+                    ),
                 )
 
-            user_id = existing_email["id"]
+            user_id = existing["id"]
 
             conn.execute(
                 """
                 UPDATE users
                 SET
                     name = %s,
-                    username = %s,
                     password_hash = %s,
                     bio = '',
-                    location = '',
                     avatar = NULL,
                     deleted_at = NULL,
                     updated_at = CURRENT_TIMESTAMP
@@ -1393,7 +1184,6 @@ def register(
                 """,
                 (
                     name,
-                    username,
                     password_hash,
                     user_id,
                 ),
@@ -1401,44 +1191,30 @@ def register(
 
         else:
 
-            # ------------------------------------------------
-            # CREATE NEW USER
-            # ------------------------------------------------
-
             row = conn.execute(
                 """
                 INSERT INTO users (
                     name,
-                    username,
                     email,
                     password_hash,
-                    bio,
-                    location
+                    bio
                 )
                 VALUES (
                     %s,
                     %s,
                     %s,
-                    %s,
-                    '',
                     ''
                 )
                 RETURNING id
                 """,
                 (
                     name,
-                    username,
                     email,
                     password_hash,
                 ),
             ).fetchone()
 
             user_id = row["id"]
-
-
-        # ----------------------------------------------------
-        # CREATE SESSION
-        # ----------------------------------------------------
 
         token = create_token(
             user_id
@@ -1454,14 +1230,12 @@ def register(
             INSERT INTO sessions (
                 user_id,
                 token_hash,
-                expires_at,
-                revoked
+                expires_at
             )
             VALUES (
                 %s,
                 %s,
-                %s,
-                FALSE
+                %s
             )
             """,
             (
@@ -1471,20 +1245,13 @@ def register(
             ),
         )
 
-
-        # ----------------------------------------------------
-        # RETURN USER
-        # ----------------------------------------------------
-
         user = conn.execute(
             """
             SELECT
                 id,
                 name,
-                username,
                 email,
                 bio,
-                location,
                 avatar,
                 created_at,
                 updated_at
@@ -1495,7 +1262,6 @@ def register(
         ).fetchone()
 
         conn.commit()
-
 
     return {
         "message": "Account created successfully",
@@ -1510,14 +1276,14 @@ def register(
 # ============================================================
 
 @app.post("/api/login")
-@app.post("/api/auth/login")
 def login(
     data: LoginRequest,
 ):
-
-    email = str(
-        data.email
-    ).strip().lower()
+    email = (
+        str(data.email)
+        .strip()
+        .lower()
+    )
 
     with get_conn() as conn:
 
@@ -1526,17 +1292,16 @@ def login(
             SELECT
                 id,
                 name,
-                username,
                 email,
                 password_hash,
                 bio,
-                location,
                 avatar,
                 created_at,
                 updated_at
             FROM users
-            WHERE LOWER(email) = LOWER(%s)
-              AND deleted_at IS NULL
+            WHERE
+                email = %s
+                AND deleted_at IS NULL
             LIMIT 1
             """,
             (email,),
@@ -1544,19 +1309,25 @@ def login(
 
         if not user:
             raise HTTPException(
-                401,
-                "Invalid email or password",
+                status_code=401,
+                detail="Invalid email or password",
             )
 
-        if not verify_password(
-            data.password,
-            user["password_hash"],
-        ):
+        try:
+            valid_password = (
+                pwd_context.verify(
+                    data.password,
+                    user["password_hash"],
+                )
+            )
+        except Exception:
+            valid_password = False
+
+        if not valid_password:
             raise HTTPException(
-                401,
-                "Invalid email or password",
+                status_code=401,
+                detail="Invalid email or password",
             )
-
 
         token = create_token(
             user["id"]
@@ -1572,14 +1343,12 @@ def login(
             INSERT INTO sessions (
                 user_id,
                 token_hash,
-                expires_at,
-                revoked
+                expires_at
             )
             VALUES (
                 %s,
                 %s,
-                %s,
-                FALSE
+                %s
             )
             """,
             (
@@ -1590,7 +1359,6 @@ def login(
         )
 
         conn.commit()
-
 
     user.pop(
         "password_hash",
@@ -1615,13 +1383,11 @@ def logout(
         default=None
     ),
 ):
-
     token = bearer(
         authorization
     )
 
     with get_conn() as conn:
-
         conn.execute(
             """
             UPDATE sessions
@@ -1636,7 +1402,7 @@ def logout(
         conn.commit()
 
     return {
-        "message": "Logged out successfully",
+        "message": "Logged out successfully"
     }
 
 
@@ -1650,7 +1416,6 @@ def me(
         default=None
     ),
 ):
-
     return {
         "user": require_user(
             authorization
@@ -1659,7 +1424,7 @@ def me(
 
 
 # ============================================================
-# PROFILE UPDATE
+# PROFILE
 # ============================================================
 
 @app.patch("/api/profile")
@@ -1669,117 +1434,67 @@ def update_profile(
         default=None
     ),
 ):
-
-    current_user = require_user(
+    user = require_user(
         authorization
     )
 
     name = (
         data.name.strip()
         if data.name is not None
-        else current_user["name"]
+        else user["name"]
     )
 
     bio = (
         data.bio.strip()
         if data.bio is not None
-        else (
-            current_user["bio"]
-            or ""
-        )
-    )
-
-    location = (
-        data.location.strip()
-        if data.location is not None
-        else (
-            current_user["location"]
-            or ""
-        )
-    )
-
-    username = (
-        normalize_username(
-            data.username
-        )
-        if data.username is not None
-        else current_user["username"]
+        else (user["bio"] or "")
     )
 
     if len(name) < 2:
         raise HTTPException(
-            400,
-            "Name is too short",
+            status_code=400,
+            detail="Name is too short",
         )
 
-    if len(name) > 150:
+    if len(name) > 100:
         raise HTTPException(
-            400,
-            "Name is too long",
+            status_code=400,
+            detail="Name is too long",
+        )
+
+    if len(bio) > 1000:
+        raise HTTPException(
+            status_code=400,
+            detail="Bio is too long",
         )
 
     with get_conn() as conn:
-
-        if (
-            username
-            != current_user["username"]
-        ):
-
-            taken = conn.execute(
-                """
-                SELECT id
-                FROM users
-                WHERE LOWER(username)
-                    = LOWER(%s)
-                  AND id <> %s
-                  AND deleted_at IS NULL
-                LIMIT 1
-                """,
-                (
-                    username,
-                    current_user["id"],
-                ),
-            ).fetchone()
-
-            if taken:
-                raise HTTPException(
-                    409,
-                    "This username is already taken",
-                )
-
 
         row = conn.execute(
             """
             UPDATE users
             SET
                 name = %s,
-                username = %s,
                 bio = %s,
-                location = %s,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = %s
             RETURNING
                 id,
                 name,
-                username,
                 email,
                 bio,
-                location,
                 avatar,
                 created_at,
                 updated_at
             """,
             (
                 name,
-                username,
                 bio,
-                location,
-                current_user["id"],
+                user["id"],
             ),
         ).fetchone()
 
         conn.commit()
-
 
     return {
         "message": "Profile updated",
@@ -1798,28 +1513,43 @@ async def avatar(
         default=None
     ),
 ):
-
-    current_user = require_user(
+    user = require_user(
         authorization
     )
 
     content_type = (
-        file.content_type
-        or ""
+        file.content_type or ""
     ).lower()
 
     if not content_type.startswith(
         "image/"
     ):
         raise HTTPException(
-            400,
-            "Avatar must be an image",
+            status_code=400,
+            detail="Avatar must be an image",
         )
 
-    url = await save_upload(
-        file,
-        AVATAR_DIR,
-        10 * 1024 * 1024,
+    content = await file.read()
+
+    if len(content) > 10 * 1024 * 1024:
+        raise HTTPException(
+            status_code=400,
+            detail="Avatar is too large",
+        )
+
+    destination = (
+        AVATAR_DIR
+        / safe_filename(
+            file.filename
+        )
+    )
+
+    destination.write_bytes(
+        content
+    )
+
+    url = public_url(
+        destination
     )
 
     with get_conn() as conn:
@@ -1834,22 +1564,19 @@ async def avatar(
             RETURNING
                 id,
                 name,
-                username,
                 email,
                 bio,
-                location,
                 avatar,
                 created_at,
                 updated_at
             """,
             (
                 url,
-                current_user["id"],
+                user["id"],
             ),
         ).fetchone()
 
         conn.commit()
-
 
     return {
         "message": "Avatar updated",
@@ -1867,7 +1594,6 @@ async def avatar(
 def profile(
     user_id: int,
 ):
-
     with get_conn() as conn:
 
         user = conn.execute(
@@ -1875,29 +1601,27 @@ def profile(
             SELECT
                 id,
                 name,
-                username,
                 email,
                 bio,
-                location,
                 avatar,
                 created_at,
                 updated_at
             FROM users
-            WHERE id = %s
-              AND deleted_at IS NULL
+            WHERE
+                id = %s
+                AND deleted_at IS NULL
             """,
             (user_id,),
         ).fetchone()
 
-
     if not user:
         raise HTTPException(
-            404,
-            "User not found",
+            status_code=404,
+            detail="User not found",
         )
 
     return {
-        "user": user,
+        "user": user
     }
 
 
@@ -1915,7 +1639,6 @@ def search(
         default=None
     ),
 ):
-
     require_user(
         authorization
     )
@@ -1929,32 +1652,28 @@ def search(
             SELECT
                 id,
                 name,
-                username,
                 email,
                 bio,
-                location,
                 avatar,
                 created_at
             FROM users
-            WHERE deleted_at IS NULL
-              AND (
-                  name ILIKE %s
-                  OR username ILIKE %s
-                  OR email ILIKE %s
-              )
+            WHERE
+                deleted_at IS NULL
+                AND (
+                    name ILIKE %s
+                    OR email ILIKE %s
+                )
             ORDER BY name
             LIMIT 50
             """,
             (
                 f"%{search_text}%",
                 f"%{search_text}%",
-                f"%{search_text}%",
             ),
         ).fetchall()
 
-
     return {
-        "users": users,
+        "users": users
     }
 
 
@@ -1968,7 +1687,6 @@ def users_search(
         default=None
     ),
 ):
-
     return search(
         q,
         authorization,
@@ -1989,8 +1707,7 @@ async def create_post(
         default=None
     ),
 ):
-
-    current_user = require_user(
+    user = require_user(
         authorization
     )
 
@@ -1999,12 +1716,10 @@ async def create_post(
     media_url = None
     media_type = None
 
-
     if file and file.filename:
 
         content_type = (
-            file.content_type
-            or ""
+            file.content_type or ""
         ).lower()
 
         if not (
@@ -2019,25 +1734,40 @@ async def create_post(
             )
         ):
             raise HTTPException(
-                400,
-                "Unsupported media type",
+                status_code=400,
+                detail="Unsupported media type",
             )
 
-        media_url = await save_upload(
-            file,
-            POST_DIR,
-            100 * 1024 * 1024,
+        content = await file.read()
+
+        if len(content) > 100 * 1024 * 1024:
+            raise HTTPException(
+                status_code=400,
+                detail="File is too large",
+            )
+
+        destination = (
+            POST_DIR
+            / safe_filename(
+                file.filename
+            )
+        )
+
+        destination.write_bytes(
+            content
+        )
+
+        media_url = public_url(
+            destination
         )
 
         media_type = content_type
 
-
     if not caption and not media_url:
         raise HTTPException(
-            400,
-            "Post cannot be empty",
+            status_code=400,
+            detail="Post cannot be empty",
         )
-
 
     with get_conn() as conn:
 
@@ -2064,7 +1794,7 @@ async def create_post(
                 created_at
             """,
             (
-                current_user["id"],
+                user["id"],
                 caption,
                 media_url,
                 media_type,
@@ -2073,7 +1803,6 @@ async def create_post(
 
         conn.commit()
 
-
     return {
         "message": "Post created",
         "post": post,
@@ -2081,7 +1810,7 @@ async def create_post(
 
 
 # ============================================================
-# POSTS FEED
+# GET POSTS
 # ============================================================
 
 @app.get("/api/posts")
@@ -2096,7 +1825,6 @@ def posts(
         ge=0,
     ),
 ):
-
     with get_conn() as conn:
 
         rows = conn.execute(
@@ -2109,7 +1837,6 @@ def posts(
                 p.media_type,
                 p.created_at,
                 u.name AS user_name,
-                u.username AS username,
                 u.avatar AS user_avatar,
 
                 (
@@ -2120,8 +1847,8 @@ def posts(
 
                 (
                     SELECT COUNT(*)
-                    FROM comments c
-                    WHERE c.post_id = p.id
+                    FROM comments x
+                    WHERE x.post_id = p.id
                 ) AS comments_count,
 
                 (
@@ -2135,10 +1862,12 @@ def posts(
             JOIN users u
                 ON u.id = p.user_id
 
-            WHERE p.deleted_at IS NULL
-              AND u.deleted_at IS NULL
+            WHERE
+                p.deleted_at IS NULL
+                AND u.deleted_at IS NULL
 
-            ORDER BY p.created_at DESC
+            ORDER BY
+                p.created_at DESC
 
             LIMIT %s
             OFFSET %s
@@ -2148,7 +1877,6 @@ def posts(
                 offset,
             ),
         ).fetchall()
-
 
     return {
         "posts": rows,
@@ -2168,67 +1896,66 @@ def delete_post(
         default=None
     ),
 ):
-
-    current_user = require_user(
+    user = require_user(
         authorization
     )
 
     with get_conn() as conn:
 
-        result = conn.execute(
+        row = conn.execute(
             """
             UPDATE posts
             SET
                 deleted_at = CURRENT_TIMESTAMP,
                 updated_at = CURRENT_TIMESTAMP
-            WHERE id = %s
-              AND user_id = %s
-              AND deleted_at IS NULL
+            WHERE
+                id = %s
+                AND user_id = %s
+                AND deleted_at IS NULL
             RETURNING id
             """,
             (
                 post_id,
-                current_user["id"],
+                user["id"],
             ),
         ).fetchone()
 
-        if not result:
+        if not row:
             raise HTTPException(
-                404,
-                "Post not found",
+                status_code=404,
+                detail="Post not found",
             )
 
         conn.commit()
 
-
     return {
-        "message": "Post deleted",
+        "message": "Post deleted"
     }
 
 
 # ============================================================
-# POST EXISTENCE
+# POST EXISTENCE HELPER
 # ============================================================
 
 def post_exists(
     conn,
     post_id: int,
 ):
-
-    post = conn.execute(
+    row = conn.execute(
         """
         SELECT id
         FROM posts
-        WHERE id = %s
-          AND deleted_at IS NULL
+        WHERE
+            id = %s
+            AND deleted_at IS NULL
         """,
         (post_id,),
     ).fetchone()
 
-    if not post:
+    if not row:
         raise HTTPException(
-            404,
-            "Post not found",
+            status_code=404,
+            detail="Post not found",
         )
 
 
@@ -2243,8 +1970,7 @@ def like(
         default=None
     ),
 ):
-
-    current_user = require_user(
+    user = require_user(
         authorization
     )
 
@@ -2257,11 +1983,11 @@ def like(
 
         conn.execute(
             """
-            INSERT INTO likes(
+            INSERT INTO likes (
                 post_id,
                 user_id
             )
-            VALUES(
+            VALUES (
                 %s,
                 %s
             )
@@ -2269,15 +1995,14 @@ def like(
             """,
             (
                 post_id,
-                current_user["id"],
+                user["id"],
             ),
         )
 
         conn.commit()
 
-
     return {
-        "liked": True,
+        "liked": True
     }
 
 
@@ -2292,8 +2017,7 @@ def unlike(
         default=None
     ),
 ):
-
-    current_user = require_user(
+    user = require_user(
         authorization
     )
 
@@ -2302,25 +2026,25 @@ def unlike(
         conn.execute(
             """
             DELETE FROM likes
-            WHERE post_id = %s
-              AND user_id = %s
+            WHERE
+                post_id = %s
+                AND user_id = %s
             """,
             (
                 post_id,
-                current_user["id"],
+                user["id"],
             ),
         )
 
         conn.commit()
 
-
     return {
-        "liked": False,
+        "liked": False
     }
 
 
 # ============================================================
-# COMMENT
+# COMMENTS
 # ============================================================
 
 @app.post("/api/posts/{post_id}/comments")
@@ -2331,8 +2055,7 @@ def comment(
         default=None
     ),
 ):
-
-    current_user = require_user(
+    user = require_user(
         authorization
     )
 
@@ -2340,8 +2063,14 @@ def comment(
 
     if not text:
         raise HTTPException(
-            400,
-            "Comment cannot be empty",
+            status_code=400,
+            detail="Comment cannot be empty",
+        )
+
+    if len(text) > 5000:
+        raise HTTPException(
+            status_code=400,
+            detail="Comment is too long",
         )
 
     with get_conn() as conn:
@@ -2351,14 +2080,14 @@ def comment(
             post_id,
         )
 
-        result = conn.execute(
+        row = conn.execute(
             """
-            INSERT INTO comments(
+            INSERT INTO comments (
                 post_id,
                 user_id,
                 text
             )
-            VALUES(
+            VALUES (
                 %s,
                 %s,
                 %s
@@ -2372,28 +2101,22 @@ def comment(
             """,
             (
                 post_id,
-                current_user["id"],
+                user["id"],
                 text,
             ),
         ).fetchone()
 
         conn.commit()
 
-
     return {
-        "comment": result,
+        "comment": row
     }
 
-
-# ============================================================
-# COMMENTS
-# ============================================================
 
 @app.get("/api/posts/{post_id}/comments")
 def comments(
     post_id: int,
 ):
-
     with get_conn() as conn:
 
         rows = conn.execute(
@@ -2405,22 +2128,27 @@ def comments(
                 c.text,
                 c.created_at,
                 u.name AS user_name,
-                u.username AS username,
                 u.avatar AS user_avatar
+
             FROM comments c
+
             JOIN users u
                 ON u.id = c.user_id
-            WHERE c.post_id = %s
-              AND u.deleted_at IS NULL
-            ORDER BY c.created_at ASC
+
+            WHERE
+                c.post_id = %s
+                AND u.deleted_at IS NULL
+
+            ORDER BY
+                c.created_at
+
             LIMIT 200
             """,
             (post_id,),
         ).fetchall()
 
-
     return {
-        "comments": rows,
+        "comments": rows
     }
 
 
@@ -2429,14 +2157,13 @@ def comments(
 # ============================================================
 
 @app.post("/api/posts/{post_id}/save")
-def save_post(
+def save(
     post_id: int,
     authorization: Optional[str] = Header(
         default=None
     ),
 ):
-
-    current_user = require_user(
+    user = require_user(
         authorization
     )
 
@@ -2449,11 +2176,11 @@ def save_post(
 
         conn.execute(
             """
-            INSERT INTO saved_posts(
+            INSERT INTO saved_posts (
                 post_id,
                 user_id
             )
-            VALUES(
+            VALUES (
                 %s,
                 %s
             )
@@ -2461,31 +2188,25 @@ def save_post(
             """,
             (
                 post_id,
-                current_user["id"],
+                user["id"],
             ),
         )
 
         conn.commit()
 
-
     return {
-        "saved": True,
+        "saved": True
     }
 
 
-# ============================================================
-# UNSAVE POST
-# ============================================================
-
 @app.delete("/api/posts/{post_id}/save")
-def unsave_post(
+def unsave(
     post_id: int,
     authorization: Optional[str] = Header(
         default=None
     ),
 ):
-
-    current_user = require_user(
+    user = require_user(
         authorization
     )
 
@@ -2494,20 +2215,20 @@ def unsave_post(
         conn.execute(
             """
             DELETE FROM saved_posts
-            WHERE post_id = %s
-              AND user_id = %s
+            WHERE
+                post_id = %s
+                AND user_id = %s
             """,
             (
                 post_id,
-                current_user["id"],
+                user["id"],
             ),
         )
 
         conn.commit()
 
-
     return {
-        "saved": False,
+        "saved": False
     }
 
 
@@ -2522,8 +2243,7 @@ def reshare(
         default=None
     ),
 ):
-
-    current_user = require_user(
+    user = require_user(
         authorization
     )
 
@@ -2536,11 +2256,11 @@ def reshare(
 
         conn.execute(
             """
-            INSERT INTO reshares(
+            INSERT INTO reshares (
                 post_id,
                 user_id
             )
-            VALUES(
+            VALUES (
                 %s,
                 %s
             )
@@ -2548,15 +2268,14 @@ def reshare(
             """,
             (
                 post_id,
-                current_user["id"],
+                user["id"],
             ),
         )
 
         conn.commit()
 
-
     return {
-        "reshared": True,
+        "reshared": True
     }
 
 
@@ -2571,26 +2290,28 @@ def send_message(
         default=None
     ),
 ):
-
-    current_user = require_user(
+    user = require_user(
         authorization
     )
 
-    if (
-        data.receiver_id
-        == current_user["id"]
-    ):
+    if data.receiver_id == user["id"]:
         raise HTTPException(
-            400,
-            "Cannot message yourself",
+            status_code=400,
+            detail="Cannot message yourself",
         )
 
     text = data.text.strip()
 
     if not text:
         raise HTTPException(
-            400,
-            "Message cannot be empty",
+            status_code=400,
+            detail="Message cannot be empty",
+        )
+
+    if len(text) > 10000:
+        raise HTTPException(
+            status_code=400,
+            detail="Message is too long",
         )
 
     with get_conn() as conn:
@@ -2599,8 +2320,9 @@ def send_message(
             """
             SELECT id
             FROM users
-            WHERE id = %s
-              AND deleted_at IS NULL
+            WHERE
+                id = %s
+                AND deleted_at IS NULL
             """,
             (
                 data.receiver_id,
@@ -2609,48 +2331,48 @@ def send_message(
 
         if not receiver:
             raise HTTPException(
-                404,
-                "Receiver not found",
+                status_code=404,
+                detail="Receiver not found",
             )
-
 
         blocked = conn.execute(
             """
             SELECT id
             FROM blocks
-            WHERE (
-                blocker_id = %s
-                AND blocked_id = %s
-            )
-            OR (
-                blocker_id = %s
-                AND blocked_id = %s
-            )
+            WHERE
+                (
+                    blocker_id = %s
+                    AND blocked_id = %s
+                )
+                OR
+                (
+                    blocker_id = %s
+                    AND blocked_id = %s
+                )
             LIMIT 1
             """,
             (
-                current_user["id"],
+                user["id"],
                 data.receiver_id,
                 data.receiver_id,
-                current_user["id"],
+                user["id"],
             ),
         ).fetchone()
 
         if blocked:
             raise HTTPException(
-                403,
-                "Messaging is blocked",
+                status_code=403,
+                detail="Messaging is blocked",
             )
-
 
         message = conn.execute(
             """
-            INSERT INTO messages(
+            INSERT INTO messages (
                 sender_id,
                 receiver_id,
                 text
             )
-            VALUES(
+            VALUES (
                 %s,
                 %s,
                 %s
@@ -2668,7 +2390,7 @@ def send_message(
                 seen
             """,
             (
-                current_user["id"],
+                user["id"],
                 data.receiver_id,
                 text,
             ),
@@ -2676,14 +2398,13 @@ def send_message(
 
         conn.commit()
 
-
     return {
-        "message": message,
+        "message": message
     }
 
 
 # ============================================================
-# CHAT HISTORY
+# MESSAGE HISTORY
 # ============================================================
 
 @app.get("/api/messages/{other_user_id}")
@@ -2699,9 +2420,15 @@ def history(
         default=None
     ),
 ):
-
-    current_user = require_user(
+    user = require_user(
         authorization
+    )
+
+    params = (
+        user["id"],
+        other_user_id,
+        other_user_id,
+        user["id"],
     )
 
     with get_conn() as conn:
@@ -2722,7 +2449,8 @@ def history(
                     created_at,
                     seen
                 FROM messages
-                WHERE (
+
+                WHERE
                     (
                         sender_id = %s
                         AND receiver_id = %s
@@ -2734,17 +2462,13 @@ def history(
                         AND receiver_id = %s
                         AND deleted_for_receiver = FALSE
                     )
-                )
-                ORDER BY created_at DESC
+
+                ORDER BY
+                    created_at DESC
+
                 LIMIT %s
                 """,
-                (
-                    current_user["id"],
-                    other_user_id,
-                    other_user_id,
-                    current_user["id"],
-                    limit,
-                ),
+                params + (limit,),
             ).fetchall()
 
         else:
@@ -2763,7 +2487,8 @@ def history(
                     created_at,
                     seen
                 FROM messages
-                WHERE (
+
+                WHERE
                     (
                         sender_id = %s
                         AND receiver_id = %s
@@ -2775,42 +2500,39 @@ def history(
                         AND receiver_id = %s
                         AND deleted_for_receiver = FALSE
                     )
-                )
-                AND id < %s
-                ORDER BY created_at DESC
+                    AND id < %s
+
+                ORDER BY
+                    created_at DESC
+
                 LIMIT %s
                 """,
-                (
-                    current_user["id"],
-                    other_user_id,
-                    other_user_id,
-                    current_user["id"],
+                params + (
                     before_id,
                     limit,
                 ),
             ).fetchall()
 
-
         conn.execute(
             """
             UPDATE messages
             SET seen = TRUE
-            WHERE sender_id = %s
-              AND receiver_id = %s
+            WHERE
+                sender_id = %s
+                AND receiver_id = %s
             """,
             (
                 other_user_id,
-                current_user["id"],
+                user["id"],
             ),
         )
 
         conn.commit()
 
-
     rows.reverse()
 
     return {
-        "messages": rows,
+        "messages": rows
     }
 
 
@@ -2824,8 +2546,7 @@ def chat_list(
         default=None
     ),
 ):
-
-    current_user = require_user(
+    user = require_user(
         authorization
     )
 
@@ -2836,7 +2557,6 @@ def chat_list(
             SELECT DISTINCT ON (x.other_id)
                 x.other_id,
                 u.name,
-                u.username,
                 u.email,
                 u.avatar,
                 x.last_message,
@@ -2855,32 +2575,67 @@ def chat_list(
 
                 FROM messages
 
-                WHERE sender_id = %s
-                   OR receiver_id = %s
+                WHERE
+                    sender_id = %s
+                    OR receiver_id = %s
 
-                ORDER BY created_at DESC
+                ORDER BY
+                    created_at DESC
             ) x
 
             JOIN users u
                 ON u.id = x.other_id
 
-            WHERE u.deleted_at IS NULL
+            WHERE
+                u.deleted_at IS NULL
 
             ORDER BY
                 x.other_id,
                 x.last_message_at DESC
             """,
             (
-                current_user["id"],
-                current_user["id"],
-                current_user["id"],
+                user["id"],
+                user["id"],
+                user["id"],
             ),
         ).fetchall()
 
-
     return {
-        "chats": rows,
+        "chats": rows
     }
+
+
+# ============================================================
+# UPLOAD HELPER
+# ============================================================
+
+async def save_upload(
+    file,
+    directory: Path,
+    max_bytes: int,
+):
+    content = await file.read()
+
+    if len(content) > max_bytes:
+        raise HTTPException(
+            status_code=400,
+            detail="File is too large",
+        )
+
+    destination = (
+        directory
+        / safe_filename(
+            file.filename
+        )
+    )
+
+    destination.write_bytes(
+        content
+    )
+
+    return public_url(
+        destination
+    )
 
 
 # ============================================================
@@ -2896,35 +2651,33 @@ async def voice(
         default=None
     ),
 ):
-
-    current_user = require_user(
+    user = require_user(
         authorization
     )
 
-    if (
-        receiver_id
-        == current_user["id"]
-    ):
-        raise HTTPException(
-            400,
-            "Cannot send voice note to yourself",
-        )
-
     content_type = (
-        file.content_type
-        or ""
+        file.content_type or ""
     ).lower()
+
+    if receiver_id == user["id"]:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Cannot send voice note "
+                "to yourself"
+            ),
+        )
 
     if not content_type.startswith(
         "audio/"
     ):
         raise HTTPException(
-            400,
-            "Voice note must be an audio file",
+            status_code=400,
+            detail=(
+                "Voice note must be "
+                "an audio file"
+            ),
         )
-
-    if duration_seconds < 0:
-        duration_seconds = 0
 
     url = await save_upload(
         file,
@@ -2938,22 +2691,22 @@ async def voice(
             """
             SELECT id
             FROM users
-            WHERE id = %s
-              AND deleted_at IS NULL
+            WHERE
+                id = %s
+                AND deleted_at IS NULL
             """,
             (receiver_id,),
         ).fetchone()
 
         if not receiver:
             raise HTTPException(
-                404,
-                "Receiver not found",
+                status_code=404,
+                detail="Receiver not found",
             )
-
 
         message = conn.execute(
             """
-            INSERT INTO messages(
+            INSERT INTO messages (
                 sender_id,
                 receiver_id,
                 text,
@@ -2962,7 +2715,7 @@ async def voice(
                 media_type,
                 duration_seconds
             )
-            VALUES(
+            VALUES (
                 %s,
                 %s,
                 '',
@@ -2984,7 +2737,7 @@ async def voice(
                 seen
             """,
             (
-                current_user["id"],
+                user["id"],
                 receiver_id,
                 url,
                 url,
@@ -2995,9 +2748,8 @@ async def voice(
 
         conn.commit()
 
-
     return {
-        "message": message,
+        "message": message
     }
 
 
@@ -3014,18 +2766,14 @@ async def chat_file(
         default=None
     ),
 ):
-
-    current_user = require_user(
+    user = require_user(
         authorization
     )
 
-    if (
-        receiver_id
-        == current_user["id"]
-    ):
+    if receiver_id == user["id"]:
         raise HTTPException(
-            400,
-            "Cannot send file to yourself",
+            status_code=400,
+            detail="Cannot send file to yourself",
         )
 
     url = await save_upload(
@@ -3048,31 +2796,29 @@ async def chat_file(
             """
             SELECT id
             FROM users
-            WHERE id = %s
-              AND deleted_at IS NULL
+            WHERE
+                id = %s
+                AND deleted_at IS NULL
             """,
-            (
-                receiver_id,
-            ),
+            (receiver_id,),
         ).fetchone()
 
         if not receiver:
             raise HTTPException(
-                404,
-                "Receiver not found",
+                status_code=404,
+                detail="Receiver not found",
             )
-
 
         message = conn.execute(
             """
-            INSERT INTO messages(
+            INSERT INTO messages (
                 sender_id,
                 receiver_id,
                 text,
                 media_url,
                 media_type
             )
-            VALUES(
+            VALUES (
                 %s,
                 %s,
                 %s,
@@ -3086,12 +2832,13 @@ async def chat_file(
                 text,
                 media_url,
                 media_type,
+                voice_url,
                 duration_seconds,
                 created_at,
                 seen
             """,
             (
-                current_user["id"],
+                user["id"],
                 receiver_id,
                 text.strip(),
                 url,
@@ -3101,9 +2848,8 @@ async def chat_file(
 
         conn.commit()
 
-
     return {
-        "message": message,
+        "message": message
     }
 
 
@@ -3118,8 +2864,7 @@ def clear_chat(
         default=None
     ),
 ):
-
-    current_user = require_user(
+    user = require_user(
         authorization
     )
 
@@ -3129,11 +2874,12 @@ def clear_chat(
             """
             UPDATE messages
             SET deleted_for_sender = TRUE
-            WHERE sender_id = %s
-              AND receiver_id = %s
+            WHERE
+                sender_id = %s
+                AND receiver_id = %s
             """,
             (
-                current_user["id"],
+                user["id"],
                 other_user_id,
             ),
         )
@@ -3142,20 +2888,20 @@ def clear_chat(
             """
             UPDATE messages
             SET deleted_for_receiver = TRUE
-            WHERE sender_id = %s
-              AND receiver_id = %s
+            WHERE
+                sender_id = %s
+                AND receiver_id = %s
             """,
             (
                 other_user_id,
-                current_user["id"],
+                user["id"],
             ),
         )
 
         conn.commit()
 
-
     return {
-        "message": "Chat cleared",
+        "message": "Chat cleared"
     }
 
 
@@ -3163,7 +2909,9 @@ def clear_chat(
 # CHAT SETTINGS
 # ============================================================
 
-@app.post("/api/chats/{other_user_id}/settings")
+@app.post(
+    "/api/chats/{other_user_id}/settings"
+)
 def settings(
     other_user_id: int,
     data: ChatSettingsRequest,
@@ -3171,8 +2919,7 @@ def settings(
         default=None
     ),
 ):
-
-    current_user = require_user(
+    user = require_user(
         authorization
     )
 
@@ -3182,83 +2929,84 @@ def settings(
             """
             SELECT *
             FROM chat_settings
-            WHERE user_id = %s
-              AND other_user_id = %s
-            LIMIT 1
+            WHERE
+                user_id = %s
+                AND other_user_id = %s
             """,
             (
-                current_user["id"],
+                user["id"],
                 other_user_id,
             ),
         ).fetchone()
 
+        if old:
 
-        pinned = (
-            data.pinned
-            if data.pinned is not None
-            else (
-                old["pinned"]
-                if old
-                else False
+            pinned = (
+                data.pinned
+                if data.pinned is not None
+                else old["pinned"]
             )
-        )
 
-        muted = (
-            data.muted
-            if data.muted is not None
-            else (
-                old["muted"]
-                if old
-                else False
+            muted = (
+                data.muted
+                if data.muted is not None
+                else old["muted"]
             )
-        )
 
-        blocked = (
-            data.blocked
-            if data.blocked is not None
-            else (
-                old["blocked"]
-                if old
-                else False
+            blocked = (
+                data.blocked
+                if data.blocked is not None
+                else old["blocked"]
             )
-        )
 
+            conn.execute(
+                """
+                UPDATE chat_settings
+                SET
+                    pinned = %s,
+                    muted = %s,
+                    blocked = %s,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE
+                    user_id = %s
+                    AND other_user_id = %s
+                """,
+                (
+                    pinned,
+                    muted,
+                    blocked,
+                    user["id"],
+                    other_user_id,
+                ),
+            )
 
-        conn.execute(
-            """
-            INSERT INTO chat_settings(
-                user_id,
-                other_user_id,
-                pinned,
-                muted,
-                blocked
-            )
-            VALUES(
-                %s,
-                %s,
-                %s,
-                %s,
-                %s
-            )
-            ON CONFLICT(
-                user_id,
-                other_user_id
-            )
-            DO UPDATE SET
-                pinned = EXCLUDED.pinned,
-                muted = EXCLUDED.muted,
-                blocked = EXCLUDED.blocked,
-                updated_at = CURRENT_TIMESTAMP
-            """,
-            (
-                current_user["id"],
-                other_user_id,
-                bool(pinned),
-                bool(muted),
-                bool(blocked),
-            ),
-        )
+        else:
 
+            conn.execute(
+                """
+                INSERT INTO chat_settings (
+                    user_id,
+                    other_user_id,
+                    pinned,
+                    muted,
+                    blocked
+                )
+                VALUES (
+                    %s,
+                    %s,
+                    %s,
+                    %s,
+                    %s
+                )
+                """,
+                (
+                    user["id"],
+                    other_user_id,
+                    bool(data.pinned),
+                    bool(data.muted),
+                    bool(data.blocked),
+                ),
+            )
 
         result = conn.execute(
             """
@@ -3271,20 +3019,20 @@ def settings(
                 blocked,
                 updated_at
             FROM chat_settings
-            WHERE user_id = %s
-              AND other_user_id = %s
+            WHERE
+                user_id = %s
+                AND other_user_id = %s
             """,
             (
-                current_user["id"],
+                user["id"],
                 other_user_id,
             ),
         ).fetchone()
 
         conn.commit()
 
-
     return {
-        "settings": result,
+        "settings": result
     }
 
 
@@ -3292,7 +3040,9 @@ def settings(
 # CHAT WALLPAPER
 # ============================================================
 
-@app.post("/api/chats/{other_user_id}/wallpaper")
+@app.post(
+    "/api/chats/{other_user_id}/wallpaper"
+)
 async def wallpaper(
     other_user_id: int,
     file: UploadFile = File(...),
@@ -3300,22 +3050,20 @@ async def wallpaper(
         default=None
     ),
 ):
-
-    current_user = require_user(
+    user = require_user(
         authorization
     )
 
     content_type = (
-        file.content_type
-        or ""
+        file.content_type or ""
     ).lower()
 
     if not content_type.startswith(
         "image/"
     ):
         raise HTTPException(
-            400,
-            "Wallpaper must be an image",
+            status_code=400,
+            detail="Wallpaper must be an image",
         )
 
     url = await save_upload(
@@ -3328,17 +3076,17 @@ async def wallpaper(
 
         conn.execute(
             """
-            INSERT INTO chat_settings(
+            INSERT INTO chat_settings (
                 user_id,
                 other_user_id,
                 wallpaper_url
             )
-            VALUES(
+            VALUES (
                 %s,
                 %s,
                 %s
             )
-            ON CONFLICT(
+            ON CONFLICT (
                 user_id,
                 other_user_id
             )
@@ -3349,14 +3097,13 @@ async def wallpaper(
                     CURRENT_TIMESTAMP
             """,
             (
-                current_user["id"],
+                user["id"],
                 other_user_id,
                 url,
             ),
         )
 
         conn.commit()
-
 
     return {
         "message": "Wallpaper updated",
@@ -3375,18 +3122,14 @@ def block(
         default=None
     ),
 ):
-
-    current_user = require_user(
+    user = require_user(
         authorization
     )
 
-    if (
-        user_id
-        == current_user["id"]
-    ):
+    if user_id == user["id"]:
         raise HTTPException(
-            400,
-            "Cannot block yourself",
+            status_code=400,
+            detail="Cannot block yourself",
         )
 
     with get_conn() as conn:
@@ -3395,42 +3138,41 @@ def block(
             """
             SELECT id
             FROM users
-            WHERE id = %s
-              AND deleted_at IS NULL
+            WHERE
+                id = %s
+                AND deleted_at IS NULL
             """,
             (user_id,),
         ).fetchone()
 
         if not target:
             raise HTTPException(
-                404,
-                "User not found",
+                status_code=404,
+                detail="User not found",
             )
-
 
         conn.execute(
             """
-            INSERT INTO blocks(
+            INSERT INTO blocks (
                 blocker_id,
                 blocked_id
             )
-            VALUES(
+            VALUES (
                 %s,
                 %s
             )
             ON CONFLICT DO NOTHING
             """,
             (
-                current_user["id"],
+                user["id"],
                 user_id,
             ),
         )
 
         conn.commit()
 
-
     return {
-        "blocked": True,
+        "blocked": True
     }
 
 
@@ -3445,8 +3187,7 @@ def unblock(
         default=None
     ),
 ):
-
-    current_user = require_user(
+    user = require_user(
         authorization
     )
 
@@ -3455,20 +3196,20 @@ def unblock(
         conn.execute(
             """
             DELETE FROM blocks
-            WHERE blocker_id = %s
-              AND blocked_id = %s
+            WHERE
+                blocker_id = %s
+                AND blocked_id = %s
             """,
             (
-                current_user["id"],
+                user["id"],
                 user_id,
             ),
         )
 
         conn.commit()
 
-
     return {
-        "blocked": False,
+        "blocked": False
     }
 
 
@@ -3484,8 +3225,7 @@ def report_user(
         default=None
     ),
 ):
-
-    current_user = require_user(
+    user = require_user(
         authorization
     )
 
@@ -3493,19 +3233,19 @@ def report_user(
 
         conn.execute(
             """
-            INSERT INTO reports(
+            INSERT INTO reports (
                 reporter_id,
                 reported_user_id,
                 reason
             )
-            VALUES(
+            VALUES (
                 %s,
                 %s,
                 %s
             )
             """,
             (
-                current_user["id"],
+                user["id"],
                 user_id,
                 data.reason.strip(),
             ),
@@ -3513,9 +3253,8 @@ def report_user(
 
         conn.commit()
 
-
     return {
-        "message": "Report submitted",
+        "message": "Report submitted"
     }
 
 
@@ -3531,33 +3270,27 @@ def report_post(
         default=None
     ),
 ):
-
-    current_user = require_user(
+    user = require_user(
         authorization
     )
 
     with get_conn() as conn:
 
-        post_exists(
-            conn,
-            post_id,
-        )
-
         conn.execute(
             """
-            INSERT INTO reports(
+            INSERT INTO reports (
                 reporter_id,
                 post_id,
                 reason
             )
-            VALUES(
+            VALUES (
                 %s,
                 %s,
                 %s
             )
             """,
             (
-                current_user["id"],
+                user["id"],
                 post_id,
                 data.reason.strip(),
             ),
@@ -3565,9 +3298,8 @@ def report_post(
 
         conn.commit()
 
-
     return {
-        "message": "Report submitted",
+        "message": "Report submitted"
     }
 
 
@@ -3582,8 +3314,7 @@ def call_token(
         default=None
     ),
 ):
-
-    current_user = require_user(
+    user = require_user(
         authorization
     )
 
@@ -3593,20 +3324,15 @@ def call_token(
         and LIVEKIT_API_SECRET
     ):
         raise HTTPException(
-            503,
-            "LiveKit is not configured",
+            status_code=503,
+            detail="LiveKit is not configured",
         )
 
-
-    if (
-        data.receiver_id
-        == current_user["id"]
-    ):
+    if data.receiver_id == user["id"]:
         raise HTTPException(
-            400,
-            "Cannot call yourself",
+            status_code=400,
+            detail="Cannot call yourself",
         )
-
 
     call_type = (
         data.call_type
@@ -3620,84 +3346,25 @@ def call_token(
     }:
         call_type = "video"
 
+    try:
 
-    with get_conn() as conn:
-
-        receiver = conn.execute(
-            """
-            SELECT
-                id,
-                name
-            FROM users
-            WHERE id = %s
-              AND deleted_at IS NULL
-            """,
-            (
-                data.receiver_id,
-            ),
-        ).fetchone()
-
-        if not receiver:
-            raise HTTPException(
-                404,
-                "Receiver not found",
-            )
-
-
-        blocked = conn.execute(
-            """
-            SELECT id
-            FROM blocks
-            WHERE (
-                blocker_id = %s
-                AND blocked_id = %s
-            )
-            OR (
-                blocker_id = %s
-                AND blocked_id = %s
-            )
-            LIMIT 1
-            """,
-            (
-                current_user["id"],
-                data.receiver_id,
-                data.receiver_id,
-                current_user["id"],
-            ),
-        ).fetchone()
-
-        if blocked:
-            raise HTTPException(
-                403,
-                "Calling is blocked",
-            )
-
-
-        try:
-            from livekit import api
-        except ImportError:
-            raise HTTPException(
-                500,
-                "LiveKit package is not installed",
-            )
-
+        from livekit import api
 
         room_name = (
             "msafiri-"
             + secrets.token_hex(12)
         )
 
-
-        access_token = (
+        token = (
             api.AccessToken(
                 LIVEKIT_API_KEY,
                 LIVEKIT_API_SECRET,
             )
             .with_identity(
-                str(current_user["id"])
+                str(user["id"])
             )
             .with_name(
-                current_user["name"]
+                user["name"]
             )
             .with_grants(
                 api.VideoGrants(
@@ -3708,49 +3375,62 @@ def call_token(
             .to_jwt()
         )
 
+        with get_conn() as conn:
 
-        call = conn.execute(
-            """
-            INSERT INTO calls(
-                caller_id,
-                receiver_id,
-                room_name,
-                call_type,
-                status
-            )
-            VALUES(
-                %s,
-                %s,
-                %s,
-                %s,
-                'started'
-            )
-            RETURNING
-                id,
-                caller_id,
-                receiver_id,
-                room_name,
-                call_type,
-                status,
-                created_at
-            """,
-            (
-                current_user["id"],
-                data.receiver_id,
-                room_name,
-                call_type,
+            call = conn.execute(
+                """
+                INSERT INTO calls (
+                    caller_id,
+                    receiver_id,
+                    room_name,
+                    call_type
+                )
+                VALUES (
+                    %s,
+                    %s,
+                    %s,
+                    %s
+                )
+                RETURNING
+                    id,
+                    room_name,
+                    call_type,
+                    status,
+                    created_at
+                """,
+                (
+                    user["id"],
+                    data.receiver_id,
+                    room_name,
+                    call_type,
+                ),
+            ).fetchone()
+
+            conn.commit()
+
+        return {
+            "token": token,
+            "livekit_url": LIVEKIT_URL,
+            "room_name": room_name,
+            "call": call,
+        }
+
+    except ImportError:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "LiveKit package is not installed"
             ),
-        ).fetchone()
+        )
 
-        conn.commit()
+    except HTTPException:
+        raise
 
-
-    return {
-        "token": access_token,
-        "livekit_url": LIVEKIT_URL,
-        "room_name": room_name,
-        "call": call,
-    }
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"LiveKit error: {exc}",
+        )
 
 
 # ============================================================
@@ -3764,49 +3444,48 @@ def end_call(
         default=None
     ),
 ):
-
-    current_user = require_user(
+    user = require_user(
         authorization
     )
 
     with get_conn() as conn:
 
-        result = conn.execute(
+        row = conn.execute(
             """
             UPDATE calls
             SET
                 status = 'ended',
                 ended_at = CURRENT_TIMESTAMP
-            WHERE id = %s
-              AND (
-                  caller_id = %s
-                  OR receiver_id = %s
-              )
+            WHERE
+                id = %s
+                AND (
+                    caller_id = %s
+                    OR receiver_id = %s
+                )
             RETURNING *
             """,
             (
                 call_id,
-                current_user["id"],
-                current_user["id"],
+                user["id"],
+                user["id"],
             ),
         ).fetchone()
 
-        if not result:
-            raise HTTPException(
-                404,
-                "Call not found",
-            )
-
         conn.commit()
 
+    if not row:
+        raise HTTPException(
+            status_code=404,
+            detail="Call not found",
+        )
 
     return {
-        "call": result,
+        "call": row
     }
 
 
 # ============================================================
-# DELETE ACCOUNT
+# ACCOUNT DELETION
 # ============================================================
 
 @app.delete("/api/account")
@@ -3815,8 +3494,7 @@ def delete_account(
         default=None
     ),
 ):
-
-    current_user = require_user(
+    user = require_user(
         authorization
     )
 
@@ -3830,11 +3508,8 @@ def delete_account(
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = %s
             """,
-            (
-                current_user["id"],
-            ),
+            (user["id"],),
         )
-
 
         conn.execute(
             """
@@ -3842,16 +3517,13 @@ def delete_account(
             SET revoked = TRUE
             WHERE user_id = %s
             """,
-            (
-                current_user["id"],
-            ),
+            (user["id"],),
         )
 
         conn.commit()
 
-
     return {
-        "message": "Account deleted",
+        "message": "Account deleted"
     }
 
 
@@ -3865,47 +3537,74 @@ def database_debug(
         default=None
     ),
 ):
-
     require_user(
         authorization
     )
 
     with get_conn() as conn:
 
-        tables = conn.execute(
+        rows = conn.execute(
             """
             SELECT table_name
             FROM information_schema.tables
-            WHERE table_schema = 'public'
+            WHERE
+                table_schema = 'public'
             ORDER BY table_name
             """
         ).fetchall()
 
-
     return {
         "tables": [
             row["table_name"]
-            for row in tables
+            for row in rows
         ]
     }
 
 
 # ============================================================
-# SERVER
+# API ERROR HANDLING
+# ============================================================
+
+@app.exception_handler(Exception)
+async def global_error(
+    request: Request,
+    exc: Exception,
+):
+    print(
+        "UNHANDLED ERROR:",
+        type(exc).__name__,
+        str(exc),
+    )
+
+    return JSONResponse(
+        status_code=500,
+        content={
+            "status": "error",
+            "detail": "Internal Server Error",
+            "error": str(exc),
+            "type": type(exc).__name__,
+        },
+    )
+
+
+# ============================================================
+# LOCAL DEVELOPMENT / RENDER
 # ============================================================
 
 if __name__ == "__main__":
 
     import uvicorn
 
+    port = int(
+        os.getenv(
+            "PORT",
+            "8000",
+        )
+    )
+
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
-        port=int(
-            os.getenv(
-                "PORT",
-                "8000",
-            )
-        ),
+        port=port,
         reload=False,
     )

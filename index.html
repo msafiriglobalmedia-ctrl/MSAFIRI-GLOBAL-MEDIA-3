@@ -2057,26 +2057,62 @@ $$('.nav-item').forEach(item => {
 // ============================================================
 // INIT
 // ============================================================
-async function startApp() {
-  showApp();
-  await loadFeed('all');
-}
-
 async function init() {
-  initTheme();
-  if (TOKEN) {
-    try {
-      await loadMe();
-      await startApp();
-    } catch (err) {
-      TOKEN = null;
-      localStorage.removeItem('msafiri_token');
+  try {
+    console.log('[MSAFIRI] Init starting...');
+    initTheme();
+    console.log('[MSAFIRI] Theme initialized');
+    
+    if (TOKEN) {
+      console.log('[MSAFIRI] Token found');
+      try {
+        await loadMe();
+        console.log('[MSAFIRI] User loaded:', CURRENT_USER);
+        await startApp();
+        console.log('[MSAFIRI] App started');
+      } catch (err) {
+        console.error('[MSAFIRI] loadMe failed:', err);
+        TOKEN = null;
+        CURRENT_USER = null;
+        localStorage.removeItem('msafiri_token');
+        showAuth();
+      }
+    } else {
+      console.log('[MSAFIRI] No token, showing auth');
       showAuth();
     }
-  } else {
-    showAuth();
+  } catch (err) {
+    console.error('[MSAFIRI] FATAL:', err);
+    // Show error on screen
+    document.body.innerHTML = '<div style="padding:20px;color:white;background:#0a0e1a;min-height:100vh;font-family:sans-serif;">' +
+      '<h1 style="color:#ef4444;font-size:20px;">⚠️ App Error</h1>' +
+      '<p style="margin-top:16px;font-size:14px;color:#94a3b8;">Error:</p>' +
+      '<pre style="background:#111827;padding:12px;border-radius:8px;font-size:12px;overflow:auto;color:#fca5a5;margin-top:8px;">' + 
+      (err.stack || err.message || String(err)) + 
+      '</pre>' +
+      '<button onclick="location.reload()" style="margin-top:20px;padding:12px 24px;background:#3b82f6;color:white;border:none;border-radius:8px;font-size:16px;font-weight:600;">🔄 Reload</button>' +
+      '<button onclick="localStorage.clear();location.reload()" style="margin-top:20px;margin-left:10px;padding:12px 24px;background:#ef4444;color:white;border:none;border-radius:8px;font-size:16px;font-weight:600;">🗑️ Clear & Reload</button>' +
+      '</div>';
   }
 }
+
+// Handle script loading errors
+window.addEventListener('error', (e) => {
+  console.error('[MSAFIRI] Global error:', e.error || e.message);
+});
+
+// Fallback timeout — if still loading after 8 seconds, show error
+setTimeout(() => {
+  const ls = document.getElementById('loadingScreen');
+  if (ls && !ls.classList.contains('hidden')) {
+    console.warn('[MSAFIRI] Still loading after 8s');
+    ls.innerHTML = '<div style="padding:20px;text-align:center;color:white;">' +
+      '<h2 style="color:#f59e0b;">⏱️ Loading taking too long...</h2>' +
+      '<p style="margin-top:12px;color:#94a3b8;font-size:14px;">The app might have a JavaScript error.</p>' +
+      '<button onclick="localStorage.clear();location.reload()" style="margin-top:20px;padding:12px 24px;background:#3b82f6;color:white;border:none;border-radius:8px;font-size:16px;font-weight:600;">🔄 Clear Cache & Reload</button>' +
+      '</div>';
+  }
+}, 8000);
 
 document.addEventListener('DOMContentLoaded', init);
 </script>

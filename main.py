@@ -49,11 +49,11 @@ LIVEKIT_API_SECRET = (os.getenv("LIVEKIT_API_SECRET") or "").strip()
 
 # Base64 storage limits (bytes)
 MAX_AVATAR_BYTES = 2 * 1024 * 1024       # 2 MB
-MAX_POST_IMAGE_BYTES = 3 * 1024 * 1024   # 3 MB
-MAX_POST_VIDEO_BYTES = 8 * 1024 * 1024   # 8 MB
-MAX_CHAT_FILE_BYTES = 5 * 1024 * 1024    # 5 MB
-MAX_VOICE_BYTES = 2 * 1024 * 1024        # 2 MB
-MAX_WALLPAPER_BYTES = 1 * 1024 * 1024    # 1 MB
+MAX_POST_IMAGE_BYTES = 100 * 1024 * 1024   # 100 MB
+MAX_POST_VIDEO_BYTES = 800 * 1024 * 1024  # 800 MB
+MAX_CHAT_FILE_BYTES = 500 * 1024 * 1024    # 500 MB
+MAX_VOICE_BYTES = 30 * 1024 * 1024        # 30 MB
+MAX_WALLPAPER_BYTES = 10 * 1024 * 1024    # 10 MB
 
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

@@ -1409,7 +1409,6 @@ function openProfileMenu(u) {
   ];
   openSheet('Options', items);
 }
-
 function openEditProfile() {
   const container = $('#modalContainer');
   container.innerHTML = '';
@@ -1424,6 +1423,150 @@ function openEditProfile() {
   content.appendChild(h);
 
   const body = el('div', { class: 'modal-body' });
+
+  // ============ AVATAR UPLOAD SECTION ============
+  const avatarSection = el('div', { style: 'text-align:center;margin-bottom:20px;' });
+
+  const avatarPreview = el('div', {
+    style: 'width:100px;height:100px;margin:0 auto;border-radius:50%;overflow:hidden;background:linear-gradient(135deg,#3b82f6,#8b5cf6);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:40px;position:relative;cursor:pointer;border:3px solid var(--border);',
+    onclick: () => avatarInput.click(),
+  });
+
+  function setAvatarPreview(src) {
+    avatarPreview.innerHTML = '';
+    if (src) {
+      const img = el('img', { src, style: 'width:100%;height:100%;object-fit:cover;' });
+      avatarPreview.appendChild(img);
+    } else {
+      avatarPreview.textContent = initials(CURRENT_USER.name);
+    }
+  }
+  setAvatarPreview(CURRENT_USER.avatar);
+
+  // Camera icon overlay
+  const cameraBadge = el('div', {
+    style: 'position:absolute;bottom:0;right:0;background:var(--accent);width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid var(--bg);',
+  });
+  cameraBadge.innerHTML = '<svg class="icon icon-sm" viewBox="0 0 24 24" style="stroke:white;"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>';
+  avatarPreview.appendChild(cameraBadge);
+  avatarSection.appendChild(avatarPreview);
+
+  const changePhotoText = el('div', {
+    style: 'margin-top:10px;color:var(--accent);font-size:14px;font-weight:600;cursor:pointer;',
+    onclick: () => avatarInput.click(),
+  }, 'Change Profile Picture');
+  avatarSection.appendChild(changePhotoText);
+
+  // Hidden file input
+  const avatarInput = el('input', { type: 'file', accept: 'image/*', style: 'display:none' });
+  avatarInput.addEventListener('change', async () => {
+    const f = avatarInput.files && avatarInput.files[0];
+    if (!f) return;
+    if (f.size > 2 * 1024 * 1024) {
+      toast('Avatar too large (max 2 MB)', 'error');
+      avatarInput.value = '';
+      return;
+    }
+    if (!f.type.startsWith('image/')) {
+      toast('Avatar must be an image', 'error');
+      avatarInput.value = '';
+      return;
+    }
+
+    // Show preview immediately
+    const reader = new FileReader();
+    reader.onload = (ev) => setAvatarPreview(ev.target.result);
+    reader.readAsDataURL(f);
+
+    // Upload to server
+    const fd = new FormData();
+    fd.append('file', f);
+    changePhotoText.textContent = 'Uploading...';
+    changePhotoText.style.color = 'var(--text-3)';
+    try {
+      const res = await api('/api/profile/avatar', { method: 'POST', body: fd });
+      toast('Profile picture updated!', 'success');
+      // Update CURRENT_USER avatar
+      CURRENT_USER.avatar = res.avatar;
+      // Also refresh the profile view if open
+      const profileViewOpen = document.querySelector('.post-card') !== null || CURRENT_VIEW === 'profile';
+      if (profileViewOpen) {
+        setTimeout(() => {
+          closeModal();
+          openProfile(CURRENT_USER.id);
+        }, 500);
+      } else {
+        changePhotoText.textContent = 'Change Profile Picture';
+        changePhotoText.style.color = 'var(--accent)';
+      }
+    } catch (err) {
+      toast(err.message, 'error');
+      setAvatarPreview(CURRENT_USER.avatar);
+      changePhotoText.textContent = 'Change Profile Picture';
+      changePhotoText.style.color = 'var(--accent)';
+    }
+  });
+  avatarSection.appendChild(avatarInput);
+
+  body.appendChild(avatarSection);
+
+  // ============ FORM FIELDS ============
+  const fields = [
+    { key: 'name', label: 'Name', value: CURRENT_USER.name || '' },
+    { key: 'username', label: 'Username', value: CURRENT_USER.username || '' },
+    { key: 'bio', label: 'Bio', value: CURRENT_USER.bio || '', multiline: true },
+    { key: 'location', label: 'Location', value: CURRENT_USER.location || '' },
+  ];
+
+  const inputs = {};
+  for (const f of fields) {
+    const wrap = el('div', { class: 'field', style: 'margin-bottom:12px;' });
+    wrap.appendChild(el('label', {}, f.label));
+    const inpWrap = el('div', { class: 'input-wrap no-icon' });
+    const inp = f.multiline
+      ? el('textarea', { rows: 3, style: 'padding:12px;resize:none;' })
+      : el('input', { type: 'text' });
+    inp.value = f.value;
+    inpWrap.appendChild(inp);
+    wrap.appendChild(inpWrap);
+    body.appendChild(wrap);
+    inputs[f.key] = inp;
+  }
+
+  // ============ SAVE BUTTON ============
+  const saveBtn = el('button', {
+    class: 'btn btn-primary',
+    style: 'margin-top:8px;',
+    onclick: async () => {
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = '<div class="loader"></div>';
+      try {
+        await api('/api/profile', {
+          method: 'PATCH',
+          body: JSON.stringify({
+            name: inputs.name.value.trim(),
+            username: inputs.username.value.trim() || null,
+            bio: inputs.bio.value.trim(),
+            location: inputs.location.value.trim(),
+          }),
+        });
+        toast('Profile saved', 'success');
+        await loadMe();
+        closeModal();
+        openProfile(CURRENT_USER.id);
+      } catch (err) {
+        toast(err.message, 'error');
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = 'Save';
+      }
+    }
+  }, el('span', {}, 'Save Changes'));
+  body.appendChild(saveBtn);
+  content.appendChild(body);
+  overlay.appendChild(content);
+  container.appendChild(overlay);
+   }
+
 
   // Avatar preview
   const avWrap = el('div', { style: 'text-align:center;margin-bottom:16px;position:relative;display:inline-block;width:100%;' });

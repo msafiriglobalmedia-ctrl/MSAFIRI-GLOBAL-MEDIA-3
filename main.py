@@ -1680,16 +1680,124 @@ def delete_account(authorization: Optional[str] = Header(default=None)):
 # ============================================================
 
 @app.post("/api/statuses")
-async def create_status(...):
-    ...
+async def create_status(
+    text: str = Form(""),
+    file: Optional[UploadFile] = File(default=None),
+    authorization: Optional[str] = Header(default=None),
+):
+    user = require_user(authorization)
+    text = (text or "").strip()
+    media_data = None
+    media_mime = None
+    media_type = None
+
+    if file and file.filename:
+        ct = (file.content_type or "").lower()
+        content = await file.read()
+
+        if ct.startswith("image/"):
+            if len(content) > 10 * 1024 * 1024:
+                raise HTTPException(400, "Image too large (max 10 MB)")
+            media_type = "image"
+        elif ct.startswith("video/"):
+            if len(content) > 50 * 1024 * 1024:
+                raise HTTPException(400, "Video too large (max 50 MB)")
+            media_type = "video"
+        elif ct.startswith("audio/"):
+            if len(content) > 15 * 1024 * 1024:
+                raise HTTPException(400, "Audio too large (max 15 MB)")
+            media_type = "audio"
+        else:
+            raise HTTPException(400, "Unsupported file type")
+
+        media_data = base64.b64encode(content).decode("ascii")
+        media_mime = ct
+
+    if not text and not media_data:
+        raise HTTPException(400, "Status cannot be empty")
+
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
+
+    with get_conn() as conn:
+        row = conn.execute("""
+            INSERT INTO m_statuses (user_id, text, media_data, media_mime, media_type, expires_at)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            RETURNING id, user_id, text, media_type, created_at, expires_at
+        """, (user["id"], text, media_data, media_mime, media_type, expires_at)).fetchone()
+        conn.commit()
+
+    return {"message": "Status created", "status": dict(row)}
+
 
 @app.get("/api/statuses")
-def list_statuses(...):
-    ...
+def list_statuses(authorization: Optional[str] = Header(default=None)):
+    me = require_user(authorization)
+    with get_conn() as conn:
+        rows = conn.execute("""
+            SELECT s.id, s.user_id, s.text, s.media_data, s.media_mime, s.media_type,
+                   s.created_at, s.expires_at,
+                   u.name AS user_name, u.username AS user_username,
+                   u.avatar_data, u.avatar_mime
+            FROM m_statuses s
+            JOIN m_users u ON u.id = s.user_id
+            WHERE s.expires_at > CURRENT_TIMESTAMP
+              AND u.deleted_at IS NULL
+              AND (
+                s.user_id = %s
+                OR s.user_id IN (
+                    SELECT following_id FROM m_follows WHERE follower_id = %s
+                )
+              )
+            ORDER BY s.created_at DESC
+            LIMIT 200
+        """, (me["id"], me["id"])).fetchall()
+
+        users_map = {}
+        for r in rows:
+            uid = r["user_id"]
+            if uid not in users_map:
+                avatar = None
+                if r["avatar_data"] and r["avatar_mime"]:
+                    avatar = f"data:{r['avatar_mime']};base64,{r['avatar_data']}"
+                users_map[uid] = {
+                    "user": {
+                        "id": uid,
+                        "name": r["user_name"],
+                        "username": r["user_username"],
+                        "avatar": avatar,
+                    },
+                    "statuses": [],
+                }
+            media = None
+            if r["media_data"] and r["media_mime"]:
+                media = f"data:{r['media_mime']};base64,{r['media_data']}"
+            users_map[uid]["statuses"].append({
+                "id": r["id"],
+                "text": r["text"] or "",
+                "media": media,
+                "media_type": r["media_type"],
+                "created_at": r["created_at"],
+                "expires_at": r["expires_at"],
+            })
+
+    groups = list(users_map.values())
+    groups.sort(key=lambda g: 0 if g["user"]["id"] == me["id"] else 1)
+    return {"groups": groups}
+
 
 @app.delete("/api/statuses/{status_id}")
-def delete_status(...):
-    ...
+def delete_status(status_id: int, authorization: Optional[str] = Header(default=None)):
+    user = require_user(authorization)
+    with get_conn() as conn:
+        row = conn.execute("""
+            DELETE FROM m_statuses
+            WHERE id = %s AND user_id = %s
+            RETURNING id
+        """, (status_id, user["id"])).fetchone()
+        if not row:
+            raise HTTPException(404, "Status not found or not yours")
+        conn.commit()
+    return {"message": "Status deleted"}
 
 
 # ============================================================

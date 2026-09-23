@@ -232,19 +232,34 @@ def init_db():
         """)
 
         # BLOCKS
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS m_blocks (
-                id BIGSERIAL PRIMARY KEY,
-                blocker_id BIGINT NOT NULL REFERENCES m_users(id) ON DELETE CASCADE,
-                blocked_id BIGINT NOT NULL REFERENCES m_users(id) ON DELETE CASCADE,
-                created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(blocker_id, blocked_id)
-            )
-        """)
+conn.execute("""
+    CREATE TABLE IF NOT EXISTS m_blocks (
+        id BIGSERIAL PRIMARY KEY,
+        blocker_id BIGINT NOT NULL REFERENCES m_users(id) ON DELETE CASCADE,
+        blocked_id BIGINT NOT NULL REFERENCES m_users(id) ON DELETE CASCADE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(blocker_id, blocked_id)
+    )
+""")
 
-        conn.commit()
+# STATUSES / STORIES
+conn.execute("""
+    CREATE TABLE IF NOT EXISTS m_statuses (
+        id BIGSERIAL PRIMARY KEY,
+        user_id BIGINT NOT NULL REFERENCES m_users(id) ON DELETE CASCADE,
+        text TEXT DEFAULT '',
+        media_data TEXT,
+        media_mime TEXT,
+        media_type TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        expires_at TIMESTAMPTZ
+    )
+""")
+conn.execute("CREATE INDEX IF NOT EXISTS idx_m_statuses_user ON m_statuses(user_id, created_at DESC)")
+conn.execute("CREATE INDEX IF NOT EXISTS idx_m_statuses_expires ON m_statuses(expires_at)")
 
-
+conn.commit()
+       
 @app.on_event("startup")
 def startup():
     try:
@@ -1657,7 +1672,24 @@ def delete_account(authorization: Optional[str] = Header(default=None)):
         """, (user["id"],))
         conn.execute("UPDATE m_sessions SET revoked = TRUE WHERE user_id = %s", (user["id"],))
         conn.commit()
-    return {"message": "Account deleted"}
+        return {"message": "Account deleted"}
+
+
+# ============================================================
+# STATUSES / STORIES (PHASE 2)
+# ============================================================
+
+@app.post("/api/statuses")
+async def create_status(...):
+    ...
+
+@app.get("/api/statuses")
+def list_statuses(...):
+    ...
+
+@app.delete("/api/statuses/{status_id}")
+def delete_status(...):
+    ...
 
 
 # ============================================================

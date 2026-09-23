@@ -6,9 +6,24 @@
 <meta name="theme-color" content="#0a0e1a" />
 <title>MSAFIRI GLOBAL MEDIA</title>
 <style>
+/* ============ RESET & VARIABLES ============ */
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-:root{--bg:#0a0e1a;--bg-2:#111827;--bg-3:#1a2235;--bg-hover:#1f2937;--border:#1f2937;--border-2:#2d3748;--text:#f1f5f9;--text-2:#94a3b8;--text-3:#64748b;--accent:#3b82f6;--accent-hover:#2563eb;--accent-2:#8b5cf6;--success:#10b981;--danger:#ef4444;--warning:#f59e0b;--radius:12px;--radius-sm:8px;--radius-lg:16px;--shadow:0 4px 12px rgba(0,0,0,0.3);--font:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
-[data-theme="light"]{--bg:#fff;--bg-2:#f8fafc;--bg-3:#f1f5f9;--bg-hover:#e2e8f0;--border:#e2e8f0;--border-2:#cbd5e1;--text:#0f172a;--text-2:#475569;--text-3:#94a3b8;--shadow:0 4px 12px rgba(0,0,0,0.08)}
+:root{
+  --bg:#0a0e1a;--bg-2:#111827;--bg-3:#1a2235;--bg-hover:#1f2937;
+  --border:#1f2937;--border-2:#2d3748;
+  --text:#f1f5f9;--text-2:#94a3b8;--text-3:#64748b;
+  --accent:#3b82f6;--accent-hover:#2563eb;--accent-2:#8b5cf6;
+  --success:#10b981;--danger:#ef4444;--warning:#f59e0b;
+  --radius:12px;--radius-sm:8px;--radius-lg:16px;
+  --shadow:0 4px 12px rgba(0,0,0,0.3);
+  --font:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+}
+[data-theme="light"]{
+  --bg:#fff;--bg-2:#f8fafc;--bg-3:#f1f5f9;--bg-hover:#e2e8f0;
+  --border:#e2e8f0;--border-2:#cbd5e1;
+  --text:#0f172a;--text-2:#475569;--text-3:#94a3b8;
+  --shadow:0 4px 12px rgba(0,0,0,0.08);
+}
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font);font-size:15px;line-height:1.5;overflow:hidden;transition:background .3s,color .3s}
 body{display:flex;flex-direction:column}
 input,textarea,button,select{font-family:inherit;font-size:inherit;outline:none;border:none;background:none;color:inherit}
@@ -19,6 +34,112 @@ button{cursor:pointer}img{max-width:100%;display:block}a{color:var(--accent);tex
 .icon-sm{width:18px;height:18px}.icon-lg{width:26px;height:26px}
 .screen{position:fixed;inset:0;display:flex;flex-direction:column;background:var(--bg);z-index:10;overflow:hidden}
 .screen.hidden{display:none}
+
+/* ============ SPLASH SCREEN ============ */
+#splashScreen {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #0a1628 0%, #1e3a8a 30%, #2563eb 60%, #1e40af 100%);
+  background-size: 300% 300%;
+  animation: shiningBg 6s ease-in-out infinite;
+  transition: opacity 0.8s ease, visibility 0.8s ease;
+}
+#splashScreen.fade-out {
+  opacity: 0;
+  visibility: hidden;
+}
+@keyframes shiningBg {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Shining overlay */
+#splashScreen::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.15) 0%, transparent 60%);
+  animation: shine 3s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes shine {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.1); }
+}
+
+.splash-logo {
+  width: 140px;
+  height: 140px;
+  border-radius: 32px;
+  background: linear-gradient(135deg, #60a5fa, #a78bfa);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 72px;
+  font-weight: 900;
+  letter-spacing: -3px;
+  box-shadow: 0 20px 60px rgba(96,165,250,0.5), inset 0 -4px 20px rgba(0,0,0,0.2);
+  margin-bottom: 32px;
+  animation: heartbeat 6s ease-in-out infinite;
+  position: relative;
+  z-index: 2;
+}
+.splash-logo::after {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: 40px;
+  background: linear-gradient(135deg, rgba(96,165,250,0.4), rgba(167,139,250,0.4));
+  filter: blur(20px);
+  z-index: -1;
+  animation: pulseGlow 6s ease-in-out infinite;
+}
+
+@keyframes heartbeat {
+  0%, 100% { transform: scale(1); }
+  15% { transform: scale(1.08); }
+  25% { transform: scale(1); }
+  35% { transform: scale(1.05); }
+  50% { transform: scale(1); }
+}
+@keyframes pulseGlow {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+
+.splash-title {
+  font-size: 34px;
+  font-weight: 900;
+  color: #ffffff;
+  letter-spacing: -0.5px;
+  text-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  margin-bottom: 12px;
+  text-align: center;
+  padding: 0 20px;
+  position: relative;
+  z-index: 2;
+  font-family: var(--font);
+}
+
+.splash-subtitle {
+  font-size: 16px;
+  color: rgba(255,255,255,0.85);
+  font-weight: 500;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+  position: relative;
+  z-index: 2;
+}
+
+/* ============ AUTH SCREEN ============ */
 #authScreen{display:flex;flex-direction:column;justify-content:center;padding:24px;overflow-y:auto;background:radial-gradient(ellipse at top,var(--bg-2) 0%,var(--bg) 70%)}
 .auth-logo{text-align:center;margin-bottom:32px}
 .auth-logo-mark{width:80px;height:80px;margin:0 auto 16px;background:linear-gradient(135deg,var(--accent),var(--accent-2));border-radius:22px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:36px;font-weight:800;box-shadow:0 10px 30px rgba(59,130,246,.4)}
@@ -60,8 +181,6 @@ button{cursor:pointer}img{max-width:100%;display:block}a{color:var(--accent);tex
 .loader{width:20px;height:20px;border:2.5px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
 .loader-lg{width:40px;height:40px;border-width:3px;border-color:var(--border);border-top-color:var(--accent)}
 @keyframes spin{to{transform:rotate(360deg)}}
-.loading-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;z-index:9999}
-.loading-screen p{color:var(--text-2);font-size:14px}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:flex-end;justify-content:center;z-index:100;animation:fadeIn .2s}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 .modal-content{background:var(--bg-2);border-radius:var(--radius-lg) var(--radius-lg) 0 0;width:100%;max-width:500px;max-height:90vh;overflow-y:auto;animation:slideUp .3s;border-top:1px solid var(--border)}
@@ -77,16 +196,19 @@ button{cursor:pointer}img{max-width:100%;display:block}a{color:var(--accent);tex
 </head>
 <body>
 
-<div id="loadingScreen" class="loading-screen">
-  <div class="loader loader-lg"></div>
-  <p>Loading MSAFIRI...</p>
+<!-- ============ SPLASH SCREEN ============ -->
+<div id="splashScreen">
+  <div class="splash-logo">M</div>
+  <div class="splash-title">Msafiri Global Media</div>
+  <div class="splash-subtitle">Connect beyond</div>
 </div>
 
+<!-- ============ AUTH SCREEN ============ -->
 <div id="authScreen" class="screen hidden">
   <div class="auth-logo">
     <div class="auth-logo-mark">M</div>
     <div class="auth-title">MSAFIRI GLOBAL MEDIA</div>
-    <div class="auth-subtitle">Connect • Create • Communicate</div>
+    <div class="auth-subtitle">Connect beyond</div>
   </div>
   <div class="auth-tabs">
     <button class="auth-tab active" data-tab="login">Login</button>
@@ -150,6 +272,7 @@ button{cursor:pointer}img{max-width:100%;display:block}a{color:var(--accent);tex
   </form>
 </div>
 
+<!-- ============ APP SCREEN ============ -->
 <div id="appScreen" class="screen hidden">
   <header class="app-header">
     <h1 id="headerTitle">MSAFIRI</h1>
@@ -193,13 +316,12 @@ button{cursor:pointer}img{max-width:100%;display:block}a{color:var(--accent);tex
 
 <script>
 /* ============================================================
-   MSAFIRI GLOBAL MEDIA - PHASE 1 (Core)
+   MSAFIRI GLOBAL MEDIA - PHASE 1 + 2
    ============================================================ */
-
 'use strict';
 
 const API = window.location.origin;
-let TOKEN = localStorage.getItem('msafiri_token') || null;
+let TOKEN = null;
 let CURRENT_USER = null;
 let CURRENT_VIEW = 'home';
 let CACHED_POSTS = [];
@@ -232,14 +354,13 @@ function esc(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
-// ============ API CLIENT (with retry & session handling) ============
+// ============ API CLIENT ============
 async function api(path, opts = {}) {
   const headers = opts.headers || {};
   if (!(opts.body instanceof FormData)) {
     headers['Content-Type'] = headers['Content-Type'] || 'application/json';
   }
   if (TOKEN) headers['Authorization'] = `Bearer ${TOKEN}`;
-
   let res;
   try {
     res = await fetch(API + path, { ...opts, headers });
@@ -248,7 +369,6 @@ async function api(path, opts = {}) {
     await new Promise(r => setTimeout(r, 2000));
     res = await fetch(API + path, { ...opts, headers });
   }
-
   let data = null;
   const ct = res.headers.get('content-type') || '';
   if (ct.includes('application/json')) {
@@ -256,14 +376,12 @@ async function api(path, opts = {}) {
   } else {
     data = await res.text();
   }
-
   if (!res.ok) {
     if (res.status === 401 && TOKEN && !path.includes('/login') && !path.includes('/register')) {
       console.warn('[MSAFIRI] Session expired');
       TOKEN = null;
       CURRENT_USER = null;
       localStorage.removeItem('msafiri_token');
-      localStorage.removeItem('msafiri_token_time');
       showAuth();
     }
     const msg = (data && data.detail) || (data && data.message) || (typeof data === 'string' ? data : `HTTP ${res.status}`);
@@ -345,12 +463,12 @@ async function loadMe() {
 
 // ============ SCREENS ============
 function showAuth() {
-  $('#loadingScreen').classList.add('hidden');
+  $('#splashScreen').classList.add('fade-out');
   $('#authScreen').classList.remove('hidden');
   $('#appScreen').classList.add('hidden');
 }
 function showApp() {
-  $('#loadingScreen').classList.add('hidden');
+  $('#splashScreen').classList.add('fade-out');
   $('#authScreen').classList.add('hidden');
   $('#appScreen').classList.remove('hidden');
 }
@@ -546,6 +664,26 @@ function renderFeed(feedType = 'all') {
   });
   main.appendChild(tabs);
 
+  // Stories bar
+  const storiesBar = el('div', {
+    style: 'display:flex;gap:12px;padding:12px 16px;overflow-x:auto;background:var(--bg-2);border-bottom:1px solid var(--border);-webkit-overflow-scrolling:touch;',
+    id: 'storiesBar',
+  });
+  main.appendChild(storiesBar);
+
+  const addStoryBtn = el('div', {
+    style: 'display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;flex-shrink:0;min-width:70px;',
+    onclick: () => openCreateStory(),
+  });
+  const addWrap = el('div', {
+    style: 'width:64px;height:64px;border-radius:50%;background:var(--bg-3);border:2px dashed var(--accent);display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:28px;',
+  }, '+');
+  addStoryBtn.appendChild(addWrap);
+  addStoryBtn.appendChild(el('div', { style: 'font-size:11px;color:var(--text-2);font-weight:600;' }, 'My Story'));
+  storiesBar.appendChild(addStoryBtn);
+
+  loadStories(storiesBar);
+
   if (CACHED_POSTS.length === 0) {
     main.appendChild(el('div', { style: 'padding:60px 20px;text-align:center;color:var(--text-2);' },
       el('p', {}, 'No posts yet'),
@@ -553,6 +691,46 @@ function renderFeed(feedType = 'all') {
     return;
   }
   for (const p of CACHED_POSTS) main.appendChild(renderPost(p));
+}
+
+async function loadStories(storiesBar) {
+  try {
+    const data = await api('/api/statuses');
+    const groups = data.groups || [];
+    if (groups.length === 0) {
+      storiesBar.appendChild(el('div', { style: 'display:flex;align-items:center;color:var(--text-3);font-size:13px;padding:0 8px;' }, 'No stories yet'));
+      return;
+    }
+    for (const g of groups) {
+      const isMe = CURRENT_USER && g.user.id === CURRENT_USER.id;
+      const storyItem = el('div', {
+        style: 'display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;flex-shrink:0;min-width:70px;',
+        onclick: () => openStoryViewer(g),
+      });
+      const ring = el('div', {
+        style: 'width:68px;height:68px;border-radius:50%;padding:2px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);display:flex;align-items:center;justify-content:center;',
+      });
+      const inner = el('div', {
+        style: 'width:100%;height:100%;border-radius:50%;overflow:hidden;border:2px solid var(--bg-2);background:var(--bg-3);display:flex;align-items:center;justify-content:center;',
+      });
+      if (g.user.avatar) {
+        inner.appendChild(el('img', { src: g.user.avatar, style: 'width:100%;height:100%;object-fit:cover;' }));
+      } else {
+        inner.textContent = initials(g.user.name);
+        inner.style.color = 'white';
+        inner.style.fontWeight = '700';
+        inner.style.fontSize = '24px';
+        inner.style.background = 'linear-gradient(135deg,#3b82f6,#8b5cf6)';
+      }
+      ring.appendChild(inner);
+      storyItem.appendChild(ring);
+      const label = isMe ? 'My Story' : g.user.name.split(' ')[0];
+      storyItem.appendChild(el('div', { style: 'font-size:11px;color:var(--text-2);font-weight:600;max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;' }, label));
+      storiesBar.appendChild(storyItem);
+    }
+  } catch (err) {
+    console.warn('Stories load failed:', err.message);
+  }
 }
 
 // ============ ACTIONS ============
@@ -570,7 +748,6 @@ async function toggleLike(post) {
     updatePostCard(post);
   } catch (err) { toast(err.message, 'error'); }
 }
-
 async function toggleSave(post) {
   try {
     if (post.saved) {
@@ -585,7 +762,6 @@ async function toggleSave(post) {
     updatePostCard(post);
   } catch (err) { toast(err.message, 'error'); }
 }
-
 async function toggleReshare(post) {
   try {
     await api(`/api/posts/${post.id}/reshare`, { method: 'POST' });
@@ -594,7 +770,6 @@ async function toggleReshare(post) {
     updatePostCard(post);
   } catch (err) { toast(err.message, 'error'); }
 }
-
 function updatePostCard(post) {
   const old = document.querySelector(`[data-post-id="${post.id}"]`);
   if (!old) return;
@@ -808,7 +983,6 @@ async function openComments(post) {
     list.innerHTML = `<div style="text-align:center;padding:20px;color:var(--danger);">${esc(err.message)}</div>`;
   }
 }
-
 function renderSingleComment(c, list) {
   const row = el('div', { style: 'display:flex;gap:10px;margin-bottom:16px;' });
   row.appendChild(avatarEl(c.user, 36));
@@ -914,7 +1088,6 @@ function openEditProfile() {
   h.appendChild(cb);
   content.appendChild(h);
   const body = el('div', { class: 'modal-body' });
-
   const avatarSection = el('div', { style: 'text-align:center;margin-bottom:20px;' });
   const avatarPreview = el('div', {
     style: 'width:100px;height:100px;margin:0 auto;border-radius:50%;overflow:hidden;background:linear-gradient(135deg,#3b82f6,#8b5cf6);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:40px;position:relative;cursor:pointer;border:3px solid var(--border);',
@@ -929,15 +1102,12 @@ function openEditProfile() {
     }
   }
   setAvatarPreview(CURRENT_USER.avatar);
-
   const cameraBadge = el('div', { style: 'position:absolute;bottom:0;right:0;background:var(--accent);width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid var(--bg);' });
   cameraBadge.innerHTML = '<svg class="icon icon-sm" viewBox="0 0 24 24" style="stroke:white;"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>';
   avatarPreview.appendChild(cameraBadge);
   avatarSection.appendChild(avatarPreview);
-
   const changePhotoText = el('div', { style: 'margin-top:10px;color:var(--accent);font-size:14px;font-weight:600;cursor:pointer;', onclick: () => avatarInput.click() }, 'Change Profile Picture');
   avatarSection.appendChild(changePhotoText);
-
   const avatarInput = el('input', { type: 'file', accept: 'image/*', style: 'display:none' });
   avatarInput.addEventListener('change', async () => {
     const f = avatarInput.files && avatarInput.files[0];
@@ -966,7 +1136,6 @@ function openEditProfile() {
   });
   avatarSection.appendChild(avatarInput);
   body.appendChild(avatarSection);
-
   const fields = [
     { key: 'name', label: 'Name', value: CURRENT_USER.name || '' },
     { key: 'username', label: 'Username', value: CURRENT_USER.username || '' },
@@ -987,7 +1156,6 @@ function openEditProfile() {
     body.appendChild(wrap);
     inputs[f.key] = inp;
   }
-
   const saveBtn = el('button', {
     class: 'btn btn-primary',
     style: 'margin-top:8px;',
@@ -1020,8 +1188,9 @@ function openEditProfile() {
   overlay.appendChild(content);
   container.appendChild(overlay);
 }
+
 // ============================================================
-// PART 3: CHATS, SEARCH, NAVIGATION, INIT
+// PART 3: CHATS, SEARCH, STORIES, NAVIGATION, INIT
 // ============================================================
 
 // ============ CHATS LIST ============
@@ -1196,7 +1365,7 @@ function appendMessage(m) {
   msgsWrap.scrollTop = msgsWrap.scrollHeight;
 }
 
-// ============ CHAT ATTACH (4 BUTTONS) ============
+// ============ CHAT ATTACH ============
 function openChatAttach(otherId) {
   const items = [
     { label: '📷 Photo', onClick: () => pickChatFile(otherId, 'image/*') },
@@ -1212,18 +1381,15 @@ function pickChatFile(otherId, accept) {
   inp.addEventListener('change', async () => {
     const f = inp.files && inp.files[0];
     if (!f) return;
-
     let maxMB = 25;
     if (f.type.startsWith('video/')) maxMB = 50;
     else if (f.type.startsWith('image/')) maxMB = 10;
     else if (f.type.startsWith('audio/')) maxMB = 15;
-
     if (f.size > maxMB * 1024 * 1024) {
       toast('File too large. Max ' + maxMB + ' MB', 'error');
       inp.value = '';
       return;
     }
-
     const msgsWrap = $('#msgsWrap');
     let uploadingBubble = null;
     if (msgsWrap) {
@@ -1233,7 +1399,6 @@ function pickChatFile(otherId, accept) {
       msgsWrap.appendChild(uploadingBubble);
       msgsWrap.scrollTop = msgsWrap.scrollHeight;
     }
-
     const fd = new FormData();
     fd.append('receiver_id', otherId);
     fd.append('text', '');
@@ -1360,6 +1525,212 @@ async function startCall(otherId, type, name) {
   } catch (err) { toast(err.message, 'error'); }
 }
 
+// ============ STORIES: VIEWER + CREATOR ============
+function openStoryViewer(group) {
+  const container = $('#modalContainer');
+  container.innerHTML = '';
+  const overlay = el('div', {
+    style: 'position:fixed;inset:0;background:#000;z-index:200;display:flex;flex-direction:column;',
+  });
+
+  let idx = 0;
+  const total = group.statuses.length;
+
+  function render() {
+    overlay.innerHTML = '';
+    const s = group.statuses[idx];
+
+    const progress = el('div', {
+      style: 'position:absolute;top:8px;left:8px;right:8px;height:3px;background:rgba(255,255,255,0.3);border-radius:2px;z-index:3;display:flex;gap:2px;',
+    });
+    for (let i = 0; i < total; i++) {
+      progress.appendChild(el('div', {
+        style: `flex:1;height:100%;border-radius:2px;background:${i <= idx ? 'white' : 'rgba(255,255,255,0.3)'};`
+      }));
+    }
+    overlay.appendChild(progress);
+
+    const header = el('div', {
+      style: 'position:absolute;top:20px;left:12px;right:12px;display:flex;align-items:center;gap:10px;z-index:3;',
+    });
+    if (group.user.avatar) {
+      header.appendChild(el('img', { src: group.user.avatar, style: 'width:36px;height:36px;border-radius:50%;object-fit:cover;' }));
+    } else {
+      header.appendChild(el('div', {
+        style: 'width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#8b5cf6);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:14px;',
+      }, initials(group.user.name)));
+    }
+    const info = el('div', { style: 'flex:1;color:white;' });
+    info.appendChild(el('div', { style: 'font-weight:700;font-size:14px;text-shadow:0 1px 3px rgba(0,0,0,0.5);' }, group.user.name));
+    info.appendChild(el('div', { style: 'font-size:11px;opacity:0.8;' }, timeAgo(s.created_at)));
+    header.appendChild(info);
+
+    if (CURRENT_USER && group.user.id === CURRENT_USER.id) {
+      const delBtn = el('button', {
+        style: 'background:rgba(0,0,0,0.5);color:white;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;',
+        onclick: async (e) => {
+          e.stopPropagation();
+          if (!confirm('Delete this story?')) return;
+          try {
+            await api(`/api/statuses/${s.id}`, { method: 'DELETE' });
+            toast('Deleted', 'success');
+            closeModal();
+            loadFeed('all');
+          } catch (err) { toast(err.message, 'error'); }
+        }
+      });
+      delBtn.innerHTML = '<svg class="icon icon-sm" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg>';
+      header.appendChild(delBtn);
+    }
+
+    const closeBtn = el('button', {
+      style: 'background:rgba(0,0,0,0.5);color:white;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;',
+      onclick: () => closeModal(),
+    });
+    closeBtn.innerHTML = '<svg class="icon icon-sm" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+    header.appendChild(closeBtn);
+    overlay.appendChild(header);
+
+    const content = el('div', {
+      style: 'flex:1;display:flex;align-items:center;justify-content:center;position:relative;',
+    });
+
+    if (s.media_type === 'video') {
+      content.appendChild(el('video', {
+        src: s.media, controls: true, autoplay: true, playsinline: true,
+        style: 'max-width:100%;max-height:100%;object-fit:contain;',
+      }));
+    } else if (s.media) {
+      content.appendChild(el('img', {
+        src: s.media,
+        style: 'max-width:100%;max-height:100%;object-fit:contain;',
+      }));
+    }
+
+    if (s.text) {
+      content.appendChild(el('div', {
+        style: 'position:absolute;bottom:80px;left:20px;right:20px;text-align:center;color:white;font-size:18px;font-weight:600;text-shadow:0 2px 6px rgba(0,0,0,0.7);padding:12px;background:rgba(0,0,0,0.3);border-radius:12px;',
+      }, s.text));
+    }
+
+    overlay.appendChild(content);
+
+    const tapLeft = el('div', {
+      style: 'position:absolute;top:0;left:0;width:50%;height:100%;z-index:2;',
+      onclick: () => {
+        if (idx > 0) { idx--; render(); }
+        else closeModal();
+      }
+    });
+    const tapRight = el('div', {
+      style: 'position:absolute;top:0;right:0;width:50%;height:100%;z-index:2;',
+      onclick: () => {
+        if (idx < total - 1) { idx++; render(); }
+        else closeModal();
+      }
+    });
+    overlay.appendChild(tapLeft);
+    overlay.appendChild(tapRight);
+
+    container.appendChild(overlay);
+  }
+
+  render();
+}
+
+function openCreateStory() {
+  const container = $('#modalContainer');
+  container.innerHTML = '';
+  const overlay = el('div', { class: 'modal-overlay', onclick: (e) => { if (e.target === overlay) closeModal(); } });
+  const content = el('div', { class: 'modal-content' });
+
+  const h = el('div', { class: 'modal-header' });
+  h.appendChild(el('h3', {}, 'Create Story'));
+  const cb = el('button', { class: 'btn-icon', onclick: closeModal });
+  cb.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+  h.appendChild(cb);
+  content.appendChild(h);
+
+  const body = el('div', { class: 'modal-body' });
+
+  const preview = el('div', {
+    style: 'width:100%;height:300px;background:var(--bg-3);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;overflow:hidden;margin-bottom:12px;position:relative;',
+  }, el('div', { style: 'color:var(--text-3);font-size:14px;' }, 'No media selected'));
+  body.appendChild(preview);
+
+  const fileInput = el('input', { type: 'file', style: 'display:none' });
+  let selectedFile = null;
+  let previewURL = null;
+
+  fileInput.addEventListener('change', () => {
+    const f = fileInput.files && fileInput.files[0];
+    if (!f) return;
+    let maxMB = 10;
+    if (f.type.startsWith('video/')) maxMB = 50;
+    else if (f.type.startsWith('audio/')) maxMB = 15;
+    if (f.size > maxMB * 1024 * 1024) {
+      toast('File too large. Max ' + maxMB + ' MB', 'error');
+      fileInput.value = '';
+      return;
+    }
+    selectedFile = f;
+    if (previewURL) URL.revokeObjectURL(previewURL);
+    previewURL = URL.createObjectURL(f);
+    preview.innerHTML = '';
+    if (f.type.startsWith('video/')) {
+      preview.appendChild(el('video', { src: previewURL, controls: true, playsinline: true, style: 'width:100%;height:100%;object-fit:contain;' }));
+    } else if (f.type.startsWith('image/')) {
+      preview.appendChild(el('img', { src: previewURL, style: 'width:100%;height:100%;object-fit:contain;' }));
+    } else if (f.type.startsWith('audio/')) {
+      preview.appendChild(el('audio', { src: previewURL, controls: true, style: 'width:90%;' }));
+    }
+  });
+  body.appendChild(fileInput);
+
+  const mediaRow = el('div', { style: 'display:flex;gap:6px;margin-bottom:12px;' });
+  const photoBtn = el('button', { class: 'btn btn-secondary', style: 'flex:1;padding:10px 6px;font-size:12px;', onclick: () => { fileInput.accept = 'image/*'; fileInput.click(); } });
+  photoBtn.innerHTML = '<svg class="icon icon-sm" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><span>Photo</span>';
+  mediaRow.appendChild(photoBtn);
+  const videoBtn = el('button', { class: 'btn btn-secondary', style: 'flex:1;padding:10px 6px;font-size:12px;', onclick: () => { fileInput.accept = 'video/*'; fileInput.click(); } });
+  videoBtn.innerHTML = '<svg class="icon icon-sm" viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg><span>Video</span>';
+  mediaRow.appendChild(videoBtn);
+  body.appendChild(mediaRow);
+
+  const textInput = el('textarea', {
+    placeholder: 'Add a caption (optional)...', rows: 3, maxlength: 500,
+    style: 'width:100%;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--radius);padding:12px;font-size:14px;color:var(--text);resize:none;font-family:inherit;margin-bottom:12px;',
+  });
+  body.appendChild(textInput);
+
+  const postBtn = el('button', {
+    class: 'btn btn-primary',
+    onclick: async () => {
+      const text = textInput.value.trim();
+      if (!text && !selectedFile) { toast('Add text or media', 'error'); return; }
+      postBtn.disabled = true;
+      postBtn.innerHTML = '<div class="loader"></div>';
+      try {
+        const fd = new FormData();
+        fd.append('text', text);
+        if (selectedFile) fd.append('file', selectedFile);
+        await api('/api/statuses', { method: 'POST', body: fd });
+        toast('Story posted!', 'success');
+        closeModal();
+        loadFeed('all');
+      } catch (err) {
+        toast(err.message, 'error');
+        postBtn.disabled = false;
+        postBtn.innerHTML = '<span>Post Story</span>';
+      }
+    }
+  }, el('span', {}, 'Post Story'));
+  body.appendChild(postBtn);
+
+  content.appendChild(body);
+  overlay.appendChild(content);
+  container.appendChild(overlay);
+}
+
 // ============ SEARCH ============
 async function openSearch() {
   const main = $('#appMain');
@@ -1439,7 +1810,7 @@ async function startApp() {
   await loadFeed('all');
 }
 
-// ============ INIT (with session persistence) ============
+// ============ INIT WITH SPLASH SCREEN ============
 async function init() {
   try {
     initTheme();
@@ -1452,23 +1823,29 @@ async function init() {
       try {
         await loadMe();
         console.log('[MSAFIRI] Auto-login success:', CURRENT_USER.name);
-        await startApp();
+        // Wait 6 seconds for splash animation, then show app
+        setTimeout(async () => {
+          await startApp();
+        }, 6000);
         return;
       } catch (err) {
         console.warn('[MSAFIRI] Auto-login failed:', err.message);
         TOKEN = null;
         CURRENT_USER = null;
         localStorage.removeItem('msafiri_token');
-        localStorage.removeItem('msafiri_token_time');
         try { sessionStorage.removeItem('msafiri_token'); } catch(e) {}
       }
     }
 
-    console.log('[MSAFIRI] Showing auth screen');
-    showAuth();
+    console.log('[MSAFIRI] Showing auth screen after splash');
+    // Wait 6 seconds for splash animation, then show auth
+    setTimeout(() => {
+      showAuth();
+    }, 6000);
+
   } catch (err) {
     console.error('[MSAFIRI] FATAL:', err);
-    showAuth();
+    setTimeout(() => showAuth(), 6000);
   }
 }
 
@@ -1483,13 +1860,31 @@ setInterval(() => {
   }
 }, 5 * 60 * 1000);
 
-// Detect app coming back from background
+// App resume from background
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden && TOKEN && !CURRENT_USER) {
     console.log('[MSAFIRI] App resumed, reloading...');
     init();
   }
 });
+
+// ============================================================
+// SPLASH SCREEN TIMER (fallback)
+// ============================================================
+// Baada ya sekunde 6, hakikisha splash imefutwa
+setTimeout(() => {
+  const sp = document.getElementById('splashScreen');
+  if (sp && !sp.classList.contains('fade-out')) {
+    console.warn('[MSAFIRI] Splash timeout fallback');
+    sp.classList.add('fade-out');
+    // If neither auth nor app shown, show auth
+    const authHidden = document.getElementById('authScreen')?.classList.contains('hidden');
+    const appHidden = document.getElementById('appScreen')?.classList.contains('hidden');
+    if (authHidden && appHidden) {
+      document.getElementById('authScreen')?.classList.remove('hidden');
+    }
+  }
+}, 6500);
 </script>
 
 </body>

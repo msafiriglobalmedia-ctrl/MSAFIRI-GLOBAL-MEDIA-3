@@ -1,5 +1,5 @@
 # ============================================================
-# MSAFIRI GLOBAL MEDIA - PHASE 1
+# MSAFIRI GLOBAL MEDIA - PHASE 1 + 2
 # FastAPI + PostgreSQL + JWT + LiveKit + Base64 Storage
 # ============================================================
 
@@ -31,7 +31,7 @@ import jwt
 # ============================================================
 
 APP_NAME = "MSAFIRI GLOBAL MEDIA"
-APP_VERSION = "6.0.0-PHASE1"
+APP_VERSION = "6.0.0-PHASE2"
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -48,12 +48,12 @@ LIVEKIT_API_KEY = (os.getenv("LIVEKIT_API_KEY") or "").strip()
 LIVEKIT_API_SECRET = (os.getenv("LIVEKIT_API_SECRET") or "").strip()
 
 # Base64 storage limits (bytes)
-MAX_AVATAR_BYTES = 2 * 1024 * 1024        # 2 MB
-MAX_POST_IMAGE_BYTES = 5 * 1024 * 1024    # 5 MB
-MAX_POST_VIDEO_BYTES = 800 * 1024 * 1024   # 800 MB 
-MAX_CHAT_FILE_BYTES = 25 * 1024 * 1024    # 25 MB
-MAX_VOICE_BYTES = 5 * 1024 * 1024         # 5 MB
-MAX_WALLPAPER_BYTES = 1 * 1024 * 1024     # 1 MB
+MAX_AVATAR_BYTES = 2 * 1024 * 1024
+MAX_POST_IMAGE_BYTES = 5 * 1024 * 1024
+MAX_POST_VIDEO_BYTES = 50 * 1024 * 1024
+MAX_CHAT_FILE_BYTES = 25 * 1024 * 1024
+MAX_VOICE_BYTES = 5 * 1024 * 1024
+MAX_WALLPAPER_BYTES = 1 * 1024 * 1024
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -61,7 +61,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 app = FastAPI(
     title=APP_NAME,
     version=APP_VERSION,
-    description="Msafiri Global Media - Phase 1 Backend",
+    description="Msafiri Global Media - Phase 1 + 2 Backend",
 )
 
 app.add_middleware(
@@ -85,7 +85,7 @@ def get_conn():
 
 def init_db():
     with get_conn() as conn:
-        # USERS
+        # ==================== USERS ====================
         conn.execute("""
             CREATE TABLE IF NOT EXISTS m_users (
                 id BIGSERIAL PRIMARY KEY,
@@ -104,14 +104,17 @@ def init_db():
             )
         """)
         for col, typ in [
-            ("username", "TEXT"), ("bio", "TEXT DEFAULT ''"),
-            ("location", "TEXT DEFAULT ''"), ("avatar_data", "TEXT"),
-            ("avatar_mime", "TEXT"), ("theme", "TEXT DEFAULT 'dark'"),
+            ("username", "TEXT"),
+            ("bio", "TEXT DEFAULT ''"),
+            ("location", "TEXT DEFAULT ''"),
+            ("avatar_data", "TEXT"),
+            ("avatar_mime", "TEXT"),
+            ("theme", "TEXT DEFAULT 'dark'"),
             ("deleted_at", "TIMESTAMPTZ"),
         ]:
             conn.execute(f"ALTER TABLE m_users ADD COLUMN IF NOT EXISTS {col} {typ}")
 
-        # SESSIONS
+        # ==================== SESSIONS ====================
         conn.execute("""
             CREATE TABLE IF NOT EXISTS m_sessions (
                 id BIGSERIAL PRIMARY KEY,
@@ -124,7 +127,7 @@ def init_db():
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_m_sessions_token ON m_sessions(token_hash)")
 
-        # FOLLOWS
+        # ==================== FOLLOWS ====================
         conn.execute("""
             CREATE TABLE IF NOT EXISTS m_follows (
                 id BIGSERIAL PRIMARY KEY,
@@ -135,7 +138,7 @@ def init_db():
             )
         """)
 
-        # POSTS
+        # ==================== POSTS ====================
         conn.execute("""
             CREATE TABLE IF NOT EXISTS m_posts (
                 id BIGSERIAL PRIMARY KEY,
@@ -151,7 +154,7 @@ def init_db():
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_m_posts_created ON m_posts(created_at DESC)")
 
-        # LIKES
+        # ==================== LIKES ====================
         conn.execute("""
             CREATE TABLE IF NOT EXISTS m_likes (
                 id BIGSERIAL PRIMARY KEY,
@@ -162,7 +165,7 @@ def init_db():
             )
         """)
 
-        # COMMENTS
+        # ==================== COMMENTS ====================
         conn.execute("""
             CREATE TABLE IF NOT EXISTS m_comments (
                 id BIGSERIAL PRIMARY KEY,
@@ -173,7 +176,7 @@ def init_db():
             )
         """)
 
-        # SAVED POSTS
+        # ==================== SAVED POSTS ====================
         conn.execute("""
             CREATE TABLE IF NOT EXISTS m_saved (
                 id BIGSERIAL PRIMARY KEY,
@@ -184,7 +187,7 @@ def init_db():
             )
         """)
 
-        # RESHARES
+        # ==================== RESHARES ====================
         conn.execute("""
             CREATE TABLE IF NOT EXISTS m_reshares (
                 id BIGSERIAL PRIMARY KEY,
@@ -195,7 +198,7 @@ def init_db():
             )
         """)
 
-        # MESSAGES
+        # ==================== MESSAGES ====================
         conn.execute("""
             CREATE TABLE IF NOT EXISTS m_messages (
                 id BIGSERIAL PRIMARY KEY,
@@ -214,7 +217,7 @@ def init_db():
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_m_msg_sr ON m_messages(sender_id, receiver_id, created_at DESC)")
 
-        # CHAT SETTINGS
+        # ==================== CHAT SETTINGS ====================
         conn.execute("""
             CREATE TABLE IF NOT EXISTS m_chat_settings (
                 id BIGSERIAL PRIMARY KEY,
@@ -231,35 +234,36 @@ def init_db():
             )
         """)
 
-        # BLOCKS
-conn.execute("""
-    CREATE TABLE IF NOT EXISTS m_blocks (
-        id BIGSERIAL PRIMARY KEY,
-        blocker_id BIGINT NOT NULL REFERENCES m_users(id) ON DELETE CASCADE,
-        blocked_id BIGINT NOT NULL REFERENCES m_users(id) ON DELETE CASCADE,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(blocker_id, blocked_id)
-    )
-""")
+        # ==================== BLOCKS ====================
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS m_blocks (
+                id BIGSERIAL PRIMARY KEY,
+                blocker_id BIGINT NOT NULL REFERENCES m_users(id) ON DELETE CASCADE,
+                blocked_id BIGINT NOT NULL REFERENCES m_users(id) ON DELETE CASCADE,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(blocker_id, blocked_id)
+            )
+        """)
 
-# STATUSES / STORIES
-conn.execute("""
-    CREATE TABLE IF NOT EXISTS m_statuses (
-        id BIGSERIAL PRIMARY KEY,
-        user_id BIGINT NOT NULL REFERENCES m_users(id) ON DELETE CASCADE,
-        text TEXT DEFAULT '',
-        media_data TEXT,
-        media_mime TEXT,
-        media_type TEXT,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        expires_at TIMESTAMPTZ
-    )
-""")
-conn.execute("CREATE INDEX IF NOT EXISTS idx_m_statuses_user ON m_statuses(user_id, created_at DESC)")
-conn.execute("CREATE INDEX IF NOT EXISTS idx_m_statuses_expires ON m_statuses(expires_at)")
+        # ==================== STATUSES / STORIES ====================
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS m_statuses (
+                id BIGSERIAL PRIMARY KEY,
+                user_id BIGINT NOT NULL REFERENCES m_users(id) ON DELETE CASCADE,
+                text TEXT DEFAULT '',
+                media_data TEXT,
+                media_mime TEXT,
+                media_type TEXT,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                expires_at TIMESTAMPTZ
+            )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_m_statuses_user ON m_statuses(user_id, created_at DESC)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_m_statuses_expires ON m_statuses(expires_at)")
 
-conn.commit()
-       
+        conn.commit()
+
+
 @app.on_event("startup")
 def startup():
     try:
@@ -434,9 +438,7 @@ def health():
 @app.get("/api/health")
 def health_api():
     return {"status": "ok", "app": APP_NAME, "version": APP_VERSION}
-
-
-# ============================================================
+    # ============================================================
 # AUTH ENDPOINTS
 # ============================================================
 
@@ -557,8 +559,10 @@ def login(data: LoginIn):
 def logout(authorization: Optional[str] = Header(default=None)):
     token = bearer(authorization)
     with get_conn() as conn:
-        conn.execute("UPDATE m_sessions SET revoked = TRUE WHERE token_hash = %s",
-                     (hash_token(token),))
+        conn.execute(
+            "UPDATE m_sessions SET revoked = TRUE WHERE token_hash = %s",
+            (hash_token(token),)
+        )
         conn.commit()
     return {"message": "Logged out"}
 
@@ -843,11 +847,11 @@ async def create_post(
 
         if ct.startswith("image/"):
             if len(content) > MAX_POST_IMAGE_BYTES:
-                raise HTTPException(400, "Image too large (max 3 MB)")
+                raise HTTPException(400, "Image too large (max 5 MB)")
             media_type = "image"
         elif ct.startswith("video/"):
             if len(content) > MAX_POST_VIDEO_BYTES:
-                raise HTTPException(400, "Video too large (max 8 MB)")
+                raise HTTPException(400, "Video too large (max 50 MB)")
             media_type = "video"
         else:
             raise HTTPException(400, "Only images and videos are allowed")
@@ -871,12 +875,15 @@ async def create_post(
 
 def post_row_to_dict(p, viewer_id: Optional[int]):
     with get_conn() as conn:
-        likes = conn.execute("SELECT COUNT(*) AS c FROM m_likes WHERE post_id = %s",
-                            (p["id"],)).fetchone()["c"]
-        comments = conn.execute("SELECT COUNT(*) AS c FROM m_comments WHERE post_id = %s",
-                               (p["id"],)).fetchone()["c"]
-        reshares = conn.execute("SELECT COUNT(*) AS c FROM m_reshares WHERE post_id = %s",
-                               (p["id"],)).fetchone()["c"]
+        likes = conn.execute(
+            "SELECT COUNT(*) AS c FROM m_likes WHERE post_id = %s", (p["id"],)
+        ).fetchone()["c"]
+        comments = conn.execute(
+            "SELECT COUNT(*) AS c FROM m_comments WHERE post_id = %s", (p["id"],)
+        ).fetchone()["c"]
+        reshares = conn.execute(
+            "SELECT COUNT(*) AS c FROM m_reshares WHERE post_id = %s", (p["id"],)
+        ).fetchone()["c"]
         liked = False
         saved = False
         if viewer_id:
@@ -1032,9 +1039,7 @@ def user_posts(user_id: int, authorization: Optional[str] = Header(default=None)
         """, (user_id,)).fetchall()
 
     return {"posts": [post_row_to_dict(p, viewer_id) for p in rows]}
-
-
-# ============================================================
+    # ============================================================
 # LIKES / SAVES / RESHARES
 # ============================================================
 
@@ -1063,8 +1068,10 @@ def like(post_id: int, authorization: Optional[str] = Header(default=None)):
 def unlike(post_id: int, authorization: Optional[str] = Header(default=None)):
     user = require_user(authorization)
     with get_conn() as conn:
-        conn.execute("DELETE FROM m_likes WHERE post_id = %s AND user_id = %s",
-                     (post_id, user["id"]))
+        conn.execute(
+            "DELETE FROM m_likes WHERE post_id = %s AND user_id = %s",
+            (post_id, user["id"])
+        )
         conn.commit()
     return {"liked": False}
 
@@ -1086,8 +1093,10 @@ def save_post(post_id: int, authorization: Optional[str] = Header(default=None))
 def unsave_post(post_id: int, authorization: Optional[str] = Header(default=None)):
     user = require_user(authorization)
     with get_conn() as conn:
-        conn.execute("DELETE FROM m_saved WHERE post_id = %s AND user_id = %s",
-                     (post_id, user["id"]))
+        conn.execute(
+            "DELETE FROM m_saved WHERE post_id = %s AND user_id = %s",
+            (post_id, user["id"])
+        )
         conn.commit()
     return {"saved": False}
 
@@ -1127,8 +1136,10 @@ def reshare(post_id: int, authorization: Optional[str] = Header(default=None)):
 def unreshare(post_id: int, authorization: Optional[str] = Header(default=None)):
     user = require_user(authorization)
     with get_conn() as conn:
-        conn.execute("DELETE FROM m_reshares WHERE post_id = %s AND user_id = %s",
-                     (post_id, user["id"]))
+        conn.execute(
+            "DELETE FROM m_reshares WHERE post_id = %s AND user_id = %s",
+            (post_id, user["id"])
+        )
         conn.commit()
     return {"reshared": False}
 
@@ -1393,7 +1404,7 @@ async def send_voice(
 
     content = await file.read()
     if len(content) > MAX_VOICE_BYTES:
-        raise HTTPException(400, "Voice note too large (max 2 MB)")
+        raise HTTPException(400, "Voice note too large (max 5 MB)")
 
     b64 = base64.b64encode(content).decode("ascii")
 
@@ -1435,7 +1446,7 @@ async def send_file(
 
     content = await file.read()
     if len(content) > MAX_CHAT_FILE_BYTES:
-        raise HTTPException(400, "File too large (max 5 MB)")
+        raise HTTPException(400, "File too large (max 25 MB)")
 
     ct = (file.content_type or "").lower() or "application/octet-stream"
     b64 = base64.b64encode(content).decode("ascii")
@@ -1672,7 +1683,7 @@ def delete_account(authorization: Optional[str] = Header(default=None)):
         """, (user["id"],))
         conn.execute("UPDATE m_sessions SET revoked = TRUE WHERE user_id = %s", (user["id"],))
         conn.commit()
-        return {"message": "Account deleted"}
+    return {"message": "Account deleted"}
 
 
 # ============================================================
@@ -1798,9 +1809,7 @@ def delete_status(status_id: int, authorization: Optional[str] = Header(default=
             raise HTTPException(404, "Status not found or not yours")
         conn.commit()
     return {"message": "Status deleted"}
-
-
-# ============================================================
+    # ============================================================
 # ERROR HANDLER
 # ============================================================
 

@@ -1668,7 +1668,83 @@ def call_token(data: CallIn, authorization: Optional[str] = Header(default=None)
         "receiver_id": data.receiver_id,
     }
 
+# ============================================================
+# VIDEO PLATFORM (PHASE 3)
+# ============================================================
 
+@app.get("/api/videos")
+def list_videos(
+    limit: int = Query(30, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    authorization: Optional[str] = Header(default=None),
+):
+    viewer_id = None
+    if authorization:
+        try:
+            viewer_id = require_user(authorization)["id"]
+        except Exception:
+            viewer_id = None
+
+    with get_conn() as conn:
+        rows = conn.execute("""
+            SELECT p.id, p.user_id, p.caption, p.media_data, p.media_mime,
+                   p.media_type, p.created_at,
+                   u.name AS user_name, u.username AS user_username,
+                   u.avatar_data, u.avatar_mime,
+                   (
+                       SELECT COUNT(*) FROM m_likes l WHERE l.post_id = p.id
+                   ) AS likes_count,
+                   (
+                       SELECT COUNT(*) FROM m_comments c WHERE c.post_id = p.id
+                   ) AS comments_count,
+                   (
+                       SELECT COUNT(*) FROM m_reshares r WHERE r.post_id = p.id
+                   ) AS reshares_count
+            FROM m_posts p
+            JOIN m_users u ON u.id = p.user_id
+            WHERE p.deleted_at IS NULL
+              AND u.deleted_at IS NULL
+              AND p.media_type = 'video'
+            ORDER BY p.created_at DESC
+            LIMIT %s OFFSET %s
+        """, (limit, offset)).fetchall()
+
+        out = []
+        for p in rows:
+            media = None
+            if p["media_data"] and p["media_mime"]:
+                media = f"data:{p['media_mime']};base64,{p['media_data']}"
+            avatar = None
+            if p["avatar_data"] and p["avatar_mime"]:
+                avatar = f"data:{p['avatar_mime']};base64,{p['avatar_data']}"
+
+            liked = False
+            if viewer_id:
+                liked = conn.execute(
+                    "SELECT 1 FROM m_likes WHERE post_id = %s AND user_id = %s",
+                    (p["id"], viewer_id)
+                ).fetchone() is not None
+
+            out.append({
+                "id": p["id"],
+                "user_id": p["user_id"],
+                "caption": p["caption"],
+                "media": media,
+                "media_type": p["media_type"],
+                "created_at": p["created_at"],
+                "user": {
+                    "id": p["user_id"],
+                    "name": p["user_name"],
+                    "username": p["user_username"],
+                    "avatar": avatar,
+                },
+                "likes_count": p["likes_count"],
+                "comments_count": p["comments_count"],
+                "reshares_count": p["reshares_count"],
+                "liked": liked,
+            })
+
+    return {"videos": out
 # ============================================================
 # ACCOUNT DELETION
 # ============================================================

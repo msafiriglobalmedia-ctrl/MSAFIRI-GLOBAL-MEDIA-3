@@ -63,7 +63,7 @@ app = FastAPI(
     version=APP_VERSION,
     description="Msafiri Global Media - Phase 1 + 2 Backend",
 )
-
+from fastapi.staticfiles import StaticFiles
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -71,7 +71,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
+# Serve static files (style.css, app.js)
+app.mount("/static", StaticFiles(directory=str(BASE_DIR)), name="static")
 
 # ============================================================
 # DATABASE

@@ -1932,13 +1932,12 @@ function switchView(view) {
 
 function handleNav(view) {
   if (view === 'home') loadFeed('all');
-  else if (view === 'search') openSearch();
-  else if (view === 'create') openCreatePost();
+  else if (view === 'discovery') openDiscovery();
   else if (view === 'chats') openChats();
   else if (view === 'profile') {
     if (CURRENT_USER) openProfile(CURRENT_USER.id);
   }
-}
+  }
 
 $$('.nav-item').forEach(item => {
   item.addEventListener('click', () => handleNav(item.dataset.view));

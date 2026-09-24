@@ -1530,39 +1530,62 @@ function openStoryViewer(group) {
   const container = $('#modalContainer');
   container.innerHTML = '';
   const overlay = el('div', {
-    style: 'position:fixed;inset:0;background:#000;z-index:200;display:flex;flex-direction:column;',
+    style: 'position:fixed;inset:0;background:#000;z-index:200;display:flex;flex-direction:column;user-select:none;',
   });
 
   let idx = 0;
   const total = group.statuses.length;
+  let progressTimer = null;
+  let currentProgressBar = null;
+  let isPaused = false;
+  const STORY_DURATION = 5000; // 5 seconds default per story
+
+  function clearTimer() {
+    if (progressTimer) {
+      clearInterval(progressTimer);
+      progressTimer = null;
+    }
+  }
 
   function render() {
+    clearTimer();
     overlay.innerHTML = '';
+    isPaused = false;
     const s = group.statuses[idx];
 
-    const progress = el('div', {
-      style: 'position:absolute;top:8px;left:8px;right:8px;height:3px;background:rgba(255,255,255,0.3);border-radius:2px;z-index:3;display:flex;gap:2px;',
+    // ===== PROGRESS BARS =====
+    const progressWrap = el('div', {
+      style: 'position:absolute;top:8px;left:8px;right:8px;height:3px;z-index:10;display:flex;gap:3px;',
     });
+    const bars = [];
     for (let i = 0; i < total; i++) {
-      progress.appendChild(el('div', {
-        style: `flex:1;height:100%;border-radius:2px;background:${i <= idx ? 'white' : 'rgba(255,255,255,0.3)'};`
-      }));
+      const bar = el('div', {
+        style: 'flex:1;height:100%;background:rgba(255,255,255,0.3);border-radius:2px;overflow:hidden;',
+      });
+      const fill = el('div', {
+        style: `height:100%;background:white;width:${i < idx ? '100%' : '0%'};transition:width 0.1s linear;`,
+      });
+      bar.appendChild(fill);
+      progressWrap.appendChild(bar);
+      bars.push(fill);
     }
-    overlay.appendChild(progress);
+    overlay.appendChild(progressWrap);
+    currentProgressBar = bars[idx];
 
+    // ===== HEADER =====
     const header = el('div', {
-      style: 'position:absolute;top:20px;left:12px;right:12px;display:flex;align-items:center;gap:10px;z-index:3;',
+      style: 'position:absolute;top:20px;left:12px;right:12px;display:flex;align-items:center;gap:10px;z-index:10;',
     });
     if (group.user.avatar) {
-      header.appendChild(el('img', { src: group.user.avatar, style: 'width:36px;height:36px;border-radius:50%;object-fit:cover;' }));
+      header.appendChild(el('img', { src: group.user.avatar, style: 'width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid white;' }));
     } else {
       header.appendChild(el('div', {
-        style: 'width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#8b5cf6);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:14px;',
+        style: 'width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#8b5cf6);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:14px;border:2px solid white;',
       }, initials(group.user.name)));
     }
     const info = el('div', { style: 'flex:1;color:white;' });
-    info.appendChild(el('div', { style: 'font-weight:700;font-size:14px;text-shadow:0 1px 3px rgba(0,0,0,0.5);' }, group.user.name));
-    info.appendChild(el('div', { style: 'font-size:11px;opacity:0.8;' }, timeAgo(s.created_at)));
+    info.appendChild(el('div', { style: 'font-weight:700;font-size:14px;text-shadow:0 1px 3px rgba(0,0,0,0.7);' }, group.user.name));
+    info.appendChild(el('div', { style: 'font-size:11px;opacity:0.9;text-shadow:0 1px 3px rgba(0,0,0,0.7);' }, timeAgo(s.created_at)));
     header.appendChild(info);
 
     if (CURRENT_USER && group.user.id === CURRENT_USER.id) {
@@ -1574,57 +1597,90 @@ function openStoryViewer(group) {
           try {
             await api(`/api/statuses/${s.id}`, { method: 'DELETE' });
             toast('Deleted', 'success');
+            clearTimer();
             closeModal();
             loadFeed('all');
           } catch (err) { toast(err.message, 'error'); }
         }
       });
-      delBtn.innerHTML = '<svg class="icon icon-sm" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg>';
+      delBtn.innerHTML = '<svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg>';
       header.appendChild(delBtn);
     }
 
     const closeBtn = el('button', {
       style: 'background:rgba(0,0,0,0.5);color:white;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;',
-      onclick: () => closeModal(),
+      onclick: () => { clearTimer(); closeModal(); },
     });
-    closeBtn.innerHTML = '<svg class="icon icon-sm" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+    closeBtn.innerHTML = '<svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
     header.appendChild(closeBtn);
     overlay.appendChild(header);
 
+    // ===== CONTENT =====
     const content = el('div', {
-      style: 'flex:1;display:flex;align-items:center;justify-content:center;position:relative;',
+      style: 'flex:1;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;',
     });
 
     if (s.media_type === 'video') {
-      content.appendChild(el('video', {
-        src: s.media, controls: true, autoplay: true, playsinline: true,
+      const video = el('video', {
+        src: s.media,
+        autoplay: true,
+        playsinline: true,
+        muted: true,
+        loop: false,
         style: 'max-width:100%;max-height:100%;object-fit:contain;',
-      }));
+      });
+      content.appendChild(video);
+      video.addEventListener('loadedmetadata', () => {
+        if (video.duration && video.duration < 60) {
+          startProgress(video.duration * 1000);
+        } else {
+          startProgress(STORY_DURATION);
+        }
+      });
+      // Fallback if metadata fails
+      setTimeout(() => {
+        if (!video.duration) startProgress(STORY_DURATION);
+      }, 500);
     } else if (s.media) {
-      content.appendChild(el('img', {
+      const img = el('img', {
         src: s.media,
         style: 'max-width:100%;max-height:100%;object-fit:contain;',
-      }));
+      });
+      content.appendChild(img);
+      startProgress(STORY_DURATION);
+    } else {
+      startProgress(STORY_DURATION);
     }
 
+    // Story text caption
     if (s.text) {
       content.appendChild(el('div', {
-        style: 'position:absolute;bottom:80px;left:20px;right:20px;text-align:center;color:white;font-size:18px;font-weight:600;text-shadow:0 2px 6px rgba(0,0,0,0.7);padding:12px;background:rgba(0,0,0,0.3);border-radius:12px;',
+        style: 'position:absolute;bottom:80px;left:20px;right:20px;text-align:center;color:white;font-size:18px;font-weight:600;text-shadow:0 2px 6px rgba(0,0,0,0.9);padding:12px;background:rgba(0,0,0,0.4);border-radius:12px;backdrop-filter:blur(4px);',
       }, s.text));
+    }
+
+    // Music info (if story has music)
+    if (s.music_title) {
+      content.appendChild(el('div', {
+        style: 'position:absolute;bottom:20px;left:20px;right:20px;display:flex;align-items:center;gap:8px;color:white;font-size:13px;text-shadow:0 1px 3px rgba(0,0,0,0.9);background:rgba(0,0,0,0.4);padding:8px 12px;border-radius:20px;width:fit-content;margin:0 auto;backdrop-filter:blur(4px);',
+      }, el('span', {}, '🎵'), el('span', { style: 'font-weight:600;' }, s.music_title)));
     }
 
     overlay.appendChild(content);
 
+    // ===== TAP ZONES =====
     const tapLeft = el('div', {
-      style: 'position:absolute;top:0;left:0;width:50%;height:100%;z-index:2;',
+      style: 'position:absolute;top:0;left:0;width:50%;height:100%;z-index:5;',
       onclick: () => {
+        clearTimer();
         if (idx > 0) { idx--; render(); }
         else closeModal();
       }
     });
     const tapRight = el('div', {
-      style: 'position:absolute;top:0;right:0;width:50%;height:100%;z-index:2;',
+      style: 'position:absolute;top:0;right:0;width:50%;height:100%;z-index:5;',
       onclick: () => {
+        clearTimer();
         if (idx < total - 1) { idx++; render(); }
         else closeModal();
       }
@@ -1632,11 +1688,95 @@ function openStoryViewer(group) {
     overlay.appendChild(tapLeft);
     overlay.appendChild(tapRight);
 
+    // ===== PAUSE ON HOLD =====
+    let holdTimer = null;
+    let wasPaused = false;
+
+    function startHold(e) {
+      wasPaused = isPaused;
+      holdTimer = setTimeout(() => {
+        isPaused = true;
+        if (progressTimer) clearInterval(progressTimer);
+        // Pause video
+        const v = overlay.querySelector('video');
+        if (v) v.pause();
+        const a = overlay.querySelector('audio');
+        if (a) a.pause();
+      }, 200);
+    }
+    function endHold(e) {
+      clearTimeout(holdTimer);
+      if (isPaused && !wasPaused) {
+        isPaused = false;
+        resumeProgress();
+        const v = overlay.querySelector('video');
+        if (v) v.play().catch(() => {});
+        const a = overlay.querySelector('audio');
+        if (a) a.play().catch(() => {});
+      }
+    }
+    overlay.addEventListener('mousedown', startHold);
+    overlay.addEventListener('touchstart', startHold, { passive: true });
+    overlay.addEventListener('mouseup', endHold);
+    overlay.addEventListener('touchend', endHold);
+    overlay.addEventListener('mouseleave', endHold);
+    overlay.addEventListener('touchcancel', endHold);
+
+    // ===== BACKGROUND AUDIO (music) =====
+    if (s.music_url) {
+      const audio = el('audio', {
+        src: s.music_url,
+        autoplay: true,
+        loop: true,
+        style: 'display:none;',
+      });
+      overlay.appendChild(audio);
+      audio.play().catch(() => {});
+    }
+
     container.appendChild(overlay);
   }
 
+  let currentProgressValue = 0;
+  let currentProgressDuration = 5000;
+  let progressStartTime = 0;
+  let progressPausedAt = 0;
+
+  function startProgress(durationMs) {
+    currentProgressValue = 0;
+    currentProgressDuration = durationMs;
+    progressStartTime = Date.now();
+    progressPausedAt = 0;
+    clearTimer();
+    progressTimer = setInterval(() => {
+      if (isPaused) return;
+      const elapsed = Date.now() - progressStartTime - progressPausedAt;
+      const pct = Math.min(100, (elapsed / currentProgressDuration) * 100);
+      if (currentProgressBar) {
+        currentProgressBar.style.width = pct + '%';
+      }
+      if (pct >= 100) {
+        clearTimer();
+        // Auto advance
+        if (idx < total - 1) {
+          idx++;
+          render();
+        } else {
+          closeModal();
+        }
+      }
+    }, 50);
+  }
+
+  function resumeProgress() {
+    if (progressPausedAt) {
+      progressStartTime += Date.now() - progressPausedAt;
+      progressPausedAt = 0;
+    }
+  }
+
   render();
-}
+  }
 
 function openCreateStory() {
   const container = $('#modalContainer');

@@ -2706,4 +2706,42 @@ function loadLiveKit() {
 
   return LIVEKIT_LOADING_PROMISE;
 } 
-document.addEventListener('DOMContentLoaded', init);
+ // ============================================================
+// SAFE INIT WRAPPER — shows errors on screen
+// ============================================================
+window.addEventListener('DOMContentLoaded', () => {
+  console.log('[MSAFIRI] DOM ready, calling init...');
+  init().catch(err => {
+    console.error('[MSAFIRI] Init error:', err);
+    // Show error on splash screen
+    const sp = document.getElementById('splashScreen');
+    if (sp) {
+      sp.classList.remove('fade-out');
+      sp.innerHTML = `
+        <div style="padding:24px;max-width:90%;background:#111827;border-radius:16px;border:2px solid #ef4444;">
+          <h2 style="color:#ef4444;font-size:18px;margin-bottom:12px;">⚠️ App Error</h2>
+          <p style="color:#94a3b8;font-size:13px;margin-bottom:8px;">Error message:</p>
+          <pre style="background:#0a0e1a;padding:12px;border-radius:8px;color:#fca5a5;font-size:11px;white-space:pre-wrap;word-break:break-word;max-height:200px;overflow:auto;">${(err && err.message) || String(err)}</pre>
+          <p style="color:#94a3b8;font-size:11px;margin-top:12px;word-break:break-all;">Stack: ${(err && err.stack) ? err.stack.substring(0, 300) : 'no stack'}</p>
+          <button onclick="localStorage.clear();location.reload()" style="margin-top:16px;padding:10px 20px;background:#3b82f6;color:white;border:none;border-radius:8px;font-weight:600;font-size:14px;">🔄 Clear Cache & Reload</button>
+        </div>
+      `;
+    }
+  });
+});
+
+// Also catch any JS errors
+window.addEventListener('error', (e) => {
+  console.error('[MSAFIRI] Global error:', e);
+  const sp = document.getElementById('splashScreen');
+  if (sp && !sp.classList.contains('fade-out')) {
+    sp.innerHTML = `
+      <div style="padding:24px;max-width:90%;background:#111827;border-radius:16px;border:2px solid #ef4444;">
+        <h2 style="color:#ef4444;font-size:18px;margin-bottom:12px;">⚠️ JS Error</h2>
+        <pre style="background:#0a0e1a;padding:12px;border-radius:8px;color:#fca5a5;font-size:11px;white-space:pre-wrap;word-break:break-word;">${e.message || 'Unknown error'}</pre>
+        <p style="color:#94a3b8;font-size:11px;margin-top:8px;">File: ${e.filename || 'unknown'}:${e.lineno || '?'}</p>
+        <button onclick="localStorage.clear();location.reload()" style="margin-top:16px;padding:10px 20px;background:#3b82f6;color:white;border:none;border-radius:8px;font-weight:600;font-size:14px;">🔄 Clear Cache & Reload</button>
+      </div>
+    `;
+  }
+});

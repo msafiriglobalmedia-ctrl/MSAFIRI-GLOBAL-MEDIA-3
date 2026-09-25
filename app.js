@@ -2357,7 +2357,7 @@ async function startCall(otherId, callType, name) {
   }
 
   try {
-    toast('Starting ' + callType + ' call...', 'info');
+    toast('Calling ' + name + '...', 'info');
     const res = await api('/api/calls/token', {
       method: 'POST',
       body: JSON.stringify({ receiver_id: otherId, call_type: callType }),
@@ -2373,11 +2373,13 @@ async function startCall(otherId, callType, name) {
     };
 
     showCallScreen();
+    startRingtone();
     await connectLiveKit(res.token, res.livekit_url, res.room_name);
   } catch (err) {
     toast(err.message, 'error');
     CURRENT_CALL = null;
     hideCallScreen();
+    stopRingtone();
   }
 }
 
@@ -2407,9 +2409,19 @@ async function connectLiveKit(token, url, roomName) {
         document.body.appendChild(el);
       }
     })
-    .on(RoomEvent.TrackUnsubscribed, (track) => {
-      track.detach().forEach(el => el.remove());
-    })
+    .on(RoomEvent.ParticipantConnected, (participant) => {
+  if (CURRENT_CALL) {
+    CURRENT_CALL.connected = true;
+    if (CURRENT_CALL.timeoutId) {
+      clearTimeout(CURRENT_CALL.timeoutId);
+      CURRENT_CALL.timeoutId = null;
+    }
+  }
+  stopRingtone();
+  const statusEl = $('#callStatus');
+  if (statusEl) statusEl.textContent = 'Connected';
+  toast(participant.name || 'Someone joined', 'success');
+})
     .on(RoomEvent.ParticipantConnected, (participant) => {
       toast(participant.name || 'Someone joined', 'success');
     })
@@ -2433,20 +2445,39 @@ async function connectLiveKit(token, url, roomName) {
         localVideo.appendChild(el);
       }
     });
-
+// Stop ringtone when someone else joins
+room.on(RoomEvent.ParticipantConnected, () => {
+  stopRingtone();
+  const statusEl = $('#callStatus');
+  if (statusEl) statusEl.textContent = 'Connected';
+});
+   
   await room.connect(url, token);
-  console.log('[MSAFIRI] Connected to LiveKit room:', roomName);
+console.log('[MSAFIRI] Connected to LiveKit room:', roomName);
 
+try {
+  await room.localParticipant.enableCameraAndMicrophone();
+} catch (err) {
+  console.warn('[MSAFIRI] Camera/mic error:', err);
+  toast('Camera/mic permission denied', 'error');
   try {
-    await room.localParticipant.enableCameraAndMicrophone();
-  } catch (err) {
-    console.warn('[MSAFIRI] Camera/mic error:', err);
-    toast('Camera/mic permission denied', 'error');
-    // Try audio only
-    try {
-      await room.localParticipant.setMicrophoneEnabled(true);
-    } catch (_) {}
-  }
+    await room.localParticipant.setMicrophoneEnabled(true);
+  } catch (_) {}
+}
+
+// ===== AUTO-END AFTER 30 SECONDS IF NO ONE ANSWERS =====
+if (CURRENT_CALL && CURRENT_CALL.role === 'caller') {
+  CURRENT_CALL.timeoutId = setTimeout(() => {
+    if (CURRENT_CALL && !CURRENT_CALL.connected) {
+      console.log('[MSAFIRI] No answer after 30s — ending call');
+      stopRingtone();
+      const statusEl = $('#callStatus');
+      if (statusEl) statusEl.textContent = 'No answer';
+      toast('No answer', 'info');
+      setTimeout(() => endCall(), 1500);
+    }
+  }, 30000);
+}
 }
 
 function showCallScreen() {
@@ -2555,6 +2586,11 @@ async function switchCamera() {
 }
 
 async function endCall() {
+  stopRingtone();
+  if (CURRENT_CALL && CURRENT_CALL.timeoutId) {
+    clearTimeout(CURRENT_CALL.timeoutId);
+    CURRENT_CALL.timeoutId = null;
+  }
   if (CURRENT_CALL && CURRENT_CALL.room) {
     try {
       await CURRENT_CALL.room.disconnect();

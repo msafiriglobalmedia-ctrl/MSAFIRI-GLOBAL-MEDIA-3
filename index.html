@@ -6,6 +6,15 @@
 <meta name="theme-color" content="#0a0e1a" />
 <title>MSAFIRI GLOBAL MEDIA</title>
 <link rel="stylesheet" href="/static/style.css" />
+<script>
+// Eruda — mobile console (inatuonyesha errors kwenye screen)
+if (window.location.search.includes('debug=1')) {
+  const s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/eruda';
+  s.onload = () => { if (window.eruda) window.eruda.init(); };
+  document.head.appendChild(s);
+}
+</script>
 </head>
 <body>
 

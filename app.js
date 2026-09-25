@@ -1,6 +1,6 @@
 /* ============================================================
    MSAFIRI GLOBAL MEDIA - APP.JS
-   Part 1/3 — Core, Auth, Feed, Posts
+   Part 1/3 — Core, Auth, Feed, Posts, Profile
    ============================================================ */
 
 'use strict';
@@ -91,7 +91,6 @@ async function api(path, opts = {}) {
 
   if (!res.ok) {
     if (res.status === 401 && TOKEN && !path.includes('/login') && !path.includes('/register')) {
-      console.warn('[MSAFIRI] Session expired');
       TOKEN = null;
       CURRENT_USER = null;
       localStorage.removeItem('msafiri_token');
@@ -233,62 +232,62 @@ function bindAuthUI() {
     });
   });
 
-  $('#loginForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const btn = $('#loginBtn');
-    const errEl = $('#loginError');
-    errEl.classList.add('hidden');
-    btn.disabled = true;
-    btn.innerHTML = '<div class="loader"></div>';
-    try {
-      const email = $('#loginEmail').value.trim();
-      const password = $('#loginPassword').value;
-      const res = await login(email, password);
-      saveSession(res.token);
-      CURRENT_USER = res.user;
-      toast('Welcome back!', 'success');
-      await startApp();
-    } catch (err) {
-      errEl.textContent = err.message || 'Login failed';
-      errEl.classList.remove('hidden');
-    } finally {
-      btn.disabled = false;
-      btn.innerHTML = '<span>Login</span>';
-    }
-  });
-
-  $('#registerForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const btn = $('#registerBtn');
-    const errEl = $('#registerError');
-    errEl.classList.add('hidden');
-    btn.disabled = true;
-    btn.innerHTML = '<div class="loader"></div>';
-    try {
-      const name = $('#regName').value.trim();
-      const username = $('#regUsername').value.trim() || null;
-      const email = $('#regEmail').value.trim();
-      const password = $('#regPassword').value;
-      const res = await register(name, email, password, username);
-      saveSession(res.token);
-      CURRENT_USER = res.user;
-      toast('Account created!', 'success');
-      await startApp();
-    } catch (err) {
-      errEl.textContent = err.message || 'Registration failed';
-      errEl.classList.remove('hidden');
-    } finally {
-      btn.disabled = false;
-      btn.innerHTML = '<span>Create Account</span>';
-    }
-  });
-
-  const logoutBtn = $('#logoutBtn');
-  if (logoutBtn) {
-    logoutBtn.addEventListener('click', () => {
-      if (confirm('Logout from MSAFIRI?')) logout();
+  const loginForm = $('#loginForm');
+  if (loginForm) {
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = $('#loginBtn');
+      const errEl = $('#loginError');
+      errEl.classList.add('hidden');
+      btn.disabled = true;
+      btn.innerHTML = '<div class="loader"></div>';
+      try {
+        const email = $('#loginEmail').value.trim();
+        const password = $('#loginPassword').value;
+        const res = await login(email, password);
+        saveSession(res.token);
+        CURRENT_USER = res.user;
+        toast('Welcome back!', 'success');
+        await startApp();
+      } catch (err) {
+        errEl.textContent = err.message || 'Login failed';
+        errEl.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span>Login</span>';
+      }
     });
   }
+
+  const registerForm = $('#registerForm');
+  if (registerForm) {
+    registerForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = $('#registerBtn');
+      const errEl = $('#registerError');
+      errEl.classList.add('hidden');
+      btn.disabled = true;
+      btn.innerHTML = '<div class="loader"></div>';
+      try {
+        const name = $('#regName').value.trim();
+        const username = $('#regUsername').value.trim() || null;
+        const email = $('#regEmail').value.trim();
+        const password = $('#regPassword').value;
+        const res = await register(name, email, password, username);
+        saveSession(res.token);
+        CURRENT_USER = res.user;
+        toast('Account created!', 'success');
+        await startApp();
+      } catch (err) {
+        errEl.textContent = err.message || 'Registration failed';
+        errEl.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span>Create Account</span>';
+      }
+    });
+  }
+
   const themeBtn = $('#themeToggle');
   if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
 }
@@ -366,7 +365,7 @@ function makeActionBtn(filled, kind, count, color, onClick) {
   return btn;
 }
 
-// ============ ACTIONS (LIKE/SAVE/RESHARE) ============
+// ============ ACTIONS ============
 async function toggleLike(post) {
   try {
     if (post.liked) {
@@ -501,10 +500,7 @@ function renderFeed(feedType = 'all') {
     onkeydown: (e) => {
       if (e.key === 'Enter') {
         const q = e.target.value.trim();
-        if (q) {
-          switchView('search');
-          openSearchWithQuery(q);
-        }
+        if (q) openSearchWithQuery(q);
       }
     }
   });
@@ -536,9 +532,7 @@ function renderFeed(feedType = 'all') {
   addStoryBtn.appendChild(el('div', { style: 'font-size:11px;color:var(--text-2);font-weight:600;' }, 'My Story'));
   storiesBar.appendChild(addStoryBtn);
 
-  if (typeof loadStories === 'function') {
-    loadStories(storiesBar);
-  }
+  loadStories(storiesBar);
 
   // Posts
   if (CACHED_POSTS.length === 0) {
@@ -556,10 +550,9 @@ async function startApp() {
   await loadFeed('all');
 }
 
-
 /* ============================================================
    APP.JS — PART 2/3
-   Post Creator, Comments, Profile, Chat, Story
+   Post Creator, Comments, Profile, Chat, Story, Call UI
    ============================================================ */
 
 // ============ POST CREATOR ============
@@ -574,6 +567,7 @@ function openCreatePost() {
   closeBtn.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
   h.appendChild(closeBtn);
   content.appendChild(h);
+
   const body = el('div', { class: 'modal-body' });
   const textarea = el('textarea', {
     placeholder: "What's on your mind?", rows: 5,
@@ -1026,11 +1020,9 @@ async function openChat(otherId, name, avatar, username) {
   header.appendChild(menuBtn);
   main.appendChild(header);
 
-  // Messages area
   const msgsWrap = el('div', { class: 'chat-messages', id: 'msgsWrap' });
   main.appendChild(msgsWrap);
 
-  // Load wallpaper
   try {
     const s = await api(`/api/chats/${otherId}/settings`);
     if (s.settings && s.settings.wallpaper) {
@@ -1063,13 +1055,12 @@ async function openChat(otherId, name, avatar, username) {
   composer.appendChild(micBtn);
   main.appendChild(composer);
 
-  // Mic recording state
+  // Mic recording
   let isRecording = false;
   let mediaRecorder = null;
   let audioChunks = [];
   let recordingLabel = null;
 
-  // Typing indicator
   let typingTimer = null;
   function showTyping() {
     if (typingIndicator) typingIndicator.classList.add('show');
@@ -1079,7 +1070,6 @@ async function openChat(otherId, name, avatar, username) {
     }, 2000);
   }
 
-  // Toggle send/mic based on input
   msgInput.addEventListener('input', () => {
     const hasText = msgInput.value.trim().length > 0;
     sendBtn.style.display = hasText ? 'flex' : 'none';
@@ -1087,7 +1077,6 @@ async function openChat(otherId, name, avatar, username) {
     if (hasText) showTyping();
   });
 
-  // Send text
   async function sendText() {
     const text = msgInput.value.trim();
     if (!text) return;
@@ -1105,7 +1094,6 @@ async function openChat(otherId, name, avatar, username) {
   sendBtn.addEventListener('click', sendText);
   msgInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendText(); });
 
-  // Mic — long press to record
   micBtn.addEventListener('mousedown', startRecording);
   micBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startRecording(); }, { passive: false });
   micBtn.addEventListener('mouseup', stopRecording);
@@ -1141,7 +1129,6 @@ async function openChat(otherId, name, avatar, username) {
       mediaRecorder.start();
       isRecording = true;
       micBtn.classList.add('recording');
-      // Recording label
       const inputWrap = msgInput.parentElement;
       recordingLabel = el('div', { class: 'chat-recording-label' }, 'recording audio...');
       inputWrap.appendChild(recordingLabel);
@@ -1162,7 +1149,6 @@ async function openChat(otherId, name, avatar, username) {
     msgInput.placeholder = 'Type text here';
   }
 
-  // Load messages
   try {
     const data = await api(`/api/messages/${otherId}`);
     if (!data.messages || data.messages.length === 0) {
@@ -1337,18 +1323,6 @@ async function openChatWith(user) {
   openChat(user.id, user.name, user.avatar, user.username);
 }
 
-async function startCall(otherId, type, name) {
-  try {
-    toast('Starting ' + type + ' call...', 'info');
-    const res = await api('/api/calls/token', {
-      method: 'POST',
-      body: JSON.stringify({ receiver_id: otherId, call_type: type }),
-    });
-    toast('LiveKit ready: room ' + res.room_name, 'success');
-    alert('Call token created!\nRoom: ' + res.room_name + '\n\nNote: Full LiveKit client SDK integration needed for call UI.');
-  } catch (err) { toast(err.message, 'error'); }
-}
-
 // ============ STORIES ============
 async function loadStories(storiesBar) {
   try {
@@ -1405,7 +1379,6 @@ function openStoryViewer(group) {
     isPaused = false;
     const s = group.statuses[idx];
 
-    // Progress bars
     const progressWrap = el('div', { class: 'story-progress-wrap' });
     const bars = [];
     for (let i = 0; i < total; i++) {
@@ -1418,7 +1391,6 @@ function openStoryViewer(group) {
     overlay.appendChild(progressWrap);
     currentProgressBar = bars[idx];
 
-    // Header
     const header = el('div', { class: 'story-header' });
     if (group.user.avatar) {
       header.appendChild(el('img', { src: group.user.avatar, class: 'story-avatar' }));
@@ -1456,7 +1428,6 @@ function openStoryViewer(group) {
     header.appendChild(closeBtn);
     overlay.appendChild(header);
 
-    // Content
     const content = el('div', { class: 'story-content' });
 
     if (s.media_type === 'video') {
@@ -1483,7 +1454,6 @@ function openStoryViewer(group) {
 
     overlay.appendChild(content);
 
-    // Tap zones
     const tapLeft = el('div', { class: 'story-tap-left' });
     const tapRight = el('div', { class: 'story-tap-right' });
     tapLeft.onclick = () => { clearTimer(); if (idx > 0) { idx--; render(); } else closeModal(); };
@@ -1491,7 +1461,6 @@ function openStoryViewer(group) {
     overlay.appendChild(tapLeft);
     overlay.appendChild(tapRight);
 
-    // Long press pause
     let holdTimer = null;
     function startHold() {
       holdTimer = setTimeout(() => {
@@ -1627,10 +1596,329 @@ function openCreateStory() {
   container.appendChild(overlay);
 }
 
+// ============ LIVEKIT CALLS (PHASE 4) ============
+let CURRENT_CALL = null;
+let SPEAKER_ON = true;
+let RINGTONE_INTERVAL = null;
+let RINGTONE_AUDIO_CTX = null;
+let LIVEKIT_LOADING_PROMISE = null;
+
+function loadLiveKit() {
+  if (window.LivekitClient) return Promise.resolve(window.LivekitClient);
+  if (LIVEKIT_LOADING_PROMISE) return LIVEKIT_LOADING_PROMISE;
+  LIVEKIT_LOADING_PROMISE = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js';
+    s.async = true;
+    s.onload = () => {
+      if (window.LivekitClient) resolve(window.LivekitClient);
+      else reject(new Error('LiveKit SDK not available'));
+    };
+    s.onerror = () => reject(new Error('Failed to load LiveKit SDK'));
+    document.head.appendChild(s);
+  });
+  return LIVEKIT_LOADING_PROMISE;
+}
+
+function playBeep(frequency = 800, duration = 200, volume = 0.3) {
+  try {
+    if (!RINGTONE_AUDIO_CTX) {
+      RINGTONE_AUDIO_CTX = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    const ctx = RINGTONE_AUDIO_CTX;
+    if (ctx.state === 'suspended') ctx.resume();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = frequency;
+    gain.gain.setValueAtTime(0, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(volume, ctx.currentTime + 0.01);
+    gain.gain.setValueAtTime(volume, ctx.currentTime + (duration / 1000) - 0.05);
+    gain.gain.linearRampToValueAtTime(0, ctx.currentTime + (duration / 1000));
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + (duration / 1000));
+  } catch (err) {
+    console.warn('[Ringtone]', err);
+  }
+}
+
+function playDoubleBeep() {
+  playBeep(800, 250, 0.35);
+  setTimeout(() => playBeep(800, 250, 0.35), 350);
+}
+
+function startRingtone() {
+  stopRingtone();
+  playDoubleBeep();
+  RINGTONE_INTERVAL = setInterval(playDoubleBeep, 2000);
+}
+
+function stopRingtone() {
+  if (RINGTONE_INTERVAL) {
+    clearInterval(RINGTONE_INTERVAL);
+    RINGTONE_INTERVAL = null;
+  }
+}
+
+function toggleSpeaker() {
+  SPEAKER_ON = !SPEAKER_ON;
+  const btn = $('#callSpeakerBtn');
+  if (btn) {
+    btn.classList.toggle('speaker-on', SPEAKER_ON);
+    btn.classList.toggle('speaker-off', !SPEAKER_ON);
+  }
+  const remoteVideos = document.querySelectorAll('#callRemoteVideo video, #callRemoteVideo audio');
+  remoteVideos.forEach(el => {
+    el.volume = SPEAKER_ON ? 1.0 : 0.3;
+  });
+  toast(SPEAKER_ON ? 'Loudspeaker ON' : 'Loudspeaker OFF', 'info');
+}
+
+async function startCall(otherId, callType, name) {
+  if (!window.LivekitClient) {
+    toast('Loading call engine...', 'info');
+    try {
+      await loadLiveKit();
+    } catch (err) {
+      toast('Call engine unavailable. Check network.', 'error');
+      return;
+    }
+  }
+
+  if (CURRENT_CALL) {
+    toast('Already in a call', 'error');
+    return;
+  }
+
+  try {
+    toast('Calling ' + name + '...', 'info');
+    const res = await api('/api/calls/token', {
+      method: 'POST',
+      body: JSON.stringify({ receiver_id: otherId, call_type: callType }),
+    });
+
+    CURRENT_CALL = {
+      receiverId: otherId,
+      callType: res.call_type,
+      roomName: res.room_name,
+      livekitUrl: res.livekit_url,
+      role: 'caller',
+      remoteName: name,
+    };
+
+    showCallScreen();
+    startRingtone();
+    await connectLiveKit(res.token, res.livekit_url, res.room_name);
+  } catch (err) {
+    toast(err.message, 'error');
+    CURRENT_CALL = null;
+    hideCallScreen();
+    stopRingtone();
+  }
+}
+
+async function connectLiveKit(token, url, roomName) {
+  const { Room, RoomEvent } = window.LivekitClient;
+
+  const room = new Room({ adaptiveStream: true, dynacast: true });
+  CURRENT_CALL.room = room;
+
+  room
+    .on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
+      const el = track.attach();
+      el.style.width = '100%';
+      el.style.height = '100%';
+      el.style.objectFit = 'cover';
+      el.setAttribute('playsinline', 'true');
+      if (track.kind === 'video') {
+        const remoteVideo = $('#callRemoteVideo');
+        if (remoteVideo) {
+          remoteVideo.innerHTML = '';
+          remoteVideo.appendChild(el);
+        }
+      } else if (track.kind === 'audio') {
+        el.style.display = 'none';
+        document.body.appendChild(el);
+      }
+    })
+    .on(RoomEvent.ParticipantConnected, (participant) => {
+      if (CURRENT_CALL) {
+        CURRENT_CALL.connected = true;
+        if (CURRENT_CALL.timeoutId) {
+          clearTimeout(CURRENT_CALL.timeoutId);
+          CURRENT_CALL.timeoutId = null;
+        }
+      }
+      stopRingtone();
+      const statusEl = $('#callStatus');
+      if (statusEl) statusEl.textContent = 'Connected';
+      toast(participant.name || 'Someone joined', 'success');
+    })
+    .on(RoomEvent.ParticipantDisconnected, () => {
+      toast('Call ended by other party', 'info');
+      endCall();
+    })
+    .on(RoomEvent.Disconnected, () => {
+      endCall();
+    })
+    .on(RoomEvent.LocalTrackPublished, (publication) => {
+      if (publication.track && publication.track.kind === 'video') {
+        const localVideo = $('#callLocalVideo');
+        if (localVideo) {
+          localVideo.innerHTML = '';
+          const el = publication.track.attach();
+          el.style.width = '100%';
+          el.style.height = '100%';
+          el.style.objectFit = 'cover';
+          el.setAttribute('playsinline', 'true');
+          el.muted = true;
+          localVideo.appendChild(el);
+        }
+      }
+    });
+
+  await room.connect(url, token);
+  console.log('[MSAFIRI] Connected to LiveKit room:', roomName);
+
+  try {
+    await room.localParticipant.enableCameraAndMicrophone();
+  } catch (err) {
+    console.warn('[MSAFIRI] Camera/mic error:', err);
+    toast('Camera/mic permission denied', 'error');
+    try {
+      await room.localParticipant.setMicrophoneEnabled(true);
+    } catch (_) {}
+  }
+
+  // Auto-end after 30s if no answer
+  if (CURRENT_CALL && CURRENT_CALL.role === 'caller') {
+    CURRENT_CALL.timeoutId = setTimeout(() => {
+      if (CURRENT_CALL && !CURRENT_CALL.connected) {
+        console.log('[MSAFIRI] No answer after 30s — ending call');
+        stopRingtone();
+        const statusEl = $('#callStatus');
+        if (statusEl) statusEl.textContent = 'No answer';
+        toast('No answer', 'info');
+        setTimeout(() => endCall(), 1500);
+      }
+    }, 30000);
+  }
+}
+
+function showCallScreen() {
+  if (!CURRENT_CALL) return;
+  const overlay = el('div', { class: 'call-overlay', id: 'callOverlay' });
+
+  const remoteVideo = el('div', { class: 'call-remote-video', id: 'callRemoteVideo' });
+  overlay.appendChild(remoteVideo);
+
+  const localVideo = el('div', { class: 'call-local-video', id: 'callLocalVideo' });
+  overlay.appendChild(localVideo);
+
+  const header = el('div', { class: 'call-header' });
+  header.appendChild(el('div', { class: 'call-name' }, CURRENT_CALL.remoteName || 'Calling...'));
+  header.appendChild(el('div', { class: 'call-status', id: 'callStatus' }, 'Connecting...'));
+  overlay.appendChild(header);
+
+  const controls = el('div', { class: 'call-controls' });
+
+  const micBtn = el('button', { class: 'call-control-btn', id: 'callMicBtn', title: 'Mute' });
+  micBtn.innerHTML = '<svg viewBox="0 0 24 24" style="width:26px;height:26px;stroke:white;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>';
+  micBtn.addEventListener('click', toggleMic);
+  controls.appendChild(micBtn);
+
+  if (CURRENT_CALL.callType === 'video') {
+    const camBtn = el('button', { class: 'call-control-btn', id: 'callCamBtn', title: 'Camera' });
+    camBtn.innerHTML = '<svg viewBox="0 0 24 24" style="width:26px;height:26px;stroke:white;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>';
+    camBtn.addEventListener('click', toggleCamera);
+    controls.appendChild(camBtn);
+
+    const switchBtn = el('button', { class: 'call-control-btn', id: 'callSwitchBtn', title: 'Switch camera' });
+    switchBtn.innerHTML = '<svg viewBox="0 0 24 24" style="width:26px;height:26px;stroke:white;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>';
+    switchBtn.addEventListener('click', switchCamera);
+    controls.appendChild(switchBtn);
+  }
+
+  const speakerBtn = el('button', { class: 'call-control-btn', id: 'callSpeakerBtn', title: 'Speaker' });
+  speakerBtn.innerHTML = '<svg viewBox="0 0 24 24" style="width:26px;height:26px;stroke:white;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>';
+  speakerBtn.classList.add('speaker-on');
+  speakerBtn.addEventListener('click', toggleSpeaker);
+  controls.appendChild(speakerBtn);
+
+  const endBtn = el('button', { class: 'call-control-btn call-end-btn', title: 'End call' });
+  endBtn.innerHTML = '<svg viewBox="0 0 24 24" style="width:26px;height:26px;stroke:white;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>';
+  endBtn.addEventListener('click', endCall);
+  controls.appendChild(endBtn);
+
+  overlay.appendChild(controls);
+  document.body.appendChild(overlay);
+}
+
+function hideCallScreen() {
+  const overlay = $('#callOverlay');
+  if (overlay) overlay.remove();
+}
+
+async function toggleMic() {
+  if (!CURRENT_CALL || !CURRENT_CALL.room) return;
+  const btn = $('#callMicBtn');
+  try {
+    const lp = CURRENT_CALL.room.localParticipant;
+    const isEnabled = lp.isMicrophoneEnabled;
+    await lp.setMicrophoneEnabled(!isEnabled);
+    btn.classList.toggle('muted', isEnabled);
+  } catch (err) {
+    console.warn(err);
+  }
+}
+
+async function toggleCamera() {
+  if (!CURRENT_CALL || !CURRENT_CALL.room) return;
+  const btn = $('#callCamBtn');
+  try {
+    const lp = CURRENT_CALL.room.localParticipant;
+    const isEnabled = lp.isCameraEnabled;
+    await lp.setCameraEnabled(!isEnabled);
+    btn.classList.toggle('muted', isEnabled);
+  } catch (err) {
+    console.warn(err);
+  }
+}
+
+async function switchCamera() {
+  if (!CURRENT_CALL || !CURRENT_CALL.room) return;
+  try {
+    const lp = CURRENT_CALL.room.localParticipant;
+    const pub = Array.from(lp.videoTrackPublications.values())[0];
+    if (pub && pub.track) {
+      await pub.track.restartTrack({ facingMode: 'environment' });
+    }
+  } catch (err) {
+    console.warn(err);
+  }
+}
+
+async function endCall() {
+  stopRingtone();
+  if (CURRENT_CALL && CURRENT_CALL.timeoutId) {
+    clearTimeout(CURRENT_CALL.timeoutId);
+    CURRENT_CALL.timeoutId = null;
+  }
+  if (CURRENT_CALL && CURRENT_CALL.room) {
+    try {
+      await CURRENT_CALL.room.disconnect();
+    } catch (_) {}
+  }
+  CURRENT_CALL = null;
+  hideCallScreen();
+  toast('Call ended', 'info');
+}
 
 /* ============================================================
    APP.JS — PART 3/3
-   Search, Discovery, Video, User Manual, Init
+   Search, Discovery, AI, Studio, Market, Channels, Video, User Manual, Init
    ============================================================ */
 
 // ============ SEARCH ============
@@ -1752,7 +2040,6 @@ function openDiscoveryItem(key) {
   else if (key === 'settings') openSettings();
 }
 
-// ============ DISCOVERY SUB-PAGE HEADER ============
 function subPageHeader(title, backFn) {
   const header = el('div', { class: 'discovery-back' });
   const back = el('button', { class: 'discovery-back-btn', onclick: backFn || openDiscovery });
@@ -1770,7 +2057,6 @@ function openAICouncil() {
   main.appendChild(subPageHeader('AI Council'));
 
   const list = el('div', { class: 'ai-list' });
-
   const ais = [
     { key: 'edu', icon: 'book', label: 'Education AI', desc: 'Study notes, syllabus, past papers', color: '#3b82f6' },
     { key: 'health', icon: 'heart', label: 'Health AI', desc: 'General health information', color: '#10b981' },
@@ -1778,7 +2064,6 @@ function openAICouncil() {
     { key: 'research', icon: 'search', label: 'Research AI', desc: 'Methodology, citations', color: '#8b5cf6' },
     { key: 'canvas', icon: 'layout', label: 'AI Canvas', desc: 'Workspace with documents', color: '#f59e0b' },
   ];
-
   const icons = {
     book: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
     heart: '<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>',
@@ -1786,7 +2071,6 @@ function openAICouncil() {
     search: '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
     layout: '<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/>',
   };
-
   for (const a of ais) {
     const item = el('div', { class: 'ai-list-item', onclick: () => openAISub(a.key, a.label) });
     const iconWrap = el('div', { class: 'ai-list-icon', style: `background:${a.color};` });
@@ -1823,21 +2107,12 @@ function openEduAI() {
   const main = $('#appMain');
   main.innerHTML = '';
   main.appendChild(subPageHeader('Education AI', openAICouncil));
+  main.appendChild(el('div', { style: 'padding:16px 16px 8px;font-weight:700;font-size:15px;' }, 'Step 1 — Choose country'));
 
-  const stepLabel = el('div', { style: 'padding:16px 16px 8px;font-weight:700;font-size:15px;' }, 'Step 1 — Choose country');
-  main.appendChild(stepLabel);
-
-  const countries = [
-    'Tanzania', 'Kenya', 'Uganda', 'Rwanda', 'Burundi', 'South Africa',
-    'Nigeria', 'Ghana', 'UK', 'USA', 'Canada', 'Australia', 'India',
-    'China', 'Japan', 'Germany', 'France', 'Brazil'
-  ];
+  const countries = ['Tanzania','Kenya','Uganda','Rwanda','Burundi','South Africa','Nigeria','Ghana','UK','USA','Canada','Australia','India','China','Japan','Germany','France','Brazil'];
   const grid = el('div', { class: 'selector-grid' });
   for (const c of countries) {
-    grid.appendChild(el('div', {
-      class: 'selector-item',
-      onclick: () => openEduLevel(c),
-    }, c));
+    grid.appendChild(el('div', { class: 'selector-item', onclick: () => openEduLevel(c) }, c));
   }
   main.appendChild(grid);
 }
@@ -1846,16 +2121,12 @@ function openEduLevel(country) {
   const main = $('#appMain');
   main.innerHTML = '';
   main.appendChild(subPageHeader('Education AI — ' + country, openEduAI));
-
   main.appendChild(el('div', { style: 'padding:16px 16px 8px;font-weight:700;font-size:15px;' }, 'Step 2 — Choose level'));
 
-  const levels = ['Nursery', 'Primary', 'Secondary', 'High School', 'Certificate', 'Diploma', 'Degree', 'Master', 'PhD'];
+  const levels = ['Nursery','Primary','Secondary','High School','Certificate','Diploma','Degree','Master','PhD'];
   const grid = el('div', { class: 'selector-grid' });
   for (const l of levels) {
-    grid.appendChild(el('div', {
-      class: 'selector-item',
-      onclick: () => openEduContent(country, l),
-    }, l));
+    grid.appendChild(el('div', { class: 'selector-item', onclick: () => openEduContent(country, l) }, l));
   }
   main.appendChild(grid);
 }
@@ -1864,21 +2135,12 @@ function openEduContent(country, level) {
   const main = $('#appMain');
   main.innerHTML = '';
   main.appendChild(subPageHeader(level + ' — ' + country, () => openEduLevel(country)));
-
   main.appendChild(el('div', { style: 'padding:16px 16px 8px;font-weight:700;font-size:15px;' }, 'Step 3 — Choose content'));
 
-  const types = [
-    { key: 'notes', label: 'Notes' },
-    { key: 'books', label: 'Books' },
-    { key: 'papers', label: 'Past Papers' },
-    { key: 'schemes', label: 'Marking Schemes' },
-  ];
+  const types = ['Notes', 'Books', 'Past Papers', 'Marking Schemes'];
   const grid = el('div', { class: 'selector-grid' });
   for (const t of types) {
-    grid.appendChild(el('div', {
-      class: 'selector-item',
-      onclick: () => openEduChat(country, level, t.label),
-    }, t.label));
+    grid.appendChild(el('div', { class: 'selector-item', onclick: () => openEduChat(country, level, t) }, t));
   }
   main.appendChild(grid);
 }
@@ -1998,7 +2260,7 @@ function openSettings() {
     { label: 'User Manual', icon: '📖', fn: () => openUserManual() },
     { label: 'Toggle Theme', icon: '🌓', fn: () => toggleTheme() },
     { label: 'Version', icon: 'ℹ️', fn: () => toast('MSAFIRI MEDIA V0.0.1', 'info') },
-    { label: 'Logout', icon: '🚪', fn: () => logout() },
+    { label: 'Logout', icon: '🚪', fn: () => { if (confirm('Logout?')) logout(); } },
   ];
   for (const it of items) {
     const row = el('div', { class: 'ai-list-item', onclick: it.fn });
@@ -2022,15 +2284,10 @@ async function openVideos() {
   try {
     const data = await api('/api/videos?limit=30');
     CACHED_VIDEOS = data.videos || [];
-
     if (CACHED_VIDEOS.length === 0) {
-      container.innerHTML = `<div class="empty-state" style="height:100%;color:white;">
-        <p class="empty-state-title" style="color:white;">No videos yet</p>
-        <p class="empty-state-text" style="color:rgba(255,255,255,0.7);">Be the first to share a video!</p>
-      </div>`;
+      container.innerHTML = '<div class="empty-state" style="height:100%;color:white;"><p class="empty-state-title" style="color:white;">No videos yet</p><p class="empty-state-text" style="color:rgba(255,255,255,0.7);">Be the first to share a video!</p></div>';
       return;
     }
-
     window._videoIndex = 0;
     renderVideoFeed();
   } catch (err) {
@@ -2046,10 +2303,7 @@ function renderVideoFeed() {
   const video = CACHED_VIDEOS[window._videoIndex];
   if (!video) return;
 
-  const videoEl = el('video', {
-    src: video.media, autoplay: true, playsinline: true, loop: true,
-    class: 'video-feed-video',
-  });
+  const videoEl = el('video', { src: video.media, autoplay: true, playsinline: true, loop: true, class: 'video-feed-video' });
   videoEl.addEventListener('click', () => {
     if (videoEl.paused) videoEl.play().catch(() => {});
     else videoEl.pause();
@@ -2057,7 +2311,6 @@ function renderVideoFeed() {
   container.appendChild(videoEl);
   setTimeout(() => { videoEl.play().catch(() => { videoEl.muted = true; videoEl.play().catch(() => {}); }); }, 100);
 
-  // Actions
   const actions = el('div', { class: 'video-feed-actions' });
 
   const likeBtn = el('div', { class: 'video-feed-action' });
@@ -2103,7 +2356,6 @@ function renderVideoFeed() {
   actions.appendChild(muteBtn);
   container.appendChild(actions);
 
-  // Info
   const info = el('div', { class: 'video-feed-info' });
   const userRow = el('div', { class: 'video-feed-user', onclick: () => openProfile(video.user.id) });
   userRow.appendChild(avatarEl(video.user, 40));
@@ -2113,7 +2365,6 @@ function renderVideoFeed() {
   info.appendChild(el('div', { class: 'video-feed-time' }, timeAgo(video.created_at)));
   container.appendChild(info);
 
-  // Swipe
   let startY = 0;
   container.addEventListener('touchstart', (e) => { startY = e.touches[0].clientY; }, { passive: true });
   container.addEventListener('touchend', (e) => {
@@ -2131,7 +2382,6 @@ function openUserManual() {
   container.innerHTML = '';
   const overlay = el('div', { class: 'modal-overlay', onclick: (e) => { if (e.target === overlay) closeModal(); } });
   const content = el('div', { class: 'modal-content', style: 'max-height:95vh;' });
-
   const h = el('div', { class: 'modal-header' });
   h.appendChild(el('h3', {}, 'User Manual'));
   const cb = el('button', { class: 'btn-icon', onclick: closeModal });
@@ -2147,46 +2397,39 @@ function openUserManual() {
         <div class="manual-title">MSAFIRI GLOBAL MEDIA</div>
         <div class="manual-subtitle">Connect beyond — Media V0.0.1</div>
       </div>
-
       <div class="manual-section">
         <h4>About MSAFIRI</h4>
-        <p>MSAFIRI GLOBAL MEDIA is a social, communication, and AI platform that connects people across the world. It was founded by <strong>MSAFIRI WILLIAM MUNGA</strong> under the company <strong>ZetroLink Technology Limited</strong>.</p>
+        <p>MSAFIRI GLOBAL MEDIA is a social, communication, and AI platform. Founded by <strong>MSAFIRI WILLIAM MUNGA</strong> under <strong>ZetroLink Technology Limited</strong>.</p>
         <p>Version: <strong>Media V0.0.1</strong></p>
       </div>
-
       <div class="manual-section">
-        <h4>Sections of the App</h4>
+        <h4>Sections</h4>
         <ul>
-          <li><strong>Home</strong> — See posts from people you follow, discover new content, post photos/videos/files, share stories.</li>
-          <li><strong>Discovery</strong> — Access AI Council (Education, Health, Agriculture, Research), Creative Studio, Market, World Map, Channels, Communities.</li>
-          <li><strong>Chats</strong> — WhatsApp-style messaging with voice notes, photos, videos, files.</li>
-          <li><strong>Profile</strong> — Your personal profile — posts, followers, following, bio, avatar.</li>
+          <li><strong>Home</strong> — Feed, stories, posts.</li>
+          <li><strong>Discovery</strong> — AI Council, Studio, Market, World Map, Channels, Communities.</li>
+          <li><strong>Chats</strong> — WhatsApp-style messaging.</li>
+          <li><strong>Profile</strong> — Your profile.</li>
         </ul>
       </div>
-
       <div class="manual-section">
-        <h4>How to Use MSAFIRI</h4>
+        <h4>How to Use</h4>
         <ul>
-          <li><strong>Create account:</strong> Tap Register, fill name/email/password, tap Create Account.</li>
-          <li><strong>Post content:</strong> Tap Create (+) on Home, write caption, choose Photo/Video/File, tap Post.</li>
-          <li><strong>Share story:</strong> Tap "+ My Story" on Home, pick media, add caption, tap Post Story.</li>
-          <li><strong>Chat with someone:</strong> Go to their profile, tap Message icon, type or record.</li>
-          <li><strong>Explore AI:</strong> Go to Discovery → AI Council → choose an AI.</li>
+          <li>Register: tap Register, fill details, tap Create Account.</li>
+          <li>Post: tap +, write caption, choose media, tap Post.</li>
+          <li>Story: tap "+ My Story", pick media, tap Post Story.</li>
+          <li>Chat: go to profile, tap Message icon.</li>
         </ul>
       </div>
-
       <div class="manual-section">
         <h4>Support</h4>
-        <p>For help, contact ZetroLink Technology Limited.</p>
+        <p>Contact ZetroLink Technology Limited.</p>
       </div>
-
       <button class="manual-download-btn" onclick="downloadManual()">
         <svg class="icon" viewBox="0 0 24 24" style="width:20px;height:20px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Download User Manual
       </button>
     </div>
   `;
-
   content.appendChild(body);
   overlay.appendChild(content);
   container.appendChild(overlay);
@@ -2203,13 +2446,6 @@ SECTIONS:
 2. Discovery — AI Council, Studio, Market, World Map, Channels, Communities
 3. Chats — Messaging, voice notes, media sharing
 4. Profile — Personal profile, followers, posts
-
-HOW TO USE:
-- Register: Tap Register, fill details, tap Create Account
-- Post: Tap Create (+), write caption, choose media, tap Post
-- Story: Tap "+ My Story", pick media, tap Post Story
-- Chat: Go to profile, tap Message icon
-- AI: Discovery → AI Council → Choose an AI
 
 © ZetroLink Technology Limited
 `;
@@ -2229,9 +2465,7 @@ function openThreeDotsMenu() {
     { label: 'User Manual', icon: '📖', onClick: () => openUserManual() },
     { label: 'Toggle Theme', icon: '🌓', onClick: () => toggleTheme() },
     { label: 'Version — Media V0.0.1', icon: 'ℹ️', onClick: () => toast('MSAFIRI MEDIA V0.0.1', 'info') },
-    { label: 'Logout', icon: '🚪', danger: true, onClick: () => {
-      if (confirm('Logout from MSAFIRI?')) logout();
-    }},
+    { label: 'Logout', icon: '🚪', danger: true, onClick: () => { if (confirm('Logout from MSAFIRI?')) logout(); } },
   ];
 
   const container = $('#modalContainer');
@@ -2295,18 +2529,17 @@ async function init() {
 
     TOKEN = getSavedToken();
 
+    const splash = $('#splashScreen');
+    const splashTime = splash ? 6000 : 500;
+
     if (TOKEN) {
       try {
         await loadMe();
-        // Wait for splash (6 seconds total)
-        const splash = $('#splashScreen');
-        const splashTime = splash ? 6000 : 500;
         setTimeout(async () => {
           await startApp();
         }, splashTime);
         return;
       } catch (err) {
-        console.warn('[MSAFIRI] Auto-login failed:', err.message);
         TOKEN = null;
         CURRENT_USER = null;
         localStorage.removeItem('msafiri_token');
@@ -2314,8 +2547,6 @@ async function init() {
       }
     }
 
-    const splash = $('#splashScreen');
-    const splashTime = splash ? 6000 : 500;
     setTimeout(() => showAuth(), splashTime);
 
   } catch (err) {
@@ -2338,391 +2569,18 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
-// ============ DOM CONTENT LOADED ============
-// ============================================================
-// LIVEKIT CALLS (PHASE 4)
-// ============================================================
-
-let CURRENT_CALL = null; // { room, localTrack, remoteTracks, receiverId, callType, role }
-
-async function startCall(otherId, callType, name) {
-  // Load LiveKit on demand
-  if (!window.LivekitClient) {
-    toast('Loading call engine...', 'info');
-    try {
-      await loadLiveKit();
-    } catch (err) {
-      toast('Call engine unavailable. Check network.', 'error');
-      return;
-    }
-  }
-
-  if (CURRENT_CALL) {
-    toast('Already in a call', 'error');
-    return;
-  }
-
-  try {
-    toast('Calling ' + name + '...', 'info');
-    const res = await api('/api/calls/token', {
-      method: 'POST',
-      body: JSON.stringify({ receiver_id: otherId, call_type: callType }),
-    });
-
-    CURRENT_CALL = {
-      receiverId: otherId,
-      callType: res.call_type,
-      roomName: res.room_name,
-      livekitUrl: res.livekit_url,
-      role: 'caller',
-      remoteName: name,
-    };
-
-    showCallScreen();
-    startRingtone();
-    await connectLiveKit(res.token, res.livekit_url, res.room_name);
-  } catch (err) {
-    toast(err.message, 'error');
-    CURRENT_CALL = null;
-    hideCallScreen();
-    stopRingtone();
-  }
-}
-
-async function connectLiveKit(token, url, roomName) {
-  const { Room, RoomEvent, Track } = window.LivekitClient;
-
-  const room = new Room({
-    adaptiveStream: true,
-    dynacast: true,
-  });
-
-  CURRENT_CALL.room = room;
-
-  room
-    .on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
-      const el = track.attach();
-      el.style.width = '100%';
-      el.style.height = '100%';
-      el.style.objectFit = 'cover';
-      el.setAttribute('playsinline', 'true');
-      if (track.kind === 'video') {
-        const remoteVideo = $('#callRemoteVideo');
-        remoteVideo.innerHTML = '';
-        remoteVideo.appendChild(el);
-      } else if (track.kind === 'audio') {
-        el.style.display = 'none';
-        document.body.appendChild(el);
-      }
-    })
-    .on(RoomEvent.ParticipantConnected, (participant) => {
-  if (CURRENT_CALL) {
-    CURRENT_CALL.connected = true;
-    if (CURRENT_CALL.timeoutId) {
-      clearTimeout(CURRENT_CALL.timeoutId);
-      CURRENT_CALL.timeoutId = null;
-    }
-  }
-  stopRingtone();
-  const statusEl = $('#callStatus');
-  if (statusEl) statusEl.textContent = 'Connected';
-  toast(participant.name || 'Someone joined', 'success');
-})
-    .on(RoomEvent.ParticipantConnected, (participant) => {
-      toast(participant.name || 'Someone joined', 'success');
-    })
-    .on(RoomEvent.ParticipantDisconnected, () => {
-      toast('Call ended by other party', 'info');
-      endCall();
-    })
-    .on(RoomEvent.Disconnected, () => {
-      endCall();
-    })
-    .on(RoomEvent.LocalTrackPublished, (publication) => {
-      if (publication.track && publication.track.kind === 'video') {
-        const localVideo = $('#callLocalVideo');
-        localVideo.innerHTML = '';
-        const el = publication.track.attach();
-        el.style.width = '100%';
-        el.style.height = '100%';
-        el.style.objectFit = 'cover';
-        el.setAttribute('playsinline', 'true');
-        el.muted = true;
-        localVideo.appendChild(el);
-      }
-    });
-// Stop ringtone when someone else joins
-room.on(RoomEvent.ParticipantConnected, () => {
-  stopRingtone();
-  const statusEl = $('#callStatus');
-  if (statusEl) statusEl.textContent = 'Connected';
-});
-   
-  await room.connect(url, token);
-console.log('[MSAFIRI] Connected to LiveKit room:', roomName);
-
-try {
-  await room.localParticipant.enableCameraAndMicrophone();
-} catch (err) {
-  console.warn('[MSAFIRI] Camera/mic error:', err);
-  toast('Camera/mic permission denied', 'error');
-  try {
-    await room.localParticipant.setMicrophoneEnabled(true);
-  } catch (_) {}
-}
-
-// ===== AUTO-END AFTER 30 SECONDS IF NO ONE ANSWERS =====
-if (CURRENT_CALL && CURRENT_CALL.role === 'caller') {
-  CURRENT_CALL.timeoutId = setTimeout(() => {
-    if (CURRENT_CALL && !CURRENT_CALL.connected) {
-      console.log('[MSAFIRI] No answer after 30s — ending call');
-      stopRingtone();
-      const statusEl = $('#callStatus');
-      if (statusEl) statusEl.textContent = 'No answer';
-      toast('No answer', 'info');
-      setTimeout(() => endCall(), 1500);
-    }
-  }, 30000);
-}
-}
-
-function showCallScreen() {
-  if (!CURRENT_CALL) return;
-  const overlay = el('div', { class: 'call-overlay', id: 'callOverlay' });
-
-  // Remote video (full screen)
-  const remoteVideo = el('div', { class: 'call-remote-video', id: 'callRemoteVideo' });
-  overlay.appendChild(remoteVideo);
-
-  // Local video (small, top-right)
-  const localVideo = el('div', { class: 'call-local-video', id: 'callLocalVideo' });
-  overlay.appendChild(localVideo);
-
-  // Header (name + status)
-  const header = el('div', { class: 'call-header' });
-  header.appendChild(el('div', { class: 'call-name' }, CURRENT_CALL.remoteName || 'Calling...'));
-  header.appendChild(el('div', { class: 'call-status', id: 'callStatus' }, 'Connecting...'));
-  overlay.appendChild(header);
-
-  // Controls
-  const controls = el('div', { class: 'call-controls' });
-
-  const micBtn = el('button', { class: 'call-control-btn', id: 'callMicBtn', title: 'Mute' });
-  micBtn.innerHTML = '<svg viewBox="0 0 24 24" style="width:26px;height:26px;stroke:white;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>';
-  micBtn.addEventListener('click', toggleMic);
-  controls.appendChild(micBtn);
-
-  if (CURRENT_CALL.callType === 'video') {
-    const camBtn = el('button', { class: 'call-control-btn', id: 'callCamBtn', title: 'Camera' });
-    camBtn.innerHTML = '<svg viewBox="0 0 24 24" style="width:26px;height:26px;stroke:white;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>';
-    camBtn.addEventListener('click', toggleCamera);
-    controls.appendChild(camBtn);
-
-    const switchBtn = el('button', { class: 'call-control-btn', id: 'callSwitchBtn', title: 'Switch camera' });
-    switchBtn.innerHTML = '<svg viewBox="0 0 24 24" style="width:26px;height:26px;stroke:white;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>';
-    switchBtn.addEventListener('click', switchCamera);
-    controls.appendChild(switchBtn);
-  }
-
-   const speakerBtn = el('button', { class: 'call-control-btn', id: 'callSpeakerBtn', title: 'Speaker' });
-speakerBtn.innerHTML = '<svg viewBox="0 0 24 24" style="width:26px;height:26px;stroke:white;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>';
-speakerBtn.classList.add('speaker-on'); // default: speaker ON
-speakerBtn.addEventListener('click', toggleSpeaker);
-controls.appendChild(speakerBtn);
-  }
-
-  const endBtn = el('button', { class: 'call-control-btn call-end-btn', title: 'End call' });
-  endBtn.innerHTML = '<svg viewBox="0 0 24 24" style="width:26px;height:26px;stroke:white;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>';
-  endBtn.addEventListener('click', endCall);
-  controls.appendChild(endBtn);
-
-  overlay.appendChild(controls);
-
-  document.body.appendChild(overlay);
-
-  // Update status when connected
-  setTimeout(() => {
-    const statusEl = $('#callStatus');
-    if (statusEl) statusEl.textContent = 'Connected';
-  }, 2000);
-}
-
-function hideCallScreen() {
-  const overlay = $('#callOverlay');
-  if (overlay) overlay.remove();
-}
-
-async function toggleMic() {
-  if (!CURRENT_CALL || !CURRENT_CALL.room) return;
-  const btn = $('#callMicBtn');
-  try {
-    const lp = CURRENT_CALL.room.localParticipant;
-    const isEnabled = lp.isMicrophoneEnabled;
-    await lp.setMicrophoneEnabled(!isEnabled);
-    btn.classList.toggle('muted', isEnabled);
-  } catch (err) {
-    console.warn(err);
-  }
-}
-
-async function toggleCamera() {
-  if (!CURRENT_CALL || !CURRENT_CALL.room) return;
-  const btn = $('#callCamBtn');
-  try {
-    const lp = CURRENT_CALL.room.localParticipant;
-    const isEnabled = lp.isCameraEnabled;
-    await lp.setCameraEnabled(!isEnabled);
-    btn.classList.toggle('muted', isEnabled);
-  } catch (err) {
-    console.warn(err);
-  }
-}
-
-async function switchCamera() {
-  if (!CURRENT_CALL || !CURRENT_CALL.room) return;
-  try {
-    const lp = CURRENT_CALL.room.localParticipant;
-    const pub = Array.from(lp.videoTrackPublications.values())[0];
-    if (pub && pub.track) {
-      await pub.track.restartTrack({ facingMode: 'environment' });
-    }
-  } catch (err) {
-    console.warn(err);
-  }
-}
-
-async function endCall() {
-  stopRingtone();
-  if (CURRENT_CALL && CURRENT_CALL.timeoutId) {
-    clearTimeout(CURRENT_CALL.timeoutId);
-    CURRENT_CALL.timeoutId = null;
-  }
-  if (CURRENT_CALL && CURRENT_CALL.room) {
-    try {
-      await CURRENT_CALL.room.disconnect();
-    } catch (_) {}
-  }
-  CURRENT_CALL = null;
-  hideCallScreen();
-  toast('Call ended', 'info');
-}
-// ============================================================
-// LOUDSPEAKER TOGGLE
-// ============================================================
-
-let SPEAKER_ON = true;
-
-function toggleSpeaker() {
-  SPEAKER_ON = !SPEAKER_ON;
-  const btn = $('#callSpeakerBtn');
-  if (btn) {
-    btn.classList.toggle('speaker-on', SPEAKER_ON);
-    btn.classList.toggle('speaker-off', !SPEAKER_ON);
-  }
-
-  // Adjust audio output for remote tracks
-  const remoteVideos = document.querySelectorAll('#callRemoteVideo video, #callRemoteVideo audio');
-  remoteVideos.forEach(el => {
-    el.volume = SPEAKER_ON ? 1.0 : 0.3;
-  });
-
-  toast(SPEAKER_ON ? 'Loudspeaker ON' : 'Loudspeaker OFF', 'info');
-}
-
-// ============================================================
-// RINGTONE — "Beep Beep" Sound
-// ============================================================
-
-let RINGTONE_INTERVAL = null;
-let RINGTONE_AUDIO_CTX = null;
-
-function playBeep(frequency = 800, duration = 200, volume = 0.3) {
-  try {
-    if (!RINGTONE_AUDIO_CTX) {
-      RINGTONE_AUDIO_CTX = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    const ctx = RINGTONE_AUDIO_CTX;
-    if (ctx.state === 'suspended') ctx.resume();
-
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc.type = 'sine';
-    osc.frequency.value = frequency;
-    gain.gain.setValueAtTime(0, ctx.currentTime);
-    gain.gain.linearRampToValueAtTime(volume, ctx.currentTime + 0.01);
-    gain.gain.setValueAtTime(volume, ctx.currentTime + (duration / 1000) - 0.05);
-    gain.gain.linearRampToValueAtTime(0, ctx.currentTime + (duration / 1000));
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + (duration / 1000));
-  } catch (err) {
-    console.warn('[Ringtone]', err);
-  }
-}
-
-function playDoubleBeep() {
-  // "beep beep" — two quick beeps
-  playBeep(800, 250, 0.35);
-  setTimeout(() => playBeep(800, 250, 0.35), 350);
-}
-
-function startRingtone() {
-  stopRingtone();
-  // Play immediately
-  playDoubleBeep();
-  // Then loop every 2 seconds
-  RINGTONE_INTERVAL = setInterval(playDoubleBeep, 2000);
-}
-
-function stopRingtone() {
-  if (RINGTONE_INTERVAL) {
-    clearInterval(RINGTONE_INTERVAL);
-    RINGTONE_INTERVAL = null;
-  }
-  // ============================================================
-// LIVEKIT DYNAMIC LOADER (lazy load — haizuii app)
-// ============================================================
-
-let LIVEKIT_LOADING_PROMISE = null;
-
-function loadLiveKit() {
-  if (window.LivekitClient) return Promise.resolve(window.LivekitClient);
-  if (LIVEKIT_LOADING_PROMISE) return LIVEKIT_LOADING_PROMISE;
-
-  LIVEKIT_LOADING_PROMISE = new Promise((resolve, reject) => {
-    const s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js';
-    s.async = true;
-    s.onload = () => {
-      if (window.LivekitClient) resolve(window.LivekitClient);
-      else reject(new Error('LiveKit SDK not available'));
-    };
-    s.onerror = () => reject(new Error('Failed to load LiveKit SDK'));
-    document.head.appendChild(s);
-  });
-
-  return LIVEKIT_LOADING_PROMISE;
-} 
- // ============================================================
-// SAFE INIT WRAPPER — shows errors on screen
-// ============================================================
+// ============ SAFE INIT WRAPPER ============
 window.addEventListener('DOMContentLoaded', () => {
   console.log('[MSAFIRI] DOM ready, calling init...');
   init().catch(err => {
     console.error('[MSAFIRI] Init error:', err);
-    // Show error on splash screen
     const sp = document.getElementById('splashScreen');
     if (sp) {
       sp.classList.remove('fade-out');
       sp.innerHTML = `
         <div style="padding:24px;max-width:90%;background:#111827;border-radius:16px;border:2px solid #ef4444;">
           <h2 style="color:#ef4444;font-size:18px;margin-bottom:12px;">⚠️ App Error</h2>
-          <p style="color:#94a3b8;font-size:13px;margin-bottom:8px;">Error message:</p>
           <pre style="background:#0a0e1a;padding:12px;border-radius:8px;color:#fca5a5;font-size:11px;white-space:pre-wrap;word-break:break-word;max-height:200px;overflow:auto;">${(err && err.message) || String(err)}</pre>
-          <p style="color:#94a3b8;font-size:11px;margin-top:12px;word-break:break-all;">Stack: ${(err && err.stack) ? err.stack.substring(0, 300) : 'no stack'}</p>
           <button onclick="localStorage.clear();location.reload()" style="margin-top:16px;padding:10px 20px;background:#3b82f6;color:white;border:none;border-radius:8px;font-weight:600;font-size:14px;">🔄 Clear Cache & Reload</button>
         </div>
       `;
@@ -2730,45 +2588,6 @@ window.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-// Also catch any JS errors
 window.addEventListener('error', (e) => {
   console.error('[MSAFIRI] Global error:', e);
-  const sp = document.getElementById('splashScreen');
-  if (sp && !sp.classList.contains('fade-out')) {
-    sp.innerHTML = `
-      <div style="padding:24px;max-width:90%;background:#111827;border-radius:16px;border:2px solid #ef4444;">
-        <h2 style="color:#ef4444;font-size:18px;margin-bottom:12px;">⚠️ JS Error</h2>
-        <pre style="background:#0a0e1a;padding:12px;border-radius:8px;color:#fca5a5;font-size:11px;white-space:pre-wrap;word-break:break-word;">${e.message || 'Unknown error'}</pre>
-        <p style="color:#94a3b8;font-size:11px;margin-top:8px;">File: ${e.filename || 'unknown'}:${e.lineno || '?'}</p>
-        <button onclick="localStorage.clear();location.reload()" style="margin-top:16px;padding:10px 20px;background:#3b82f6;color:white;border:none;border-radius:8px;font-weight:600;font-size:14px;">🔄 Clear Cache & Reload</button>
-      </div>
-    `;
-  }
 });
-   // ============================================================
-// FALLBACK TIMER — if splash still visible after 8s, show diagnostics
-// ============================================================
-setTimeout(() => {
-  const sp = document.getElementById('splashScreen');
-  if (sp && !sp.classList.contains('fade-out')) {
-    // Check what's loaded
-    const diag = {
-      appJsLoaded: typeof window.init === 'function',
-      apiLoaded: typeof window.api === 'function',
-      loadFeedLoaded: typeof window.loadFeed === 'function',
-      authLoaded: !!document.getElementById('authScreen'),
-      appLoaded: !!document.getElementById('appScreen'),
-      token: !!localStorage.getItem('msafiri_token'),
-      readyState: document.readyState,
-    };
-    console.warn('[MSAFIRI] Splash still visible after 8s:', diag);
-    sp.innerHTML = `
-      <div style="padding:24px;max-width:90%;background:#111827;border-radius:16px;border:2px solid #f59e0b;">
-        <h2 style="color:#f59e0b;font-size:18px;margin-bottom:12px;">⏱️ App Not Loading</h2>
-        <p style="color:#94a3b8;font-size:12px;margin-bottom:8px;">Diagnostics:</p>
-        <pre style="background:#0a0e1a;padding:12px;border-radius:8px;color:#94a3b8;font-size:11px;white-space:pre-wrap;word-break:break-word;">${JSON.stringify(diag, null, 2)}</pre>
-        <button onclick="localStorage.clear();location.reload()" style="margin-top:16px;padding:10px 20px;background:#3b82f6;color:white;border:none;border-radius:8px;font-weight:600;font-size:14px;">🔄 Clear Cache & Reload</button>
-      </div>
-    `;
-  }
-}, 8000);

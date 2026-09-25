@@ -2346,9 +2346,15 @@ document.addEventListener('visibilitychange', () => {
 let CURRENT_CALL = null; // { room, localTrack, remoteTracks, receiverId, callType, role }
 
 async function startCall(otherId, callType, name) {
+  // Load LiveKit on demand
   if (!window.LivekitClient) {
-    toast('LiveKit SDK not loaded. Refresh page.', 'error');
-    return;
+    toast('Loading call engine...', 'info');
+    try {
+      await loadLiveKit();
+    } catch (err) {
+      toast('Call engine unavailable. Check network.', 'error');
+      return;
+    }
   }
 
   if (CURRENT_CALL) {

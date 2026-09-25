@@ -2745,3 +2745,30 @@ window.addEventListener('error', (e) => {
     `;
   }
 });
+   // ============================================================
+// FALLBACK TIMER — if splash still visible after 8s, show diagnostics
+// ============================================================
+setTimeout(() => {
+  const sp = document.getElementById('splashScreen');
+  if (sp && !sp.classList.contains('fade-out')) {
+    // Check what's loaded
+    const diag = {
+      appJsLoaded: typeof window.init === 'function',
+      apiLoaded: typeof window.api === 'function',
+      loadFeedLoaded: typeof window.loadFeed === 'function',
+      authLoaded: !!document.getElementById('authScreen'),
+      appLoaded: !!document.getElementById('appScreen'),
+      token: !!localStorage.getItem('msafiri_token'),
+      readyState: document.readyState,
+    };
+    console.warn('[MSAFIRI] Splash still visible after 8s:', diag);
+    sp.innerHTML = `
+      <div style="padding:24px;max-width:90%;background:#111827;border-radius:16px;border:2px solid #f59e0b;">
+        <h2 style="color:#f59e0b;font-size:18px;margin-bottom:12px;">⏱️ App Not Loading</h2>
+        <p style="color:#94a3b8;font-size:12px;margin-bottom:8px;">Diagnostics:</p>
+        <pre style="background:#0a0e1a;padding:12px;border-radius:8px;color:#94a3b8;font-size:11px;white-space:pre-wrap;word-break:break-word;">${JSON.stringify(diag, null, 2)}</pre>
+        <button onclick="localStorage.clear();location.reload()" style="margin-top:16px;padding:10px 20px;background:#3b82f6;color:white;border:none;border-radius:8px;font-weight:600;font-size:14px;">🔄 Clear Cache & Reload</button>
+      </div>
+    `;
+  }
+}, 8000);

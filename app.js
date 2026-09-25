@@ -2339,4 +2339,222 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // ============ DOM CONTENT LOADED ============
+// ============================================================
+// LIVEKIT CALLS (PHASE 4)
+// ============================================================
+
+let CURRENT_CALL = null; // { room, localTrack, remoteTracks, receiverId, callType, role }
+
+async function startCall(otherId, callType, name) {
+  if (!window.LivekitClient) {
+    toast('LiveKit SDK not loaded. Refresh page.', 'error');
+    return;
+  }
+
+  if (CURRENT_CALL) {
+    toast('Already in a call', 'error');
+    return;
+  }
+
+  try {
+    toast('Starting ' + callType + ' call...', 'info');
+    const res = await api('/api/calls/token', {
+      method: 'POST',
+      body: JSON.stringify({ receiver_id: otherId, call_type: callType }),
+    });
+
+    CURRENT_CALL = {
+      receiverId: otherId,
+      callType: res.call_type,
+      roomName: res.room_name,
+      livekitUrl: res.livekit_url,
+      role: 'caller',
+      remoteName: name,
+    };
+
+    showCallScreen();
+    await connectLiveKit(res.token, res.livekit_url, res.room_name);
+  } catch (err) {
+    toast(err.message, 'error');
+    CURRENT_CALL = null;
+    hideCallScreen();
+  }
+}
+
+async function connectLiveKit(token, url, roomName) {
+  const { Room, RoomEvent, Track } = window.LivekitClient;
+
+  const room = new Room({
+    adaptiveStream: true,
+    dynacast: true,
+  });
+
+  CURRENT_CALL.room = room;
+
+  room
+    .on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
+      const el = track.attach();
+      el.style.width = '100%';
+      el.style.height = '100%';
+      el.style.objectFit = 'cover';
+      el.setAttribute('playsinline', 'true');
+      if (track.kind === 'video') {
+        const remoteVideo = $('#callRemoteVideo');
+        remoteVideo.innerHTML = '';
+        remoteVideo.appendChild(el);
+      } else if (track.kind === 'audio') {
+        el.style.display = 'none';
+        document.body.appendChild(el);
+      }
+    })
+    .on(RoomEvent.TrackUnsubscribed, (track) => {
+      track.detach().forEach(el => el.remove());
+    })
+    .on(RoomEvent.ParticipantConnected, (participant) => {
+      toast(participant.name || 'Someone joined', 'success');
+    })
+    .on(RoomEvent.ParticipantDisconnected, () => {
+      toast('Call ended by other party', 'info');
+      endCall();
+    })
+    .on(RoomEvent.Disconnected, () => {
+      endCall();
+    })
+    .on(RoomEvent.LocalTrackPublished, (publication) => {
+      if (publication.track && publication.track.kind === 'video') {
+        const localVideo = $('#callLocalVideo');
+        localVideo.innerHTML = '';
+        const el = publication.track.attach();
+        el.style.width = '100%';
+        el.style.height = '100%';
+        el.style.objectFit = 'cover';
+        el.setAttribute('playsinline', 'true');
+        el.muted = true;
+        localVideo.appendChild(el);
+      }
+    });
+
+  await room.connect(url, token);
+  console.log('[MSAFIRI] Connected to LiveKit room:', roomName);
+
+  try {
+    await room.localParticipant.enableCameraAndMicrophone();
+  } catch (err) {
+    console.warn('[MSAFIRI] Camera/mic error:', err);
+    toast('Camera/mic permission denied', 'error');
+    // Try audio only
+    try {
+      await room.localParticipant.setMicrophoneEnabled(true);
+    } catch (_) {}
+  }
+}
+
+function showCallScreen() {
+  if (!CURRENT_CALL) return;
+  const overlay = el('div', { class: 'call-overlay', id: 'callOverlay' });
+
+  // Remote video (full screen)
+  const remoteVideo = el('div', { class: 'call-remote-video', id: 'callRemoteVideo' });
+  overlay.appendChild(remoteVideo);
+
+  // Local video (small, top-right)
+  const localVideo = el('div', { class: 'call-local-video', id: 'callLocalVideo' });
+  overlay.appendChild(localVideo);
+
+  // Header (name + status)
+  const header = el('div', { class: 'call-header' });
+  header.appendChild(el('div', { class: 'call-name' }, CURRENT_CALL.remoteName || 'Calling...'));
+  header.appendChild(el('div', { class: 'call-status', id: 'callStatus' }, 'Connecting...'));
+  overlay.appendChild(header);
+
+  // Controls
+  const controls = el('div', { class: 'call-controls' });
+
+  const micBtn = el('button', { class: 'call-control-btn', id: 'callMicBtn', title: 'Mute' });
+  micBtn.innerHTML = '<svg viewBox="0 0 24 24" style="width:26px;height:26px;stroke:white;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>';
+  micBtn.addEventListener('click', toggleMic);
+  controls.appendChild(micBtn);
+
+  if (CURRENT_CALL.callType === 'video') {
+    const camBtn = el('button', { class: 'call-control-btn', id: 'callCamBtn', title: 'Camera' });
+    camBtn.innerHTML = '<svg viewBox="0 0 24 24" style="width:26px;height:26px;stroke:white;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>';
+    camBtn.addEventListener('click', toggleCamera);
+    controls.appendChild(camBtn);
+
+    const switchBtn = el('button', { class: 'call-control-btn', id: 'callSwitchBtn', title: 'Switch camera' });
+    switchBtn.innerHTML = '<svg viewBox="0 0 24 24" style="width:26px;height:26px;stroke:white;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>';
+    switchBtn.addEventListener('click', switchCamera);
+    controls.appendChild(switchBtn);
+  }
+
+  const endBtn = el('button', { class: 'call-control-btn call-end-btn', title: 'End call' });
+  endBtn.innerHTML = '<svg viewBox="0 0 24 24" style="width:26px;height:26px;stroke:white;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>';
+  endBtn.addEventListener('click', endCall);
+  controls.appendChild(endBtn);
+
+  overlay.appendChild(controls);
+
+  document.body.appendChild(overlay);
+
+  // Update status when connected
+  setTimeout(() => {
+    const statusEl = $('#callStatus');
+    if (statusEl) statusEl.textContent = 'Connected';
+  }, 2000);
+}
+
+function hideCallScreen() {
+  const overlay = $('#callOverlay');
+  if (overlay) overlay.remove();
+}
+
+async function toggleMic() {
+  if (!CURRENT_CALL || !CURRENT_CALL.room) return;
+  const btn = $('#callMicBtn');
+  try {
+    const lp = CURRENT_CALL.room.localParticipant;
+    const isEnabled = lp.isMicrophoneEnabled;
+    await lp.setMicrophoneEnabled(!isEnabled);
+    btn.classList.toggle('muted', isEnabled);
+  } catch (err) {
+    console.warn(err);
+  }
+}
+
+async function toggleCamera() {
+  if (!CURRENT_CALL || !CURRENT_CALL.room) return;
+  const btn = $('#callCamBtn');
+  try {
+    const lp = CURRENT_CALL.room.localParticipant;
+    const isEnabled = lp.isCameraEnabled;
+    await lp.setCameraEnabled(!isEnabled);
+    btn.classList.toggle('muted', isEnabled);
+  } catch (err) {
+    console.warn(err);
+  }
+}
+
+async function switchCamera() {
+  if (!CURRENT_CALL || !CURRENT_CALL.room) return;
+  try {
+    const lp = CURRENT_CALL.room.localParticipant;
+    const pub = Array.from(lp.videoTrackPublications.values())[0];
+    if (pub && pub.track) {
+      await pub.track.restartTrack({ facingMode: 'environment' });
+    }
+  } catch (err) {
+    console.warn(err);
+  }
+}
+
+async function endCall() {
+  if (CURRENT_CALL && CURRENT_CALL.room) {
+    try {
+      await CURRENT_CALL.room.disconnect();
+    } catch (_) {}
+  }
+  CURRENT_CALL = null;
+  hideCallScreen();
+  toast('Call ended', 'info');
+}
 document.addEventListener('DOMContentLoaded', init);

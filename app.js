@@ -2564,4 +2564,80 @@ async function endCall() {
   hideCallScreen();
   toast('Call ended', 'info');
 }
+// ============================================================
+// LOUDSPEAKER TOGGLE
+// ============================================================
+
+let SPEAKER_ON = true;
+
+function toggleSpeaker() {
+  SPEAKER_ON = !SPEAKER_ON;
+  const btn = $('#callSpeakerBtn');
+  if (btn) {
+    btn.classList.toggle('speaker-on', SPEAKER_ON);
+    btn.classList.toggle('speaker-off', !SPEAKER_ON);
+  }
+
+  // Adjust audio output for remote tracks
+  const remoteVideos = document.querySelectorAll('#callRemoteVideo video, #callRemoteVideo audio');
+  remoteVideos.forEach(el => {
+    el.volume = SPEAKER_ON ? 1.0 : 0.3;
+  });
+
+  toast(SPEAKER_ON ? 'Loudspeaker ON' : 'Loudspeaker OFF', 'info');
+}
+
+// ============================================================
+// RINGTONE — "Beep Beep" Sound
+// ============================================================
+
+let RINGTONE_INTERVAL = null;
+let RINGTONE_AUDIO_CTX = null;
+
+function playBeep(frequency = 800, duration = 200, volume = 0.3) {
+  try {
+    if (!RINGTONE_AUDIO_CTX) {
+      RINGTONE_AUDIO_CTX = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    const ctx = RINGTONE_AUDIO_CTX;
+    if (ctx.state === 'suspended') ctx.resume();
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.value = frequency;
+    gain.gain.setValueAtTime(0, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(volume, ctx.currentTime + 0.01);
+    gain.gain.setValueAtTime(volume, ctx.currentTime + (duration / 1000) - 0.05);
+    gain.gain.linearRampToValueAtTime(0, ctx.currentTime + (duration / 1000));
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + (duration / 1000));
+  } catch (err) {
+    console.warn('[Ringtone]', err);
+  }
+}
+
+function playDoubleBeep() {
+  // "beep beep" — two quick beeps
+  playBeep(800, 250, 0.35);
+  setTimeout(() => playBeep(800, 250, 0.35), 350);
+}
+
+function startRingtone() {
+  stopRingtone();
+  // Play immediately
+  playDoubleBeep();
+  // Then loop every 2 seconds
+  RINGTONE_INTERVAL = setInterval(playDoubleBeep, 2000);
+}
+
+function stopRingtone() {
+  if (RINGTONE_INTERVAL) {
+    clearInterval(RINGTONE_INTERVAL);
+    RINGTONE_INTERVAL = null;
+  }
 document.addEventListener('DOMContentLoaded', init);

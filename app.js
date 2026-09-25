@@ -2676,4 +2676,28 @@ function stopRingtone() {
     clearInterval(RINGTONE_INTERVAL);
     RINGTONE_INTERVAL = null;
   }
+  // ============================================================
+// LIVEKIT DYNAMIC LOADER (lazy load — haizuii app)
+// ============================================================
+
+let LIVEKIT_LOADING_PROMISE = null;
+
+function loadLiveKit() {
+  if (window.LivekitClient) return Promise.resolve(window.LivekitClient);
+  if (LIVEKIT_LOADING_PROMISE) return LIVEKIT_LOADING_PROMISE;
+
+  LIVEKIT_LOADING_PROMISE = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js';
+    s.async = true;
+    s.onload = () => {
+      if (window.LivekitClient) resolve(window.LivekitClient);
+      else reject(new Error('LiveKit SDK not available'));
+    };
+    s.onerror = () => reject(new Error('Failed to load LiveKit SDK'));
+    document.head.appendChild(s);
+  });
+
+  return LIVEKIT_LOADING_PROMISE;
+} 
 document.addEventListener('DOMContentLoaded', init);

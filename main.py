@@ -326,13 +326,36 @@ async def not_found_handler(request: Request, exc):
     return JSONResponse(status_code=404, content={"detail": "Not found"})
 
 @app.get("/admin/reset-db-temp-secret")
+@app.get("/admin/reset-db-temp-secret")
 def reset_db():
-    from database import engine, Base
-    from models import User, Post, Follow, Status
-    Base.metadata.drop_all(bind=engine)
-    Base.metadata.create_all(bind=engine)
-    return {"ok": True, "message": "Database reset done"}
+    from database import engine
+    from sqlalchemy import text
 
+    with engine.connect() as conn:
+        # Futa tables zote
+        conn.execute(text("DROP TABLE IF EXISTS users CASCADE"))
+        conn.execute(text("DROP TABLE IF EXISTS posts CASCADE"))
+        conn.execute(text("DROP TABLE IF EXISTS statuses CASCADE"))
+        conn.execute(text("DROP TABLE IF EXISTS follows CASCADE"))
+        conn.commit()
+
+        # Unda upya kwa kutumia models
+        from database import Base
+        from models import User, Post, Follow, Status
+        Base.metadata.create_all(bind=engine)
+
+        # Thibitisha columns zilizopo
+        result = conn.execute(text("""
+            SELECT column_name FROM information_schema.columns 
+            WHERE table_name = 'users'
+        """))
+        cols = [row[0] for row in result]
+
+        return {
+            "ok": True,
+            "message": "Database reset done",
+            "users_columns": cols
+        }
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 10000))

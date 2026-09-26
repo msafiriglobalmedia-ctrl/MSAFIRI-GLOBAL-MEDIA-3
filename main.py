@@ -9,26 +9,8 @@ from sqlalchemy.orm import Session
 from database import get_db, Base, engine
 from models import User
 
-try:
-    from routers import auth, posts, statuses, messages, profile, videos
-except ImportError as e:
-    print(f"Router import error: {e}")
-    auth = posts = statuses = messages = profile = videos = None
-
-try:
-    from routers import feed as feed_router
-except ImportError:
-    feed_router = None
-
-try:
-    from routers import stories as stories_router
-except ImportError:
-    stories_router = None
-
-try:
-    from routers import ping as ping_router
-except ImportError:
-    ping_router = None
+from routers import auth, posts, statuses, messages, profile, videos
+from routers import feed, stories, ping
 
 
 APP_VERSION = "6.0.0-PHASE2"
@@ -48,7 +30,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origin_regex=".*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -86,41 +68,32 @@ def api_health():
     }
 
 
-if auth:
-    app.include_router(auth.router)
-    print("auth router mounted")
+app.include_router(auth.router)
+print("auth router mounted")
 
-if posts:
-    app.include_router(posts.router)
-    print("posts router mounted")
+app.include_router(posts.router)
+print("posts router mounted")
 
-if statuses:
-    app.include_router(statuses.router)
-    print("statuses router mounted")
+app.include_router(statuses.router)
+print("statuses router mounted")
 
-if messages:
-    app.include_router(messages.router)
-    print("messages router mounted")
+app.include_router(messages.router)
+print("messages router mounted")
 
-if profile:
-    app.include_router(profile.router)
-    print("profile router mounted")
+app.include_router(profile.router)
+print("profile router mounted")
 
-if videos:
-    app.include_router(videos.router)
-    print("videos router mounted")
+app.include_router(videos.router)
+print("videos router mounted")
 
-if feed_router:
-    app.include_router(feed_router.router)
-    print("feed router mounted (/api/feed)")
+app.include_router(feed.router)
+print("feed router mounted")
 
-if stories_router:
-    app.include_router(stories_router.router)
-    print("stories router mounted (/api/stories)")
+app.include_router(stories.router)
+print("stories router mounted")
 
-if ping_router:
-    app.include_router(ping_router.router)
-    print("ping router mounted (/api/auth/ping)")
+app.include_router(ping.router)
+print("ping router mounted")
 
 
 @app.get("/api/discovery", tags=["discovery"])
@@ -247,11 +220,11 @@ def world_map_countries():
 def channels_list():
     return {
         "channels": [
-            {"id": "bbc",      "name": "BBC News",             "color": "red",    "desc": "Global news from UK"},
-            {"id": "cnn",      "name": "CNN",                  "color": "red",    "desc": "Cable News Network"},
-            {"id": "aljazeera","name": "Al Jazeera",           "color": "orange", "desc": "Qatar-based news"},
-            {"id": "itv",      "name": "ITV News",             "color": "blue",   "desc": "UK broadcaster"},
-            {"id": "msafiri",  "name": "Msafiri Global Media", "color": "blue",   "desc": "Our own channel"},
+            {"id": "bbc",       "name": "BBC News",             "color": "red",    "desc": "Global news from UK"},
+            {"id": "cnn",       "name": "CNN",                  "color": "red",    "desc": "Cable News Network"},
+            {"id": "aljazeera", "name": "Al Jazeera",           "color": "orange", "desc": "Qatar-based news"},
+            {"id": "itv",       "name": "ITV News",             "color": "blue",   "desc": "UK broadcaster"},
+            {"id": "msafiri",   "name": "Msafiri Global Media", "color": "blue",   "desc": "Our own channel"},
         ]
     }
 
@@ -325,7 +298,7 @@ async def root():
     return JSONResponse({
         "app": APP_NAME,
         "version": APP_VERSION,
-        "message": "Frontend not found — place static/index.html",
+        "message": "Frontend not found",
         "docs": "/docs",
     })
 

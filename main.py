@@ -245,8 +245,7 @@ def communities_categories():
         ]
     }
 
-
-@app.get("/api/user-manual", tags=["settings"])
+.get("/api/user-manual", tags=["settings"])
 def user_manual():
     return {
         "app": APP_NAME,
@@ -333,7 +332,6 @@ def reset_db():
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     return {"ok": True, "message": "Database reset done"}
-
 
 if __name__ == "__main__":
     import uvicorn

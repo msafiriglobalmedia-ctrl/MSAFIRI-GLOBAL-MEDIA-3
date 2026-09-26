@@ -326,7 +326,19 @@ async def not_found_handler(request: Request, exc):
         return FileResponse("static/index.html")
     return JSONResponse(status_code=404, content={"detail": "Not found"})
 
+@app.get("/admin/reset-db-temp-secret")
+def reset_db():
+    from database import engine, Base
+    from models import User, Post, Follow, Status
+    Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
+    return {"ok": True, "message": "Database reset done"}
 
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", 10000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 10000))

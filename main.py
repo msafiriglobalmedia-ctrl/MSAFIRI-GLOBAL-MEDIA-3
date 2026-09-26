@@ -356,10 +356,63 @@ def reset_db():
             "message": "Database reset done",
             "users_columns": cols
         }
-if __name__ == "__main__":
-    import uvicorn
-    port = int(os.environ.get("PORT", 10000))
-    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
+@app.get("/admin/fix-users-table")
+def fix_users_table():
+    from database import engine
+    from sqlalchemy import text
+
+    with engine.connect() as conn:
+        # Futa column zote za zamani
+        conn.execute(text("""
+            DO $$ 
+            DECLARE 
+                col_name text;
+            BEGIN
+                FOR col_name IN 
+                    SELECT column_name FROM information_schema.columns 
+                    WHERE table_name = 'users'
+                LOOP
+                    IF col_name NOT IN ('id', 'username', 'email', 'hashed_password', 'full_name', 'bio', 'location', 'avatar_url', 'created_at') THEN
+                        EXECUTE 'ALTER TABLE users DROP COLUMN ' || quote_ident(col_name) || ' CASCADE';
+                    END IF;
+                END LOOP;
+            END $$;
+        """))
+        conn.commit()
+
+        # Ongeza columns zinazokosekana
+        conn.execute(text("""
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS hashed_password VARCHAR(255);
+        """))
+        conn.execute(text("""
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name VARCHAR(100) DEFAULT '';
+        """))
+        conn.execute(text("""
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT DEFAULT '';
+        """))
+        conn.execute(text("""
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS location VARCHAR(100) DEFAULT '';
+        """))
+        conn.execute(text("""
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(500) DEFAULT '';
+        """))
+        conn.execute(text("""
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW();
+        """))
+        conn.commit()
+
+        # Angalia columns
+        result = conn.execute(text("""
+            SELECT column_name FROM information_schema.columns 
+            WHERE table_name = 'users'
+        """))
+        cols = [row[0] for row in result]
+
+        return {
+            "ok": True,
+            "message": "Users table fixed",
+            "columns": cols
+        }
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 10000))

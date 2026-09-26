@@ -1,9 +1,6 @@
-"""
-routers/stories.py
-MSAFIRI GLOBAL MEDIA — Stories Router
-Inatoa /api/stories (alias ya statuses kwa frontend)
-"""
-
+import os
+import uuid
+from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -20,9 +17,6 @@ def list_stories(
     db: Session = Depends(get_db),
     current_user: Optional[User] = Depends(get_current_user),
 ):
-    """Rudisha stories zote zilizo hai (zisizopita masaa 24)."""
-    from datetime import datetime, timedelta
-
     cutoff = datetime.utcnow() - timedelta(hours=24)
     stories = (
         db.query(Status)
@@ -43,17 +37,12 @@ def list_stories(
 async def create_story(
     media: UploadFile = File(...),
     caption: str = Form(""),
-    media_type: str = Form("image"),  # image | video
+    media_type: str = Form("image"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Unda story mpya."""
     if not current_user:
         raise HTTPException(status_code=401, detail="Unauthorized")
-
-    # Hifadhi media (badilisha na upload halisi baadaye)
-    import os, uuid
-    from datetime import datetime
 
     ext = os.path.splitext(media.filename or "")[1] or ".jpg"
     filename = f"{uuid.uuid4().hex}{ext}"
@@ -85,15 +74,14 @@ def delete_story(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Futa story yako."""
     if not current_user:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     story = db.query(Status).filter(Status.id == status_id).first()
     if not story:
-        raise HTTPException(status_code=404, detail="Story haipo")
+        raise HTTPException(status_code=404, detail="Story not found")
     if story.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Huwezi kufuta story ya mtu mwingine")
+        raise HTTPException(status_code=403, detail="Not allowed")
 
     db.delete(story)
     db.commit()

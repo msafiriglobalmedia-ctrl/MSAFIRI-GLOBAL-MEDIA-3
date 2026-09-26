@@ -1,2593 +1,4960 @@
-/* ============================================================
-   MSAFIRI GLOBAL MEDIA - APP.JS
-   Part 1/3 — Core, Auth, Feed, Posts, Profile
-   ============================================================ */
-
 'use strict';
 
-const API = window.location.origin;
-let TOKEN = null;
+/* ============================================================
+   MSAFIRI GLOBAL MEDIA
+   Production frontend controller
+   Vanilla JavaScript / FastAPI / PostgreSQL
+   ============================================================ */
+
+/* ============================================================
+   SECTION A: CORE UTILITIES
+   ============================================================ */
+
+const API = Object.freeze({
+  base: window.location.origin,
+  auth: {
+    login: '/api/auth/login',
+    register: '/api/auth/register',
+    me: '/api/auth/me',
+    logout: '/api/auth/logout'
+  },
+  feed: '/api/feed',
+  posts: '/api/posts',
+  stories: '/api/stories',
+  users: '/api/users',
+  profile: '/api/profile',
+  chats: '/api/chats',
+  messages: '/api/messages',
+  calls: '/api/calls',
+  search: '/api/search',
+  discovery: '/api/discovery',
+  ai: '/api/ai',
+  education: '/api/ai/education',
+  upload: '/api/upload',
+  channels: '/api/channels',
+  communities: '/api/communities',
+  videos: '/api/videos',
+  market: '/api/market',
+  worldMap: '/api/world-map',
+  sessionPing: '/api/auth/ping'
+});
+
+let TOKEN = localStorage.getItem('msafiri_token') || '';
 let CURRENT_USER = null;
 let CURRENT_VIEW = 'home';
-let CACHED_POSTS = [];
-let CACHED_CHATS = [];
-let CACHED_VIDEOS = [];
+let CURRENT_CHAT = null;
+let CURRENT_POST = null;
+let CURRENT_PROFILE = null;
+let CURRENT_STORY_GROUP = null;
+let CURRENT_STORY_INDEX = 0;
+let STORY_TIMER = null;
+let STORY_VIDEO_TIMER = null;
+let STORY_PAUSED = false;
+let CALL_ROOM = null;
+let CALL_TIMER = null;
+let RINGTONE_TIMER = null;
+let RINGTONE_CONTEXT = null;
+let CALL_STATE = {
+  active: false,
+  type: null,
+  otherId: null,
+  name: '',
+  mic: true,
+  camera: true,
+  speaker: true,
+  answered: false
+};
+let CHAT_TYPING_TIMER = null;
+let CHAT_RECORDING = false;
+let CHAT_RECORDING_TIMER = null;
+let CHAT_MEDIA_RECORDER = null;
+let CHAT_MEDIA_CHUNKS = [];
+let CHAT_OBJECT_URLS = [];
+let LIVEKIT_SCRIPT_PROMISE = null;
 
-const $ = (sel) => document.querySelector(sel);
-const $$ = (sel) => document.querySelectorAll(sel);
+const CACHE = {
+  feed: new Map(),
+  profiles: new Map(),
+  chats: [],
+  messages: new Map(),
+  stories: [],
+  discovery: null,
+  search: new Map()
+};
 
-// ============ DOM HELPER ============
+const $ = (selector, root = document) => root.querySelector(selector);
+const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
+
 function el(tag, attrs = {}, ...children) {
   const node = document.createElement(tag);
-  for (const [k, v] of Object.entries(attrs)) {
-    if (k === 'class') node.className = v;
-    else if (k === 'dataset') Object.assign(node.dataset, v);
-    else if (k.startsWith('on') && typeof v === 'function') {
-      node.addEventListener(k.slice(2).toLowerCase(), v);
-    } else if (v !== null && v !== undefined && v !== false) {
-      node.setAttribute(k, v);
+
+  Object.entries(attrs || {}).forEach(([key, value]) => {
+    if (value === null || value === undefined || value === false) return;
+
+    if (key === 'className') {
+      node.className = String(value);
+    } else if (key === 'textContent') {
+      node.textContent = String(value);
+    } else if (key === 'htmlFor') {
+      node.htmlFor = String(value);
+    } else if (key === 'dataset' && typeof value === 'object') {
+      Object.entries(value).forEach(([k, v]) => {
+        node.dataset[k] = String(v);
+      });
+    } else if (key.startsWith('on') && typeof value === 'function') {
+      node.addEventListener(key.slice(2).toLowerCase(), value);
+    } else if (key === 'style' && typeof value === 'object') {
+      Object.assign(node.style, value);
+    } else if (key in node && !key.startsWith('aria-')) {
+      try {
+        node[key] = value;
+      } catch (_) {
+        node.setAttribute(key, String(value));
+      }
+    } else {
+      node.setAttribute(key, String(value));
     }
-  }
-  for (const c of children) {
-    if (c == null || c === false) continue;
-    if (typeof c === 'string') node.appendChild(document.createTextNode(c));
-    else if (c instanceof Node) node.appendChild(c);
-  }
+  });
+
+  const append = child => {
+    if (child === null || child === undefined || child === false) return;
+    if (Array.isArray(child)) {
+      child.forEach(append);
+    } else if (child instanceof Node) {
+      node.appendChild(child);
+    } else {
+      node.appendChild(document.createTextNode(String(child)));
+    }
+  };
+
+  children.forEach(append);
   return node;
 }
 
 function esc(str) {
-  if (str == null) return '';
-  return String(str)
+  return String(str ?? '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+    .replace(/'/g, '&#039;');
 }
 
-function initials(name) {
-  if (!name) return '?';
-  return name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+function initials(name = '') {
+  return String(name)
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map(part => part.charAt(0).toUpperCase())
+    .join('') || '?';
 }
 
-function timeAgo(dateStr) {
-  if (!dateStr) return '';
-  const d = new Date(dateStr);
-  const now = new Date();
-  const s = Math.floor((now - d) / 1000);
-  if (s < 60) return 'just now';
-  if (s < 3600) return Math.floor(s / 60) + 'm';
-  if (s < 86400) return Math.floor(s / 3600) + 'h';
-  if (s < 604800) return Math.floor(s / 86400) + 'd';
-  if (s < 2592000) return Math.floor(s / 604800) + 'w';
-  return d.toLocaleDateString();
+function timeAgo(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+
+  const seconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
+
+  if (seconds < 60) return 'now';
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
+  if (seconds < 604800) return `${Math.floor(seconds / 86400)}d`;
+  return date.toLocaleDateString();
 }
 
-// ============ API CLIENT ============
-async function api(path, opts = {}) {
-  const headers = opts.headers || {};
-  if (!(opts.body instanceof FormData)) {
-    headers['Content-Type'] = headers['Content-Type'] || 'application/json';
-  }
-  if (TOKEN) headers['Authorization'] = `Bearer ${TOKEN}`;
+function avatarEl(user, size = '40px') {
+  const name = user?.name || user?.full_name || user?.username || 'User';
+  const src = user?.avatar_url || user?.avatar || user?.profile_image;
 
-  let res;
-  try {
-    res = await fetch(API + path, { ...opts, headers });
-  } catch (networkErr) {
-    console.warn('[MSAFIRI] Network error, retrying in 2s...');
-    await new Promise(r => setTimeout(r, 2000));
-    res = await fetch(API + path, { ...opts, headers });
-  }
-
-  let data = null;
-  const ct = res.headers.get('content-type') || '';
-  if (ct.includes('application/json')) {
-    try { data = await res.json(); } catch (_) { data = null; }
-  } else {
-    data = await res.text();
-  }
-
-  if (!res.ok) {
-    if (res.status === 401 && TOKEN && !path.includes('/login') && !path.includes('/register')) {
-      TOKEN = null;
-      CURRENT_USER = null;
-      localStorage.removeItem('msafiri_token');
-      showAuth();
+  const wrapper = el('div', {
+    className: 'avatar',
+    style: {
+      width: size,
+      height: size,
+      minWidth: size,
+      borderRadius: '50%',
+      overflow: 'hidden',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'var(--bg-3)',
+      color: 'var(--text)',
+      fontWeight: '700'
     }
-    const msg = (data && data.detail) || (data && data.message) || (typeof data === 'string' ? data : `HTTP ${res.status}`);
-    const err = new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
-    err.status = res.status;
-    throw err;
+  });
+
+  if (src) {
+    const img = el('img', {
+      src,
+      alt: name,
+      loading: 'lazy',
+      style: {
+        width: '100%',
+        height: '100%',
+        objectFit: 'cover'
+      }
+    });
+    img.onerror = () => {
+      img.remove();
+      wrapper.textContent = initials(name);
+    };
+    wrapper.appendChild(img);
+  } else {
+    wrapper.textContent = initials(name);
   }
-  return data;
+
+  return wrapper;
 }
 
-// ============ TOAST ============
-function toast(message, type = 'info', duration = 3000) {
-  const container = $('#toastContainer');
-  if (!container) return;
-  const t = el('div', { class: `toast ${type}` });
-  const icons = {
-    success: '<polyline points="20 6 9 17 4 12"/>',
-    error: '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>',
-    info: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>',
+function normalizeList(data) {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.items)) return data.items;
+  if (Array.isArray(data?.results)) return data.results;
+  if (Array.isArray(data?.data)) return data.data;
+  return [];
+}
+
+function absoluteUrl(url) {
+  if (!url) return '';
+  try {
+    return new URL(url, API.base).href;
+  } catch (_) {
+    return String(url);
+  }
+}
+
+async function api(path, opts = {}) {
+  const {
+    method = 'GET',
+    body,
+    headers = {},
+    retry = true,
+    timeout = 30000,
+    signal
+  } = opts;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
+
+  if (signal) {
+    signal.addEventListener('abort', () => controller.abort(), { once: true });
+  }
+
+  const finalHeaders = {
+    Accept: 'application/json',
+    ...headers
   };
-  t.innerHTML = `<svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${icons[type] || icons.info}</svg><span>${esc(message)}</span>`;
-  container.appendChild(t);
+
+  let payload = body;
+
+  if (
+    body !== undefined &&
+    body !== null &&
+    !(body instanceof FormData) &&
+    !(body instanceof Blob)
+  ) {
+    finalHeaders['Content-Type'] = 'application/json';
+    payload = JSON.stringify(body);
+  }
+
+  if (TOKEN) {
+    finalHeaders.Authorization = `Bearer ${TOKEN}`;
+  }
+
+  try {
+    const response = await fetch(absoluteUrl(path), {
+      method,
+      headers: finalHeaders,
+      body: payload,
+      credentials: 'same-origin',
+      signal: controller.signal
+    });
+
+    if (response.status === 401) {
+      TOKEN = '';
+      localStorage.removeItem('msafiri_token');
+      CURRENT_USER = null;
+
+      if (retry && !path.includes('/auth/')) {
+        showAuth();
+      }
+
+      throw new Error('Your session has expired. Please sign in again.');
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    let data = null;
+
+    if (response.status !== 204) {
+      if (contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        data = await response.text();
+      }
+    }
+
+    if (!response.ok) {
+      const message =
+        data?.detail ||
+        data?.message ||
+        data?.error ||
+        (typeof data === 'string' ? data : '') ||
+        `Request failed (${response.status})`;
+
+      const error = new Error(message);
+      error.status = response.status;
+      error.data = data;
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error('Request timed out. Please try again.');
+    }
+
+    if (
+      retry &&
+      error instanceof TypeError &&
+      !String(path).includes('/auth/')
+    ) {
+      await new Promise(resolve => setTimeout(resolve, 700));
+      return api(path, { ...opts, retry: false });
+    }
+
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function toast(message, type = 'info', duration = 3500) {
+  let container = $('.toast-container');
+
+  if (!container) {
+    container = el('div', {
+      className: 'toast-container',
+      style: {
+        position: 'fixed',
+        right: '16px',
+        bottom: '80px',
+        zIndex: '10000',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px'
+      }
+    });
+    document.body.appendChild(container);
+  }
+
+  const item = el('div', {
+    className: `toast ${type}`,
+    role: 'status',
+    textContent: message
+  });
+
+  container.appendChild(item);
+
   setTimeout(() => {
-    t.style.opacity = '0';
-    t.style.transition = 'opacity .3s';
-    setTimeout(() => t.remove(), 300);
+    item.style.opacity = '0';
+    item.style.transform = 'translateY(8px)';
+    setTimeout(() => item.remove(), 250);
   }, duration);
 }
 
-// ============ THEME ============
 function applyTheme(theme) {
-  document.documentElement.setAttribute('data-theme', theme);
-  localStorage.setItem('msafiri_theme', theme);
+  const selected = theme || localStorage.getItem('msafiri_theme') || 'dark';
+  document.documentElement.dataset.theme = selected;
+  document.documentElement.classList.toggle('light-theme', selected === 'light');
+  document.documentElement.classList.toggle('dark-theme', selected === 'dark');
+  localStorage.setItem('msafiri_theme', selected);
 }
+
 function initTheme() {
-  const saved = localStorage.getItem('msafiri_theme') || 'dark';
-  applyTheme(saved);
-}
-function toggleTheme() {
-  const cur = document.documentElement.getAttribute('data-theme') || 'dark';
-  const next = cur === 'dark' ? 'light' : 'dark';
-  applyTheme(next);
-  if (CURRENT_USER) {
-    api('/api/profile', { method: 'PATCH', body: JSON.stringify({ theme: next }) }).catch(() => {});
-  }
-}
+  const saved = localStorage.getItem('msafiri_theme');
 
-// ============ SESSION ============
-function saveSession(token) {
-  TOKEN = token;
-  localStorage.setItem('msafiri_token', token);
-  localStorage.setItem('msafiri_token_time', Date.now().toString());
-  try { sessionStorage.setItem('msafiri_token', token); } catch(e) {}
-}
-function getSavedToken() {
-  let t = localStorage.getItem('msafiri_token');
-  if (!t) {
-    try { t = sessionStorage.getItem('msafiri_token'); } catch(e) {}
-  }
-  return t;
-}
-
-// ============ AUTH ============
-async function register(name, email, password, username) {
-  return api('/api/register', {
-    method: 'POST',
-    body: JSON.stringify({ name, email, password, username: username || null }),
-  });
-}
-async function login(email, password) {
-  return api('/api/login', {
-    method: 'POST',
-    body: JSON.stringify({ email, password }),
-  });
-}
-async function logout() {
-  try { await api('/api/logout', { method: 'POST' }); } catch (_) {}
-  TOKEN = null;
-  CURRENT_USER = null;
-  localStorage.removeItem('msafiri_token');
-  localStorage.removeItem('msafiri_token_time');
-  try { sessionStorage.removeItem('msafiri_token'); } catch(e) {}
-  showAuth();
-}
-async function loadMe() {
-  const data = await api('/api/me');
-  CURRENT_USER = data.user;
-  return CURRENT_USER;
-}
-
-// ============ SCREENS ============
-function showAuth() {
-  const sp = $('#splashScreen');
-  if (sp) sp.classList.add('fade-out');
-  $('#authScreen').classList.remove('hidden');
-  $('#appScreen').classList.add('hidden');
-}
-function showApp() {
-  const sp = $('#splashScreen');
-  if (sp) sp.classList.add('fade-out');
-  $('#authScreen').classList.add('hidden');
-  $('#appScreen').classList.remove('hidden');
-}
-
-// ============ AVATAR ============
-function avatarEl(user, size = 40) {
-  const wrap = el('div', {
-    style: `width:${size}px;height:${size}px;border-radius:50%;overflow:hidden;background:linear-gradient(135deg,#3b82f6,#8b5cf6);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:${Math.round(size*0.4)}px;flex-shrink:0;`
-  });
-  if (user && user.avatar) {
-    wrap.appendChild(el('img', { src: user.avatar, style: 'width:100%;height:100%;object-fit:cover;' }));
-  } else {
-    wrap.textContent = initials(user && user.name);
-  }
-  return wrap;
-}
-
-// ============ AUTH UI BINDINGS ============
-function bindAuthUI() {
-  $$('.auth-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      const t = tab.dataset.tab;
-      $$('.auth-tab').forEach(x => x.classList.toggle('active', x === tab));
-      $('#loginForm').classList.toggle('hidden', t !== 'login');
-      $('#registerForm').classList.toggle('hidden', t !== 'register');
-      $('#loginError').classList.add('hidden');
-      $('#registerError').classList.add('hidden');
-    });
-  });
-
-  $$('.password-toggle').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const inp = $('#' + btn.dataset.target);
-      if (!inp) return;
-      inp.type = inp.type === 'password' ? 'text' : 'password';
-    });
-  });
-
-  const loginForm = $('#loginForm');
-  if (loginForm) {
-    loginForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const btn = $('#loginBtn');
-      const errEl = $('#loginError');
-      errEl.classList.add('hidden');
-      btn.disabled = true;
-      btn.innerHTML = '<div class="loader"></div>';
-      try {
-        const email = $('#loginEmail').value.trim();
-        const password = $('#loginPassword').value;
-        const res = await login(email, password);
-        saveSession(res.token);
-        CURRENT_USER = res.user;
-        toast('Welcome back!', 'success');
-        await startApp();
-      } catch (err) {
-        errEl.textContent = err.message || 'Login failed';
-        errEl.classList.remove('hidden');
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<span>Login</span>';
-      }
-    });
-  }
-
-  const registerForm = $('#registerForm');
-  if (registerForm) {
-    registerForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const btn = $('#registerBtn');
-      const errEl = $('#registerError');
-      errEl.classList.add('hidden');
-      btn.disabled = true;
-      btn.innerHTML = '<div class="loader"></div>';
-      try {
-        const name = $('#regName').value.trim();
-        const username = $('#regUsername').value.trim() || null;
-        const email = $('#regEmail').value.trim();
-        const password = $('#regPassword').value;
-        const res = await register(name, email, password, username);
-        saveSession(res.token);
-        CURRENT_USER = res.user;
-        toast('Account created!', 'success');
-        await startApp();
-      } catch (err) {
-        errEl.textContent = err.message || 'Registration failed';
-        errEl.classList.remove('hidden');
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<span>Create Account</span>';
-      }
-    });
-  }
-
-  const themeBtn = $('#themeToggle');
-  if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
-}
-
-// ============ POST RENDERER ============
-function renderPost(post) {
-  const card = el('article', { class: 'post-card', dataset: { postId: post.id } });
-  const header = el('div', { class: 'post-header' });
-  const userInfo = el('div', {
-    style: 'display:flex;align-items:center;gap:10px;cursor:pointer;',
-    onclick: () => openProfile(post.user.id),
-  });
-  userInfo.appendChild(avatarEl(post.user, 40));
-  const names = el('div');
-  names.appendChild(el('div', { style: 'font-weight:600;font-size:14px;' }, post.user.name));
-  const uname = post.user.username ? '@' + post.user.username + ' · ' : '';
-  names.appendChild(el('div', { style: 'font-size:12px;color:var(--text-3);' }, uname + timeAgo(post.created_at)));
-  userInfo.appendChild(names);
-  header.appendChild(userInfo);
-
-  if (CURRENT_USER && post.user.id === CURRENT_USER.id) {
-    const menuBtn = el('button', { class: 'btn-icon', style: 'width:32px;height:32px;' });
-    menuBtn.innerHTML = '<svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>';
-    menuBtn.addEventListener('click', (e) => { e.stopPropagation(); openPostMenu(post); });
-    header.appendChild(menuBtn);
-  }
-  card.appendChild(header);
-
-  if (post.caption) {
-    card.appendChild(el('div', {
-      style: 'padding:0 16px 12px;font-size:14px;line-height:1.5;white-space:pre-wrap;word-break:break-word;',
-    }, post.caption));
-  }
-
-  if (post.media) {
-    const mediaWrap = el('div', { style: 'background:#000;display:flex;justify-content:center;' });
-    if (post.media_type === 'video') {
-      mediaWrap.appendChild(el('video', {
-        src: post.media, controls: true, playsinline: true,
-        style: 'max-width:100%;max-height:70vh;display:block;',
-      }));
-    } else {
-      mediaWrap.appendChild(el('img', {
-        src: post.media,
-        style: 'max-width:100%;max-height:70vh;display:block;object-fit:contain;',
-        loading: 'lazy',
-      }));
-    }
-    card.appendChild(mediaWrap);
-  }
-
-  const actions = el('div', { style: 'display:flex;align-items:center;gap:2px;padding:8px 8px 12px;' });
-  actions.appendChild(makeActionBtn(post.liked, 'like', post.likes_count || 0, post.liked ? 'var(--danger)' : null, () => toggleLike(post)));
-  actions.appendChild(makeActionBtn(false, 'comment', post.comments_count || 0, null, () => openComments(post)));
-  actions.appendChild(makeActionBtn(false, 'reshare', post.reshares_count || 0, null, () => toggleReshare(post)));
-  actions.appendChild(makeActionBtn(post.saved, 'save', null, post.saved ? 'var(--accent)' : null, () => toggleSave(post)));
-  card.appendChild(actions);
-  return card;
-}
-
-function makeActionBtn(filled, kind, count, color, onClick) {
-  const btn = el('button', {
-    class: 'btn-icon',
-    style: `flex:1;height:36px;gap:6px;padding:0 8px;border-radius:8px;color:${color || 'var(--text-2)'};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;`,
-  });
-  const icons = {
-    like: '<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>',
-    comment: '<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>',
-    reshare: '<polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>',
-    save: '<path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>',
-  };
-  const fillStyle = filled ? 'fill:currentColor;' : '';
-  btn.innerHTML = `<svg class="icon icon-sm" viewBox="0 0 24 24" style="${fillStyle}">${icons[kind]}</svg>${count != null ? `<span>${count > 0 ? count : ''}</span>` : ''}`;
-  btn.addEventListener('click', (e) => { e.stopPropagation(); onClick(); });
-  return btn;
-}
-
-// ============ ACTIONS ============
-async function toggleLike(post) {
-  try {
-    if (post.liked) {
-      await api(`/api/posts/${post.id}/like`, { method: 'DELETE' });
-      post.liked = false;
-      post.likes_count = Math.max(0, (post.likes_count || 0) - 1);
-    } else {
-      await api(`/api/posts/${post.id}/like`, { method: 'POST' });
-      post.liked = true;
-      post.likes_count = (post.likes_count || 0) + 1;
-    }
-    updatePostCard(post);
-  } catch (err) { toast(err.message, 'error'); }
-}
-async function toggleSave(post) {
-  try {
-    if (post.saved) {
-      await api(`/api/posts/${post.id}/save`, { method: 'DELETE' });
-      post.saved = false;
-      toast('Removed', 'info');
-    } else {
-      await api(`/api/posts/${post.id}/save`, { method: 'POST' });
-      post.saved = true;
-      toast('Saved', 'success');
-    }
-    updatePostCard(post);
-  } catch (err) { toast(err.message, 'error'); }
-}
-async function toggleReshare(post) {
-  try {
-    await api(`/api/posts/${post.id}/reshare`, { method: 'POST' });
-    post.reshares_count = (post.reshares_count || 0) + 1;
-    toast('Reshared', 'success');
-    updatePostCard(post);
-  } catch (err) { toast(err.message, 'error'); }
-}
-function updatePostCard(post) {
-  const old = document.querySelector(`[data-post-id="${post.id}"]`);
-  if (!old) return;
-  old.replaceWith(renderPost(post));
-}
-
-// ============ POST MENU ============
-function openPostMenu(post) {
-  const items = [];
-  if (CURRENT_USER && post.user.id === CURRENT_USER.id) {
-    items.push({
-      label: 'Delete Post', danger: true, onClick: async () => {
-        if (!confirm('Delete this post?')) return;
-        try {
-          await api(`/api/posts/${post.id}`, { method: 'DELETE' });
-          toast('Deleted', 'success');
-          CACHED_POSTS = CACHED_POSTS.filter(p => p.id !== post.id);
-          renderFeed();
-        } catch (err) { toast(err.message, 'error'); }
-      }
-    });
-  }
-  items.push({
-    label: 'Copy Link', onClick: () => {
-      const url = `${API}/?post=${post.id}`;
-      if (navigator.clipboard) navigator.clipboard.writeText(url).then(() => toast('Copied', 'success'));
-      else toast(url, 'info');
-    }
-  });
-  openSheet('Post Options', items);
-}
-
-// ============ SHEET ============
-function openSheet(title, items, contentNode = null) {
-  const container = $('#modalContainer');
-  container.innerHTML = '';
-  const overlay = el('div', {
-    class: 'modal-overlay',
-    onclick: (e) => { if (e.target === overlay) closeModal(); }
-  });
-  const content = el('div', { class: 'modal-content' });
-  content.appendChild(el('div', { class: 'modal-handle' }));
-
-  if (title) {
-    const h = el('div', { class: 'modal-header' });
-    h.appendChild(el('h3', {}, title));
-    const cb = el('button', { class: 'btn-icon', onclick: closeModal });
-    cb.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
-    h.appendChild(cb);
-    content.appendChild(h);
-  }
-
-  const body = el('div', { class: 'modal-body', style: 'padding:8px 0;' });
-  if (contentNode) body.appendChild(contentNode);
-  if (items) {
-    for (const item of items) {
-      const btn = el('button', {
-        style: `display:block;width:100%;text-align:left;padding:14px 20px;font-size:15px;background:none;color:${item.danger ? 'var(--danger)' : 'var(--text)'};`,
-        onclick: () => { closeModal(); item.onClick && item.onClick(); }
-      }, item.label);
-      body.appendChild(btn);
-    }
-  }
-  content.appendChild(body);
-  overlay.appendChild(content);
-  container.appendChild(overlay);
-}
-
-function closeModal() {
-  $('#modalContainer').innerHTML = '';
-}
-
-// ============ FEED ============
-async function loadFeed(feedType = 'all') {
-  const main = $('#appMain');
-  main.innerHTML = '<div class="center-loader"><div class="loader loader-lg"></div></div>';
-  try {
-    const data = await api('/api/posts?feed=' + encodeURIComponent(feedType) + '&limit=30');
-    CACHED_POSTS = data.posts || [];
-    renderFeed(feedType);
-  } catch (err) {
-    main.innerHTML = `<div class="empty-state"><p class="empty-state-title">Failed to load feed</p><p class="empty-state-text">${esc(err.message)}</p></div>`;
-  }
-}
-
-function renderFeed(feedType = 'all') {
-  const main = $('#appMain');
-  main.innerHTML = '';
-
-  // Search bar
-  const searchWrap = el('div', { class: 'home-search' });
-  const searchIconWrap = el('div', { style: 'position:relative;' });
-  searchIconWrap.innerHTML = '<svg class="icon icon-sm" viewBox="0 0 24 24" style="position:absolute;left:14px;top:12px;color:var(--text-3);pointer-events:none;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>';
-  const searchInput = el('input', {
-    type: 'text', class: 'home-search-input', placeholder: 'Search people...',
-    onkeydown: (e) => {
-      if (e.key === 'Enter') {
-        const q = e.target.value.trim();
-        if (q) openSearchWithQuery(q);
-      }
-    }
-  });
-  searchIconWrap.appendChild(searchInput);
-  searchWrap.appendChild(searchIconWrap);
-  main.appendChild(searchWrap);
-
-  // Feed tabs
-  const tabs = el('div', { class: 'feed-tabs' });
-  ['all', 'following'].forEach(f => {
-    const active = f === feedType;
-    const t = el('button', {
-      class: 'feed-tab' + (active ? ' active' : ''),
-      onclick: () => loadFeed(f),
-    }, f === 'all' ? 'For You' : 'Following');
-    tabs.appendChild(t);
-  });
-  main.appendChild(tabs);
-
-  // Stories bar
-  const storiesBar = el('div', { class: 'stories-bar', id: 'storiesBar' });
-  main.appendChild(storiesBar);
-
-  const addStoryBtn = el('div', {
-    class: 'add-story-btn',
-    onclick: () => openCreateStory(),
-  });
-  addStoryBtn.appendChild(el('div', { class: 'add-story-circle' }, '+'));
-  addStoryBtn.appendChild(el('div', { style: 'font-size:11px;color:var(--text-2);font-weight:600;' }, 'My Story'));
-  storiesBar.appendChild(addStoryBtn);
-
-  loadStories(storiesBar);
-
-  // Posts
-  if (CACHED_POSTS.length === 0) {
-    main.appendChild(el('div', { class: 'empty-state' },
-      el('p', { class: 'empty-state-title' }, 'No posts yet'),
-      el('p', { class: 'empty-state-text' }, 'Be the first to share something!')));
+  if (saved) {
+    applyTheme(saved);
     return;
   }
-  for (const p of CACHED_POSTS) main.appendChild(renderPost(p));
+
+  const prefersLight = window.matchMedia &&
+    window.matchMedia('(prefers-color-scheme: light)').matches;
+
+  applyTheme(prefersLight ? 'light' : 'dark');
 }
 
-// ============ START APP ============
-async function startApp() {
-  showApp();
-  await loadFeed('all');
+function toggleTheme() {
+  const current = localStorage.getItem('msafiri_theme') || 'dark';
+  applyTheme(current === 'dark' ? 'light' : 'dark');
+  toast(`Theme changed to ${current === 'dark' ? 'light' : 'dark'}.`);
+}
+
+function saveSession(token, user = null) {
+  TOKEN = token || '';
+  if (TOKEN) {
+    localStorage.setItem('msafiri_token', TOKEN);
+  } else {
+    localStorage.removeItem('msafiri_token');
+  }
+
+  if (user) {
+    CURRENT_USER = user;
+    localStorage.setItem('msafiri_user', JSON.stringify(user));
+  }
+}
+
+function getSavedToken() {
+  return localStorage.getItem('msafiri_token') || '';
 }
 
 /* ============================================================
-   APP.JS — PART 2/3
-   Post Creator, Comments, Profile, Chat, Story, Call UI
+   SECTION B: AUTHENTICATION
    ============================================================ */
 
-// ============ POST CREATOR ============
-function openCreatePost() {
-  const container = $('#modalContainer');
-  container.innerHTML = '';
-  const overlay = el('div', { class: 'modal-overlay', onclick: (e) => { if (e.target === overlay) closeModal(); } });
-  const content = el('div', { class: 'modal-content' });
-  const h = el('div', { class: 'modal-header' });
-  h.appendChild(el('h3', {}, 'Create Post'));
-  const closeBtn = el('button', { class: 'btn-icon', onclick: closeModal });
-  closeBtn.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
-  h.appendChild(closeBtn);
-  content.appendChild(h);
-
-  const body = el('div', { class: 'modal-body' });
-  const textarea = el('textarea', {
-    placeholder: "What's on your mind?", rows: 5,
-    style: 'width:100%;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--radius);padding:12px;font-size:15px;color:var(--text);resize:none;font-family:inherit;',
-    maxlength: 2000,
-  });
-  body.appendChild(textarea);
-
-  const preview = el('div', { style: 'margin-top:12px;display:none;position:relative;border-radius:var(--radius);overflow:hidden;background:#000;' });
-  body.appendChild(preview);
-
-  let selectedFile = null;
-  let previewURL = null;
-
-  const fileInput = el('input', { type: 'file', style: 'display:none' });
-  fileInput.addEventListener('change', () => {
-    const f = fileInput.files && fileInput.files[0];
-    if (!f) return;
-    const maxMB = f.type.startsWith('video/') ? 50 : 5;
-    if (f.size > maxMB * 1024 * 1024) {
-      toast(`File too large. Max ${maxMB} MB.`, 'error');
-      fileInput.value = '';
-      return;
-    }
-    selectedFile = f;
-    if (previewURL) URL.revokeObjectURL(previewURL);
-    previewURL = URL.createObjectURL(f);
-    preview.innerHTML = '';
-    preview.style.display = 'block';
-    if (f.type.startsWith('video/')) {
-      preview.appendChild(el('video', { src: previewURL, controls: true, playsinline: true, style: 'width:100%;max-height:300px;display:block;' }));
-    } else if (f.type.startsWith('image/')) {
-      preview.appendChild(el('img', { src: previewURL, style: 'width:100%;max-height:300px;display:block;object-fit:contain;' }));
-    }
-    const rm = el('button', {
-      style: 'position:absolute;top:8px;right:8px;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,0.7);color:white;display:flex;align-items:center;justify-content:center;',
-      onclick: () => {
-        selectedFile = null;
-        if (previewURL) URL.revokeObjectURL(previewURL);
-        previewURL = null;
-        fileInput.value = '';
-        preview.style.display = 'none';
-      }
+async function register(name, email, password, username) {
+  try {
+    const data = await api(API.auth.register, {
+      method: 'POST',
+      body: {
+        name,
+        email,
+        password,
+        username
+      },
+      retry: false
     });
-    rm.innerHTML = '<svg class="icon icon-sm" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
-    preview.appendChild(rm);
-  });
-  body.appendChild(fileInput);
 
-  const mediaActions = el('div', { style: 'display:flex;gap:6px;margin-top:12px;' });
-  const photoBtn = el('button', { class: 'btn btn-secondary', style: 'flex:1;padding:10px 6px;font-size:12px;', onclick: () => { fileInput.accept = 'image/*'; fileInput.click(); } });
-  photoBtn.innerHTML = '<svg class="icon icon-sm" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><span>Photo</span>';
-  mediaActions.appendChild(photoBtn);
-  const videoBtn = el('button', { class: 'btn btn-secondary', style: 'flex:1;padding:10px 6px;font-size:12px;', onclick: () => { fileInput.accept = 'video/*'; fileInput.click(); } });
-  videoBtn.innerHTML = '<svg class="icon icon-sm" viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg><span>Video</span>';
-  mediaActions.appendChild(videoBtn);
-  const fileBtn = el('button', { class: 'btn btn-secondary', style: 'flex:1;padding:10px 6px;font-size:12px;', onclick: () => { fileInput.accept = '*/*'; fileInput.click(); } });
-  fileBtn.innerHTML = '<svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg><span>File</span>';
-  mediaActions.appendChild(fileBtn);
-  body.appendChild(mediaActions);
+    const token = data?.access_token || data?.token;
+    const user = data?.user || data?.data?.user;
 
-  const postBtn = el('button', {
-    class: 'btn btn-primary',
-    style: 'margin-top:10px;',
-    onclick: async () => {
-      const caption = textarea.value.trim();
-      if (!caption && !selectedFile) { toast('Add text or media', 'error'); return; }
-      postBtn.disabled = true;
-      postBtn.innerHTML = '<div class="loader"></div>';
-      try {
-        const fd = new FormData();
-        fd.append('caption', caption);
-        if (selectedFile) fd.append('file', selectedFile);
-        await api('/api/posts', { method: 'POST', body: fd });
-        toast('Posted!', 'success');
-        closeModal();
-        loadFeed('all');
-      } catch (err) {
-        toast(err.message, 'error');
-        postBtn.disabled = false;
-        postBtn.innerHTML = '<span>Post</span>';
-      }
-    },
-  }, el('span', {}, 'Post'));
-  body.appendChild(postBtn);
-  content.appendChild(body);
-  overlay.appendChild(content);
-  container.appendChild(overlay);
+    if (token) saveSession(token, user);
+    else if (user) CURRENT_USER = user;
+
+    toast('Account created successfully.', 'success');
+
+    if (TOKEN) {
+      await loadMe();
+      showApp();
+      await startApp();
+    } else {
+      showAuth();
+    }
+
+    return data;
+  } catch (error) {
+    toast(error.message, 'error');
+    throw error;
+  }
 }
 
-// ============ COMMENTS ============
-async function openComments(post) {
-  const container = $('#modalContainer');
-  container.innerHTML = '';
-  const overlay = el('div', { class: 'modal-overlay', onclick: (e) => { if (e.target === overlay) closeModal(); } });
-  const content = el('div', { class: 'modal-content', style: 'height:85vh;display:flex;flex-direction:column;' });
-  const h = el('div', { class: 'modal-header' });
-  h.appendChild(el('h3', {}, `Comments (${post.comments_count || 0})`));
-  const closeBtn = el('button', { class: 'btn-icon', onclick: closeModal });
-  closeBtn.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
-  h.appendChild(closeBtn);
-  content.appendChild(h);
-  const list = el('div', { style: 'flex:1;overflow-y:auto;padding:12px 16px;' });
-  list.innerHTML = '<div class="center-loader"><div class="loader" style="margin:0 auto;"></div></div>';
-  content.appendChild(list);
-  const form = el('form', {
-    style: 'display:flex;gap:8px;padding:12px;border-top:1px solid var(--border);background:var(--bg-2);',
-    onsubmit: async (e) => {
-      e.preventDefault();
-      const inp = form.querySelector('input');
-      const text = inp.value.trim();
-      if (!text) return;
-      const submitBtn = form.querySelector('button');
-      submitBtn.disabled = true;
-      try {
-        const res = await api(`/api/posts/${post.id}/comments`, { method: 'POST', body: JSON.stringify({ text }) });
-        inp.value = '';
-        post.comments_count = (post.comments_count || 0) + 1;
-        renderSingleComment(res.comment, list);
-        updatePostCard(post);
-      } catch (err) { toast(err.message, 'error'); }
-      submitBtn.disabled = false;
-    },
-  });
-  const inp = el('input', {
-    type: 'text', placeholder: 'Add a comment...', maxlength: 2000,
-    style: 'flex:1;padding:10px 14px;background:var(--bg-3);border:1px solid var(--border);border-radius:20px;font-size:14px;color:var(--text);',
-  });
-  form.appendChild(inp);
-  const sendBtn = el('button', { type: 'submit', class: 'btn-icon', style: 'background:var(--accent);color:white;width:40px;height:40px;border-radius:50%;' });
-  sendBtn.innerHTML = '<svg class="icon icon-sm" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>';
-  form.appendChild(sendBtn);
-  content.appendChild(form);
-  overlay.appendChild(content);
-  container.appendChild(overlay);
+async function login(email, password) {
+  try {
+    const data = await api(API.auth.login, {
+      method: 'POST',
+      body: {
+        email,
+        password
+      },
+      retry: false
+    });
+
+    const token = data?.access_token || data?.token;
+    const user = data?.user || data?.data?.user;
+
+    if (!token) {
+      throw new Error('Login succeeded but no access token was returned.');
+    }
+
+    saveSession(token, user);
+    await loadMe();
+
+    toast('Welcome back.', 'success');
+    showApp();
+    await startApp();
+
+    return data;
+  } catch (error) {
+    toast(error.message, 'error');
+    throw error;
+  }
+}
+
+async function logout() {
+  try {
+    if (TOKEN) {
+      await api(API.auth.logout, {
+        method: 'POST',
+        timeout: 10000
+      });
+    }
+  } catch (_) {
+    /* Local logout still proceeds if server logout is unavailable. */
+  }
+
+  stopRingtone();
+  hideCallScreen();
+
+  TOKEN = '';
+  CURRENT_USER = null;
+  CURRENT_CHAT = null;
+  CURRENT_PROFILE = null;
+  localStorage.removeItem('msafiri_token');
+  localStorage.removeItem('msafiri_user');
+
+  showAuth();
+  toast('You have been logged out.');
+}
+
+async function loadMe() {
+  if (!TOKEN) return null;
 
   try {
-    const data = await api(`/api/posts/${post.id}/comments`);
-    list.innerHTML = '';
-    if (!data.comments || data.comments.length === 0) {
-      list.innerHTML = '<div class="empty-state"><p class="empty-state-text">No comments yet. Be the first!</p></div>';
-    } else {
-      for (const c of data.comments) renderSingleComment(c, list);
+    const data = await api(API.auth.me);
+    CURRENT_USER = data?.user || data?.data || data;
+
+    if (CURRENT_USER) {
+      localStorage.setItem('msafiri_user', JSON.stringify(CURRENT_USER));
     }
-  } catch (err) {
-    list.innerHTML = `<div class="empty-state"><p class="empty-state-text" style="color:var(--danger);">${esc(err.message)}</p></div>`;
+
+    return CURRENT_USER;
+  } catch (error) {
+    TOKEN = '';
+    localStorage.removeItem('msafiri_token');
+    CURRENT_USER = null;
+    throw error;
+  }
+}
+
+function showAuth() {
+  document.body.classList.remove('app-active');
+
+  const auth = $('#authScreen') || $('.auth-screen') || $('[data-screen="auth"]');
+  const app = $('#app') || $('.app-shell') || $('[data-app]');
+
+  if (auth) auth.classList.remove('hidden');
+  if (app) app.classList.add('hidden');
+
+  $$('.screen').forEach(screen => {
+    if (screen === auth) return;
+    if (!screen.classList.contains('auth-screen')) {
+      screen.classList.add('hidden');
+    }
+  });
+}
+
+function showApp() {
+  document.body.classList.add('app-active');
+
+  const auth = $('#authScreen') || $('.auth-screen') || $('[data-screen="auth"]');
+  const app = $('#app') || $('.app-shell') || $('[data-app]');
+
+  if (auth) auth.classList.add('hidden');
+  if (app) app.classList.remove('hidden');
+
+  $$('.bottom-nav, .app-header').forEach(node => {
+    node.classList.remove('hidden');
+  });
+}
+
+function bindAuthUI() {
+  const loginForm = $('#loginForm') || $('[data-form="login"]');
+  const registerForm = $('#registerForm') || $('[data-form="register"]');
+
+  if (loginForm && !loginForm.dataset.bound) {
+    loginForm.dataset.bound = '1';
+
+    loginForm.addEventListener('submit', async event => {
+      event.preventDefault();
+
+      const email =
+        $('[name="email"]', loginForm)?.value.trim() ||
+        $('#loginEmail')?.value.trim() ||
+        '';
+
+      const password =
+        $('[name="password"]', loginForm)?.value ||
+        $('#loginPassword')?.value ||
+        '';
+
+      if (!email || !password) {
+        toast('Enter your email and password.', 'error');
+        return;
+      }
+
+      const button = $('button[type="submit"]', loginForm);
+      if (button) button.disabled = true;
+
+      try {
+        await login(email, password);
+      } finally {
+        if (button) button.disabled = false;
+      }
+    });
+  }
+
+  if (registerForm && !registerForm.dataset.bound) {
+    registerForm.dataset.bound = '1';
+
+    registerForm.addEventListener('submit', async event => {
+      event.preventDefault();
+
+      const name =
+        $('[name="name"]', registerForm)?.value.trim() ||
+        $('#registerName')?.value.trim() ||
+        '';
+
+      const email =
+        $('[name="email"]', registerForm)?.value.trim() ||
+        $('#registerEmail')?.value.trim() ||
+        '';
+
+      const username =
+        $('[name="username"]', registerForm)?.value.trim() ||
+        $('#registerUsername')?.value.trim() ||
+        '';
+
+      const password =
+        $('[name="password"]', registerForm)?.value ||
+        $('#registerPassword')?.value ||
+        '';
+
+      if (!name || !email || !password) {
+        toast('Complete the required registration fields.', 'error');
+        return;
+      }
+
+      const button = $('button[type="submit"]', registerForm);
+      if (button) button.disabled = true;
+
+      try {
+        await register(name, email, password, username);
+      } finally {
+        if (button) button.disabled = false;
+      }
+    });
+  }
+
+  $$('[data-auth-tab], .auth-tab').forEach(tab => {
+    if (tab.dataset.bound) return;
+    tab.dataset.bound = '1';
+
+    tab.addEventListener('click', () => {
+      const target = tab.dataset.authTab || tab.dataset.target;
+      $$('[data-auth-tab], .auth-tab').forEach(item => item.classList.remove('active'));
+      tab.classList.add('active');
+
+      if (target) {
+        $$('.auth-panel, [data-auth-panel]').forEach(panel => {
+          panel.classList.toggle(
+            'hidden',
+            panel.id !== target &&
+            panel.dataset.authPanel !== target
+          );
+        });
+      }
+    });
+  });
+
+  $$('[data-password-toggle], .password-toggle').forEach(button => {
+    if (button.dataset.bound) return;
+    button.dataset.bound = '1';
+
+    button.addEventListener('click', () => {
+      const selector = button.dataset.passwordToggle;
+      const input = selector ? $(selector) : button.parentElement?.querySelector('input');
+
+      if (!input) return;
+
+      input.type = input.type === 'password' ? 'text' : 'password';
+      button.setAttribute('aria-label', input.type === 'password' ? 'Show password' : 'Hide password');
+    });
+  });
+}
+
+/* ============================================================
+   SECTION C: FEED & POSTS
+   ============================================================ */
+
+function makeActionBtn(icon, label, handler, active = false) {
+  const button = el('button', {
+    className: `btn-icon post-action ${active ? 'active' : ''}`,
+    type: 'button',
+    title: label,
+    'aria-label': label
+  });
+
+  button.appendChild(el('span', {
+    textContent: icon,
+    'aria-hidden': 'true'
+  }));
+
+  if (label) {
+    button.appendChild(el('span', {
+      className: 'action-label',
+      textContent: label
+    }));
+  }
+
+  button.addEventListener('click', event => {
+    event.stopPropagation();
+    handler(event, button);
+  });
+
+  return button;
+}
+
+function renderPost(post) {
+  const user = post.user || post.author || {};
+  const name = user.name || user.full_name || user.username || 'User';
+  const username = user.username ? `@${user.username}` : '';
+  const caption = post.caption || post.content || '';
+  const mediaUrl = post.media_url || post.image_url || post.video_url || '';
+  const mediaType =
+    post.media_type ||
+    (post.video_url ? 'video' : post.image_url ? 'image' : '');
+
+  const card = el('article', {
+    className: 'post-card',
+    dataset: {
+      postId: post.id || post.post_id || ''
+    }
+  });
+
+  const header = el('div', { className: 'post-header' });
+
+  header.appendChild(avatarEl(user, '44px'));
+
+  const identity = el('div', {
+    className: 'post-author',
+    style: {
+      flex: '1',
+      minWidth: '0'
+    }
+  });
+
+  identity.appendChild(el('strong', {
+    textContent: name
+  }));
+
+  identity.appendChild(el('div', {
+    className: 'post-meta',
+    textContent: `${username}${username ? ' · ' : ''}${timeAgo(post.created_at || post.timestamp)}`
+  }));
+
+  header.appendChild(identity);
+
+  const menu = el('button', {
+    className: 'btn-icon',
+    type: 'button',
+    textContent: '⋯',
+    title: 'Post menu',
+    'aria-label': 'Post menu'
+  });
+
+  menu.addEventListener('click', event => {
+    event.stopPropagation();
+    openPostMenu(post);
+  });
+
+  header.appendChild(menu);
+  card.appendChild(header);
+
+  if (caption) {
+    card.appendChild(el('div', {
+      className: 'post-caption',
+      textContent: caption
+    }));
+  }
+
+  if (mediaUrl) {
+    const mediaWrap = el('div', {
+      className: 'post-media'
+    });
+
+    if (mediaType === 'video' || /\.(mp4|webm|mov|m4v)(\?|$)/i.test(mediaUrl)) {
+      const video = el('video', {
+        src: absoluteUrl(mediaUrl),
+        controls: true,
+        playsInline: true,
+        preload: 'metadata',
+        style: {
+          width: '100%',
+          maxHeight: '600px',
+          objectFit: 'cover',
+          borderRadius: 'var(--radius-sm)'
+        }
+      });
+      mediaWrap.appendChild(video);
+    } else {
+      const image = el('img', {
+        src: absoluteUrl(mediaUrl),
+        alt: caption || 'Post media',
+        loading: 'lazy',
+        style: {
+          width: '100%',
+          maxHeight: '600px',
+          objectFit: 'cover',
+          borderRadius: 'var(--radius-sm)'
+        }
+      });
+      mediaWrap.appendChild(image);
+    }
+
+    card.appendChild(mediaWrap);
+  }
+
+  const actions = el('div', {
+    className: 'post-actions',
+    style: {
+      display: 'flex',
+      gap: '6px',
+      alignItems: 'center',
+      paddingTop: '8px'
+    }
+  });
+
+  const liked = Boolean(post.liked ?? post.is_liked);
+  const saved = Boolean(post.saved ?? post.is_saved);
+  const reshared = Boolean(post.reshared ?? post.is_reshared);
+
+  actions.appendChild(makeActionBtn(
+    liked ? '♥' : '♡',
+    String(post.likes_count ?? post.like_count ?? ''),
+    () => toggleLike(post.id || post.post_id),
+    liked
+  ));
+
+  actions.appendChild(makeActionBtn(
+    '◯',
+    String(post.comments_count ?? post.comment_count ?? ''),
+    () => openComments(post)
+  ));
+
+  actions.appendChild(makeActionBtn(
+    reshared ? '↻' : '⟳',
+    String(post.reshares_count ?? post.reshare_count ?? ''),
+    () => toggleReshare(post.id || post.post_id),
+    reshared
+  ));
+
+  actions.appendChild(makeActionBtn(
+    saved ? '★' : '☆',
+    '',
+    () => toggleSave(post.id || post.post_id),
+    saved
+  ));
+
+  card.appendChild(actions);
+
+  return card;
+}
+
+async function toggleLike(postId) {
+  if (!postId) return;
+
+  try {
+    const data = await api(`${API.posts}/${encodeURIComponent(postId)}/like`, {
+      method: 'POST'
+    });
+
+    updatePostCard(postId, data);
+  } catch (error) {
+    toast(error.message, 'error');
+  }
+}
+
+async function toggleSave(postId) {
+  if (!postId) return;
+
+  try {
+    const data = await api(`${API.posts}/${encodeURIComponent(postId)}/save`, {
+      method: 'POST'
+    });
+
+    updatePostCard(postId, data);
+  } catch (error) {
+    toast(error.message, 'error');
+  }
+}
+
+async function toggleReshare(postId) {
+  if (!postId) return;
+
+  try {
+    const data = await api(`${API.posts}/${encodeURIComponent(postId)}/reshare`, {
+      method: 'POST'
+    });
+
+    updatePostCard(postId, data);
+  } catch (error) {
+    toast(error.message, 'error');
+  }
+}
+
+function updatePostCard(postId, patch = {}) {
+  const card = $(`.post-card[data-post-id="${CSS.escape(String(postId))}"]`);
+  if (!card) return;
+
+  const cached = CACHE.feed.get(CURRENT_VIEW) || [];
+  const index = cached.findIndex(item =>
+    String(item.id || item.post_id) === String(postId)
+  );
+
+  if (index >= 0) {
+    cached[index] = {
+      ...cached[index],
+      ...patch
+    };
+  }
+
+  if (
+    patch.liked !== undefined ||
+    patch.is_liked !== undefined ||
+    patch.likes_count !== undefined ||
+    patch.like_count !== undefined ||
+    patch.saved !== undefined ||
+    patch.is_saved !== undefined ||
+    patch.reshared !== undefined ||
+    patch.is_reshared !== undefined
+  ) {
+    const newPost = index >= 0 ? cached[index] : {
+      id: postId,
+      ...patch
+    };
+
+    const replacement = renderPost(newPost);
+    card.replaceWith(replacement);
+  }
+}
+
+function openPostMenu(post) {
+  openSheet('Post options', [
+    {
+      label: 'Save post',
+      action: async () => {
+        await toggleSave(post.id || post.post_id);
+        closeModal();
+      }
+    },
+    {
+      label: 'Share post',
+      action: async () => {
+        const url = `${window.location.origin}/post/${post.id || post.post_id}`;
+
+        try {
+          if (navigator.share) {
+            await navigator.share({
+              title: 'MSAFIRI GLOBAL MEDIA',
+              text: post.caption || 'Check out this post.',
+              url
+            });
+          } else {
+            await navigator.clipboard.writeText(url);
+            toast('Post link copied.');
+          }
+        } catch (_) {
+          /* User cancelled native share. */
+        }
+
+        closeModal();
+      }
+    },
+    {
+      label: 'Report post',
+      danger: true,
+      action: async () => {
+        try {
+          await api(`${API.posts}/${encodeURIComponent(post.id || post.post_id)}/report`, {
+            method: 'POST'
+          });
+          toast('Post reported.', 'success');
+          closeModal();
+        } catch (error) {
+          toast(error.message, 'error');
+        }
+      }
+    }
+  ]);
+}
+
+function openSheet(title, items = []) {
+  closeModal();
+
+  const overlay = el('div', {
+    className: 'modal-overlay',
+    role: 'dialog',
+    'aria-modal': 'true'
+  });
+
+  const content = el('div', {
+    className: 'modal-content'
+  });
+
+  const header = el('div', {
+    className: 'modal-header'
+  });
+
+  header.appendChild(el('h3', {
+    textContent: title
+  }));
+
+  const close = el('button', {
+    className: 'btn-icon',
+    type: 'button',
+    textContent: '×',
+    'aria-label': 'Close'
+  });
+
+  close.addEventListener('click', closeModal);
+  header.appendChild(close);
+
+  content.appendChild(header);
+
+  const body = el('div', {
+    className: 'modal-body'
+  });
+
+  items.forEach(item => {
+    const button = el('button', {
+      className: `dots-menu-item ${item.danger ? 'danger' : ''}`,
+      type: 'button',
+      textContent: item.label
+    });
+
+    button.addEventListener('click', async () => {
+      if (typeof item.action === 'function') {
+        await item.action();
+      }
+    });
+
+    body.appendChild(button);
+  });
+
+  content.appendChild(body);
+  overlay.appendChild(content);
+
+  overlay.addEventListener('click', event => {
+    if (event.target === overlay) closeModal();
+  });
+
+  document.body.appendChild(overlay);
+  return overlay;
+}
+
+function closeModal() {
+  $$('.modal-overlay').forEach(node => node.remove());
+}
+
+async function loadFeed(feedType = 'for-you') {
+  const key = feedType || 'for-you';
+
+  try {
+    const data = await api(`${API.feed}?type=${encodeURIComponent(key)}`);
+    const posts = normalizeList(data);
+
+    CACHE.feed.set(key, posts);
+    return posts;
+  } catch (error) {
+    toast(error.message, 'error');
+    return CACHE.feed.get(key) || [];
+  }
+}
+
+function renderFeed(feedType = 'for-you', posts = null) {
+  const main =
+    $('.app-main') ||
+    $('#mainContent') ||
+    $('#homeScreen') ||
+    $('[data-main]');
+
+  if (!main) return;
+
+  const list = posts || CACHE.feed.get(feedType) || [];
+
+  main.replaceChildren();
+
+  const search = el('div', {
+    className: 'home-search'
+  });
+
+  const searchInput = el('input', {
+    className: 'home-search-input',
+    type: 'search',
+    placeholder: 'Search MSAFIRI GLOBAL MEDIA',
+    autocomplete: 'off'
+  });
+
+  searchInput.addEventListener('keydown', event => {
+    if (event.key === 'Enter' && searchInput.value.trim()) {
+      openSearchWithQuery(searchInput.value.trim());
+    }
+  });
+
+  search.appendChild(searchInput);
+  main.appendChild(search);
+
+  const tabs = el('div', {
+    className: 'feed-tabs'
+  });
+
+  ['for-you', 'following'].forEach(type => {
+    const tab = el('button', {
+      className: `feed-tab ${feedType === type ? 'active' : ''}`,
+      type: 'button',
+      textContent: type === 'for-you' ? 'For You' : 'Following'
+    });
+
+    tab.addEventListener('click', async () => {
+      if (CURRENT_VIEW !== 'home') return;
+      const data = await loadFeed(type);
+      renderFeed(type, data);
+    });
+
+    tabs.appendChild(tab);
+  });
+
+  main.appendChild(tabs);
+
+  const storiesBar = el('div', {
+    className: 'stories-bar'
+  });
+
+  main.appendChild(storiesBar);
+  loadStories(storiesBar);
+
+  const feedContainer = el('div', {
+    className: 'feed-container'
+  });
+
+  if (!list.length) {
+    feedContainer.appendChild(el('div', {
+      className: 'empty-state',
+      textContent: 'No posts to show yet.'
+    }));
+  } else {
+    list.forEach(post => {
+      feedContainer.appendChild(renderPost(post));
+    });
+  }
+
+  main.appendChild(feedContainer);
+}
+
+async function startApp() {
+  showApp();
+
+  if (!CURRENT_USER && TOKEN) {
+    try {
+      await loadMe();
+    } catch (_) {
+      showAuth();
+      return;
+    }
+  }
+
+  await loadFeed('for-you');
+  renderFeed('for-you');
+
+  if (!document.title || document.title === 'Vite App') {
+    document.title = 'MSAFIRI GLOBAL MEDIA';
+  }
+}
+
+/* ============================================================
+   SECTION D: POST CREATION & COMMENTS
+   ============================================================ */
+
+function openCreatePost() {
+  closeModal();
+
+  const overlay = el('div', {
+    className: 'modal-overlay',
+    role: 'dialog',
+    'aria-modal': 'true'
+  });
+
+  const content = el('div', {
+    className: 'modal-content'
+  });
+
+  const header = el('div', {
+    className: 'modal-header'
+  });
+
+  header.appendChild(el('h3', {
+    textContent: 'Create post'
+  }));
+
+  const close = el('button', {
+    className: 'btn-icon',
+    type: 'button',
+    textContent: '×',
+    'aria-label': 'Close'
+  });
+
+  close.addEventListener('click', closeModal);
+  header.appendChild(close);
+  content.appendChild(header);
+
+  const body = el('div', {
+    className: 'modal-body'
+  });
+
+  const caption = el('textarea', {
+    placeholder: 'What is happening?',
+    rows: '5',
+    style: {
+      width: '100%',
+      resize: 'vertical'
+    }
+  });
+
+  const fileInput = el('input', {
+    type: 'file',
+    accept: 'image/*,video/*,.pdf,.doc,.docx,.txt',
+    hidden: true
+  });
+
+  const selected = el('div', {
+    className: 'selected-file',
+    textContent: 'No media selected.'
+  });
+
+  let selectedFile = null;
+
+  fileInput.addEventListener('change', () => {
+    selectedFile = fileInput.files?.[0] || null;
+    selected.textContent = selectedFile
+      ? selectedFile.name
+      : 'No media selected.';
+  });
+
+  const actions = el('div', {
+    className: 'create-media-actions'
+  });
+
+  [
+    ['Photo', 'image/*'],
+    ['Video', 'video/*'],
+    ['File', '*/*']
+  ].forEach(([label, accept]) => {
+    const button = el('button', {
+      className: 'btn btn-secondary',
+      type: 'button',
+      textContent: label
+    });
+
+    button.addEventListener('click', () => {
+      fileInput.accept = accept;
+      fileInput.click();
+    });
+
+    actions.appendChild(button);
+  });
+
+  const submit = el('button', {
+    className: 'btn btn-primary',
+    type: 'button',
+    textContent: 'Post'
+  });
+
+  submit.addEventListener('click', async () => {
+    submit.disabled = true;
+
+    try {
+      let mediaUrl = '';
+
+      if (selectedFile) {
+        const form = new FormData();
+        form.append('file', selectedFile);
+
+        const uploaded = await api(API.upload, {
+          method: 'POST',
+          body: form
+        });
+
+        mediaUrl =
+          uploaded?.url ||
+          uploaded?.file_url ||
+          uploaded?.media_url ||
+          '';
+      }
+
+      const payload = {
+        caption: caption.value.trim(),
+        media_url: mediaUrl,
+        media_type: selectedFile
+          ? selectedFile.type.startsWith('video')
+            ? 'video'
+            : selectedFile.type.startsWith('image')
+              ? 'image'
+              : 'file'
+          : null
+      };
+
+      await api(API.posts, {
+        method: 'POST',
+        body: payload
+      });
+
+      toast('Post published.', 'success');
+      closeModal();
+
+      const data = await loadFeed(CURRENT_VIEW === 'following' ? 'following' : 'for-you');
+      renderFeed(CURRENT_VIEW === 'following' ? 'following' : 'for-you', data);
+    } catch (error) {
+      toast(error.message, 'error');
+    } finally {
+      submit.disabled = false;
+    }
+  });
+
+  body.append(
+    caption,
+    fileInput,
+    selected,
+    actions,
+    submit
+  );
+
+  content.appendChild(body);
+  overlay.appendChild(content);
+
+  overlay.addEventListener('click', event => {
+    if (event.target === overlay) closeModal();
+  });
+
+  document.body.appendChild(overlay);
+}
+
+async function openComments(post) {
+  closeModal();
+
+  const overlay = el('div', {
+    className: 'modal-overlay'
+  });
+
+  const content = el('div', {
+    className: 'modal-content'
+  });
+
+  const header = el('div', {
+    className: 'modal-header'
+  });
+
+  header.appendChild(el('h3', {
+    textContent: 'Comments'
+  }));
+
+  const close = el('button', {
+    className: 'btn-icon',
+    textContent: '×',
+    type: 'button'
+  });
+
+  close.addEventListener('click', closeModal);
+  header.appendChild(close);
+  content.appendChild(header);
+
+  const body = el('div', {
+    className: 'modal-body'
+  });
+
+  const list = el('div', {
+    className: 'comments-list'
+  });
+
+  const loader = el('div', {
+    className: 'loader',
+    textContent: 'Loading comments...'
+  });
+
+  list.appendChild(loader);
+  body.appendChild(list);
+
+  const composer = el('div', {
+    className: 'comment-composer'
+  });
+
+  const input = el('input', {
+    type: 'text',
+    placeholder: 'Write a comment...',
+    autocomplete: 'off'
+  });
+
+  const send = el('button', {
+    className: 'btn btn-primary',
+    type: 'button',
+    textContent: 'Send'
+  });
+
+  send.addEventListener('click', async () => {
+    const text = input.value.trim();
+    if (!text) return;
+
+    send.disabled = true;
+
+    try {
+      const comment = await api(
+        `${API.posts}/${encodeURIComponent(post.id || post.post_id)}/comments`,
+        {
+          method: 'POST',
+          body: { content: text }
+        }
+      );
+
+      input.value = '';
+      renderSingleComment(comment?.comment || comment, list);
+    } catch (error) {
+      toast(error.message, 'error');
+    } finally {
+      send.disabled = false;
+    }
+  });
+
+  input.addEventListener('keydown', event => {
+    if (event.key === 'Enter') send.click();
+  });
+
+  composer.append(input, send);
+  body.appendChild(composer);
+
+  content.appendChild(body);
+  overlay.appendChild(content);
+  document.body.appendChild(overlay);
+
+  try {
+    const data = await api(
+      `${API.posts}/${encodeURIComponent(post.id || post.post_id)}/comments`
+    );
+
+    list.replaceChildren();
+    normalizeList(data).forEach(comment => renderSingleComment(comment, list));
+  } catch (error) {
+    loader.textContent = error.message;
   }
 }
 
 function renderSingleComment(c, list) {
-  const row = el('div', { style: 'display:flex;gap:10px;margin-bottom:16px;' });
-  row.appendChild(avatarEl(c.user, 36));
-  const right = el('div', { style: 'flex:1;min-width:0;' });
-  right.appendChild(el('div', { style: 'font-size:13px;font-weight:600;' }, c.user.name));
-  right.appendChild(el('div', { style: 'font-size:14px;line-height:1.4;word-break:break-word;margin-top:2px;' }, c.text));
-  right.appendChild(el('div', { style: 'font-size:11px;color:var(--text-3);margin-top:4px;' }, timeAgo(c.created_at)));
-  row.appendChild(right);
+  if (!c || !list) return;
+
+  const user = c.user || c.author || {};
+  const row = el('div', {
+    className: 'comment-item'
+  });
+
+  row.appendChild(avatarEl(user, '34px'));
+
+  const content = el('div', {
+    className: 'comment-content'
+  });
+
+  content.appendChild(el('strong', {
+    textContent: user.name || user.username || 'User'
+  }));
+
+  content.appendChild(el('p', {
+    textContent: c.content || c.text || ''
+  }));
+
+  content.appendChild(el('small', {
+    textContent: timeAgo(c.created_at || c.timestamp)
+  }));
+
+  row.appendChild(content);
   list.appendChild(row);
-  list.scrollTop = list.scrollHeight;
 }
 
-// ============ PROFILE ============
-async function openProfile(userId) {
-  const main = $('#appMain');
-  main.innerHTML = '<div class="center-loader"><div class="loader loader-lg"></div></div>';
-  switchView('profile');
-  try {
-    const data = await api(`/api/users/${userId}`);
-    const u = data.user;
-    main.innerHTML = '';
+/* ============================================================
+   SECTION E: PROFILE
+   ============================================================ */
 
-    const cover = el('div', { style: 'height:120px;background:linear-gradient(135deg,var(--accent),var(--accent-2));' });
+async function openProfile(userId) {
+  const id = userId || CURRENT_USER?.id || CURRENT_USER?.user_id;
+  if (!id) return;
+
+  switchView('profile');
+
+  const main = $('.app-main') || $('#mainContent');
+  if (!main) return;
+
+  main.replaceChildren();
+
+  main.appendChild(el('div', {
+    className: 'loader',
+    textContent: 'Loading profile...'
+  }));
+
+  try {
+    let profile = CACHE.profiles.get(String(id));
+
+    if (!profile) {
+      const data = await api(`${API.users}/${encodeURIComponent(id)}`);
+      profile = data?.user || data?.profile || data;
+      CACHE.profiles.set(String(id), profile);
+    }
+
+    CURRENT_PROFILE = profile;
+
+    const posts = normalizeList(
+      await api(`${API.users}/${encodeURIComponent(id)}/posts`)
+    );
+
+    main.replaceChildren();
+
+    const cover = el('div', {
+      className: 'profile-cover',
+      style: {
+        minHeight: '150px',
+        background: `var(--bg-3)`
+      }
+    });
+
+    if (profile.cover_url || profile.cover) {
+      cover.style.backgroundImage = `url("${absoluteUrl(profile.cover_url || profile.cover)}")`;
+      cover.style.backgroundSize = 'cover';
+      cover.style.backgroundPosition = 'center';
+    }
+
     main.appendChild(cover);
 
-    const info = el('div', { style: 'padding:0 16px 16px;margin-top:-50px;position:relative;' });
-    const av = avatarEl(u, 100);
-    av.style.border = '4px solid var(--bg)';
-    info.appendChild(av);
-
-    info.appendChild(el('div', { style: 'font-size:20px;font-weight:700;margin-top:8px;' }, u.name));
-    if (u.username) info.appendChild(el('div', { style: 'font-size:14px;color:var(--text-2);' }, '@' + u.username));
-    if (u.bio) info.appendChild(el('div', { style: 'font-size:14px;line-height:1.5;margin-top:12px;' }, u.bio));
-    if (u.location) info.appendChild(el('div', { style: 'font-size:13px;color:var(--text-2);margin-top:8px;' }, '📍 ' + u.location));
-
-    const stats = el('div', { style: 'display:flex;gap:24px;margin-top:16px;' });
-    [
-      { label: 'Posts', value: u.posts_count || 0 },
-      { label: 'Followers', value: u.followers_count || 0 },
-      { label: 'Following', value: u.following_count || 0 },
-    ].forEach(s => {
-      const box = el('div');
-      box.appendChild(el('div', { style: 'font-weight:700;font-size:16px;' }, String(s.value)));
-      box.appendChild(el('div', { style: 'font-size:12px;color:var(--text-3);' }, s.label));
-      stats.appendChild(box);
+    const profileHead = el('div', {
+      className: 'profile-header'
     });
-    info.appendChild(stats);
 
-    const actions = el('div', { style: 'display:flex;gap:8px;margin-top:16px;' });
-    if (CURRENT_USER && u.id === CURRENT_USER.id) {
-      const editBtn = el('button', { class: 'btn btn-secondary', style: 'flex:1;', onclick: () => openEditProfile() }, 'Edit Profile');
-      actions.appendChild(editBtn);
-    } else {
-      const followBtn = el('button', {
-        class: 'btn ' + (u.is_following ? 'btn-secondary' : 'btn-primary'),
-        style: 'flex:1;',
-        onclick: async () => {
-          try {
-            if (u.is_following) {
-              await api(`/api/users/${u.id}/follow`, { method: 'DELETE' });
-              u.is_following = false;
-              u.followers_count = Math.max(0, (u.followers_count || 1) - 1);
-            } else {
-              await api(`/api/users/${u.id}/follow`, { method: 'POST' });
-              u.is_following = true;
-              u.followers_count = (u.followers_count || 0) + 1;
-            }
-            openProfile(u.id);
-          } catch (err) { toast(err.message, 'error'); }
+    profileHead.appendChild(avatarEl(profile, '88px'));
+
+    const identity = el('div', {
+      className: 'profile-identity'
+    });
+
+    identity.appendChild(el('h2', {
+      textContent: profile.name || profile.username || 'User'
+    }));
+
+    if (profile.username) {
+      identity.appendChild(el('div', {
+        textContent: `@${profile.username}`
+      }));
+    }
+
+    if (profile.bio) {
+      identity.appendChild(el('p', {
+        textContent: profile.bio
+      }));
+    }
+
+    profileHead.appendChild(identity);
+
+    const isMe = String(id) === String(CURRENT_USER?.id || CURRENT_USER?.user_id);
+
+    if (!isMe) {
+      const follow = el('button', {
+        className: `btn ${profile.is_following ? 'btn-secondary' : 'btn-primary'}`,
+        type: 'button',
+        textContent: profile.is_following ? 'Following' : 'Follow'
+      });
+
+      follow.addEventListener('click', async () => {
+        try {
+          const data = await api(`${API.users}/${encodeURIComponent(id)}/follow`, {
+            method: 'POST'
+          });
+
+          profile.is_following =
+            data?.is_following ?? !profile.is_following;
+
+          follow.textContent = profile.is_following ? 'Following' : 'Follow';
+          follow.className =
+            `btn ${profile.is_following ? 'btn-secondary' : 'btn-primary'}`;
+        } catch (error) {
+          toast(error.message, 'error');
         }
-      }, el('span', {}, u.is_following ? 'Following' : 'Follow'));
-      actions.appendChild(followBtn);
+      });
 
-      const msgBtn = el('button', { class: 'btn btn-secondary', style: 'flex:0 0 auto;width:auto;padding:14px;' });
-      msgBtn.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
-      msgBtn.addEventListener('click', () => openChatWith(u));
-      actions.appendChild(msgBtn);
+      profileHead.appendChild(follow);
+    } else {
+      const edit = el('button', {
+        className: 'btn btn-secondary',
+        type: 'button',
+        textContent: 'Edit profile'
+      });
+
+      edit.addEventListener('click', openEditProfile);
+      profileHead.appendChild(edit);
     }
-    info.appendChild(actions);
-    main.appendChild(info);
 
-    main.appendChild(el('div', { style: 'padding:12px 16px;border-top:1px solid var(--border);font-weight:600;font-size:14px;' }, 'Posts'));
-    const postsWrap = el('div');
-    main.appendChild(postsWrap);
+    main.appendChild(profileHead);
 
-    try {
-      const pdata = await api(`/api/users/${u.id}/posts`);
-      if (!pdata.posts || pdata.posts.length === 0) {
-        postsWrap.innerHTML = '<div class="empty-state"><p class="empty-state-text">No posts yet</p></div>';
-      } else {
-        for (const p of pdata.posts) postsWrap.appendChild(renderPost(p));
-      }
-    } catch (err) {
-      postsWrap.innerHTML = `<div class="empty-state"><p class="empty-state-text" style="color:var(--danger);">${esc(err.message)}</p></div>`;
-    }
-  } catch (err) {
-    main.innerHTML = `<div class="empty-state"><p class="empty-state-text" style="color:var(--danger);">${esc(err.message)}</p></div>`;
+    const stats = el('div', {
+      className: 'profile-stats'
+    });
+
+    [
+      ['Posts', profile.posts_count ?? posts.length],
+      ['Followers', profile.followers_count ?? 0],
+      ['Following', profile.following_count ?? 0]
+    ].forEach(([label, value]) => {
+      const stat = el('div', { className: 'profile-stat' });
+      stat.append(
+        el('strong', { textContent: String(value) }),
+        el('span', { textContent: label })
+      );
+      stats.appendChild(stat);
+    });
+
+    main.appendChild(stats);
+
+    const postGrid = el('div', {
+      className: 'profile-posts'
+    });
+
+    posts.forEach(post => postGrid.appendChild(renderPost(post)));
+    main.appendChild(postGrid);
+  } catch (error) {
+    main.replaceChildren(el('div', {
+      className: 'empty-state',
+      textContent: error.message
+    }));
   }
 }
 
-// ============ EDIT PROFILE ============
 function openEditProfile() {
-  const container = $('#modalContainer');
-  container.innerHTML = '';
-  const overlay = el('div', { class: 'modal-overlay', onclick: (e) => { if (e.target === overlay) closeModal(); } });
-  const content = el('div', { class: 'modal-content' });
-  const h = el('div', { class: 'modal-header' });
-  h.appendChild(el('h3', {}, 'Edit Profile'));
-  const cb = el('button', { class: 'btn-icon', onclick: closeModal });
-  cb.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
-  h.appendChild(cb);
-  content.appendChild(h);
-  const body = el('div', { class: 'modal-body' });
+  if (!CURRENT_USER) return;
 
-  const avatarSection = el('div', { style: 'text-align:center;margin-bottom:20px;' });
-  const avatarPreview = el('div', {
-    style: 'width:100px;height:100px;margin:0 auto;border-radius:50%;overflow:hidden;background:linear-gradient(135deg,#3b82f6,#8b5cf6);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:40px;position:relative;cursor:pointer;border:3px solid var(--border);',
-    onclick: () => avatarInput.click(),
+  closeModal();
+
+  const overlay = el('div', {
+    className: 'modal-overlay'
   });
-  function setAvatarPreview(src) {
-    avatarPreview.innerHTML = '';
-    if (src) {
-      avatarPreview.appendChild(el('img', { src, style: 'width:100%;height:100%;object-fit:cover;' }));
-    } else {
-      avatarPreview.textContent = initials(CURRENT_USER.name);
-    }
-  }
-  setAvatarPreview(CURRENT_USER.avatar);
 
-  const cameraBadge = el('div', { style: 'position:absolute;bottom:0;right:0;background:var(--accent);width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid var(--bg);' });
-  cameraBadge.innerHTML = '<svg class="icon icon-sm" viewBox="0 0 24 24" style="stroke:white;"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>';
-  avatarPreview.appendChild(cameraBadge);
-  avatarSection.appendChild(avatarPreview);
+  const content = el('div', {
+    className: 'modal-content'
+  });
 
-  const changePhotoText = el('div', { style: 'margin-top:10px;color:var(--accent);font-size:14px;font-weight:600;cursor:pointer;', onclick: () => avatarInput.click() }, 'Change Profile Picture');
-  avatarSection.appendChild(changePhotoText);
+  const header = el('div', {
+    className: 'modal-header'
+  });
 
-  const avatarInput = el('input', { type: 'file', accept: 'image/*', style: 'display:none' });
-  avatarInput.addEventListener('change', async () => {
-    const f = avatarInput.files && avatarInput.files[0];
-    if (!f) return;
-    if (f.size > 2 * 1024 * 1024) { toast('Avatar too large (max 2 MB)', 'error'); avatarInput.value = ''; return; }
-    if (!f.type.startsWith('image/')) { toast('Avatar must be an image', 'error'); avatarInput.value = ''; return; }
-    const reader = new FileReader();
-    reader.onload = (ev) => setAvatarPreview(ev.target.result);
-    reader.readAsDataURL(f);
-    const fd = new FormData();
-    fd.append('file', f);
-    changePhotoText.textContent = 'Uploading...';
-    changePhotoText.style.color = 'var(--text-3)';
+  header.appendChild(el('h3', {
+    textContent: 'Edit profile'
+  }));
+
+  const close = el('button', {
+    className: 'btn-icon',
+    textContent: '×',
+    type: 'button'
+  });
+
+  close.addEventListener('click', closeModal);
+  header.appendChild(close);
+  content.appendChild(header);
+
+  const body = el('div', {
+    className: 'modal-body'
+  });
+
+  const name = el('input', {
+    type: 'text',
+    value: CURRENT_USER.name || '',
+    placeholder: 'Name'
+  });
+
+  const username = el('input', {
+    type: 'text',
+    value: CURRENT_USER.username || '',
+    placeholder: 'Username'
+  });
+
+  const bio = el('textarea', {
+    placeholder: 'Bio',
+    rows: '4'
+  });
+  bio.value = CURRENT_USER.bio || '';
+
+  const avatarInput = el('input', {
+    type: 'file',
+    accept: 'image/*'
+  });
+
+  const save = el('button', {
+    className: 'btn btn-primary',
+    type: 'button',
+    textContent: 'Save changes'
+  });
+
+  save.addEventListener('click', async () => {
+    save.disabled = true;
+
     try {
-      const res = await api('/api/profile/avatar', { method: 'POST', body: fd });
-      toast('Profile picture updated!', 'success');
-      CURRENT_USER.avatar = res.avatar;
-      changePhotoText.textContent = 'Change Profile Picture';
-      changePhotoText.style.color = 'var(--accent)';
-    } catch (err) {
-      toast(err.message, 'error');
-      setAvatarPreview(CURRENT_USER.avatar);
-      changePhotoText.textContent = 'Change Profile Picture';
-      changePhotoText.style.color = 'var(--accent)';
+      let avatarUrl = CURRENT_USER.avatar_url || CURRENT_USER.avatar || '';
+
+      if (avatarInput.files?.[0]) {
+        const form = new FormData();
+        form.append('file', avatarInput.files[0]);
+
+        const uploaded = await api(API.upload, {
+          method: 'POST',
+          body: form
+        });
+
+        avatarUrl =
+          uploaded?.url ||
+          uploaded?.file_url ||
+          uploaded?.media_url ||
+          avatarUrl;
+      }
+
+      const updated = await api(API.profile, {
+        method: 'PATCH',
+        body: {
+          name: name.value.trim(),
+          username: username.value.trim(),
+          bio: bio.value.trim(),
+          avatar_url: avatarUrl
+        }
+      });
+
+      CURRENT_USER = updated?.user || updated;
+      localStorage.setItem('msafiri_user', JSON.stringify(CURRENT_USER));
+
+      toast('Profile updated.', 'success');
+      closeModal();
+      await openProfile(CURRENT_USER.id || CURRENT_USER.user_id);
+    } catch (error) {
+      toast(error.message, 'error');
+    } finally {
+      save.disabled = false;
     }
   });
-  avatarSection.appendChild(avatarInput);
-  body.appendChild(avatarSection);
 
-  const fields = [
-    { key: 'name', label: 'Name', value: CURRENT_USER.name || '' },
-    { key: 'username', label: 'Username', value: CURRENT_USER.username || '' },
-    { key: 'bio', label: 'Bio', value: CURRENT_USER.bio || '', multiline: true },
-    { key: 'location', label: 'Location', value: CURRENT_USER.location || '' },
-  ];
-  const inputs = {};
-  for (const f of fields) {
-    const wrap = el('div', { class: 'field', style: 'margin-bottom:12px;' });
-    wrap.appendChild(el('label', {}, f.label));
-    const inpWrap = el('div', { class: 'input-wrap no-icon' });
-    const inp = f.multiline
-      ? el('textarea', { rows: 3, style: 'padding:12px;resize:none;' })
-      : el('input', { type: 'text' });
-    inp.value = f.value;
-    inpWrap.appendChild(inp);
-    wrap.appendChild(inpWrap);
-    body.appendChild(wrap);
-    inputs[f.key] = inp;
-  }
+  body.append(
+    avatarEl(CURRENT_USER, '72px'),
+    name,
+    username,
+    bio,
+    avatarInput,
+    save
+  );
 
-  const saveBtn = el('button', {
-    class: 'btn btn-primary',
-    style: 'margin-top:8px;',
-    onclick: async () => {
-      saveBtn.disabled = true;
-      saveBtn.innerHTML = '<div class="loader"></div>';
-      try {
-        await api('/api/profile', {
-          method: 'PATCH',
-          body: JSON.stringify({
-            name: inputs.name.value.trim(),
-            username: inputs.username.value.trim() || null,
-            bio: inputs.bio.value.trim(),
-            location: inputs.location.value.trim(),
-          }),
-        });
-        toast('Profile saved', 'success');
-        await loadMe();
-        closeModal();
-        openProfile(CURRENT_USER.id);
-      } catch (err) {
-        toast(err.message, 'error');
-        saveBtn.disabled = false;
-        saveBtn.innerHTML = 'Save Changes';
-      }
-    }
-  }, el('span', {}, 'Save Changes'));
-  body.appendChild(saveBtn);
   content.appendChild(body);
   overlay.appendChild(content);
-  container.appendChild(overlay);
+  document.body.appendChild(overlay);
 }
 
-// ============ CHAT LIST ============
+/* ============================================================
+   SECTION F: CHAT
+   ============================================================ */
+
 async function openChats() {
-  const main = $('#appMain');
-  main.innerHTML = '<div class="center-loader"><div class="loader loader-lg"></div></div>';
-  switchView('chats');
-  try {
-    const data = await api('/api/messages');
-    CACHED_CHATS = data.chats || [];
-    renderChatList();
-  } catch (err) {
-    main.innerHTML = `<div class="empty-state"><p class="empty-state-text" style="color:var(--danger);">${esc(err.message)}</p></div>`;
-  }
-}
-
-function renderChatList() {
-  const main = $('#appMain');
-  main.innerHTML = '';
-  const header = el('div', { style: 'padding:16px;border-bottom:1px solid var(--border);' });
-  header.appendChild(el('h2', { style: 'font-size:20px;font-weight:700;' }, 'Chats'));
-  main.appendChild(header);
-
-  if (CACHED_CHATS.length === 0) {
-    main.appendChild(el('div', { class: 'empty-state' },
-      el('p', { class: 'empty-state-title' }, 'No conversations yet'),
-      el('p', { class: 'empty-state-text' }, 'Start a chat from someone\'s profile')));
-    return;
-  }
-
-  for (const c of CACHED_CHATS) {
-    const row = el('div', {
-      class: 'chat-list-item',
-      onclick: () => openChat(c.other_id, c.name, c.avatar, c.username),
-    });
-    row.appendChild(avatarEl({ name: c.name, avatar: c.avatar }, 48));
-    const info = el('div', { class: 'chat-list-item-info' });
-    info.appendChild(el('div', { class: 'chat-list-item-name' }, c.name));
-    if (c.last_text) {
-      info.appendChild(el('div', { class: 'chat-list-item-preview' }, c.last_text));
-    }
-    row.appendChild(info);
-    if (c.last_at) {
-      row.appendChild(el('div', { class: 'chat-list-item-time' }, timeAgo(c.last_at)));
-    }
-    main.appendChild(row);
-  }
-}
-
-// ============ OPEN CHAT (WhatsApp-style) ============
-async function openChat(otherId, name, avatar, username) {
-  const main = $('#appMain');
-  main.innerHTML = '';
   switchView('chats');
 
-  // Chat header
-  const header = el('div', { class: 'chat-header' });
-  const backBtn = el('button', { class: 'btn-icon', onclick: () => openChats() });
-  backBtn.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>';
-  header.appendChild(backBtn);
+  const main = $('.app-main') || $('#mainContent');
+  if (!main) return;
 
-  const info = el('div', { class: 'chat-header-info', onclick: () => openProfile(otherId) });
-  info.appendChild(avatarEl({ name, avatar }, 36));
-  const infoText = el('div', { style: 'min-width:0;' });
-  infoText.appendChild(el('div', { class: 'chat-header-name' }, name));
-  infoText.appendChild(el('div', { class: 'chat-header-status', id: 'chatStatus' }, 'online'));
-  info.appendChild(infoText);
-  header.appendChild(info);
+  main.replaceChildren();
 
-  const voiceBtn = el('button', { class: 'btn-icon', title: 'Voice call' });
-  voiceBtn.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>';
-  voiceBtn.addEventListener('click', () => startCall(otherId, 'audio', name));
-  header.appendChild(voiceBtn);
+  const header = el('div', {
+    className: 'chat-header'
+  });
 
-  const videoBtn = el('button', { class: 'btn-icon', title: 'Video call' });
-  videoBtn.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>';
-  videoBtn.addEventListener('click', () => startCall(otherId, 'video', name));
-  header.appendChild(videoBtn);
+  header.appendChild(el('h2', {
+    textContent: 'Chats'
+  }));
 
-  const menuBtn = el('button', { class: 'btn-icon' });
-  menuBtn.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>';
-  menuBtn.addEventListener('click', () => openChatMenu(otherId, name));
-  header.appendChild(menuBtn);
+  const newChat = el('button', {
+    className: 'btn-icon',
+    type: 'button',
+    textContent: '+',
+    title: 'New chat'
+  });
+
+  newChat.addEventListener('click', openSearch);
+  header.appendChild(newChat);
+
   main.appendChild(header);
 
-  const msgsWrap = el('div', { class: 'chat-messages', id: 'msgsWrap' });
-  main.appendChild(msgsWrap);
+  const list = el('div', {
+    className: 'chat-list'
+  });
+
+  main.appendChild(list);
+  await renderChatList(list);
+}
+
+async function renderChatList(target = null) {
+  const list = target || $('.chat-list');
+  if (!list) return;
+
+  list.replaceChildren(
+    el('div', {
+      className: 'loader',
+      textContent: 'Loading chats...'
+    })
+  );
 
   try {
-    const s = await api(`/api/chats/${otherId}/settings`);
-    if (s.settings && s.settings.wallpaper) {
-      msgsWrap.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url(${s.settings.wallpaper})`;
-    }
-  } catch (_) {}
+    const data = await api(API.chats);
+    CACHE.chats = normalizeList(data);
 
-  // Composer
-  const composer = el('div', { class: 'chat-composer' });
-  const plusBtn = el('button', { class: 'chat-plus-btn' });
-  plusBtn.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
-  plusBtn.addEventListener('click', () => openChatAttach(otherId));
-  composer.appendChild(plusBtn);
+    list.replaceChildren();
 
-  const inputWrap = el('div', { class: 'chat-input-wrap' });
-  const typingIndicator = el('div', { class: 'chat-typing-indicator', id: 'typingIndicator' }, 'typing...');
-  inputWrap.appendChild(typingIndicator);
-  const msgInput = el('input', {
-    type: 'text', class: 'chat-input', placeholder: 'Type text here', id: 'chatMsgInput',
-  });
-  inputWrap.appendChild(msgInput);
-  composer.appendChild(inputWrap);
-
-  const sendBtn = el('button', { class: 'chat-send-btn', style: 'display:none;', id: 'chatSendBtn' });
-  sendBtn.innerHTML = '<svg class="icon icon-sm" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>';
-  composer.appendChild(sendBtn);
-
-  const micBtn = el('button', { class: 'chat-mic-btn', id: 'chatMicBtn' });
-  micBtn.innerHTML = '<svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>';
-  composer.appendChild(micBtn);
-  main.appendChild(composer);
-
-  // Mic recording
-  let isRecording = false;
-  let mediaRecorder = null;
-  let audioChunks = [];
-  let recordingLabel = null;
-
-  let typingTimer = null;
-  function showTyping() {
-    if (typingIndicator) typingIndicator.classList.add('show');
-    clearTimeout(typingTimer);
-    typingTimer = setTimeout(() => {
-      if (typingIndicator) typingIndicator.classList.remove('show');
-    }, 2000);
-  }
-
-  msgInput.addEventListener('input', () => {
-    const hasText = msgInput.value.trim().length > 0;
-    sendBtn.style.display = hasText ? 'flex' : 'none';
-    micBtn.style.display = hasText ? 'none' : 'flex';
-    if (hasText) showTyping();
-  });
-
-  async function sendText() {
-    const text = msgInput.value.trim();
-    if (!text) return;
-    msgInput.value = '';
-    sendBtn.style.display = 'none';
-    micBtn.style.display = 'flex';
-    try {
-      const res = await api('/api/messages', {
-        method: 'POST',
-        body: JSON.stringify({ receiver_id: otherId, text }),
-      });
-      appendMessage(res.message);
-    } catch (err) { toast(err.message, 'error'); }
-  }
-  sendBtn.addEventListener('click', sendText);
-  msgInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendText(); });
-
-  micBtn.addEventListener('mousedown', startRecording);
-  micBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startRecording(); }, { passive: false });
-  micBtn.addEventListener('mouseup', stopRecording);
-  micBtn.addEventListener('mouseleave', stopRecording);
-  micBtn.addEventListener('touchend', stopRecording);
-  micBtn.addEventListener('touchcancel', stopRecording);
-
-  async function startRecording() {
-    if (isRecording) return;
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      toast('Recording not supported', 'error');
+    if (!CACHE.chats.length) {
+      list.appendChild(el('div', {
+        className: 'empty-state',
+        textContent: 'No conversations yet.'
+      }));
       return;
     }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorder = new MediaRecorder(stream);
-      audioChunks = [];
-      mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
-      mediaRecorder.onstop = async () => {
-        stream.getTracks().forEach(t => t.stop());
-        const blob = new Blob(audioChunks, { type: 'audio/webm' });
-        if (blob.size < 500) return;
-        if (blob.size > 15 * 1024 * 1024) { toast('Voice too large (max 15 MB)', 'error'); return; }
-        const fd = new FormData();
-        fd.append('receiver_id', otherId);
-        fd.append('duration_seconds', '0');
-        fd.append('file', blob, 'voice.webm');
-        try {
-          const res = await api('/api/messages/voice', { method: 'POST', body: fd });
-          appendMessage(res.message);
-        } catch (err) { toast(err.message, 'error'); }
-      };
-      mediaRecorder.start();
-      isRecording = true;
-      micBtn.classList.add('recording');
-      const inputWrap = msgInput.parentElement;
-      recordingLabel = el('div', { class: 'chat-recording-label' }, 'recording audio...');
-      inputWrap.appendChild(recordingLabel);
-      msgInput.disabled = true;
-      msgInput.placeholder = '';
-    } catch (err) {
-      toast('Mic permission denied', 'error');
-    }
-  }
 
-  function stopRecording() {
-    if (!isRecording) return;
-    isRecording = false;
-    try { mediaRecorder.stop(); } catch(_) {}
-    micBtn.classList.remove('recording');
-    if (recordingLabel) { recordingLabel.remove(); recordingLabel = null; }
-    msgInput.disabled = false;
-    msgInput.placeholder = 'Type text here';
-  }
+    CACHE.chats.forEach(chat => {
+      const user = chat.user || chat.other_user || chat.recipient || {};
+      const id = user.id || user.user_id || chat.other_id;
 
-  try {
-    const data = await api(`/api/messages/${otherId}`);
-    if (!data.messages || data.messages.length === 0) {
-      msgsWrap.innerHTML = '<div class="empty-state"><p class="empty-state-text">No messages yet. Say hi!</p></div>';
-    } else {
-      for (const m of data.messages) appendMessage(m);
-    }
-  } catch (err) {
-    msgsWrap.innerHTML = `<div class="empty-state"><p class="empty-state-text" style="color:var(--danger);">${esc(err.message)}</p></div>`;
+      const item = el('button', {
+        className: 'chat-list-item',
+        type: 'button'
+      });
+
+      item.appendChild(avatarEl(user, '48px'));
+
+      const info = el('div', {
+        style: {
+          flex: '1',
+          minWidth: '0',
+          textAlign: 'left'
+        }
+      });
+
+      info.appendChild(el('strong', {
+        textContent: user.name || user.username || 'User'
+      }));
+
+      info.appendChild(el('div', {
+        className: 'chat-preview',
+        textContent:
+          chat.last_message?.content ||
+          chat.last_message ||
+          'Start a conversation'
+      }));
+
+      item.appendChild(info);
+
+      item.appendChild(el('time', {
+        textContent: timeAgo(chat.last_message?.created_at || chat.updated_at)
+      }));
+
+      item.addEventListener('click', () => {
+        openChat(
+          id,
+          user.name || user.username || 'User',
+          user.avatar_url || user.avatar || '',
+          user.username || ''
+        );
+      });
+
+      list.appendChild(item);
+    });
+  } catch (error) {
+    list.replaceChildren(el('div', {
+      className: 'empty-state',
+      textContent: error.message
+    }));
   }
 }
 
-function appendMessage(m) {
-  const msgsWrap = $('#msgsWrap');
-  if (!msgsWrap) return;
-  const mine = CURRENT_USER && m.sender_id === CURRENT_USER.id;
-  const wrap = el('div', { class: `chat-bubble-wrap ${mine ? 'mine' : 'theirs'}` });
-  const bubble = el('div', { class: `chat-bubble ${mine ? 'mine' : 'theirs'}` });
+async function openChat(otherId, name = 'User', avatar = '', username = '') {
+  if (!otherId) return;
 
-  if (m.media && m.media_type === 'voice') {
-    bubble.appendChild(el('audio', { src: m.media, controls: true, style: 'max-width:220px;' }));
-  } else if (m.media && m.media_type === 'image') {
-    bubble.appendChild(el('img', { src: m.media, class: 'chat-bubble-media' }));
-    if (m.text) bubble.appendChild(el('div', { class: 'chat-bubble-text' }, m.text));
-  } else if (m.media && m.media_type === 'video') {
-    bubble.appendChild(el('video', { src: m.media, controls: true, class: 'chat-bubble-media', style: 'max-width:220px;' }));
-    if (m.text) bubble.appendChild(el('div', { class: 'chat-bubble-text' }, m.text));
-  } else if (m.media) {
-    const a = el('a', { href: m.media, download: 'file', class: 'chat-bubble-file' }, '📎 Download file');
-    bubble.appendChild(a);
-    if (m.text) bubble.appendChild(el('div', { class: 'chat-bubble-text', style: 'margin-top:4px;' }, m.text));
+  CURRENT_CHAT = {
+    otherId,
+    name,
+    avatar,
+    username
+  };
+
+  const main = $('.app-main') || $('#mainContent');
+  if (!main) return;
+
+  main.replaceChildren();
+
+  const header = el('div', {
+    className: 'chat-header'
+  });
+
+  const back = el('button', {
+    className: 'btn-icon',
+    type: 'button',
+    textContent: '‹',
+    title: 'Back'
+  });
+
+  back.addEventListener('click', openChats);
+
+  const user = {
+    name,
+    username,
+    avatar_url: avatar
+  };
+
+  header.appendChild(back);
+  header.appendChild(avatarEl(user, '42px'));
+
+  const identity = el('div', {
+    style: {
+      flex: '1',
+      minWidth: '0'
+    }
+  });
+
+  identity.appendChild(el('strong', {
+    textContent: name
+  }));
+
+  identity.appendChild(el('small', {
+    textContent: 'online'
+  }));
+
+  header.appendChild(identity);
+
+  const voice = el('button', {
+    className: 'btn-icon',
+    type: 'button',
+    textContent: '☎',
+    title: 'Voice call'
+  });
+
+  voice.addEventListener('click', () => startCall(otherId, 'audio', name));
+
+  const video = el('button', {
+    className: 'btn-icon',
+    type: 'button',
+    textContent: '▣',
+    title: 'Video call'
+  });
+
+  video.addEventListener('click', () => startCall(otherId, 'video', name));
+
+  const menu = el('button', {
+    className: 'btn-icon',
+    type: 'button',
+    textContent: '⋮',
+    title: 'Chat menu'
+  });
+
+  menu.addEventListener('click', openChatMenu);
+
+  header.append(voice, video, menu);
+  main.appendChild(header);
+
+  const messages = el('div', {
+    className: 'chat-messages',
+    style: {
+      background: 'var(--bg-2)'
+    }
+  });
+
+  main.appendChild(messages);
+
+  const typing = el('div', {
+    className: 'typing-indicator hidden',
+    textContent: 'typing...'
+  });
+
+  const recording = el('div', {
+    className: 'recording-indicator hidden',
+    textContent: 'recording audio...'
+  });
+
+  const composer = el('div', {
+    className: 'chat-composer'
+  });
+
+  const attach = el('button', {
+    className: 'btn-icon',
+    type: 'button',
+    textContent: '+',
+    title: 'Attach'
+  });
+
+  attach.addEventListener('click', () => openChatAttach(otherId));
+
+  const input = el('input', {
+    type: 'text',
+    placeholder: 'Type text here',
+    autocomplete: 'off'
+  });
+
+  const send = el('button', {
+    className: 'btn-icon',
+    type: 'button',
+    textContent: '➤',
+    title: 'Send'
+  });
+
+  const mic = el('button', {
+    className: 'btn-icon',
+    type: 'button',
+    textContent: '🎙',
+    title: 'Record voice note'
+  });
+
+  const updateComposer = () => {
+    const hasText = Boolean(input.value.trim());
+    send.classList.toggle('hidden', !hasText);
+    mic.classList.toggle('hidden', hasText);
+  };
+
+  input.addEventListener('input', () => {
+    updateComposer();
+    sendTyping(otherId);
+  });
+
+  input.addEventListener('keydown', event => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      send.click();
+    }
+  });
+
+  send.addEventListener('click', async () => {
+    const content = input.value.trim();
+    if (!content) return;
+
+    send.disabled = true;
+
+    try {
+      const data = await api(API.messages, {
+        method: 'POST',
+        body: {
+          recipient_id: otherId,
+          content,
+          type: 'text'
+        }
+      });
+
+      input.value = '';
+      updateComposer();
+
+      const message = data?.message || data;
+      appendMessage(message, messages);
+    } catch (error) {
+      toast(error.message, 'error');
+    } finally {
+      send.disabled = false;
+    }
+  });
+
+  let pressTimer = null;
+
+  mic.addEventListener('mousedown', () => {
+    pressTimer = setTimeout(() => {
+      recordVoice(otherId, recording, mic);
+    }, 450);
+  });
+
+  mic.addEventListener('mouseup', () => {
+    clearTimeout(pressTimer);
+  });
+
+  mic.addEventListener('mouseleave', () => {
+    clearTimeout(pressTimer);
+  });
+
+  mic.addEventListener('touchstart', event => {
+    event.preventDefault();
+    pressTimer = setTimeout(() => {
+      recordVoice(otherId, recording, mic);
+    }, 450);
+  }, { passive: false });
+
+  mic.addEventListener('touchend', event => {
+    event.preventDefault();
+    clearTimeout(pressTimer);
+  }, { passive: false });
+
+  composer.append(attach, input, send, mic);
+  main.append(typing, recording, composer);
+
+  try {
+    const data = await api(
+      `${API.chats}/${encodeURIComponent(otherId)}/messages`
+    );
+
+    const messagesData = normalizeList(data);
+    CACHE.messages.set(String(otherId), messagesData);
+
+    messages.replaceChildren();
+
+    messagesData.forEach(message => appendMessage(message, messages));
+    messages.scrollTop = messages.scrollHeight;
+  } catch (error) {
+    messages.replaceChildren(el('div', {
+      className: 'empty-state',
+      textContent: error.message
+    }));
+  }
+}
+
+function appendMessage(m, container = null) {
+  const target =
+    container ||
+    $('.chat-messages');
+
+  if (!target || !m) return;
+
+  const mine = String(
+    m.sender_id ||
+    m.sender?.id ||
+    m.user_id ||
+    ''
+  ) === String(CURRENT_USER?.id || CURRENT_USER?.user_id || '');
+
+  const bubble = el('div', {
+    className: `chat-bubble ${mine ? 'mine' : 'theirs'}`
+  });
+
+  const type = m.type || m.message_type || 'text';
+  const content = m.content || m.text || '';
+  const mediaUrl = m.media_url || m.file_url || m.url || '';
+
+  if (type === 'image' && mediaUrl) {
+    bubble.appendChild(el('img', {
+      src: absoluteUrl(mediaUrl),
+      alt: 'Shared image',
+      loading: 'lazy',
+      style: {
+        maxWidth: '100%',
+        borderRadius: '8px'
+      }
+    }));
+  } else if (type === 'video' && mediaUrl) {
+    bubble.appendChild(el('video', {
+      src: absoluteUrl(mediaUrl),
+      controls: true,
+      playsInline: true,
+      style: {
+        maxWidth: '100%',
+        borderRadius: '8px'
+      }
+    }));
+  } else if (type === 'audio' || type === 'voice') {
+    if (mediaUrl) {
+      bubble.appendChild(el('audio', {
+        src: absoluteUrl(mediaUrl),
+        controls: true
+      }));
+    }
+  } else if (type === 'file' && mediaUrl) {
+    const link = el('a', {
+      href: absoluteUrl(mediaUrl),
+      target: '_blank',
+      rel: 'noopener noreferrer',
+      textContent: m.file_name || 'Download file'
+    });
+    bubble.appendChild(link);
   } else {
-    bubble.appendChild(el('div', { class: 'chat-bubble-text' }, m.text || ''));
+    bubble.appendChild(el('div', {
+      textContent: content
+    }));
   }
 
-  bubble.appendChild(el('div', { class: 'chat-bubble-time' }, timeAgo(m.created_at)));
-  wrap.appendChild(bubble);
-  msgsWrap.appendChild(wrap);
-  msgsWrap.scrollTop = msgsWrap.scrollHeight;
+  bubble.appendChild(el('small', {
+    textContent: timeAgo(m.created_at || m.timestamp)
+  }));
+
+  target.appendChild(bubble);
+  target.scrollTop = target.scrollHeight;
+}
+
+function sendTyping(otherId) {
+  clearTimeout(CHAT_TYPING_TIMER);
+
+  if (!otherId) return;
+
+  api(`${API.chats}/${encodeURIComponent(otherId)}/typing`, {
+    method: 'POST',
+    body: { typing: true },
+    timeout: 5000,
+    retry: false
+  }).catch(() => {});
+
+  CHAT_TYPING_TIMER = setTimeout(() => {
+    api(`${API.chats}/${encodeURIComponent(otherId)}/typing`, {
+      method: 'POST',
+      body: { typing: false },
+      timeout: 5000,
+      retry: false
+    }).catch(() => {});
+  }, 1500);
 }
 
 function openChatAttach(otherId) {
-  const items = [
-    { label: '📷 Photo', onClick: () => pickChatFile(otherId, 'image/*') },
-    { label: '🎥 Video', onClick: () => pickChatFile(otherId, 'video/*') },
-    { label: '📄 Document', onClick: () => pickChatFile(otherId, '*/*') },
-    { label: '🎙️ Voice Note', onClick: () => recordVoice(otherId) },
-  ];
-  openSheet('Attach', items);
-}
-
-function pickChatFile(otherId, accept) {
-  const inp = el('input', { type: 'file', accept, style: 'display:none' });
-  inp.addEventListener('change', async () => {
-    const f = inp.files && inp.files[0];
-    if (!f) return;
-    let maxMB = 25;
-    if (f.type.startsWith('video/')) maxMB = 50;
-    else if (f.type.startsWith('image/')) maxMB = 10;
-    if (f.size > maxMB * 1024 * 1024) {
-      toast('File too large. Max ' + maxMB + ' MB', 'error');
-      inp.value = '';
-      return;
+  openSheet('Send attachment', [
+    {
+      label: 'Photo',
+      action: () => pickChatFile(otherId, 'image/*')
+    },
+    {
+      label: 'Video',
+      action: () => pickChatFile(otherId, 'video/*')
+    },
+    {
+      label: 'Document',
+      action: () => pickChatFile(otherId, '*/*')
+    },
+    {
+      label: 'Voice note',
+      action: () => recordVoice(otherId)
     }
-    const fd = new FormData();
-    fd.append('receiver_id', otherId);
-    fd.append('text', '');
-    fd.append('file', f);
-    try {
-      const res = await api('/api/messages/file', { method: 'POST', body: fd });
-      appendMessage(res.message);
-    } catch (err) { toast(err.message, 'error'); }
-  });
-  document.body.appendChild(inp);
-  inp.click();
-  setTimeout(() => inp.remove(), 1000);
+  ]);
 }
 
-async function recordVoice(otherId) {
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    toast('Recording not supported on this browser', 'error');
+function pickChatFile(otherId, accept = '*/*') {
+  closeModal();
+
+  const input = el('input', {
+    type: 'file',
+    accept
+  });
+
+  input.addEventListener('change', async () => {
+    const file = input.files?.[0];
+    if (!file) return;
+
+    try {
+      const form = new FormData();
+      form.append('file', file);
+
+      const uploaded = await api(API.upload, {
+        method: 'POST',
+        body: form
+      });
+
+      const url =
+        uploaded?.url ||
+        uploaded?.file_url ||
+        uploaded?.media_url;
+
+      if (!url) throw new Error('Upload did not return a file URL.');
+
+      const type = file.type.startsWith('image')
+        ? 'image'
+        : file.type.startsWith('video')
+          ? 'video'
+          : 'file';
+
+      const data = await api(API.messages, {
+        method: 'POST',
+        body: {
+          recipient_id: otherId,
+          type,
+          media_url: url,
+          file_name: file.name
+        }
+      });
+
+      appendMessage(data?.message || data);
+    } catch (error) {
+      toast(error.message, 'error');
+    }
+  });
+
+  document.body.appendChild(input);
+  input.click();
+
+  setTimeout(() => input.remove(), 1000);
+}
+
+async function recordVoice(otherId, recordingNode = null, micButton = null) {
+  if (CHAT_RECORDING) {
+    stopVoiceRecording();
     return;
   }
+
+  if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+    toast('Voice recording is not supported on this device.', 'error');
+    return;
+  }
+
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const recorder = new MediaRecorder(stream);
-    const chunks = [];
-    recorder.ondataavailable = (e) => chunks.push(e.data);
-    recorder.onstop = async () => {
-      stream.getTracks().forEach(t => t.stop());
-      const blob = new Blob(chunks, { type: 'audio/webm' });
-      if (blob.size > 15 * 1024 * 1024) { toast('Voice too large (max 15 MB)', 'error'); return; }
-      const fd = new FormData();
-      fd.append('receiver_id', otherId);
-      fd.append('duration_seconds', '0');
-      fd.append('file', blob, 'voice.webm');
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: true
+    });
+
+    CHAT_MEDIA_CHUNKS = [];
+    CHAT_MEDIA_RECORDER = new MediaRecorder(stream);
+    CHAT_RECORDING = true;
+
+    if (recordingNode) recordingNode.classList.remove('hidden');
+    if (micButton) {
+      micButton.classList.add('recording');
+      micButton.textContent = '■';
+    }
+
+    CHAT_MEDIA_RECORDER.addEventListener('dataavailable', event => {
+      if (event.data.size > 0) CHAT_MEDIA_CHUNKS.push(event.data);
+    });
+
+    CHAT_MEDIA_RECORDER.addEventListener('stop', async () => {
+      stream.getTracks().forEach(track => track.stop());
+
+      const blob = new Blob(CHAT_MEDIA_CHUNKS, {
+        type: CHAT_MEDIA_RECORDER.mimeType || 'audio/webm'
+      });
+
       try {
-        const res = await api('/api/messages/voice', { method: 'POST', body: fd });
-        appendMessage(res.message);
-      } catch (err) { toast(err.message, 'error'); }
-    };
-    recorder.start();
-    const maxTimer = setTimeout(() => recorder.stop(), 30000);
-    const container = $('#modalContainer');
-    container.innerHTML = '';
-    const overlay = el('div', { class: 'modal-overlay', onclick: () => { clearTimeout(maxTimer); if (recorder.state !== 'inactive') recorder.stop(); closeModal(); } });
-    const content = el('div', { class: 'modal-content', style: 'text-align:center;padding:32px 20px;' });
-    content.appendChild(el('div', { style: 'font-size:20px;font-weight:700;margin-bottom:16px;' }, '🎙️ Recording...'));
-    content.appendChild(el('div', { style: 'color:var(--text-2);font-size:14px;margin-bottom:24px;' }, 'Tap stop when done (max 30s)'));
-    const stopBtn = el('button', {
-      class: 'btn btn-danger',
-      style: 'max-width:200px;margin:0 auto;',
-      onclick: () => { clearTimeout(maxTimer); if (recorder.state !== 'inactive') recorder.stop(); closeModal(); }
-    }, 'Stop & Send');
-    content.appendChild(stopBtn);
-    overlay.appendChild(content);
-    container.appendChild(overlay);
-  } catch (err) {
-    toast('Mic permission denied', 'error');
+        const form = new FormData();
+        form.append('file', blob, `voice-${Date.now()}.webm`);
+
+        const uploaded = await api(API.upload, {
+          method: 'POST',
+          body: form
+        });
+
+        const url =
+          uploaded?.url ||
+          uploaded?.file_url ||
+          uploaded?.media_url;
+
+        if (!url) throw new Error('Voice upload failed.');
+
+        const data = await api(API.messages, {
+          method: 'POST',
+          body: {
+            recipient_id: otherId,
+            type: 'voice',
+            media_url: url
+          }
+        });
+
+        appendMessage(data?.message || data);
+      } catch (error) {
+        toast(error.message, 'error');
+      }
+    });
+
+    CHAT_MEDIA_RECORDER.start();
+
+    clearTimeout(CHAT_RECORDING_TIMER);
+    CHAT_RECORDING_TIMER = setTimeout(() => {
+      stopVoiceRecording();
+    }, 60000);
+  } catch (error) {
+    toast(error.message || 'Microphone permission was denied.', 'error');
   }
 }
 
-function openChatMenu(otherId, name) {
-  const items = [
-    { label: 'View Profile', onClick: () => openProfile(otherId) },
-    { label: 'Chat Wallpaper', onClick: () => pickWallpaper(otherId) },
-    { label: 'Clear Chat', danger: true, onClick: async () => {
-      if (!confirm('Clear all messages in this chat?')) return;
-      try {
-        await api(`/api/chats/${otherId}`, { method: 'DELETE' });
-        toast('Chat cleared', 'success');
-        openChat(otherId, name);
-      } catch (err) { toast(err.message, 'error'); }
-    }},
-    { label: 'Block User', danger: true, onClick: async () => {
-      if (!confirm('Block ' + name + '?')) return;
-      try {
-        await api(`/api/users/${otherId}/block`, { method: 'POST' });
-        toast('Blocked', 'success');
-        openChats();
-      } catch (err) { toast(err.message, 'error'); }
-    }},
-  ];
-  openSheet('Chat Options', items);
+function stopVoiceRecording() {
+  clearTimeout(CHAT_RECORDING_TIMER);
+
+  if (CHAT_MEDIA_RECORDER && CHAT_MEDIA_RECORDER.state !== 'inactive') {
+    CHAT_MEDIA_RECORDER.stop();
+  }
+
+  CHAT_RECORDING = false;
+
+  $('.recording-indicator')?.classList.add('hidden');
+
+  const mic = $('.chat-composer .btn-icon:last-child');
+  if (mic) {
+    mic.classList.remove('recording');
+    mic.textContent = '🎙';
+  }
 }
 
-function pickWallpaper(otherId) {
-  const inp = el('input', { type: 'file', accept: 'image/*', style: 'display:none' });
-  inp.addEventListener('change', async () => {
-    const f = inp.files && inp.files[0];
-    if (!f) return;
-    if (f.size > 1024 * 1024) { toast('Max 1 MB', 'error'); return; }
-    const fd = new FormData();
-    fd.append('file', f);
-    try {
-      await api(`/api/chats/${otherId}/wallpaper`, { method: 'POST', body: fd });
-      toast('Wallpaper set', 'success');
-      const msgsWrap = $('#msgsWrap');
-      if (msgsWrap) {
-        const reader = new FileReader();
-        reader.onload = () => { msgsWrap.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url(${reader.result})`; };
-        reader.readAsDataURL(f);
+function openChatMenu() {
+  openSheet('Chat options', [
+    {
+      label: 'Change wallpaper',
+      action: pickWallpaper
+    },
+    {
+      label: 'View profile',
+      action: () => {
+        if (CURRENT_CHAT?.otherId) openProfile(CURRENT_CHAT.otherId);
       }
-    } catch (err) { toast(err.message, 'error'); }
+    },
+    {
+      label: 'Clear conversation',
+      danger: true,
+      action: async () => {
+        if (!CURRENT_CHAT?.otherId) return;
+
+        try {
+          await api(
+            `${API.chats}/${encodeURIComponent(CURRENT_CHAT.otherId)}/clear`,
+            { method: 'DELETE' }
+          );
+          toast('Conversation cleared.', 'success');
+          closeModal();
+          openChat(
+            CURRENT_CHAT.otherId,
+            CURRENT_CHAT.name,
+            CURRENT_CHAT.avatar,
+            CURRENT_CHAT.username
+          );
+        } catch (error) {
+          toast(error.message, 'error');
+        }
+      }
+    }
+  ]);
+}
+
+function pickWallpaper() {
+  closeModal();
+
+  const input = el('input', {
+    type: 'file',
+    accept: 'image/*'
   });
-  document.body.appendChild(inp);
-  inp.click();
-  setTimeout(() => inp.remove(), 1000);
+
+  input.addEventListener('change', () => {
+    const file = input.files?.[0];
+    if (!file) return;
+
+    const oldUrl = CHAT_OBJECT_URLS.pop();
+    if (oldUrl) URL.revokeObjectURL(oldUrl);
+
+    const url = URL.createObjectURL(file);
+    CHAT_OBJECT_URLS.push(url);
+
+    const messages = $('.chat-messages');
+
+    if (messages) {
+      messages.style.backgroundImage = `url("${url}")`;
+      messages.style.backgroundSize = 'cover';
+      messages.style.backgroundAttachment = 'fixed';
+    }
+  });
+
+  document.body.appendChild(input);
+  input.click();
+  setTimeout(() => input.remove(), 1000);
 }
 
 async function openChatWith(user) {
-  openChat(user.id, user.name, user.avatar, user.username);
+  if (!user) return;
+
+  await openChat(
+    user.id || user.user_id,
+    user.name || user.username || 'User',
+    user.avatar_url || user.avatar || '',
+    user.username || ''
+  );
 }
 
-// ============ STORIES ============
+/* ============================================================
+   SECTION G: STORIES
+   ============================================================ */
+
 async function loadStories(storiesBar) {
+  if (!storiesBar) return;
+
+  storiesBar.replaceChildren();
+
+  const mine = el('button', {
+    className: 'story-item',
+    type: 'button'
+  });
+
+  mine.appendChild(el('div', {
+    className: 'story-ring',
+    textContent: '+'
+  }));
+
+  mine.appendChild(el('small', {
+    textContent: 'My Story'
+  }));
+
+  mine.addEventListener('click', openCreateStory);
+  storiesBar.appendChild(mine);
+
   try {
-    const data = await api('/api/statuses');
-    const groups = data.groups || [];
-    if (groups.length === 0) {
-      storiesBar.appendChild(el('div', { style: 'display:flex;align-items:center;color:var(--text-3);font-size:13px;padding:0 8px;' }, 'No stories yet'));
-      return;
-    }
-    for (const g of groups) {
-      const isMe = CURRENT_USER && g.user.id === CURRENT_USER.id;
-      const storyItem = el('div', { class: 'story-item', onclick: () => openStoryViewer(g) });
-      const ring = el('div', { class: 'story-ring' });
-      const inner = el('div', { class: 'story-ring-inner' });
-      if (g.user.avatar) {
-        inner.appendChild(el('img', { src: g.user.avatar, style: 'width:100%;height:100%;object-fit:cover;' }));
-      } else {
-        inner.textContent = initials(g.user.name);
-        inner.style.color = 'white';
-        inner.style.fontWeight = '700';
-        inner.style.fontSize = '24px';
-        inner.style.background = 'linear-gradient(135deg,#3b82f6,#8b5cf6)';
+    const data = await api(API.stories);
+    CACHE.stories = normalizeList(data);
+
+    const groups = new Map();
+
+    CACHE.stories.forEach(story => {
+      const user = story.user || story.author || {};
+      const id = user.id || user.user_id || story.user_id;
+
+      if (!groups.has(String(id))) {
+        groups.set(String(id), {
+          user,
+          stories: []
+        });
       }
-      ring.appendChild(inner);
-      storyItem.appendChild(ring);
-      const label = isMe ? 'My Story' : g.user.name.split(' ')[0];
-      storyItem.appendChild(el('div', { class: 'story-item-name' }, label));
-      storiesBar.appendChild(storyItem);
-    }
-  } catch (err) {
-    console.warn('Stories load failed:', err.message);
+
+      groups.get(String(id)).stories.push(story);
+    });
+
+    groups.forEach(group => {
+      const user = group.user || {};
+
+      const item = el('button', {
+        className: 'story-item',
+        type: 'button'
+      });
+
+      const ring = el('div', {
+        className: 'story-ring'
+      });
+
+      ring.appendChild(avatarEl(user, '56px'));
+
+      item.appendChild(ring);
+      item.appendChild(el('small', {
+        textContent: user.name || user.username || 'User'
+      }));
+
+      item.addEventListener('click', () => openStoryViewer(group));
+      storiesBar.appendChild(item);
+    });
+  } catch (error) {
+    /* Stories are optional; feed remains usable. */
   }
 }
 
 function openStoryViewer(group) {
-  const container = $('#modalContainer');
-  container.innerHTML = '';
-  const overlay = el('div', { class: 'story-viewer' });
+  if (!group?.stories?.length) return;
 
-  let idx = 0;
-  const total = group.statuses.length;
-  let progressTimer = null;
-  let currentProgressBar = null;
-  let isPaused = false;
-  const STORY_DURATION = 5000;
+  CURRENT_STORY_GROUP = group;
+  CURRENT_STORY_INDEX = 0;
+  STORY_PAUSED = false;
 
-  function clearTimer() {
-    if (progressTimer) { clearInterval(progressTimer); progressTimer = null; }
-  }
+  closeStoryViewer();
 
-  function render() {
-    clearTimer();
-    overlay.innerHTML = '';
-    isPaused = false;
-    const s = group.statuses[idx];
-
-    const progressWrap = el('div', { class: 'story-progress-wrap' });
-    const bars = [];
-    for (let i = 0; i < total; i++) {
-      const bar = el('div', { class: 'story-progress-bar' });
-      const fill = el('div', { class: 'story-progress-fill', style: `width:${i < idx ? '100%' : '0%'};` });
-      bar.appendChild(fill);
-      progressWrap.appendChild(bar);
-      bars.push(fill);
+  const viewer = el('div', {
+    className: 'story-viewer',
+    style: {
+      position: 'fixed',
+      inset: '0',
+      zIndex: '9999',
+      background: '#000',
+      display: 'flex',
+      flexDirection: 'column'
     }
-    overlay.appendChild(progressWrap);
-    currentProgressBar = bars[idx];
+  });
 
-    const header = el('div', { class: 'story-header' });
-    if (group.user.avatar) {
-      header.appendChild(el('img', { src: group.user.avatar, class: 'story-avatar' }));
-    } else {
-      header.appendChild(el('div', {
-        style: 'width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#8b5cf6);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:14px;border:2px solid white;',
-      }, initials(group.user.name)));
+  const progress = el('div', {
+    className: 'story-progress',
+    style: {
+      display: 'flex',
+      gap: '4px',
+      padding: '12px'
     }
-    const info = el('div', { class: 'story-info' });
-    info.appendChild(el('div', { class: 'story-name' }, group.user.name));
-    info.appendChild(el('div', { class: 'story-time' }, timeAgo(s.created_at)));
-    header.appendChild(info);
+  });
 
-    if (CURRENT_USER && group.user.id === CURRENT_USER.id) {
-      const delBtn = el('button', {
-        class: 'story-btn',
-        onclick: async (e) => {
-          e.stopPropagation();
-          if (!confirm('Delete this story?')) return;
-          try {
-            await api(`/api/statuses/${s.id}`, { method: 'DELETE' });
-            toast('Deleted', 'success');
-            clearTimer();
-            closeModal();
-            loadFeed('all');
-          } catch (err) { toast(err.message, 'error'); }
-        }
-      });
-      delBtn.innerHTML = '<svg class="icon icon-sm" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg>';
-      header.appendChild(delBtn);
-    }
-
-    const closeBtn = el('button', { class: 'story-btn', onclick: () => { clearTimer(); closeModal(); } });
-    closeBtn.innerHTML = '<svg class="icon icon-sm" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
-    header.appendChild(closeBtn);
-    overlay.appendChild(header);
-
-    const content = el('div', { class: 'story-content' });
-
-    if (s.media_type === 'video') {
-      const video = el('video', {
-        src: s.media, autoplay: true, playsinline: true, muted: true, loop: false,
-      });
-      content.appendChild(video);
-      video.addEventListener('loadedmetadata', () => {
-        if (video.duration && video.duration < 60) startProgress(video.duration * 1000);
-        else startProgress(STORY_DURATION);
-      });
-      setTimeout(() => { if (!video.duration) startProgress(STORY_DURATION); }, 500);
-      setTimeout(() => { video.play().catch(() => {}); }, 100);
-    } else if (s.media) {
-      content.appendChild(el('img', { src: s.media }));
-      startProgress(STORY_DURATION);
-    } else {
-      startProgress(STORY_DURATION);
-    }
-
-    if (s.text) {
-      content.appendChild(el('div', { class: 'story-caption' }, s.text));
-    }
-
-    overlay.appendChild(content);
-
-    const tapLeft = el('div', { class: 'story-tap-left' });
-    const tapRight = el('div', { class: 'story-tap-right' });
-    tapLeft.onclick = () => { clearTimer(); if (idx > 0) { idx--; render(); } else closeModal(); };
-    tapRight.onclick = () => { clearTimer(); if (idx < total - 1) { idx++; render(); } else closeModal(); };
-    overlay.appendChild(tapLeft);
-    overlay.appendChild(tapRight);
-
-    let holdTimer = null;
-    function startHold() {
-      holdTimer = setTimeout(() => {
-        isPaused = true;
-        const v = overlay.querySelector('video');
-        if (v) v.pause();
-      }, 200);
-    }
-    function endHold() {
-      clearTimeout(holdTimer);
-      if (isPaused) {
-        isPaused = false;
-        const v = overlay.querySelector('video');
-        if (v) v.play().catch(() => {});
+  group.stories.forEach(() => {
+    progress.appendChild(el('div', {
+      style: {
+        height: '3px',
+        flex: '1',
+        background: 'rgba(255,255,255,.35)',
+        borderRadius: '3px',
+        overflow: 'hidden'
       }
-    }
-    overlay.addEventListener('mousedown', startHold);
-    overlay.addEventListener('touchstart', startHold, { passive: true });
-    overlay.addEventListener('mouseup', endHold);
-    overlay.addEventListener('touchend', endHold);
-    overlay.addEventListener('mouseleave', endHold);
-    overlay.addEventListener('touchcancel', endHold);
+    }));
+  });
 
-    container.appendChild(overlay);
-  }
+  viewer.appendChild(progress);
 
-  function startProgress(durationMs) {
-    let elapsed = 0;
-    clearTimer();
-    progressTimer = setInterval(() => {
-      if (isPaused) return;
-      elapsed += 50;
-      const pct = Math.min(100, (elapsed / durationMs) * 100);
-      if (currentProgressBar) currentProgressBar.style.width = pct + '%';
-      if (pct >= 100) {
-        clearTimer();
-        if (idx < total - 1) { idx++; render(); }
-        else closeModal();
-      }
-    }, 50);
-  }
-
-  render();
-}
-
-function openCreateStory() {
-  const container = $('#modalContainer');
-  container.innerHTML = '';
-  const overlay = el('div', { class: 'modal-overlay', onclick: (e) => { if (e.target === overlay) closeModal(); } });
-  const content = el('div', { class: 'modal-content' });
-
-  const h = el('div', { class: 'modal-header' });
-  h.appendChild(el('h3', {}, 'Create Story'));
-  const cb = el('button', { class: 'btn-icon', onclick: closeModal });
-  cb.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
-  h.appendChild(cb);
-  content.appendChild(h);
-
-  const body = el('div', { class: 'modal-body' });
-
-  const preview = el('div', {
-    style: 'width:100%;height:300px;background:var(--bg-3);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;overflow:hidden;margin-bottom:12px;position:relative;',
-  }, el('div', { style: 'color:var(--text-3);font-size:14px;' }, 'No media selected'));
-  body.appendChild(preview);
-
-  const fileInput = el('input', { type: 'file', style: 'display:none' });
-  let selectedFile = null;
-  let previewURL = null;
-
-  fileInput.addEventListener('change', () => {
-    const f = fileInput.files && fileInput.files[0];
-    if (!f) return;
-    let maxMB = 10;
-    if (f.type.startsWith('video/')) maxMB = 50;
-    if (f.size > maxMB * 1024 * 1024) {
-      toast('File too large. Max ' + maxMB + ' MB', 'error');
-      fileInput.value = '';
-      return;
-    }
-    selectedFile = f;
-    if (previewURL) URL.revokeObjectURL(previewURL);
-    previewURL = URL.createObjectURL(f);
-    preview.innerHTML = '';
-    if (f.type.startsWith('video/')) {
-      preview.appendChild(el('video', { src: previewURL, controls: true, playsinline: true, style: 'width:100%;height:100%;object-fit:contain;' }));
-    } else if (f.type.startsWith('image/')) {
-      preview.appendChild(el('img', { src: previewURL, style: 'width:100%;height:100%;object-fit:contain;' }));
+  const top = el('div', {
+    className: 'story-viewer-header',
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '10px',
+      padding: '8px 14px',
+      color: '#fff'
     }
   });
-  body.appendChild(fileInput);
 
-  const mediaRow = el('div', { style: 'display:flex;gap:6px;margin-bottom:12px;' });
-  const photoBtn = el('button', { class: 'btn btn-secondary', style: 'flex:1;padding:10px 6px;font-size:12px;', onclick: () => { fileInput.accept = 'image/*'; fileInput.click(); } });
-  photoBtn.innerHTML = '<svg class="icon icon-sm" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><span>Photo</span>';
-  mediaRow.appendChild(photoBtn);
-  const videoBtn = el('button', { class: 'btn btn-secondary', style: 'flex:1;padding:10px 6px;font-size:12px;', onclick: () => { fileInput.accept = 'video/*'; fileInput.click(); } });
-  videoBtn.innerHTML = '<svg class="icon icon-sm" viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg><span>Video</span>';
-  mediaRow.appendChild(videoBtn);
-  body.appendChild(mediaRow);
+  top.appendChild(avatarEl(group.user, '40px'));
 
-  const textInput = el('textarea', {
-    placeholder: 'Add a caption (optional)...', rows: 3, maxlength: 500,
-    style: 'width:100%;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--radius);padding:12px;font-size:14px;color:var(--text);resize:none;font-family:inherit;margin-bottom:12px;',
-  });
-  body.appendChild(textInput);
+  top.appendChild(el('strong', {
+    textContent: group.user?.name || group.user?.username || 'User'
+  }));
 
-  const postBtn = el('button', {
-    class: 'btn btn-primary',
-    onclick: async () => {
-      const text = textInput.value.trim();
-      if (!text && !selectedFile) { toast('Add text or media', 'error'); return; }
-      postBtn.disabled = true;
-      postBtn.innerHTML = '<div class="loader"></div>';
-      try {
-        const fd = new FormData();
-        fd.append('text', text);
-        if (selectedFile) fd.append('file', selectedFile);
-        await api('/api/statuses', { method: 'POST', body: fd });
-        toast('Story posted!', 'success');
-        closeModal();
-        loadFeed('all');
-      } catch (err) {
-        toast(err.message, 'error');
-        postBtn.disabled = false;
-        postBtn.innerHTML = '<span>Post Story</span>';
-      }
+  const close = el('button', {
+    className: 'btn-icon',
+    type: 'button',
+    textContent: '×',
+    style: {
+      marginLeft: 'auto',
+      color: '#fff'
     }
-  }, el('span', {}, 'Post Story'));
-  body.appendChild(postBtn);
-
-  content.appendChild(body);
-  overlay.appendChild(content);
-  container.appendChild(overlay);
-}
-
-// ============ LIVEKIT CALLS (PHASE 4) ============
-let CURRENT_CALL = null;
-let SPEAKER_ON = true;
-let RINGTONE_INTERVAL = null;
-let RINGTONE_AUDIO_CTX = null;
-let LIVEKIT_LOADING_PROMISE = null;
-
-function loadLiveKit() {
-  if (window.LivekitClient) return Promise.resolve(window.LivekitClient);
-  if (LIVEKIT_LOADING_PROMISE) return LIVEKIT_LOADING_PROMISE;
-  LIVEKIT_LOADING_PROMISE = new Promise((resolve, reject) => {
-    const s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js';
-    s.async = true;
-    s.onload = () => {
-      if (window.LivekitClient) resolve(window.LivekitClient);
-      else reject(new Error('LiveKit SDK not available'));
-    };
-    s.onerror = () => reject(new Error('Failed to load LiveKit SDK'));
-    document.head.appendChild(s);
   });
-  return LIVEKIT_LOADING_PROMISE;
-}
 
-function playBeep(frequency = 800, duration = 200, volume = 0.3) {
-  try {
-    if (!RINGTONE_AUDIO_CTX) {
-      RINGTONE_AUDIO_CTX = new (window.AudioContext || window.webkitAudioContext)();
+  close.addEventListener('click', closeStoryViewer);
+  top.appendChild(close);
+  viewer.appendChild(top);
+
+  const stage = el('div', {
+    className: 'story-stage',
+    style: {
+      position: 'relative',
+      flex: '1',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden'
     }
-    const ctx = RINGTONE_AUDIO_CTX;
-    if (ctx.state === 'suspended') ctx.resume();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.value = frequency;
-    gain.gain.setValueAtTime(0, ctx.currentTime);
-    gain.gain.linearRampToValueAtTime(volume, ctx.currentTime + 0.01);
-    gain.gain.setValueAtTime(volume, ctx.currentTime + (duration / 1000) - 0.05);
-    gain.gain.linearRampToValueAtTime(0, ctx.currentTime + (duration / 1000));
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + (duration / 1000));
-  } catch (err) {
-    console.warn('[Ringtone]', err);
-  }
-}
-
-function playDoubleBeep() {
-  playBeep(800, 250, 0.35);
-  setTimeout(() => playBeep(800, 250, 0.35), 350);
-}
-
-function startRingtone() {
-  stopRingtone();
-  playDoubleBeep();
-  RINGTONE_INTERVAL = setInterval(playDoubleBeep, 2000);
-}
-
-function stopRingtone() {
-  if (RINGTONE_INTERVAL) {
-    clearInterval(RINGTONE_INTERVAL);
-    RINGTONE_INTERVAL = null;
-  }
-}
-
-function toggleSpeaker() {
-  SPEAKER_ON = !SPEAKER_ON;
-  const btn = $('#callSpeakerBtn');
-  if (btn) {
-    btn.classList.toggle('speaker-on', SPEAKER_ON);
-    btn.classList.toggle('speaker-off', !SPEAKER_ON);
-  }
-  const remoteVideos = document.querySelectorAll('#callRemoteVideo video, #callRemoteVideo audio');
-  remoteVideos.forEach(el => {
-    el.volume = SPEAKER_ON ? 1.0 : 0.3;
   });
-  toast(SPEAKER_ON ? 'Loudspeaker ON' : 'Loudspeaker OFF', 'info');
+
+  viewer.appendChild(stage);
+
+  const left = el('button', {
+    className: 'story-zone story-left',
+    type: 'button',
+    'aria-label': 'Previous story',
+    style: {
+      position: 'absolute',
+      inset: '0 50% 0 0',
+      zIndex: '3',
+      opacity: '0',
+      cursor: 'pointer'
+    }
+  });
+
+  const right = el('button', {
+    className: 'story-zone story-right',
+    type: 'button',
+    'aria-label': 'Next story',
+    style: {
+      position: 'absolute',
+      inset: '0 0 0 50%',
+      zIndex: '3',
+      opacity: '0',
+      cursor: 'pointer'
+    }
+  });
+
+  left.addEventListener('click', previousStory);
+  right.addEventListener('click', nextStory);
+
+  const pause = () => {
+    STORY_PAUSED = true;
+    clearTimeout(STORY_TIMER);
+    clearTimeout(STORY_VIDEO_TIMER);
+  };
+
+  const resume = () => {
+    STORY_PAUSED = false;
+    showStory(CURRENT_STORY_INDEX);
+  };
+
+  stage.addEventListener('mousedown', pause);
+  stage.addEventListener('mouseup', resume);
+  stage.addEventListener('mouseleave', resume);
+  stage.addEventListener('touchstart', pause, { passive: true });
+  stage.addEventListener('touchend', resume, { passive: true });
+
+  stage.append(left, right);
+
+  document.body.appendChild(viewer);
+  viewer._stage = stage;
+  viewer._progress = progress;
+
+  showStory(0);
 }
 
-async function startCall(otherId, callType, name) {
-  if (!window.LivekitClient) {
-    toast('Loading call engine...', 'info');
-    try {
-      await loadLiveKit();
-    } catch (err) {
-      toast('Call engine unavailable. Check network.', 'error');
-      return;
-    }
-  }
+function showStory(index) {
+  const viewer = $('.story-viewer');
+  if (!viewer || !CURRENT_STORY_GROUP) return;
 
-  if (CURRENT_CALL) {
-    toast('Already in a call', 'error');
+  const stories = CURRENT_STORY_GROUP.stories;
+
+  if (index < 0) index = 0;
+
+  if (index >= stories.length) {
+    closeStoryViewer();
     return;
   }
 
-  try {
-    toast('Calling ' + name + '...', 'info');
-    const res = await api('/api/calls/token', {
-      method: 'POST',
-      body: JSON.stringify({ receiver_id: otherId, call_type: callType }),
+  CURRENT_STORY_INDEX = index;
+
+  clearTimeout(STORY_TIMER);
+  clearTimeout(STORY_VIDEO_TIMER);
+
+  const story = stories[index];
+  const stage = viewer._stage;
+  const progress = viewer._progress;
+
+  stage.querySelectorAll('.story-content').forEach(node => node.remove());
+
+  Array.from(progress.children).forEach((bar, i) => {
+    bar.replaceChildren();
+
+    if (i < index) {
+      bar.style.background = '#fff';
+    } else if (i > index) {
+      bar.style.background = 'rgba(255,255,255,.35)';
+    } else {
+      const fill = el('div', {
+        style: {
+          width: '0%',
+          height: '100%',
+          background: '#fff',
+          transition: 'width linear'
+        }
+      });
+      bar.appendChild(fill);
+    }
+  });
+
+  const mediaUrl =
+    story.media_url ||
+    story.image_url ||
+    story.video_url ||
+    story.url;
+
+  const content = el('div', {
+    className: 'story-content',
+    style: {
+      width: '100%',
+      height: '100%',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexDirection: 'column'
+    }
+  });
+
+  if (story.caption) {
+    content.appendChild(el('div', {
+      className: 'story-caption',
+      textContent: story.caption,
+      style: {
+        color: '#fff',
+        position: 'absolute',
+        bottom: '30px',
+        zIndex: '2',
+        padding: '12px',
+        textAlign: 'center'
+      }
+    }));
+  }
+
+  if (story.media_type === 'video' || /\.(mp4|webm|mov)(\?|$)/i.test(mediaUrl || '')) {
+    const video = el('video', {
+      className: 'story-media',
+      src: absoluteUrl(mediaUrl),
+      autoplay: true,
+      controls: false,
+      playsInline: true,
+      style: {
+        maxWidth: '100%',
+        maxHeight: '100%'
+      }
     });
 
-    CURRENT_CALL = {
-      receiverId: otherId,
-      callType: res.call_type,
-      roomName: res.room_name,
-      livekitUrl: res.livekit_url,
-      role: 'caller',
-      remoteName: name,
-    };
+    video.addEventListener('loadedmetadata', () => {
+      const duration = Math.min(
+        Math.max(video.duration || 5, 1),
+        15
+      );
 
-    showCallScreen();
-    startRingtone();
-    await connectLiveKit(res.token, res.livekit_url, res.room_name);
-  } catch (err) {
-    toast(err.message, 'error');
-    CURRENT_CALL = null;
-    hideCallScreen();
+      const bar = progress.children[index]?.firstElementChild;
+      if (bar) {
+        bar.style.transitionDuration = `${duration}s`;
+        requestAnimationFrame(() => {
+          bar.style.width = '100%';
+        });
+      }
+
+      STORY_VIDEO_TIMER = setTimeout(() => {
+        nextStory();
+      }, duration * 1000);
+    });
+
+    video.addEventListener('ended', nextStory);
+    content.appendChild(video);
+  } else if (mediaUrl) {
+    const image = el('img', {
+      className: 'story-media',
+      src: absoluteUrl(mediaUrl),
+      alt: story.caption || 'Story',
+      style: {
+        maxWidth: '100%',
+        maxHeight: '100%',
+        objectFit: 'contain'
+      }
+    });
+
+    content.appendChild(image);
+
+    const bar = progress.children[index]?.firstElementChild;
+    if (bar) {
+      bar.style.transitionDuration = '5s';
+      requestAnimationFrame(() => {
+        bar.style.width = '100%';
+      });
+    }
+
+    STORY_TIMER = setTimeout(nextStory, 5000);
+  } else {
+    content.appendChild(el('div', {
+      textContent: story.caption || '',
+      style: {
+        color: '#fff',
+        fontSize: '24px',
+        padding: '30px',
+        textAlign: 'center'
+      }
+    }));
+
+    const bar = progress.children[index]?.firstElementChild;
+    if (bar) {
+      bar.style.transitionDuration = '5s';
+      requestAnimationFrame(() => {
+        bar.style.width = '100%';
+      });
+    }
+
+    STORY_TIMER = setTimeout(nextStory, 5000);
+  }
+
+  stage.prepend(content);
+}
+
+function nextStory() {
+  if (STORY_PAUSED) return;
+
+  const next = CURRENT_STORY_INDEX + 1;
+
+  if (next >= (CURRENT_STORY_GROUP?.stories?.length || 0)) {
+    closeStoryViewer();
+    return;
+  }
+
+  showStory(next);
+}
+
+function previousStory() {
+  if (CURRENT_STORY_INDEX <= 0) {
+    showStory(0);
+    return;
+  }
+
+  showStory(CURRENT_STORY_INDEX - 1);
+}
+
+function closeStoryViewer() {
+  clearTimeout(STORY_TIMER);
+  clearTimeout(STORY_VIDEO_TIMER);
+
+  $('.story-viewer')?.remove();
+
+  CURRENT_STORY_GROUP = null;
+  CURRENT_STORY_INDEX = 0;
+  STORY_PAUSED = false;
+}
+
+function openCreateStory() {
+  closeModal();
+
+  const overlay = el('div', {
+    className: 'modal-overlay'
+  });
+
+  const content = el('div', {
+    className: 'modal-content'
+  });
+
+  const header = el('div', {
+    className: 'modal-header'
+  });
+
+  header.appendChild(el('h3', {
+    textContent: 'Create story'
+  }));
+
+  const close = el('button', {
+    className: 'btn-icon',
+    type: 'button',
+    textContent: '×'
+  });
+
+  close.addEventListener('click', closeModal);
+  header.appendChild(close);
+  content.appendChild(header);
+
+  const body = el('div', {
+    className: 'modal-body'
+  });
+
+  const caption = el('textarea', {
+    placeholder: 'Add a caption...',
+    rows: '4'
+  });
+
+  const input = el('input', {
+    type: 'file',
+    accept: 'image/*,video/*',
+    hidden: true
+  });
+
+  const selected = el('div', {
+    textContent: 'No media selected.'
+  });
+
+  let file = null;
+
+  input.addEventListener('change', () => {
+    file = input.files?.[0] || null;
+    selected.textContent = file?.name || 'No media selected.';
+  });
+
+  const photo = el('button', {
+    className: 'btn btn-secondary',
+    type: 'button',
+    textContent: 'Photo'
+  });
+
+  photo.addEventListener('click', () => {
+    input.accept = 'image/*';
+    input.click();
+  });
+
+  const video = el('button', {
+    className: 'btn btn-secondary',
+    type: 'button',
+    textContent: 'Video'
+  });
+
+  video.addEventListener('click', () => {
+    input.accept = 'video/*';
+    input.click();
+  });
+
+  const submit = el('button', {
+    className: 'btn btn-primary',
+    type: 'button',
+    textContent: 'Post Story'
+  });
+
+  submit.addEventListener('click', async () => {
+    if (!file && !caption.value.trim()) {
+      toast('Add a photo, video, or caption.', 'error');
+      return;
+    }
+
+    submit.disabled = true;
+
+    try {
+      let mediaUrl = '';
+
+      if (file) {
+        const form = new FormData();
+        form.append('file', file);
+
+        const uploaded = await api(API.upload, {
+          method: 'POST',
+          body: form
+        });
+
+        mediaUrl =
+          uploaded?.url ||
+          uploaded?.file_url ||
+          uploaded?.media_url ||
+          '';
+      }
+
+      await api(API.stories, {
+        method: 'POST',
+        body: {
+          media_url: mediaUrl,
+          media_type: file?.type.startsWith('video') ? 'video' : 'image',
+          caption: caption.value.trim()
+        }
+      });
+
+      toast('Story published.', 'success');
+      closeModal();
+
+      if (CURRENT_VIEW === 'home') {
+        const type = 'for-you';
+        renderFeed(type, CACHE.feed.get(type) || []);
+      }
+    } catch (error) {
+      toast(error.message, 'error');
+    } finally {
+      submit.disabled = false;
+    }
+  });
+
+  body.append(
+    input,
+    selected,
+    caption,
+    photo,
+    video,
+    submit
+  );
+
+  content.appendChild(body);
+  overlay.appendChild(content);
+  document.body.appendChild(overlay);
+}
+
+/* ============================================================
+   SECTION H: LIVEKIT CALLS
+   ============================================================ */
+
+function loadLiveKit() {
+  if (window.LivekitClient || window.LiveKitClient) {
+    return Promise.resolve(window.LivekitClient || window.LiveKitClient);
+  }
+
+  if (LIVEKIT_SCRIPT_PROMISE) return LIVEKIT_SCRIPT_PROMISE;
+
+  LIVEKIT_SCRIPT_PROMISE = new Promise((resolve, reject) => {
+    const existing = document.querySelector('script[data-livekit-sdk]');
+
+    if (existing) {
+      existing.addEventListener('load', () => {
+        resolve(window.LivekitClient || window.LiveKitClient);
+      });
+
+      existing.addEventListener('error', reject);
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js';
+    script.async = true;
+    script.dataset.livekitSdk = '1';
+
+    script.addEventListener('load', () => {
+      const sdk = window.LivekitClient || window.LiveKitClient;
+
+      if (!sdk) {
+        reject(new Error('LiveKit SDK failed to initialize.'));
+      } else {
+        resolve(sdk);
+      }
+    });
+
+    script.addEventListener('error', () => {
+      reject(new Error('Unable to load LiveKit.'));
+    });
+
+    document.head.appendChild(script);
+  });
+
+  return LIVEKIT_SCRIPT_PROMISE;
+}
+
+async function startCall(otherId, callType = 'audio', name = 'User') {
+  if (!otherId || CALL_STATE.active) return;
+
+  CALL_STATE = {
+    active: true,
+    type: callType,
+    otherId,
+    name,
+    mic: true,
+    camera: callType === 'video',
+    speaker: true,
+    answered: false
+  };
+
+  showCallScreen();
+  startRingtone();
+
+  try {
+    const data = await api(API.calls, {
+      method: 'POST',
+      body: {
+        recipient_id: otherId,
+        type: callType
+      }
+    });
+
     stopRingtone();
+
+    const token = data?.token || data?.access_token;
+    const url = data?.url || data?.server_url || data?.ws_url;
+    const roomName = data?.room_name || data?.room || data?.roomName;
+
+    if (!token || !url || !roomName) {
+      throw new Error('The call server did not return valid LiveKit credentials.');
+    }
+
+    await connectLiveKit(token, url, roomName);
+
+    CALL_STATE.answered = true;
+    updateCallStatus('Connected');
+  } catch (error) {
+    stopRingtone();
+    updateCallStatus('Call failed');
+    toast(error.message, 'error');
+
+    setTimeout(() => {
+      if (CALL_STATE.active) endCall();
+    }, 1200);
   }
 }
 
 async function connectLiveKit(token, url, roomName) {
-  const { Room, RoomEvent } = window.LivekitClient;
+  const sdk = await loadLiveKit();
 
-  const room = new Room({ adaptiveStream: true, dynacast: true });
-  CURRENT_CALL.room = room;
+  const Room =
+    sdk.Room ||
+    sdk.default?.Room;
 
-  room
-    .on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
-      const el = track.attach();
-      el.style.width = '100%';
-      el.style.height = '100%';
-      el.style.objectFit = 'cover';
-      el.setAttribute('playsinline', 'true');
-      if (track.kind === 'video') {
-        const remoteVideo = $('#callRemoteVideo');
-        if (remoteVideo) {
-          remoteVideo.innerHTML = '';
-          remoteVideo.appendChild(el);
-        }
-      } else if (track.kind === 'audio') {
-        el.style.display = 'none';
-        document.body.appendChild(el);
-      }
-    })
-    .on(RoomEvent.ParticipantConnected, (participant) => {
-      if (CURRENT_CALL) {
-        CURRENT_CALL.connected = true;
-        if (CURRENT_CALL.timeoutId) {
-          clearTimeout(CURRENT_CALL.timeoutId);
-          CURRENT_CALL.timeoutId = null;
-        }
-      }
+  const RoomEvent =
+    sdk.RoomEvent ||
+    sdk.default?.RoomEvent;
+
+  if (!Room || !RoomEvent) {
+    throw new Error('LiveKit Room API is unavailable.');
+  }
+
+  const room = new Room({
+    adaptiveStream: true,
+    dynacast: true
+  });
+
+  CALL_ROOM = room;
+
+  room.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
+    attachRemoteTrack(track, participant);
+  });
+
+  room.on(RoomEvent.ParticipantConnected, participant => {
+    updateCallStatus(`${participant.name || 'Participant'} joined`);
+  });
+
+  room.on(RoomEvent.ParticipantDisconnected, participant => {
+    updateCallStatus(`${participant.name || 'Participant'} left`);
+  });
+
+  room.on(RoomEvent.Disconnected, () => {
+    if (CALL_STATE.active) {
+      hideCallScreen();
       stopRingtone();
-      const statusEl = $('#callStatus');
-      if (statusEl) statusEl.textContent = 'Connected';
-      toast(participant.name || 'Someone joined', 'success');
-    })
-    .on(RoomEvent.ParticipantDisconnected, () => {
-      toast('Call ended by other party', 'info');
-      endCall();
-    })
-    .on(RoomEvent.Disconnected, () => {
-      endCall();
-    })
-    .on(RoomEvent.LocalTrackPublished, (publication) => {
-      if (publication.track && publication.track.kind === 'video') {
-        const localVideo = $('#callLocalVideo');
-        if (localVideo) {
-          localVideo.innerHTML = '';
-          const el = publication.track.attach();
-          el.style.width = '100%';
-          el.style.height = '100%';
-          el.style.objectFit = 'cover';
-          el.setAttribute('playsinline', 'true');
-          el.muted = true;
-          localVideo.appendChild(el);
-        }
-      }
-    });
+    }
+  });
+
+  room.on(RoomEvent.LocalTrackPublished, publication => {
+    if (publication?.track) {
+      attachLocalTrack(publication.track);
+    }
+  });
 
   await room.connect(url, token);
-  console.log('[MSAFIRI] Connected to LiveKit room:', roomName);
 
   try {
-    await room.localParticipant.enableCameraAndMicrophone();
-  } catch (err) {
-    console.warn('[MSAFIRI] Camera/mic error:', err);
-    toast('Camera/mic permission denied', 'error');
-    try {
-      await room.localParticipant.setMicrophoneEnabled(true);
-    } catch (_) {}
+    await room.localParticipant.setMicrophoneEnabled(CALL_STATE.mic);
+
+    if (CALL_STATE.type === 'video') {
+      await room.localParticipant.setCameraEnabled(CALL_STATE.camera);
+    }
+  } catch (error) {
+    toast(error.message, 'error');
   }
 
-  // Auto-end after 30s if no answer
-  if (CURRENT_CALL && CURRENT_CALL.role === 'caller') {
-    CURRENT_CALL.timeoutId = setTimeout(() => {
-      if (CURRENT_CALL && !CURRENT_CALL.connected) {
-        console.log('[MSAFIRI] No answer after 30s — ending call');
-        stopRingtone();
-        const statusEl = $('#callStatus');
-        if (statusEl) statusEl.textContent = 'No answer';
-        toast('No answer', 'info');
-        setTimeout(() => endCall(), 1500);
-      }
-    }, 30000);
+  if (!CALL_STATE.answered) {
+    startRingtone();
   }
+}
+
+function attachRemoteTrack(track, participant) {
+  const container = $('.call-remote-video');
+  if (!container || !track) return;
+
+  const element = track.attach();
+
+  if (element instanceof HTMLVideoElement) {
+    element.autoplay = true;
+    element.playsInline = true;
+    element.style.width = '100%';
+    element.style.height = '100%';
+    element.style.objectFit = 'cover';
+  }
+
+  element.dataset.participantId = participant?.identity || '';
+  container.appendChild(element);
+}
+
+function attachLocalTrack(track) {
+  const container = $('.call-local-video');
+  if (!container || !track) return;
+
+  container.replaceChildren();
+
+  const element = track.attach();
+
+  if (element instanceof HTMLVideoElement) {
+    element.autoplay = true;
+    element.muted = true;
+    element.playsInline = true;
+    element.style.width = '100%';
+    element.style.height = '100%';
+    element.style.objectFit = 'cover';
+  }
+
+  container.appendChild(element);
 }
 
 function showCallScreen() {
-  if (!CURRENT_CALL) return;
-  const overlay = el('div', { class: 'call-overlay', id: 'callOverlay' });
+  hideCallScreen();
 
-  const remoteVideo = el('div', { class: 'call-remote-video', id: 'callRemoteVideo' });
-  overlay.appendChild(remoteVideo);
+  const overlay = el('div', {
+    className: 'call-overlay',
+    style: {
+      position: 'fixed',
+      inset: '0',
+      zIndex: '10001',
+      background: '#000',
+      color: '#fff'
+    }
+  });
 
-  const localVideo = el('div', { class: 'call-local-video', id: 'callLocalVideo' });
-  overlay.appendChild(localVideo);
+  const remote = el('div', {
+    className: 'call-remote-video',
+    style: {
+      position: 'absolute',
+      inset: '0',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center'
+    }
+  });
 
-  const header = el('div', { class: 'call-header' });
-  header.appendChild(el('div', { class: 'call-name' }, CURRENT_CALL.remoteName || 'Calling...'));
-  header.appendChild(el('div', { class: 'call-status', id: 'callStatus' }, 'Connecting...'));
-  overlay.appendChild(header);
+  const avatar = el('div', {
+    className: 'call-avatar',
+    style: {
+      width: '100px',
+      height: '100px',
+      borderRadius: '50%',
+      background: 'var(--bg-3)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontSize: '36px',
+      fontWeight: '700'
+    },
+    textContent: initials(CALL_STATE.name)
+  });
 
-  const controls = el('div', { class: 'call-controls' });
+  remote.appendChild(avatar);
+  overlay.appendChild(remote);
 
-  const micBtn = el('button', { class: 'call-control-btn', id: 'callMicBtn', title: 'Mute' });
-  micBtn.innerHTML = '<svg viewBox="0 0 24 24" style="width:26px;height:26px;stroke:white;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>';
-  micBtn.addEventListener('click', toggleMic);
-  controls.appendChild(micBtn);
+  const info = el('div', {
+    className: 'call-info',
+    style: {
+      position: 'absolute',
+      top: '30px',
+      left: '0',
+      right: '0',
+      textAlign: 'center',
+      zIndex: '4'
+    }
+  });
 
-  if (CURRENT_CALL.callType === 'video') {
-    const camBtn = el('button', { class: 'call-control-btn', id: 'callCamBtn', title: 'Camera' });
-    camBtn.innerHTML = '<svg viewBox="0 0 24 24" style="width:26px;height:26px;stroke:white;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>';
-    camBtn.addEventListener('click', toggleCamera);
-    controls.appendChild(camBtn);
+  info.appendChild(el('strong', {
+    textContent: CALL_STATE.name
+  }));
 
-    const switchBtn = el('button', { class: 'call-control-btn', id: 'callSwitchBtn', title: 'Switch camera' });
-    switchBtn.innerHTML = '<svg viewBox="0 0 24 24" style="width:26px;height:26px;stroke:white;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>';
-    switchBtn.addEventListener('click', switchCamera);
-    controls.appendChild(switchBtn);
-  }
+  info.appendChild(el('div', {
+    className: 'call-status',
+    textContent: 'Calling...'
+  }));
 
-  const speakerBtn = el('button', { class: 'call-control-btn', id: 'callSpeakerBtn', title: 'Speaker' });
-  speakerBtn.innerHTML = '<svg viewBox="0 0 24 24" style="width:26px;height:26px;stroke:white;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>';
-  speakerBtn.classList.add('speaker-on');
-  speakerBtn.addEventListener('click', toggleSpeaker);
-  controls.appendChild(speakerBtn);
+  overlay.appendChild(info);
 
-  const endBtn = el('button', { class: 'call-control-btn call-end-btn', title: 'End call' });
-  endBtn.innerHTML = '<svg viewBox="0 0 24 24" style="width:26px;height:26px;stroke:white;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>';
-  endBtn.addEventListener('click', endCall);
-  controls.appendChild(endBtn);
+  const local = el('div', {
+    className: 'call-local-video',
+    style: {
+      position: 'absolute',
+      top: '80px',
+      right: '16px',
+      width: '110px',
+      height: '160px',
+      background: '#111',
+      borderRadius: '12px',
+      overflow: 'hidden',
+      zIndex: '5'
+    }
+  });
+
+  overlay.appendChild(local);
+
+  const controls = el('div', {
+    className: 'call-controls',
+    style: {
+      position: 'absolute',
+      bottom: '30px',
+      left: '0',
+      right: '0',
+      display: 'flex',
+      justifyContent: 'center',
+      gap: '12px',
+      zIndex: '5'
+    }
+  });
+
+  const mic = el('button', {
+    className: 'call-control-btn',
+    type: 'button',
+    textContent: '🎙',
+    title: 'Microphone'
+  });
+
+  mic.addEventListener('click', toggleMic);
+
+  const camera = el('button', {
+    className: 'call-control-btn',
+    type: 'button',
+    textContent: '▣',
+    title: 'Camera'
+  });
+
+  camera.addEventListener('click', toggleCamera);
+
+  const switchCameraButton = el('button', {
+    className: 'call-control-btn',
+    type: 'button',
+    textContent: '↻',
+    title: 'Switch camera'
+  });
+
+  switchCameraButton.addEventListener('click', switchCamera);
+
+  const speaker = el('button', {
+    className: 'call-control-btn speaker-on',
+    type: 'button',
+    textContent: '🔊',
+    title: 'Speaker'
+  });
+
+  speaker.addEventListener('click', toggleSpeaker);
+
+  const end = el('button', {
+    className: 'call-end-btn',
+    type: 'button',
+    textContent: '☎',
+    title: 'End call'
+  });
+
+  end.addEventListener('click', endCall);
+
+  controls.append(
+    mic,
+    camera,
+    switchCameraButton,
+    speaker,
+    end
+  );
 
   overlay.appendChild(controls);
   document.body.appendChild(overlay);
+
+  if (CALL_STATE.type !== 'video') {
+    camera.classList.add('hidden');
+    switchCameraButton.classList.add('hidden');
+  }
+
+  CALL_TIMER = setTimeout(() => {
+    if (CALL_STATE.active && !CALL_STATE.answered) {
+      toast('No answer.');
+      endCall();
+    }
+  }, 30000);
+}
+
+function updateCallStatus(text) {
+  const node = $('.call-status');
+  if (node) node.textContent = text;
 }
 
 function hideCallScreen() {
-  const overlay = $('#callOverlay');
-  if (overlay) overlay.remove();
+  clearTimeout(CALL_TIMER);
+  $('.call-overlay')?.remove();
 }
 
 async function toggleMic() {
-  if (!CURRENT_CALL || !CURRENT_CALL.room) return;
-  const btn = $('#callMicBtn');
+  if (!CALL_ROOM?.localParticipant) return;
+
   try {
-    const lp = CURRENT_CALL.room.localParticipant;
-    const isEnabled = lp.isMicrophoneEnabled;
-    await lp.setMicrophoneEnabled(!isEnabled);
-    btn.classList.toggle('muted', isEnabled);
-  } catch (err) {
-    console.warn(err);
+    CALL_STATE.mic = !CALL_STATE.mic;
+    await CALL_ROOM.localParticipant.setMicrophoneEnabled(CALL_STATE.mic);
+
+    const button = $('.call-controls .call-control-btn');
+    if (button) button.textContent = CALL_STATE.mic ? '🎙' : '🔇';
+  } catch (error) {
+    toast(error.message, 'error');
   }
 }
 
 async function toggleCamera() {
-  if (!CURRENT_CALL || !CURRENT_CALL.room) return;
-  const btn = $('#callCamBtn');
+  if (!CALL_ROOM?.localParticipant || CALL_STATE.type !== 'video') return;
+
   try {
-    const lp = CURRENT_CALL.room.localParticipant;
-    const isEnabled = lp.isCameraEnabled;
-    await lp.setCameraEnabled(!isEnabled);
-    btn.classList.toggle('muted', isEnabled);
-  } catch (err) {
-    console.warn(err);
+    CALL_STATE.camera = !CALL_STATE.camera;
+    await CALL_ROOM.localParticipant.setCameraEnabled(CALL_STATE.camera);
+  } catch (error) {
+    toast(error.message, 'error');
   }
 }
 
 async function switchCamera() {
-  if (!CURRENT_CALL || !CURRENT_CALL.room) return;
+  if (!CALL_ROOM?.localParticipant || !CALL_STATE.camera) return;
+
   try {
-    const lp = CURRENT_CALL.room.localParticipant;
-    const pub = Array.from(lp.videoTrackPublications.values())[0];
-    if (pub && pub.track) {
-      await pub.track.restartTrack({ facingMode: 'environment' });
+    const publication = Array.from(
+      CALL_ROOM.localParticipant.videoTrackPublications.values()
+    )[0];
+
+    if (!publication?.track) return;
+
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const cameras = devices.filter(device => device.kind === 'videoinput');
+
+    if (cameras.length < 2) {
+      toast('Only one camera is available.');
+      return;
     }
-  } catch (err) {
-    console.warn(err);
+
+    const current = publication.track.mediaStreamTrack?.getSettings?.().deviceId;
+    const index = cameras.findIndex(camera => camera.deviceId === current);
+    const next = cameras[(index + 1) % cameras.length];
+
+    if (typeof publication.track.restartTrack === 'function') {
+      await publication.track.restartTrack({
+        deviceId: next.deviceId
+      });
+    } else {
+      toast('Camera switching is not supported by this LiveKit version.');
+    }
+  } catch (error) {
+    toast(error.message, 'error');
+  }
+}
+
+function toggleSpeaker() {
+  CALL_STATE.speaker = !CALL_STATE.speaker;
+
+  const volume = CALL_STATE.speaker ? '1' : '0.3';
+
+  $$('.call-remote-video audio, .call-remote-video video').forEach(media => {
+    media.volume = Number(volume);
+  });
+
+  const button = $$('.call-controls .call-control-btn')[3];
+
+  if (button) {
+    button.classList.toggle('speaker-on', CALL_STATE.speaker);
+    button.classList.toggle('speaker-off', !CALL_STATE.speaker);
+    button.textContent = CALL_STATE.speaker ? '🔊' : '🔉';
   }
 }
 
 async function endCall() {
+  clearTimeout(CALL_TIMER);
   stopRingtone();
-  if (CURRENT_CALL && CURRENT_CALL.timeoutId) {
-    clearTimeout(CURRENT_CALL.timeoutId);
-    CURRENT_CALL.timeoutId = null;
+
+  try {
+    if (CALL_ROOM) {
+      await CALL_ROOM.disconnect();
+    }
+  } catch (_) {
+    /* Room may already be disconnected. */
   }
-  if (CURRENT_CALL && CURRENT_CALL.room) {
-    try {
-      await CURRENT_CALL.room.disconnect();
-    } catch (_) {}
+
+  if (CALL_STATE.otherId) {
+    api(API.calls, {
+      method: 'DELETE',
+      body: {
+        recipient_id: CALL_STATE.otherId
+      },
+      timeout: 8000,
+      retry: false
+    }).catch(() => {});
   }
-  CURRENT_CALL = null;
+
+  CALL_ROOM = null;
+
+  CALL_STATE = {
+    active: false,
+    type: null,
+    otherId: null,
+    name: '',
+    mic: true,
+    camera: true,
+    speaker: true,
+    answered: false
+  };
+
   hideCallScreen();
-  toast('Call ended', 'info');
+}
+
+function playBeep() {
+  try {
+    const AudioContextClass =
+      window.AudioContext ||
+      window.webkitAudioContext;
+
+    if (!AudioContextClass) return;
+
+    if (!RINGTONE_CONTEXT) {
+      RINGTONE_CONTEXT = new AudioContextClass();
+    }
+
+    const oscillator = RINGTONE_CONTEXT.createOscillator();
+    const gain = RINGTONE_CONTEXT.createGain();
+
+    oscillator.frequency.value = 740;
+    oscillator.type = 'sine';
+
+    gain.gain.setValueAtTime(0.0001, RINGTONE_CONTEXT.currentTime);
+    gain.gain.exponentialRampToValueAtTime(
+      0.15,
+      RINGTONE_CONTEXT.currentTime + 0.02
+    );
+    gain.gain.exponentialRampToValueAtTime(
+      0.0001,
+      RINGTONE_CONTEXT.currentTime + 0.22
+    );
+
+    oscillator.connect(gain);
+    gain.connect(RINGTONE_CONTEXT.destination);
+
+    oscillator.start();
+    oscillator.stop(RINGTONE_CONTEXT.currentTime + 0.24);
+  } catch (_) {
+    /* Audio is optional. */
+  }
+}
+
+function playDoubleBeep() {
+  playBeep();
+
+  setTimeout(() => {
+    if (CALL_STATE.active) playBeep();
+  }, 260);
+}
+
+function startRingtone() {
+  stopRingtone();
+
+  if (!CALL_STATE.active) return;
+
+  playDoubleBeep();
+
+  RINGTONE_TIMER = setInterval(() => {
+    if (!CALL_STATE.active || CALL_STATE.answered) {
+      stopRingtone();
+      return;
+    }
+
+    playDoubleBeep();
+  }, 2000);
+}
+
+function stopRingtone() {
+  clearInterval(RINGTONE_TIMER);
+  RINGTONE_TIMER = null;
 }
 
 /* ============================================================
-   APP.JS — PART 3/3
-   Search, Discovery, AI, Studio, Market, Channels, Video, User Manual, Init
+   SECTION I: SEARCH
    ============================================================ */
 
-// ============ SEARCH ============
 async function openSearch() {
   openSearchWithQuery('');
 }
 
-async function openSearchWithQuery(initialQuery) {
-  const main = $('#appMain');
-  switchView('home');
-  main.innerHTML = '';
+async function openSearchWithQuery(q = '') {
+  const main = $('.app-main') || $('#mainContent');
+  if (!main) return;
 
-  const header = el('div', { style: 'padding:12px 16px;background:var(--bg-2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:4;' });
-  const backBtn = el('button', { class: 'btn-icon', style: 'position:absolute;left:8px;top:12px;', onclick: () => loadFeed('all') });
-  backBtn.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>';
-  header.appendChild(backBtn);
-  const inputWrap = el('div', { class: 'input-wrap', style: 'margin-left:44px;' });
-  const searchIcon = el('div');
-  searchIcon.innerHTML = '<svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>';
-  inputWrap.appendChild(searchIcon.firstChild);
-  const inp = el('input', { type: 'text', placeholder: 'Search people...', value: initialQuery || '', style: 'padding-left:42px;' });
-  inputWrap.appendChild(inp);
-  header.appendChild(inputWrap);
-  main.appendChild(header);
+  switchView('search');
 
-  const results = el('div');
-  main.appendChild(results);
+  main.replaceChildren();
 
-  async function doSearch(q) {
-    if (!q) { results.innerHTML = ''; return; }
-    results.innerHTML = '<div class="center-loader"><div class="loader"></div></div>';
-    try {
-      const data = await api('/api/search?q=' + encodeURIComponent(q));
-      results.innerHTML = '';
-      if (!data.users || data.users.length === 0) {
-        results.innerHTML = '<div class="empty-state"><p class="empty-state-title">No users found</p></div>';
-        return;
-      }
-      for (const u of data.users) {
-        const row = el('div', {
-          style: 'display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer;border-bottom:1px solid var(--border);',
-          onclick: () => openProfile(u.id),
-        });
-        row.appendChild(avatarEl(u, 44));
-        const info = el('div');
-        info.appendChild(el('div', { style: 'font-weight:600;font-size:14px;' }, u.name));
-        if (u.username) info.appendChild(el('div', { style: 'font-size:12px;color:var(--text-3);' }, '@' + u.username));
-        row.appendChild(info);
-        results.appendChild(row);
-      }
-    } catch (err) {
-      results.innerHTML = `<div class="empty-state"><p class="empty-state-text" style="color:var(--danger);">${esc(err.message)}</p></div>`;
-    }
-  }
-
-  let timer;
-  inp.addEventListener('input', () => {
-    clearTimeout(timer);
-    timer = setTimeout(() => doSearch(inp.value.trim()), 400);
+  const header = el('div', {
+    className: 'sub-page-header'
   });
-  if (initialQuery) doSearch(initialQuery);
-  inp.focus();
-}
 
-// ============ DISCOVERY ============
-async function openDiscovery() {
-  const main = $('#appMain');
-  main.innerHTML = '';
-  switchView('discovery');
+  const back = el('button', {
+    className: 'btn-icon',
+    type: 'button',
+    textContent: '‹'
+  });
 
-  const header = el('div', { class: 'discovery-header' });
-  header.appendChild(el('h2', { class: 'discovery-title' }, 'Discover'));
-  header.appendChild(el('p', { class: 'discovery-subtitle' }, 'AI, Studio, Market and more'));
+  back.addEventListener('click', () => switchView('home'));
+
+  header.append(
+    back,
+    el('h2', { textContent: 'Search' })
+  );
+
   main.appendChild(header);
 
-  const items = [
-    { key: 'ai', icon: 'book', label: 'AI Council', desc: 'Education, Health, Agriculture, Research', color: '#3b82f6' },
-    { key: 'studio', icon: 'image', label: 'Creative Studio', desc: 'Image, Video, Documents', color: '#8b5cf6' },
-    { key: 'market', icon: 'shopping-bag', label: 'Market', desc: 'Products, Services, Digital', color: '#10b981' },
-    { key: 'map', icon: 'globe', label: 'World Map', desc: 'Explore the world', color: '#f59e0b' },
-    { key: 'channels', icon: 'tv', label: 'Channels', desc: 'BBC, CNN, Aljazeera and more', color: '#ef4444' },
-    { key: 'communities', icon: 'users', label: 'Communities', desc: 'Join groups and communities', color: '#06b6d4' },
-    { key: 'videos', icon: 'play', label: 'Videos', desc: 'Short videos feed', color: '#ec4899' },
-    { key: 'settings', icon: 'settings', label: 'Settings', desc: 'App preferences', color: '#64748b' },
-  ];
+  const input = el('input', {
+    className: 'home-search-input',
+    type: 'search',
+    placeholder: 'Search people, posts and channels',
+    value: q
+  });
 
-  const icons = {
-    book: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
-    image: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>',
-    'shopping-bag': '<path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/>',
-    globe: '<circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>',
-    tv: '<rect x="2" y="7" width="20" height="15" rx="2"/><polyline points="17 2 12 7 7 2"/>',
-    users: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
-    play: '<polygon points="5 3 19 12 5 21 5 3"/>',
-    settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
+  const results = el('div', {
+    className: 'search-results'
+  });
+
+  main.append(input, results);
+
+  const execute = async () => {
+    const query = input.value.trim();
+
+    if (!query) {
+      results.replaceChildren();
+      return;
+    }
+
+    results.replaceChildren(el('div', {
+      className: 'loader',
+      textContent: 'Searching...'
+    }));
+
+    try {
+      const data = await api(
+        `${API.search}?q=${encodeURIComponent(query)}`
+      );
+
+      CACHE.search.set(query, data);
+      results.replaceChildren();
+
+      const users = normalizeList(data?.users);
+      const posts = normalizeList(data?.posts);
+      const channels = normalizeList(data?.channels);
+
+      if (users.length) {
+        results.appendChild(el('h3', {
+          textContent: 'People'
+        }));
+
+        users.forEach(user => {
+          const item = el('button', {
+            className: 'chat-list-item',
+            type: 'button'
+          });
+
+          item.append(
+            avatarEl(user, '44px'),
+            el('span', {
+              textContent: user.name || user.username || 'User'
+            })
+          );
+
+          item.addEventListener('click', () => openProfile(user.id || user.user_id));
+          results.appendChild(item);
+        });
+      }
+
+      if (channels.length) {
+        results.appendChild(el('h3', {
+          textContent: 'Channels'
+        }));
+
+        channels.forEach(channel => {
+          results.appendChild(el('div', {
+            className: 'channel-item',
+            textContent: channel.name || channel.title || 'Channel'
+          }));
+        });
+      }
+
+      if (posts.length) {
+        results.appendChild(el('h3', {
+          textContent: 'Posts'
+        }));
+
+        posts.forEach(post => {
+          results.appendChild(renderPost(post));
+        });
+      }
+
+      if (!users.length && !posts.length && !channels.length) {
+        results.appendChild(el('div', {
+          className: 'empty-state',
+          textContent: 'No results found.'
+        }));
+      }
+    } catch (error) {
+      results.replaceChildren(el('div', {
+        className: 'empty-state',
+        textContent: error.message
+      }));
+    }
   };
 
-  const grid = el('div', { class: 'discovery-grid' });
-  for (const item of items) {
-    const card = el('div', { class: 'discovery-card', onclick: () => openDiscoveryItem(item.key) });
-    const iconWrap = el('div', { class: 'discovery-card-icon', style: `background:${item.color};` });
-    iconWrap.innerHTML = `<svg viewBox="0 0 24 24" style="width:26px;height:26px;stroke:white;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;">${icons[item.icon]}</svg>`;
-    card.appendChild(iconWrap);
-    card.appendChild(el('div', { class: 'discovery-card-label' }, item.label));
-    card.appendChild(el('div', { class: 'discovery-card-desc' }, item.desc));
+  input.addEventListener('keydown', event => {
+    if (event.key === 'Enter') execute();
+  });
+
+  if (q) await execute();
+}
+
+/* ============================================================
+   SECTION J: DISCOVERY
+   ============================================================ */
+
+function openDiscovery() {
+  switchView('discovery');
+
+  const main = $('.app-main') || $('#mainContent');
+  if (!main) return;
+
+  main.replaceChildren();
+
+  const header = subPageHeader('Discovery', () => switchView('home'));
+  main.appendChild(header);
+
+  const grid = el('div', {
+    className: 'discovery-grid'
+  });
+
+  const cards = [
+    ['ai', '🤖', 'AI Council'],
+    ['studio', '🎬', 'Studio'],
+    ['market', '🛍', 'Market'],
+    ['map', '🌍', 'World Map'],
+    ['channels', '📺', 'Channels'],
+    ['communities', '👥', 'Communities'],
+    ['videos', '▶', 'Videos'],
+    ['settings', '⚙', 'Settings']
+  ];
+
+  cards.forEach(([key, icon, title]) => {
+    const card = el('button', {
+      className: 'discovery-card',
+      type: 'button'
+    });
+
+    card.append(
+      el('div', {
+        className: 'discovery-icon',
+        textContent: icon
+      }),
+      el('strong', {
+        textContent: title
+      })
+    );
+
+    card.addEventListener('click', () => openDiscoveryItem(key));
     grid.appendChild(card);
-  }
+  });
+
   main.appendChild(grid);
 }
 
 function openDiscoveryItem(key) {
-  if (key === 'ai') openAICouncil();
-  else if (key === 'studio') openStudio();
-  else if (key === 'market') openMarket();
-  else if (key === 'map') openWorldMap();
-  else if (key === 'channels') openChannels();
-  else if (key === 'communities') openCommunities();
-  else if (key === 'videos') openVideos();
-  else if (key === 'settings') openSettings();
+  const actions = {
+    ai: openAICouncil,
+    studio: openStudio,
+    market: openMarket,
+    map: openWorldMap,
+    channels: openChannels,
+    communities: openCommunities,
+    videos: openVideos,
+    settings: openSettings
+  };
+
+  if (typeof actions[key] === 'function') {
+    actions[key]();
+  }
 }
 
 function subPageHeader(title, backFn) {
-  const header = el('div', { class: 'discovery-back' });
-  const back = el('button', { class: 'discovery-back-btn', onclick: backFn || openDiscovery });
-  back.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>';
-  header.appendChild(back);
-  header.appendChild(el('div', { class: 'discovery-back-title' }, title));
+  const header = el('div', {
+    className: 'sub-page-header',
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '10px'
+    }
+  });
+
+  const back = el('button', {
+    className: 'btn-icon',
+    type: 'button',
+    textContent: '‹',
+    title: 'Back'
+  });
+
+  back.addEventListener('click', backFn);
+
+  header.append(
+    back,
+    el('h2', {
+      textContent: title
+    })
+  );
+
   return header;
 }
 
-// ============ AI COUNCIL ============
 function openAICouncil() {
-  const main = $('#appMain');
-  main.innerHTML = '';
-  switchView('discovery');
-  main.appendChild(subPageHeader('AI Council'));
+  const main = $('.app-main') || $('#mainContent');
+  if (!main) return;
 
-  const list = el('div', { class: 'ai-list' });
-  const ais = [
-    { key: 'edu', icon: 'book', label: 'Education AI', desc: 'Study notes, syllabus, past papers', color: '#3b82f6' },
-    { key: 'health', icon: 'heart', label: 'Health AI', desc: 'General health information', color: '#10b981' },
-    { key: 'agri', icon: 'leaf', label: 'Agriculture AI', desc: 'Crops, soil, farming', color: '#84cc16' },
-    { key: 'research', icon: 'search', label: 'Research AI', desc: 'Methodology, citations', color: '#8b5cf6' },
-    { key: 'canvas', icon: 'layout', label: 'AI Canvas', desc: 'Workspace with documents', color: '#f59e0b' },
-  ];
-  const icons = {
-    book: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
-    heart: '<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>',
-    leaf: '<path d="M6 21V11a6 6 0 0 1 6-6h6l-3 3 3 3h-6a6 6 0 0 0-6 6"/>',
-    search: '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
-    layout: '<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/>',
-  };
-  for (const a of ais) {
-    const item = el('div', { class: 'ai-list-item', onclick: () => openAISub(a.key, a.label) });
-    const iconWrap = el('div', { class: 'ai-list-icon', style: `background:${a.color};` });
-    iconWrap.innerHTML = `<svg viewBox="0 0 24 24" style="width:26px;height:26px;stroke:white;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;">${icons[a.icon]}</svg>`;
-    item.appendChild(iconWrap);
-    const text = el('div', { class: 'ai-list-text' });
-    text.appendChild(el('div', { class: 'ai-list-title' }, a.label));
-    text.appendChild(el('div', { class: 'ai-list-desc' }, a.desc));
-    item.appendChild(text);
-    const arrow = el('div', { class: 'ai-list-arrow' });
-    arrow.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>';
-    item.appendChild(arrow);
+  main.replaceChildren(
+    subPageHeader('AI Council', openDiscovery)
+  );
+
+  const list = el('div', {
+    className: 'ai-list'
+  });
+
+  [
+    ['education', 'Education AI', 'Learning support across countries and levels.'],
+    ['health', 'Health AI', 'General health information and education.'],
+    ['agriculture', 'Agriculture AI', 'Agriculture information and practical guidance.'],
+    ['research', 'Research AI', 'Research and knowledge exploration.'],
+    ['canvas', 'AI Canvas', 'Creative AI workspace.']
+  ].forEach(([key, title, description]) => {
+    const item = el('button', {
+      className: 'ai-list-item',
+      type: 'button'
+    });
+
+    item.append(
+      el('strong', { textContent: title }),
+      el('small', { textContent: description })
+    );
+
+    item.addEventListener('click', () => {
+      if (key === 'education') openEduAI();
+      else openAISub(key, title);
+    });
+
     list.appendChild(item);
-  }
+  });
+
   main.appendChild(list);
 }
 
-function openAISub(key, label) {
-  if (key === 'edu') openEduAI();
-  else openAIChatPlaceholder(label);
+function openAISub(key, title) {
+  const main = $('.app-main') || $('#mainContent');
+  if (!main) return;
+
+  main.replaceChildren(
+    subPageHeader(title, openAICouncil)
+  );
+
+  const body = el('div', {
+    className: 'ai-sub-page'
+  });
+
+  body.appendChild(el('p', {
+    textContent:
+      `Use ${title} to explore information and interact with the MSAFIRI AI service.`
+  }));
+
+  const chat = el('button', {
+    className: 'btn btn-primary',
+    type: 'button',
+    textContent: 'Open AI Chat'
+  });
+
+  chat.addEventListener('click', () => openAIChatPlaceholder(key, title));
+
+  body.appendChild(chat);
+  main.appendChild(body);
 }
 
-function openAIChatPlaceholder(label) {
-  const main = $('#appMain');
-  main.innerHTML = '';
-  main.appendChild(subPageHeader(label, openAICouncil));
-  main.appendChild(el('div', { class: 'empty-state' },
-    el('p', { class: 'empty-state-title' }, label),
-    el('p', { class: 'empty-state-text' }, 'Coming soon — AI chat integration in Phase 6.')));
+function openAIChatPlaceholder(topic = 'general', title = 'AI Chat') {
+  const main = $('.app-main') || $('#mainContent');
+  if (!main) return;
+
+  main.replaceChildren(
+    subPageHeader(title, () => openAISub(topic, title))
+  );
+
+  const messages = el('div', {
+    className: 'chat-messages'
+  });
+
+  messages.appendChild(el('div', {
+    className: 'chat-bubble theirs',
+    textContent: 'Hello. How can I help you today?'
+  }));
+
+  const composer = el('div', {
+    className: 'chat-composer'
+  });
+
+  const input = el('input', {
+    type: 'text',
+    placeholder: 'Ask the AI...'
+  });
+
+  const send = el('button', {
+    className: 'btn btn-primary',
+    type: 'button',
+    textContent: 'Send'
+  });
+
+  const submit = async () => {
+    const question = input.value.trim();
+    if (!question) return;
+
+    messages.appendChild(el('div', {
+      className: 'chat-bubble mine',
+      textContent: question
+    }));
+
+    input.value = '';
+
+    try {
+      const data = await api(API.ai, {
+        method: 'POST',
+        body: {
+          topic,
+          message: question
+        }
+      });
+
+      const answer =
+        data?.response ||
+        data?.answer ||
+        data?.message ||
+        'No response was returned.';
+
+      messages.appendChild(el('div', {
+        className: 'chat-bubble theirs',
+        textContent: answer
+      }));
+
+      messages.scrollTop = messages.scrollHeight;
+    } catch (error) {
+      messages.appendChild(el('div', {
+        className: 'chat-bubble theirs',
+        textContent: error.message
+      }));
+    }
+  };
+
+  send.addEventListener('click', submit);
+
+  input.addEventListener('keydown', event => {
+    if (event.key === 'Enter') submit();
+  });
+
+  composer.append(input, send);
+  main.append(messages, composer);
 }
 
-// ============ EDUCATION AI ============
 function openEduAI() {
-  const main = $('#appMain');
-  main.innerHTML = '';
-  main.appendChild(subPageHeader('Education AI', openAICouncil));
-  main.appendChild(el('div', { style: 'padding:16px 16px 8px;font-weight:700;font-size:15px;' }, 'Step 1 — Choose country'));
+  const main = $('.app-main') || $('#mainContent');
+  if (!main) return;
 
-  const countries = ['Tanzania','Kenya','Uganda','Rwanda','Burundi','South Africa','Nigeria','Ghana','UK','USA','Canada','Australia','India','China','Japan','Germany','France','Brazil'];
-  const grid = el('div', { class: 'selector-grid' });
-  for (const c of countries) {
-    grid.appendChild(el('div', { class: 'selector-item', onclick: () => openEduLevel(c) }, c));
-  }
+  main.replaceChildren(
+    subPageHeader('Education AI', openAICouncil)
+  );
+
+  const grid = el('div', {
+    className: 'selector-grid'
+  });
+
+  const countries = [
+    'Tanzania',
+    'Kenya',
+    'Uganda',
+    'Rwanda',
+    'Burundi',
+    'South Africa',
+    'Nigeria',
+    'Ghana',
+    'Ethiopia',
+    'Egypt',
+    'India',
+    'United Kingdom',
+    'United States',
+    'Canada',
+    'Australia',
+    'Germany',
+    'France',
+    'Japan'
+  ];
+
+  countries.forEach(country => {
+    const item = el('button', {
+      className: 'selector-item',
+      type: 'button',
+      textContent: country
+    });
+
+    item.addEventListener('click', () => openEduLevel(country));
+    grid.appendChild(item);
+  });
+
   main.appendChild(grid);
 }
 
 function openEduLevel(country) {
-  const main = $('#appMain');
-  main.innerHTML = '';
-  main.appendChild(subPageHeader('Education AI — ' + country, openEduAI));
-  main.appendChild(el('div', { style: 'padding:16px 16px 8px;font-weight:700;font-size:15px;' }, 'Step 2 — Choose level'));
+  const main = $('.app-main') || $('#mainContent');
+  if (!main) return;
 
-  const levels = ['Nursery','Primary','Secondary','High School','Certificate','Diploma','Degree','Master','PhD'];
-  const grid = el('div', { class: 'selector-grid' });
-  for (const l of levels) {
-    grid.appendChild(el('div', { class: 'selector-item', onclick: () => openEduContent(country, l) }, l));
-  }
+  main.replaceChildren(
+    subPageHeader(`Education · ${country}`, openEduAI)
+  );
+
+  const grid = el('div', {
+    className: 'selector-grid'
+  });
+
+  [
+    'Pre-Primary',
+    'Primary',
+    'Secondary',
+    'High School',
+    'College',
+    'University',
+    'Vocational',
+    'Professional',
+    'Other'
+  ].forEach(level => {
+    const item = el('button', {
+      className: 'selector-item',
+      type: 'button',
+      textContent: level
+    });
+
+    item.addEventListener('click', () => openEduContent(country, level));
+    grid.appendChild(item);
+  });
+
   main.appendChild(grid);
 }
 
 function openEduContent(country, level) {
-  const main = $('#appMain');
-  main.innerHTML = '';
-  main.appendChild(subPageHeader(level + ' — ' + country, () => openEduLevel(country)));
-  main.appendChild(el('div', { style: 'padding:16px 16px 8px;font-weight:700;font-size:15px;' }, 'Step 3 — Choose content'));
+  const main = $('.app-main') || $('#mainContent');
+  if (!main) return;
 
-  const types = ['Notes', 'Books', 'Past Papers', 'Marking Schemes'];
-  const grid = el('div', { class: 'selector-grid' });
-  for (const t of types) {
-    grid.appendChild(el('div', { class: 'selector-item', onclick: () => openEduChat(country, level, t) }, t));
-  }
+  main.replaceChildren(
+    subPageHeader(
+      `${country} · ${level}`,
+      () => openEduLevel(country)
+    )
+  );
+
+  const grid = el('div', {
+    className: 'selector-grid'
+  });
+
+  [
+    ['Lessons', 'lesson'],
+    ['Questions', 'questions'],
+    ['Notes', 'notes'],
+    ['AI Tutor', 'chat']
+  ].forEach(([title, type]) => {
+    const item = el('button', {
+      className: 'selector-item',
+      type: 'button',
+      textContent: title
+    });
+
+    item.addEventListener('click', () => {
+      if (type === 'chat') {
+        openEduChat(country, level);
+      } else {
+        openAIChatPlaceholder(
+          `education:${country}:${level}:${type}`,
+          title
+        );
+      }
+    });
+
+    grid.appendChild(item);
+  });
+
   main.appendChild(grid);
 }
 
-function openEduChat(country, level, type) {
-  const main = $('#appMain');
-  main.innerHTML = '';
-  main.appendChild(subPageHeader('Edu AI — ' + level + ' ' + country, () => openEduContent(country, level)));
-
-  const chatContainer = el('div', { class: 'ai-chat-container' });
-  const msgs = el('div', { class: 'ai-chat-messages', id: 'aiChatMsgs' });
-  msgs.appendChild(el('div', { class: 'ai-chat-msg ai' },
-    `Hello! I'm your ${type} assistant for ${level} curriculum in ${country}. Ask me anything about a subject or topic.`));
-  chatContainer.appendChild(msgs);
-
-  const inputWrap = el('div', { class: 'ai-chat-input-wrap' });
-  const inp = el('input', { type: 'text', class: 'ai-chat-input', placeholder: 'Ask about a topic...' });
-  const send = el('button', { class: 'chat-send-btn' });
-  send.innerHTML = '<svg class="icon icon-sm" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>';
-  send.addEventListener('click', () => {
-    const q = inp.value.trim();
-    if (!q) return;
-    inp.value = '';
-    msgs.appendChild(el('div', { class: 'ai-chat-msg user' }, q));
-    msgs.appendChild(el('div', { class: 'ai-chat-msg ai' }, 'AI responses will be available in Phase 6. This is a placeholder.'));
-    msgs.scrollTop = msgs.scrollHeight;
-  });
-  inputWrap.appendChild(inp);
-  inputWrap.appendChild(send);
-  chatContainer.appendChild(inputWrap);
-  main.appendChild(chatContainer);
+function openEduChat(country, level) {
+  openAIChatPlaceholder(
+    `education:${country}:${level}`,
+    `Education AI · ${level}`
+  );
 }
 
-// ============ STUDIO ============
 function openStudio() {
-  const main = $('#appMain');
-  main.innerHTML = '';
-  main.appendChild(subPageHeader('Creative Studio'));
-  main.appendChild(el('div', { class: 'empty-state' },
-    el('p', { class: 'empty-state-title' }, 'Creative Studio'),
-    el('p', { class: 'empty-state-text' }, 'Image, Video, Documents — coming in Phase 7.')));
-}
+  const main = $('.app-main') || $('#mainContent');
+  if (!main) return;
 
-// ============ MARKET ============
-function openMarket() {
-  const main = $('#appMain');
-  main.innerHTML = '';
-  main.appendChild(subPageHeader('Market'));
+  main.replaceChildren(
+    subPageHeader('Studio', openDiscovery)
+  );
 
-  const searchWrap = el('div', { style: 'padding:12px 16px;' });
-  const inp = el('input', {
-    type: 'text', placeholder: 'Search products...',
-    style: 'width:100%;padding:12px 16px;background:var(--bg-3);border:1.5px solid var(--border);border-radius:24px;font-size:14px;color:var(--text);',
+  const body = el('div', {
+    className: 'manual-container'
   });
-  searchWrap.appendChild(inp);
-  main.appendChild(searchWrap);
 
-  main.appendChild(el('div', { class: 'empty-state' },
-    el('p', { class: 'empty-state-title' }, 'No products yet'),
-    el('p', { class: 'empty-state-text' }, 'Market functionality — coming in Phase 8.')));
+  body.append(
+    el('h3', { textContent: 'Creator Studio' }),
+    el('p', {
+      textContent: 'Create and manage your posts, stories, photos and videos.'
+    })
+  );
+
+  const create = el('button', {
+    className: 'btn btn-primary',
+    type: 'button',
+    textContent: 'Create Post'
+  });
+
+  create.addEventListener('click', openCreatePost);
+  body.appendChild(create);
+
+  main.appendChild(body);
 }
 
-// ============ WORLD MAP ============
-function openWorldMap() {
-  const main = $('#appMain');
-  main.innerHTML = '';
-  main.appendChild(subPageHeader('World Map'));
-  main.appendChild(el('div', { class: 'empty-state' },
-    el('p', { class: 'empty-state-title' }, 'World Map'),
-    el('p', { class: 'empty-state-text' }, 'Coming soon.')));
-}
+async function openMarket() {
+  const main = $('.app-main') || $('#mainContent');
+  if (!main) return;
 
-// ============ CHANNELS ============
-function openChannels() {
-  const main = $('#appMain');
-  main.innerHTML = '';
-  main.appendChild(subPageHeader('Channels'));
+  main.replaceChildren(
+    subPageHeader('Market', openDiscovery)
+  );
 
-  const channels = [
-    { name: 'BBC News', desc: 'Global news from UK', color: '#dc2626', text: 'BBC' },
-    { name: 'CNN', desc: 'Cable News Network', color: '#b91c1c', text: 'CNN' },
-    { name: 'Al Jazeera', desc: 'Qatar-based news', color: '#d97706', text: 'AJ' },
-    { name: 'ITV News', desc: 'UK broadcaster', color: '#0ea5e9', text: 'ITV' },
-    { name: 'Msafiri Global Media', desc: 'Our own channel', color: '#3b82f6', text: 'M' },
-  ];
+  const grid = el('div', {
+    className: 'market-grid'
+  });
 
-  for (const ch of channels) {
-    const item = el('div', { class: 'channel-item', onclick: () => toast(ch.name + ' — coming soon', 'info') });
-    const logo = el('div', { class: 'channel-logo', style: `background:${ch.color};` }, ch.text);
-    item.appendChild(logo);
-    const info = el('div', { class: 'channel-info' });
-    info.appendChild(el('div', { class: 'channel-name' }, ch.name));
-    info.appendChild(el('div', { class: 'channel-desc' }, ch.desc));
-    item.appendChild(info);
-    main.appendChild(item);
-  }
-}
-
-// ============ COMMUNITIES ============
-function openCommunities() {
-  const main = $('#appMain');
-  main.innerHTML = '';
-  main.appendChild(subPageHeader('Communities'));
-  main.appendChild(el('div', { class: 'empty-state' },
-    el('p', { class: 'empty-state-title' }, 'Communities'),
-    el('p', { class: 'empty-state-text' }, 'Join groups — coming soon.')));
-}
-
-// ============ SETTINGS ============
-function openSettings() {
-  const main = $('#appMain');
-  main.innerHTML = '';
-  main.appendChild(subPageHeader('Settings'));
-
-  const list = el('div', { class: 'ai-list' });
-  const items = [
-    { label: 'User Manual', icon: '📖', fn: () => openUserManual() },
-    { label: 'Toggle Theme', icon: '🌓', fn: () => toggleTheme() },
-    { label: 'Version', icon: 'ℹ️', fn: () => toast('MSAFIRI MEDIA V0.0.1', 'info') },
-    { label: 'Logout', icon: '🚪', fn: () => { if (confirm('Logout?')) logout(); } },
-  ];
-  for (const it of items) {
-    const row = el('div', { class: 'ai-list-item', onclick: it.fn });
-    row.appendChild(el('div', { style: 'font-size:24px;' }, it.icon));
-    row.appendChild(el('div', { class: 'ai-list-text', style: 'margin-left:14px;' }, it.label));
-    list.appendChild(row);
-  }
-  main.appendChild(list);
-}
-
-// ============ VIDEO FEED ============
-async function openVideos() {
-  const main = $('#appMain');
-  main.innerHTML = '';
-  switchView('discovery');
-
-  const container = el('div', { class: 'video-feed-container', id: 'videoFeedContainer' });
-  main.appendChild(container);
-  container.innerHTML = '<div class="center-loader" style="height:100%;"><div class="loader loader-lg"></div></div>';
+  main.appendChild(grid);
 
   try {
-    const data = await api('/api/videos?limit=30');
-    CACHED_VIDEOS = data.videos || [];
-    if (CACHED_VIDEOS.length === 0) {
-      container.innerHTML = '<div class="empty-state" style="height:100%;color:white;"><p class="empty-state-title" style="color:white;">No videos yet</p><p class="empty-state-text" style="color:rgba(255,255,255,0.7);">Be the first to share a video!</p></div>';
-      return;
-    }
-    window._videoIndex = 0;
-    renderVideoFeed();
-  } catch (err) {
-    container.innerHTML = `<div class="empty-state" style="height:100%;color:white;"><p class="empty-state-text">${esc(err.message)}</p></div>`;
+    const data = await api(API.market);
+
+    normalizeList(data).forEach(item => {
+      const card = el('div', {
+        className: 'market-card'
+      });
+
+      card.append(
+        el('h3', {
+          textContent: item.name || item.title || 'Item'
+        }),
+        el('p', {
+          textContent: item.description || ''
+        }),
+        el('strong', {
+          textContent: item.price !== undefined
+            ? String(item.price)
+            : ''
+        })
+      );
+
+      grid.appendChild(card);
+    });
+  } catch (error) {
+    grid.appendChild(el('div', {
+      className: 'empty-state',
+      textContent: error.message
+    }));
   }
 }
 
-function renderVideoFeed() {
-  const container = $('#videoFeedContainer');
-  if (!container) return;
-  container.innerHTML = '';
+async function openWorldMap() {
+  const main = $('.app-main') || $('#mainContent');
+  if (!main) return;
 
-  const video = CACHED_VIDEOS[window._videoIndex];
-  if (!video) return;
+  main.replaceChildren(
+    subPageHeader('World Map', openDiscovery)
+  );
 
-  const videoEl = el('video', { src: video.media, autoplay: true, playsinline: true, loop: true, class: 'video-feed-video' });
-  videoEl.addEventListener('click', () => {
-    if (videoEl.paused) videoEl.play().catch(() => {});
-    else videoEl.pause();
+  const body = el('div', {
+    className: 'manual-container'
   });
-  container.appendChild(videoEl);
-  setTimeout(() => { videoEl.play().catch(() => { videoEl.muted = true; videoEl.play().catch(() => {}); }); }, 100);
 
-  const actions = el('div', { class: 'video-feed-actions' });
+  body.appendChild(el('h3', {
+    textContent: 'World Map'
+  }));
 
-  const likeBtn = el('div', { class: 'video-feed-action' });
-  likeBtn.innerHTML = `<svg viewBox="0 0 24 24" style="fill:${video.liked ? 'var(--danger)' : 'none'};stroke:${video.liked ? 'var(--danger)' : 'white'};"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg><span>${video.likes_count || 0}</span>`;
-  likeBtn.addEventListener('click', async () => {
-    try {
-      if (video.liked) {
-        await api(`/api/posts/${video.id}/like`, { method: 'DELETE' });
-        video.liked = false;
-        video.likes_count = Math.max(0, (video.likes_count || 0) - 1);
-      } else {
-        await api(`/api/posts/${video.id}/like`, { method: 'POST' });
-        video.liked = true;
-        video.likes_count = (video.likes_count || 0) + 1;
-      }
-      renderVideoFeed();
-    } catch (err) { toast(err.message, 'error'); }
-  });
-  actions.appendChild(likeBtn);
+  try {
+    const data = await api(API.worldMap);
 
-  const commentBtn = el('div', { class: 'video-feed-action' });
-  commentBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg><span>${video.comments_count || 0}</span>`;
-  commentBtn.addEventListener('click', () => { videoEl.pause(); openComments(video); });
-  actions.appendChild(commentBtn);
+    const locations = normalizeList(data);
 
-  const shareBtn = el('div', { class: 'video-feed-action' });
-  shareBtn.innerHTML = `<svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg><span>Share</span>`;
-  shareBtn.addEventListener('click', async () => {
-    const url = `${API}/?video=${video.id}`;
-    if (navigator.share) { try { await navigator.share({ title: 'MSAFIRI Video', url }); } catch(_){} }
-    else if (navigator.clipboard) navigator.clipboard.writeText(url).then(() => toast('Link copied', 'success'));
-  });
-  actions.appendChild(shareBtn);
-
-  const muteBtn = el('div', { class: 'video-feed-action' });
-  muteBtn.innerHTML = '<svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>';
-  muteBtn.addEventListener('click', () => {
-    videoEl.muted = !videoEl.muted;
-    muteBtn.innerHTML = videoEl.muted
-      ? '<svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>'
-      : '<svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>';
-  });
-  actions.appendChild(muteBtn);
-  container.appendChild(actions);
-
-  const info = el('div', { class: 'video-feed-info' });
-  const userRow = el('div', { class: 'video-feed-user', onclick: () => openProfile(video.user.id) });
-  userRow.appendChild(avatarEl(video.user, 40));
-  userRow.appendChild(el('span', { class: 'video-feed-username' }, video.user.name));
-  info.appendChild(userRow);
-  if (video.caption) info.appendChild(el('div', { class: 'video-feed-caption' }, video.caption));
-  info.appendChild(el('div', { class: 'video-feed-time' }, timeAgo(video.created_at)));
-  container.appendChild(info);
-
-  let startY = 0;
-  container.addEventListener('touchstart', (e) => { startY = e.touches[0].clientY; }, { passive: true });
-  container.addEventListener('touchend', (e) => {
-    const diff = startY - e.changedTouches[0].clientY;
-    if (Math.abs(diff) > 80) {
-      if (diff > 0 && window._videoIndex < CACHED_VIDEOS.length - 1) { window._videoIndex++; renderVideoFeed(); }
-      else if (diff < 0 && window._videoIndex > 0) { window._videoIndex--; renderVideoFeed(); }
+    if (!locations.length) {
+      body.appendChild(el('p', {
+        textContent: 'No map locations are currently available.'
+      }));
     }
-  }, { passive: true });
+
+    locations.forEach(location => {
+      body.appendChild(el('div', {
+        className: 'channel-item',
+        textContent:
+          location.name ||
+          location.country ||
+          location.title ||
+          'Location'
+      }));
+    });
+  } catch (error) {
+    body.appendChild(el('p', {
+      textContent: error.message
+    }));
+  }
+
+  main.appendChild(body);
 }
 
-// ============ USER MANUAL ============
+async function openChannels() {
+  const main = $('.app-main') || $('#mainContent');
+  if (!main) return;
+
+  main.replaceChildren(
+    subPageHeader('Channels', openDiscovery)
+  );
+
+  const list = el('div', {
+    className: 'channels-list'
+  });
+
+  main.appendChild(list);
+
+  try {
+    const data = await api(API.channels);
+    let channels = normalizeList(data);
+
+    if (!channels.length) {
+      channels = [
+        { name: 'BBC' },
+        { name: 'CNN' },
+        { name: 'Aljazeera' },
+        { name: 'ITV' },
+        { name: 'Msafiri' }
+      ];
+    }
+
+    channels.forEach(channel => {
+      const item = el('button', {
+        className: 'channel-item',
+        type: 'button'
+      });
+
+      const logo = el('div', {
+        className: 'channel-logo',
+        textContent: initials(channel.name || channel.title)
+      });
+
+      item.append(
+        logo,
+        el('strong', {
+          textContent: channel.name || channel.title || 'Channel'
+        })
+      );
+
+      item.addEventListener('click', () => {
+        if (channel.url) {
+          window.open(absoluteUrl(channel.url), '_blank', 'noopener');
+        }
+      });
+
+      list.appendChild(item);
+    });
+  } catch (error) {
+    list.appendChild(el('div', {
+      className: 'empty-state',
+      textContent: error.message
+    }));
+  }
+}
+
+async function openCommunities() {
+  const main = $('.app-main') || $('#mainContent');
+  if (!main) return;
+
+  main.replaceChildren(
+    subPageHeader('Communities', openDiscovery)
+  );
+
+  const list = el('div', {
+    className: 'community-list'
+  });
+
+  main.appendChild(list);
+
+  try {
+    const data = await api(API.communities);
+
+    normalizeList(data).forEach(community => {
+      const item = el('button', {
+        className: 'channel-item',
+        type: 'button'
+      });
+
+      item.append(
+        avatarEl(community, '48px'),
+        el('div', {
+          style: {
+            textAlign: 'left'
+          }
+        }, el('strong', {
+          textContent: community.name || community.title || 'Community'
+        }), el('small', {
+          textContent: `${community.members_count ?? 0} members`
+        }))
+      );
+
+      item.addEventListener('click', () => {
+        if (community.id) {
+          openAIChatPlaceholder(
+            `community:${community.id}`,
+            community.name || 'Community'
+          );
+        }
+      });
+
+      list.appendChild(item);
+    });
+  } catch (error) {
+    list.appendChild(el('div', {
+      className: 'empty-state',
+      textContent: error.message
+    }));
+  }
+}
+
+async function openSettings() {
+  const main = $('.app-main') || $('#mainContent');
+  if (!main) return;
+
+  main.replaceChildren(
+    subPageHeader('Settings', openDiscovery)
+  );
+
+  const body = el('div', {
+    className: 'manual-container'
+  });
+
+  const themeButton = el('button', {
+    className: 'btn btn-secondary',
+    type: 'button',
+    textContent: 'Toggle Theme'
+  });
+
+  themeButton.addEventListener('click', toggleTheme);
+
+  const manual = el('button', {
+    className: 'btn btn-secondary',
+    type: 'button',
+    textContent: 'User Manual'
+  });
+
+  manual.addEventListener('click', openUserManual);
+
+  const logoutButton = el('button', {
+    className: 'btn btn-secondary',
+    type: 'button',
+    textContent: 'Logout'
+  });
+
+  logoutButton.addEventListener('click', logout);
+
+  body.append(
+    themeButton,
+    manual,
+    logoutButton
+  );
+
+  main.appendChild(body);
+}
+
+async function openVideos() {
+  switchView('videos');
+
+  const main = $('.app-main') || $('#mainContent');
+  if (!main) return;
+
+  main.replaceChildren(
+    subPageHeader('Videos', openDiscovery)
+  );
+
+  const container = el('div', {
+    className: 'video-feed-container'
+  });
+
+  main.appendChild(container);
+  await renderVideoFeed(container);
+}
+
+async function renderVideoFeed(container = null) {
+  const target = container || $('.video-feed-container');
+  if (!target) return;
+
+  try {
+    const data = await api(API.videos);
+    const videos = normalizeList(data);
+
+    target.replaceChildren();
+
+    videos.forEach(video => {
+      const item = el('article', {
+        className: 'video-feed-item',
+        style: {
+          minHeight: '80vh',
+          position: 'relative',
+          scrollSnapAlign: 'start'
+        }
+      });
+
+      const player = el('video', {
+        className: 'video-feed-video',
+        src: absoluteUrl(video.video_url || video.media_url || video.url),
+        controls: false,
+        loop: true,
+        playsInline: true,
+        muted: true,
+        preload: 'metadata',
+        style: {
+          width: '100%',
+          height: '75vh',
+          objectFit: 'cover'
+        }
+      });
+
+      const actions = el('div', {
+        className: 'video-feed-actions'
+      });
+
+      const like = el('button', {
+        className: 'video-feed-action',
+        type: 'button',
+        textContent: `♥ ${video.likes_count ?? 0}`
+      });
+
+      like.addEventListener('click', async () => {
+        try {
+          const result = await api(
+            `${API.videos}/${encodeURIComponent(video.id)}/like`,
+            { method: 'POST' }
+          );
+
+          like.textContent = `♥ ${result?.likes_count ?? result?.count ?? 0}`;
+        } catch (error) {
+          toast(error.message, 'error');
+        }
+      });
+
+      const comment = el('button', {
+        className: 'video-feed-action',
+        type: 'button',
+        textContent: `◯ ${video.comments_count ?? 0}`
+      });
+
+      comment.addEventListener('click', () => {
+        openComments(video);
+      });
+
+      const share = el('button', {
+        className: 'video-feed-action',
+        type: 'button',
+        textContent: '↗ Share'
+      });
+
+      share.addEventListener('click', async () => {
+        const url = video.url || `${window.location.origin}/video/${video.id}`;
+
+        try {
+          if (navigator.share) {
+            await navigator.share({
+              title: video.title || 'MSAFIRI video',
+              url
+            });
+          } else {
+            await navigator.clipboard.writeText(url);
+            toast('Video link copied.');
+          }
+        } catch (_) {
+          /* User cancelled share. */
+        }
+      });
+
+      const mute = el('button', {
+        className: 'video-feed-action',
+        type: 'button',
+        textContent: '🔇'
+      });
+
+      mute.addEventListener('click', () => {
+        player.muted = !player.muted;
+        mute.textContent = player.muted ? '🔇' : '🔊';
+      });
+
+      actions.append(like, comment, share, mute);
+
+      const info = el('div', {
+        className: 'video-feed-info'
+      });
+
+      info.append(
+        el('strong', {
+          textContent:
+            video.user?.name ||
+            video.author?.name ||
+            video.title ||
+            'Video'
+        }),
+        el('p', {
+          textContent: video.caption || video.description || ''
+        })
+      );
+
+      item.append(player, actions, info);
+      target.appendChild(item);
+
+      const observer = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            player.play().catch(() => {});
+          } else {
+            player.pause();
+          }
+        });
+      }, {
+        threshold: 0.6
+      });
+
+      observer.observe(item);
+    });
+
+    if (!videos.length) {
+      target.appendChild(el('div', {
+        className: 'empty-state',
+        textContent: 'No videos available.'
+      }));
+    }
+  } catch (error) {
+    target.appendChild(el('div', {
+      className: 'empty-state',
+      textContent: error.message
+    }));
+  }
+}
+
 function openUserManual() {
-  const container = $('#modalContainer');
-  container.innerHTML = '';
-  const overlay = el('div', { class: 'modal-overlay', onclick: (e) => { if (e.target === overlay) closeModal(); } });
-  const content = el('div', { class: 'modal-content', style: 'max-height:95vh;' });
-  const h = el('div', { class: 'modal-header' });
-  h.appendChild(el('h3', {}, 'User Manual'));
-  const cb = el('button', { class: 'btn-icon', onclick: closeModal });
-  cb.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
-  h.appendChild(cb);
-  content.appendChild(h);
+  closeModal();
 
-  const body = el('div', { class: 'modal-body' });
-  body.innerHTML = `
-    <div class="manual-container">
-      <div class="manual-header">
-        <div class="manual-logo">M</div>
-        <div class="manual-title">MSAFIRI GLOBAL MEDIA</div>
-        <div class="manual-subtitle">Connect beyond — Media V0.0.1</div>
-      </div>
-      <div class="manual-section">
-        <h4>About MSAFIRI</h4>
-        <p>MSAFIRI GLOBAL MEDIA is a social, communication, and AI platform. Founded by <strong>MSAFIRI WILLIAM MUNGA</strong> under <strong>ZetroLink Technology Limited</strong>.</p>
-        <p>Version: <strong>Media V0.0.1</strong></p>
-      </div>
-      <div class="manual-section">
-        <h4>Sections</h4>
-        <ul>
-          <li><strong>Home</strong> — Feed, stories, posts.</li>
-          <li><strong>Discovery</strong> — AI Council, Studio, Market, World Map, Channels, Communities.</li>
-          <li><strong>Chats</strong> — WhatsApp-style messaging.</li>
-          <li><strong>Profile</strong> — Your profile.</li>
-        </ul>
-      </div>
-      <div class="manual-section">
-        <h4>How to Use</h4>
-        <ul>
-          <li>Register: tap Register, fill details, tap Create Account.</li>
-          <li>Post: tap +, write caption, choose media, tap Post.</li>
-          <li>Story: tap "+ My Story", pick media, tap Post Story.</li>
-          <li>Chat: go to profile, tap Message icon.</li>
-        </ul>
-      </div>
-      <div class="manual-section">
-        <h4>Support</h4>
-        <p>Contact ZetroLink Technology Limited.</p>
-      </div>
-      <button class="manual-download-btn" onclick="downloadManual()">
-        <svg class="icon" viewBox="0 0 24 24" style="width:20px;height:20px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        Download User Manual
-      </button>
-    </div>
-  `;
-  content.appendChild(body);
+  const overlay = el('div', {
+    className: 'modal-overlay'
+  });
+
+  const content = el('div', {
+    className: 'modal-content'
+  });
+
+  const header = el('div', {
+    className: 'modal-header'
+  });
+
+  header.appendChild(el('h3', {
+    textContent: 'User Manual'
+  }));
+
+  const close = el('button', {
+    className: 'btn-icon',
+    type: 'button',
+    textContent: '×'
+  });
+
+  close.addEventListener('click', closeModal);
+  header.appendChild(close);
+
+  const body = el('div', {
+    className: 'modal-body manual-container'
+  });
+
+  body.append(
+    el('h2', {
+      textContent: 'MSAFIRI GLOBAL MEDIA'
+    }),
+    el('p', {
+      textContent: 'Social, communication and AI platform.'
+    }),
+    el('p', {
+      textContent: 'Founder: MSAFIRI WILLIAM MUNGA'
+    }),
+    el('p', {
+      textContent: 'Company: ZetroLink Technology Limited'
+    }),
+    el('p', {
+      textContent: 'Version: Media V0.0.1'
+    }),
+    el('h3', {
+      textContent: 'Getting started'
+    }),
+    el('p', {
+      textContent:
+        'Use Home to browse posts and stories, Chats for messaging and calls, Discovery for AI and other services, and Profile to manage your account.'
+    })
+  );
+
+  const download = el('button', {
+    className: 'btn btn-primary',
+    type: 'button',
+    textContent: 'Download Manual'
+  });
+
+  download.addEventListener('click', () => window.downloadManual());
+  body.appendChild(download);
+
+  content.append(header, body);
   overlay.appendChild(content);
-  container.appendChild(overlay);
+  document.body.appendChild(overlay);
 }
 
-window.downloadManual = function() {
-  const text = `MSAFIRI GLOBAL MEDIA — USER MANUAL
-Version: Media V0.0.1
-Founded by: MSAFIRI WILLIAM MUNGA
-Company: ZetroLink Technology Limited
+window.downloadManual = function downloadManual() {
+  const text = [
+    'MSAFIRI GLOBAL MEDIA',
+    '',
+    'Social, communication and AI platform.',
+    '',
+    'Founder: MSAFIRI WILLIAM MUNGA',
+    'Company: ZetroLink Technology Limited',
+    'Version: Media V0.0.1',
+    '',
+    'MAIN FEATURES',
+    '',
+    'Home',
+    '- Browse For You and Following feeds.',
+    '- View stories.',
+    '- Create posts.',
+    '- Like, comment, reshare and save posts.',
+    '',
+    'Chats',
+    '- Send text messages.',
+    '- Send photos, videos and files.',
+    '- Record voice notes.',
+    '- Make voice and video calls.',
+    '',
+    'Stories',
+    '- Create photo or video stories.',
+    '- Add captions.',
+    '- Tap left/right to navigate.',
+    '- Hold the screen to pause.',
+    '',
+    'Discovery',
+    '- AI Council.',
+    '- Education AI.',
+    '- Studio.',
+    '- Market.',
+    '- World Map.',
+    '- Channels.',
+    '- Communities.',
+    '- Videos.',
+    '- Settings.',
+    '',
+    'Profile',
+    '- View profile information.',
+    '- Edit profile.',
+    '- Upload an avatar.',
+    '',
+    'MSAFIRI GLOBAL MEDIA'
+  ].join('\n');
 
-SECTIONS:
-1. Home — Feed, stories, search, posts
-2. Discovery — AI Council, Studio, Market, World Map, Channels, Communities
-3. Chats — Messaging, voice notes, media sharing
-4. Profile — Personal profile, followers, posts
+  const blob = new Blob([text], {
+    type: 'text/plain;charset=utf-8'
+  });
 
-© ZetroLink Technology Limited
-`;
-  const blob = new Blob([text], { type: 'text/plain' });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'MSAFIRI-UserManual.txt';
-  a.click();
-  URL.revokeObjectURL(url);
-  toast('Downloading manual...', 'success');
+  const link = document.createElement('a');
+
+  link.href = url;
+  link.download = 'MSAFIRI-GLOBAL-MEDIA-User-Manual.txt';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
 
-// ============ 3-DOTS MENU ============
 function openThreeDotsMenu() {
-  const items = [
-    { label: 'User Manual', icon: '📖', onClick: () => openUserManual() },
-    { label: 'Toggle Theme', icon: '🌓', onClick: () => toggleTheme() },
-    { label: 'Version — Media V0.0.1', icon: 'ℹ️', onClick: () => toast('MSAFIRI MEDIA V0.0.1', 'info') },
-    { label: 'Logout', icon: '🚪', danger: true, onClick: () => { if (confirm('Logout from MSAFIRI?')) logout(); } },
-  ];
-
-  const container = $('#modalContainer');
-  container.innerHTML = '';
-  const overlay = el('div', { class: 'modal-overlay', onclick: (e) => { if (e.target === overlay) closeModal(); } });
-  const content = el('div', { class: 'modal-content' });
-  content.appendChild(el('div', { class: 'modal-handle' }));
-  const h = el('div', { class: 'modal-header' });
-  h.appendChild(el('h3', {}, 'Menu'));
-  const cb = el('button', { class: 'btn-icon', onclick: closeModal });
-  cb.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
-  h.appendChild(cb);
-  content.appendChild(h);
-
-  const body = el('div', { style: 'padding:8px 0;' });
-  for (const it of items) {
-    const row = el('div', {
-      class: 'dots-menu-item' + (it.danger ? ' danger' : ''),
-      onclick: () => { closeModal(); it.onClick(); }
-    });
-    row.appendChild(el('div', { class: 'dots-menu-icon', style: 'font-size:20px;' }, it.icon));
-    row.appendChild(el('div', {}, it.label));
-    body.appendChild(row);
-  }
-  content.appendChild(body);
-  overlay.appendChild(content);
-  container.appendChild(overlay);
+  openSheet('MSAFIRI GLOBAL MEDIA', [
+    {
+      label: 'User Manual',
+      action: openUserManual
+    },
+    {
+      label: 'Toggle Theme',
+      action: toggleTheme
+    },
+    {
+      label: 'Version Media V0.0.1',
+      action: () => {}
+    },
+    {
+      label: 'Logout',
+      danger: true,
+      action: logout
+    }
+  ]);
 }
 
-// ============ NAVIGATION ============
+/* ============================================================
+   SECTION K: NAVIGATION & INIT
+   ============================================================ */
+
 function switchView(view) {
   CURRENT_VIEW = view;
-  $$('.nav-item').forEach(n => {
-    n.classList.toggle('active', n.dataset.view === view);
+
+  $$('.nav-item').forEach(item => {
+    const itemView =
+      item.dataset.view ||
+      item.dataset.nav ||
+      item.getAttribute('data-target');
+
+    item.classList.toggle('active', itemView === view);
   });
+
+  if (view === 'home') {
+    const posts = CACHE.feed.get('for-you') || [];
+    renderFeed('for-you', posts);
+  } else if (view === 'discovery') {
+    openDiscovery();
+  } else if (view === 'chats') {
+    openChats();
+  } else if (view === 'profile') {
+    openProfile(CURRENT_USER?.id || CURRENT_USER?.user_id);
+  }
 }
 
 function handleNav(view) {
-  if (view === 'home') loadFeed('all');
-  else if (view === 'discovery') openDiscovery();
-  else if (view === 'chats') openChats();
-  else if (view === 'profile') {
-    if (CURRENT_USER) openProfile(CURRENT_USER.id);
+  if (!view) return;
+
+  switch (view) {
+    case 'home':
+      switchView('home');
+      break;
+    case 'discovery':
+      switchView('discovery');
+      break;
+    case 'chats':
+      switchView('chats');
+      break;
+    case 'profile':
+      switchView('profile');
+      break;
+    default:
+      switchView(view);
+      break;
   }
 }
 
-// ============ INIT ============
+function bindBottomNav() {
+  $$('.nav-item').forEach(item => {
+    if (item.dataset.bound) return;
+
+    item.dataset.bound = '1';
+
+    item.addEventListener('click', event => {
+      event.preventDefault();
+
+      const view =
+        item.dataset.view ||
+        item.dataset.nav ||
+        item.getAttribute('data-target');
+
+      handleNav(view);
+    });
+  });
+}
+
+function bindGlobalActions() {
+  $$('[data-action="create-post"], #createPostButton').forEach(button => {
+    if (button.dataset.bound) return;
+
+    button.dataset.bound = '1';
+    button.addEventListener('click', openCreatePost);
+  });
+
+  $$('[data-action="search"], #searchButton').forEach(button => {
+    if (button.dataset.bound) return;
+
+    button.dataset.bound = '1';
+    button.addEventListener('click', openSearch);
+  });
+
+  $$('[data-action="menu"], #threeDotsButton').forEach(button => {
+    if (button.dataset.bound) return;
+
+    button.dataset.bound = '1';
+    button.addEventListener('click', openThreeDotsMenu);
+  });
+}
+
+function bindKeyboardShortcuts() {
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') {
+      closeModal();
+      closeStoryViewer();
+    }
+
+    if (
+      event.key === '/' &&
+      !['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)
+    ) {
+      event.preventDefault();
+      openSearch();
+    }
+  });
+}
+
+function bindVisibility() {
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && TOKEN) {
+      api(API.sessionPing, {
+        method: 'GET',
+        timeout: 10000,
+        retry: false
+      }).catch(() => {});
+    }
+
+    if (document.hidden && CALL_STATE.active) {
+      /* Keep call alive; browser controls background execution. */
+    }
+  });
+}
+
+function startSessionPing() {
+  setInterval(() => {
+    if (!TOKEN || document.hidden) return;
+
+    api(API.sessionPing, {
+      method: 'GET',
+      timeout: 10000,
+      retry: false
+    }).catch(() => {});
+  }, 300000);
+}
+
+function hideSplashAfterDelay() {
+  const splash =
+    $('#splashScreen') ||
+    $('.splash-screen') ||
+    $('[data-splash]');
+
+  if (!splash) return;
+
+  setTimeout(() => {
+    splash.style.opacity = '0';
+    splash.style.pointerEvents = 'none';
+
+    setTimeout(() => {
+      splash.classList.add('hidden');
+    }, 500);
+  }, 6000);
+}
+
+function showFatalError(error) {
+  let box = $('#appError');
+
+  if (!box) {
+    box = el('div', {
+      id: 'appError',
+      style: {
+        position: 'fixed',
+        left: '16px',
+        right: '16px',
+        bottom: '16px',
+        zIndex: '20000',
+        padding: '14px',
+        background: 'var(--danger)',
+        color: '#fff',
+        borderRadius: 'var(--radius-sm)',
+        boxShadow: '0 8px 30px rgba(0,0,0,.25)'
+      }
+    });
+
+    document.body.appendChild(box);
+  }
+
+  box.textContent =
+    `MSAFIRI GLOBAL MEDIA error: ${error?.message || error}`;
+}
+
+function bindErrorHandling() {
+  window.addEventListener('error', event => {
+    console.error('MSAFIRI GLOBAL MEDIA error:', event.error || event.message);
+    showFatalError(event.error || new Error(event.message));
+  });
+
+  window.addEventListener('unhandledrejection', event => {
+    console.error(
+      'MSAFIRI GLOBAL MEDIA unhandled rejection:',
+      event.reason
+    );
+
+    showFatalError(
+      event.reason instanceof Error
+        ? event.reason
+        : new Error(String(event.reason))
+    );
+  });
+}
+
 async function init() {
   try {
     initTheme();
     bindAuthUI();
-
-    // Bottom nav
-    $$('.nav-item').forEach(item => {
-      item.addEventListener('click', () => handleNav(item.dataset.view));
-    });
-
-    // 3-dots menu
-    const dotsBtn = $('#threeDotsBtn');
-    if (dotsBtn) dotsBtn.addEventListener('click', openThreeDotsMenu);
+    bindBottomNav();
+    bindGlobalActions();
+    bindKeyboardShortcuts();
+    bindVisibility();
+    bindErrorHandling();
+    hideSplashAfterDelay();
+    startSessionPing();
 
     TOKEN = getSavedToken();
 
-    const splash = $('#splashScreen');
-    const splashTime = splash ? 6000 : 500;
+    if (!TOKEN) {
+      showAuth();
+      return;
+    }
 
-    if (TOKEN) {
+    const savedUser = localStorage.getItem('msafiri_user');
+
+    if (savedUser) {
       try {
-        await loadMe();
-        setTimeout(async () => {
-          await startApp();
-        }, splashTime);
-        return;
-      } catch (err) {
-        TOKEN = null;
+        CURRENT_USER = JSON.parse(savedUser);
+      } catch (_) {
         CURRENT_USER = null;
-        localStorage.removeItem('msafiri_token');
-        try { sessionStorage.removeItem('msafiri_token'); } catch(e) {}
       }
     }
 
-    setTimeout(() => showAuth(), splashTime);
-
-  } catch (err) {
-    console.error('[MSAFIRI] FATAL:', err);
-    setTimeout(() => showAuth(), 500);
+    try {
+      await loadMe();
+      showApp();
+      await startApp();
+    } catch (error) {
+      console.warn('Auto-login failed:', error.message);
+      TOKEN = '';
+      CURRENT_USER = null;
+      localStorage.removeItem('msafiri_token');
+      showAuth();
+    }
+  } catch (error) {
+    console.error('Initialization failed:', error);
+    showFatalError(error);
   }
 }
 
-// ============ KEEP ALIVE PING ============
-setInterval(() => {
-  if (TOKEN) {
-    api('/api/me').catch(() => {});
-  }
-}, 5 * 60 * 1000);
-
-// ============ VISIBILITY RESUME ============
-document.addEventListener('visibilitychange', () => {
-  if (!document.hidden && TOKEN && !CURRENT_USER) {
-    init();
-  }
-});
-
-// ============ SAFE INIT WRAPPER ============
-window.addEventListener('DOMContentLoaded', () => {
-  console.log('[MSAFIRI] DOM ready, calling init...');
-  init().catch(err => {
-    console.error('[MSAFIRI] Init error:', err);
-    const sp = document.getElementById('splashScreen');
-    if (sp) {
-      sp.classList.remove('fade-out');
-      sp.innerHTML = `
-        <div style="padding:24px;max-width:90%;background:#111827;border-radius:16px;border:2px solid #ef4444;">
-          <h2 style="color:#ef4444;font-size:18px;margin-bottom:12px;">⚠️ App Error</h2>
-          <pre style="background:#0a0e1a;padding:12px;border-radius:8px;color:#fca5a5;font-size:11px;white-space:pre-wrap;word-break:break-word;max-height:200px;overflow:auto;">${(err && err.message) || String(err)}</pre>
-          <button onclick="localStorage.clear();location.reload()" style="margin-top:16px;padding:10px 20px;background:#3b82f6;color:white;border:none;border-radius:8px;font-weight:600;font-size:14px;">🔄 Clear Cache & Reload</button>
-        </div>
-      `;
-    }
+document.addEventListener('DOMContentLoaded', () => {
+  init().catch(error => {
+    console.error('DOMContentLoaded initialization failed:', error);
+    showFatalError(error);
   });
-});
-
-window.addEventListener('error', (e) => {
-  console.error('[MSAFIRI] Global error:', e);
 });

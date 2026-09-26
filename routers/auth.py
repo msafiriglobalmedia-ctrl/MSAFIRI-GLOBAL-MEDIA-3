@@ -1,61 +1,77 @@
-import os
-from datetime import datetime, timedelta
-from typing import Optional
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError, jwt
-from passlib.context import CryptContext
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from pydantic import BaseModel, EmailStr
 
 from database import get_db
 from models import User
+from auth import (
+    hash_password, verify_password, create_access_token,
+    get_current_user, require_user,
+)
 
-SECRET_KEY = os.environ.get("SECRET_KEY", "msafiri-secret-change-in-production")
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
-
-
-def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
-def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+class RegisterIn(BaseModel):
+    username: str
+    email: EmailStr
+    password: str
+    full_name: str = ""
 
 
-def create_access_token(data: dict) -> str:
-    to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+class LoginIn(BaseModel):
+    username: str
+    password: str
 
 
-def get_current_user(
-    token: Optional[str] = Depends(oauth2_scheme),
-    db: Session = Depends(get_db),
-) -> Optional[User]:
-    if not token:
-        return None
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id = payload.get("sub")
-        if user_id is None:
-            return None
-    except JWTError:
-        return None
+@router.post("/register")
+def register(data: RegisterIn, db: Session = Depends(get_db)):
+    if db.query(User).filter(User.email == data.email).first():
+        raise HTTPException(status_code=400, detail="Email already registered")
+    if db.query(User).filter(User.username == data.username).first():
+        raise HTTPException(status_code=400, detail="Username taken")
 
-    user = db.query(User).filter(User.id == int(user_id)).first()
-    return user
+    user = User(
+        username=data.username,
+        email=data.email,
+        hashed_password=hash_password(data.password),
+        full_name=data.full_name,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    token = create_access_token({"sub": str(user.id)})
+    return {"user": user.to_dict(), "access_token": token, "token_type": "bearer"}
 
 
-def require_user(user: Optional[User] = Depends(get_current_user)) -> User:
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    return user
+@router.post("/login")
+def login(data: LoginIn, db: Session = Depends(get_db)):
+    user = db.query(User).filter(
+        (User.username == data.username) | (User.email == data.username)
+    ).first()
+    if not user or not verify_password(data.password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    token = create_access_token({"sub": str(user.id)})
+    return {"user": user.to_dict(), "access_token": token, "token_type": "bearer"}
+
+
+@router.post("/logout")
+def logout():
+    return {"ok": True}
+
+
+@router.get("/me")
+def me(user: User = Depends(require_user)):
+    return user.to_dict()
+
+
+@router.get("/ping")
+def ping():
+    from datetime import datetime
+    return {
+        "status": "ok",
+        "service": "msafiri-auth",
+        "time": datetime.utcnow().isoformat() + "Z",
+    }

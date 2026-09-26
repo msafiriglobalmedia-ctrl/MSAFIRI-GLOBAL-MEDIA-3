@@ -245,7 +245,7 @@ def communities_categories():
         ]
     }
 
-.get("/api/user-manual", tags=["settings"])
+@app.get("/api/user-manual", tags=["settings"])
 def user_manual():
     return {
         "app": APP_NAME,

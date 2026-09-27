@@ -1,11 +1,32 @@
 # ============================================================
 # MSAFIRI GLOBAL MEDIA
-# main.py — PHASE 2 / SOCIAL CORE
+# main.py
+# VERSION 6.0.0-PHASE2
+#
+# FastAPI backend
+# Authentication
+# Posts
+# Image/Video posts
+# Likes
+# Comments
+# Saves
+# Shares
+# Feed
+# Stories
+# Discovery
+# AI Council
+# Studio
+# Market
+# World Map
+# Channels
+# Communities
+# User Manual
+# Settings
+# SPA frontend
 # ============================================================
 
 import os
 import uuid
-import shutil
 from datetime import datetime
 from typing import Optional
 
@@ -23,72 +44,36 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, EmailStr
-from sqlalchemy import text
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    Text,
+    DateTime,
+    ForeignKey,
+    Boolean,
+    UniqueConstraint,
+    text,
+)
 from sqlalchemy.orm import Session
 
 from database import get_db, Base, engine
-from models import User, Post, Status, Follow
+from models import User, Post, Follow, Status
+
 from auth import (
     hash_password,
     verify_password,
     create_access_token,
-    get_current_user,
     require_user,
 )
 
-# Optional routers
-try:
-    from routers import auth as auth_router
-except Exception:
-    auth_router = None
-
-try:
-    from routers import posts as posts_router
-except Exception:
-    posts_router = None
-
-try:
-    from routers import statuses as statuses_router
-except Exception:
-    statuses_router = None
-
-try:
-    from routers import messages as messages_router
-except Exception:
-    messages_router = None
-
-try:
-    from routers import profile as profile_router
-except Exception:
-    profile_router = None
-
-try:
-    from routers import videos as videos_router
-except Exception:
-    videos_router = None
-
-try:
-    from routers import feed as feed_router
-except Exception:
-    feed_router = None
-
-try:
-    from routers import stories as stories_router
-except Exception:
-    stories_router = None
-
-try:
-    from routers import ping as ping_router
-except Exception:
-    ping_router = None
-
 
 # ============================================================
-# APP CONFIG
+# APP CONFIGURATION
 # ============================================================
 
-APP_NAME = "MSAFIRI GLOBAL MEDIA"
 APP_VERSION = "6.0.0-PHASE2"
+APP_NAME = "MSAFIRI GLOBAL MEDIA"
 APP_TAGLINE = "Connect beyond — Media V0.0.1"
 FOUNDER = "MSAFIRI WILLIAM MUNGA"
 COMPANY = "ZetroLink Technology Limited"
@@ -104,12 +89,11 @@ os.makedirs(MEDIA_DIR, exist_ok=True)
 app = FastAPI(
     title=APP_NAME,
     version=APP_VERSION,
-    description=f"""
-{APP_TAGLINE}
-
-Founded by {FOUNDER}
-{COMPANY}
-""",
+    description=(
+        f"{APP_TAGLINE}\n\n"
+        f"Founded by {FOUNDER}\n"
+        f"{COMPANY}"
+    ),
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
@@ -130,6 +114,113 @@ app.add_middleware(
 
 
 # ============================================================
+# EXTRA DATABASE TABLES
+#
+# Your original models.py does not contain:
+# likes
+# comments
+# saves
+# shares
+#
+# These tables are created here so we do not need to destroy
+# your existing database.
+# ============================================================
+
+
+class PostLike(Base):
+    __tablename__ = "post_likes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    post_id = Column(
+        Integer,
+        ForeignKey("posts.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "post_id",
+            "user_id",
+            name="uq_post_like_user",
+        ),
+    )
+
+
+class PostSave(Base):
+    __tablename__ = "post_saves"
+
+    id = Column(Integer, primary_key=True, index=True)
+    post_id = Column(
+        Integer,
+        ForeignKey("posts.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "post_id",
+            "user_id",
+            name="uq_post_save_user",
+        ),
+    )
+
+
+class PostComment(Base):
+    __tablename__ = "post_comments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    post_id = Column(
+        Integer,
+        ForeignKey("posts.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    text = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class PostShare(Base):
+    __tablename__ = "post_shares"
+
+    id = Column(Integer, primary_key=True, index=True)
+    post_id = Column(
+        Integer,
+        ForeignKey("posts.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# ============================================================
 # STARTUP
 # ============================================================
 
@@ -138,79 +229,15 @@ async def startup():
     try:
         Base.metadata.create_all(bind=engine)
 
-        create_social_tables()
-
-        print("==============================================")
-        print(f"{APP_NAME}")
-        print(f"Version: {APP_VERSION}")
+        print("=" * 60)
+        print(f"{APP_NAME} {APP_VERSION}")
+        print("Database initialized")
         print(f"Founder: {FOUNDER}")
         print(f"Company: {COMPANY}")
-        print("Database initialized")
-        print("Social tables initialized")
-        print("==============================================")
+        print("=" * 60)
 
     except Exception as e:
-        print("STARTUP DATABASE ERROR:", e)
-
-
-# ============================================================
-# EXTRA SOCIAL TABLES
-# ============================================================
-
-def create_social_tables():
-    """
-    Creates tables required by:
-    Likes
-    Comments
-    Saves
-    Shares
-    """
-
-    statements = [
-
-        """
-        CREATE TABLE IF NOT EXISTS post_likes (
-            id SERIAL PRIMARY KEY,
-            post_id INTEGER NOT NULL,
-            user_id INTEGER NOT NULL,
-            created_at TIMESTAMP DEFAULT NOW(),
-            UNIQUE(post_id, user_id)
-        )
-        """,
-
-        """
-        CREATE TABLE IF NOT EXISTS post_saves (
-            id SERIAL PRIMARY KEY,
-            post_id INTEGER NOT NULL,
-            user_id INTEGER NOT NULL,
-            created_at TIMESTAMP DEFAULT NOW(),
-            UNIQUE(post_id, user_id)
-        )
-        """,
-
-        """
-        CREATE TABLE IF NOT EXISTS post_shares (
-            id SERIAL PRIMARY KEY,
-            post_id INTEGER NOT NULL,
-            user_id INTEGER NOT NULL,
-            created_at TIMESTAMP DEFAULT NOW()
-        )
-        """,
-
-        """
-        CREATE TABLE IF NOT EXISTS post_comments (
-            id SERIAL PRIMARY KEY,
-            post_id INTEGER NOT NULL,
-            user_id INTEGER NOT NULL,
-            comment TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT NOW()
-        )
-        """,
-    ]
-
-    with engine.begin() as conn:
-        for statement in statements:
-            conn.execute(text(statement))
+        print("DATABASE STARTUP ERROR:", repr(e))
 
 
 # ============================================================
@@ -238,7 +265,7 @@ def api_health():
 
 
 # ============================================================
-# AUTH — FALLBACK AUTH API
+# AUTHENTICATION
 # ============================================================
 
 class RegisterIn(BaseModel):
@@ -258,9 +285,24 @@ def register(
     data: RegisterIn,
     db: Session = Depends(get_db),
 ):
+    username = data.username.strip()
+    email = str(data.email).strip().lower()
+
+    if len(username) < 3:
+        raise HTTPException(
+            status_code=400,
+            detail="Username must contain at least 3 characters",
+        )
+
+    if len(data.password) < 6:
+        raise HTTPException(
+            status_code=400,
+            detail="Password must contain at least 6 characters",
+        )
+
     existing_email = (
         db.query(User)
-        .filter(User.email == data.email)
+        .filter(User.email == email)
         .first()
     )
 
@@ -272,19 +314,19 @@ def register(
 
     existing_username = (
         db.query(User)
-        .filter(User.username == data.username)
+        .filter(User.username == username)
         .first()
     )
 
     if existing_username:
         raise HTTPException(
             status_code=400,
-            detail="Username already taken",
+            detail="Username taken",
         )
 
     user = User(
-        username=data.username.strip(),
-        email=data.email,
+        username=username,
+        email=email,
         hashed_password=hash_password(data.password),
         full_name=data.full_name.strip(),
     )
@@ -293,12 +335,11 @@ def register(
     db.commit()
     db.refresh(user)
 
-    token = create_access_token({
-        "sub": str(user.id)
-    })
+    token = create_access_token(
+        {"sub": str(user.id)}
+    )
 
     return {
-        "ok": True,
         "user": user.to_dict(),
         "access_token": token,
         "token_type": "bearer",
@@ -310,11 +351,13 @@ def login(
     data: LoginIn,
     db: Session = Depends(get_db),
 ):
+    login_value = data.username.strip()
+
     user = (
         db.query(User)
         .filter(
-            (User.username == data.username)
-            | (User.email == data.username)
+            (User.username == login_value)
+            | (User.email == login_value.lower())
         )
         .first()
     )
@@ -327,19 +370,18 @@ def login(
 
     if not verify_password(
         data.password,
-        user.hashed_password
+        user.hashed_password,
     ):
         raise HTTPException(
             status_code=401,
             detail="Invalid credentials",
         )
 
-    token = create_access_token({
-        "sub": str(user.id)
-    })
+    token = create_access_token(
+        {"sub": str(user.id)}
+    )
 
     return {
-        "ok": True,
         "user": user.to_dict(),
         "access_token": token,
         "token_type": "bearer",
@@ -350,7 +392,7 @@ def login(
 def logout():
     return {
         "ok": True,
-        "message": "Logged out"
+        "message": "Logged out",
     }
 
 
@@ -361,12 +403,196 @@ def me(
     return user.to_dict()
 
 
+@app.get("/api/auth/ping", tags=["auth"])
+def auth_ping():
+    return {
+        "status": "ok",
+        "service": "msafiri-auth",
+        "time": datetime.utcnow().isoformat() + "Z",
+    }
+
+
+# ============================================================
+# HELPERS
+# ============================================================
+
+def get_user_by_id(
+    db: Session,
+    user_id: int,
+):
+    return (
+        db.query(User)
+        .filter(User.id == user_id)
+        .first()
+    )
+
+
+def get_post_or_404(
+    db: Session,
+    post_id: int,
+):
+    post = (
+        db.query(Post)
+        .filter(Post.id == post_id)
+        .first()
+    )
+
+    if not post:
+        raise HTTPException(
+            status_code=404,
+            detail="Post not found",
+        )
+
+    return post
+
+
+def count_likes(
+    db: Session,
+    post_id: int,
+):
+    return (
+        db.query(PostLike)
+        .filter(PostLike.post_id == post_id)
+        .count()
+    )
+
+
+def count_comments(
+    db: Session,
+    post_id: int,
+):
+    return (
+        db.query(PostComment)
+        .filter(PostComment.post_id == post_id)
+        .count()
+    )
+
+
+def count_saves(
+    db: Session,
+    post_id: int,
+):
+    return (
+        db.query(PostSave)
+        .filter(PostSave.post_id == post_id)
+        .count()
+    )
+
+
+def count_shares(
+    db: Session,
+    post_id: int,
+):
+    return (
+        db.query(PostShare)
+        .filter(PostShare.post_id == post_id)
+        .count()
+    )
+
+
+def user_liked(
+    db: Session,
+    post_id: int,
+    user_id: Optional[int],
+):
+    if not user_id:
+        return False
+
+    return (
+        db.query(PostLike)
+        .filter(
+            PostLike.post_id == post_id,
+            PostLike.user_id == user_id,
+        )
+        .first()
+        is not None
+    )
+
+
+def user_saved(
+    db: Session,
+    post_id: int,
+    user_id: Optional[int],
+):
+    if not user_id:
+        return False
+
+    return (
+        db.query(PostSave)
+        .filter(
+            PostSave.post_id == post_id,
+            PostSave.user_id == user_id,
+        )
+        .first()
+        is not None
+    )
+
+
+def serialize_post(
+    db: Session,
+    post: Post,
+    current_user_id: Optional[int] = None,
+):
+    user = get_user_by_id(db, post.user_id)
+
+    return {
+        "id": post.id,
+        "user_id": post.user_id,
+
+        "username": (
+            user.username
+            if user
+            else f"user_{post.user_id}"
+        ),
+
+        "full_name": (
+            user.full_name
+            if user
+            else ""
+        ),
+
+        "avatar_url": (
+            user.avatar_url
+            if user
+            else ""
+        ),
+
+        "caption": post.caption or "",
+        "media_url": post.media_url or "",
+        "media_type": post.media_type or "text",
+
+        "created_at": (
+            post.created_at.isoformat()
+            if post.created_at
+            else None
+        ),
+
+        "likes": count_likes(db, post.id),
+        "comments": count_comments(db, post.id),
+        "saves": count_saves(db, post.id),
+        "shares": count_shares(db, post.id),
+
+        "liked": user_liked(
+            db,
+            post.id,
+            current_user_id,
+        ),
+
+        "saved": user_saved(
+            db,
+            post.id,
+            current_user_id,
+        ),
+    }
+
+
 # ============================================================
 # MEDIA UPLOAD
 # ============================================================
 
 ALLOWED_IMAGE = {
     "image/jpeg",
+    "image/jpg",
     "image/png",
     "image/webp",
     "image/gif",
@@ -376,50 +602,58 @@ ALLOWED_VIDEO = {
     "video/mp4",
     "video/webm",
     "video/quicktime",
+    "video/x-matroska",
 }
 
 
-def save_upload(file: UploadFile) -> tuple[str, str]:
+def save_uploaded_file(
+    file: UploadFile,
+):
+    if not file:
+        return None, None
 
-    if not file.content_type:
-        raise HTTPException(
-            status_code=400,
-            detail="File type missing",
-        )
+    content_type = file.content_type or ""
 
-    if (
-        file.content_type not in ALLOWED_IMAGE
-        and file.content_type not in ALLOWED_VIDEO
+    if content_type not in (
+        ALLOWED_IMAGE | ALLOWED_VIDEO
     ):
         raise HTTPException(
             status_code=400,
-            detail="Only image and video files are supported",
+            detail=(
+                "Unsupported media type. "
+                "Use JPG, PNG, WEBP, GIF, MP4, WEBM or MOV."
+            ),
         )
 
-    extension = ""
+    extension = os.path.splitext(
+        file.filename or ""
+    )[1].lower()
 
-    if "." in file.filename:
-        extension = "." + file.filename.split(".")[-1].lower()
+    if not extension:
+        extension = ".bin"
 
-    filename = f"{uuid.uuid4().hex}{extension}"
+    filename = (
+        f"{uuid.uuid4().hex}"
+        f"{extension}"
+    )
 
     filepath = os.path.join(
         MEDIA_DIR,
         filename,
     )
 
-    try:
-        with open(filepath, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Upload failed: {e}",
-        )
+    with open(filepath, "wb") as output:
+        while True:
+            chunk = file.file.read(1024 * 1024)
+
+            if not chunk:
+                break
+
+            output.write(chunk)
 
     media_type = (
         "video"
-        if file.content_type in ALLOWED_VIDEO
+        if content_type.startswith("video/")
         else "image"
     )
 
@@ -429,42 +663,158 @@ def save_upload(file: UploadFile) -> tuple[str, str]:
     )
 
 
-@app.post("/api/upload", tags=["media"])
-async def upload_media(
-    file: UploadFile = File(...),
-    user: User = Depends(require_user),
-):
-    url, media_type = save_upload(file)
-
-    return {
-        "ok": True,
-        "url": url,
-        "media_url": url,
-        "media_type": media_type,
-        "filename": file.filename,
-    }
-
-
 # ============================================================
-# POSTS — CREATE
+# CREATE POST
+#
+# IMPORTANT:
+# This is the endpoint fixing:
+# "405 Method Not Allowed"
+#
+# Supports:
+# 1. JSON
+# 2. multipart/form-data
+# 3. image
+# 4. video
+# 5. caption
 # ============================================================
 
 @app.post("/api/posts", tags=["posts"])
 async def create_post(
-    caption: str = Form(""),
-    file: Optional[UploadFile] = File(None),
-    user: User = Depends(require_user),
+    request: Request,
     db: Session = Depends(get_db),
+    user: User = Depends(require_user),
 ):
+    content_type = (
+        request.headers.get("content-type", "")
+        .lower()
+    )
+
+    caption = ""
     media_url = ""
     media_type = "text"
 
-    if file:
-        media_url, media_type = save_upload(file)
+    # --------------------------------------------------------
+    # JSON REQUEST
+    # --------------------------------------------------------
+
+    if "application/json" in content_type:
+        try:
+            data = await request.json()
+        except Exception:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid JSON",
+            )
+
+        caption = str(
+            data.get("caption", "")
+        ).strip()
+
+        media_url = str(
+            data.get("media_url", "")
+        ).strip()
+
+        media_type = str(
+            data.get("media_type", "text")
+        ).strip() or "text"
+
+    # --------------------------------------------------------
+    # MULTIPART REQUEST
+    # --------------------------------------------------------
+
+    elif (
+        "multipart/form-data" in content_type
+        or "application/x-www-form-urlencoded"
+        in content_type
+    ):
+        form = await request.form()
+
+        caption = str(
+            form.get("caption", "")
+        ).strip()
+
+        uploaded = form.get("file")
+
+        if uploaded and hasattr(
+            uploaded,
+            "filename",
+        ):
+            media_url, media_type = save_uploaded_file(
+                uploaded
+            )
+
+        # Some frontend versions may call the field "media"
+        if not media_url:
+            uploaded = form.get("media")
+
+            if uploaded and hasattr(
+                uploaded,
+                "filename",
+            ):
+                media_url, media_type = save_uploaded_file(
+                    uploaded
+                )
+
+        # Allow frontend to send an existing URL
+        if not media_url:
+            media_url = str(
+                form.get("media_url", "")
+            ).strip()
+
+            if media_url:
+                media_type = str(
+                    form.get("media_type", "image")
+                )
+
+    else:
+        # ----------------------------------------------------
+        # FALLBACK
+        # ----------------------------------------------------
+        try:
+            data = await request.json()
+
+            caption = str(
+                data.get("caption", "")
+            ).strip()
+
+            media_url = str(
+                data.get("media_url", "")
+            ).strip()
+
+            media_type = str(
+                data.get("media_type", "text")
+            ).strip()
+
+        except Exception:
+            raise HTTPException(
+                status_code=415,
+                detail="Unsupported request format",
+            )
+
+    # --------------------------------------------------------
+    # VALIDATION
+    # --------------------------------------------------------
+
+    if not caption and not media_url:
+        raise HTTPException(
+            status_code=400,
+            detail="Post must contain caption, image or video",
+        )
+
+    if media_type not in {
+        "text",
+        "image",
+        "video",
+    }:
+        media_type = "image" if media_url else "text"
+
+    # --------------------------------------------------------
+    # CREATE DATABASE POST
+    # --------------------------------------------------------
 
     post = Post(
         user_id=user.id,
-        caption=caption.strip(),
+        caption=caption,
         media_url=media_url,
         media_type=media_type,
     )
@@ -476,161 +826,25 @@ async def create_post(
     return {
         "ok": True,
         "message": "Post published successfully",
-        "post": serialize_post(post, db),
-    }
-
-
-# ============================================================
-# POSTS — CREATE JSON
-# ============================================================
-
-class TextPostIn(BaseModel):
-    caption: str = ""
-    media_url: str = ""
-    media_type: str = "text"
-
-
-@app.post("/api/posts/text", tags=["posts"])
-def create_text_post(
-    data: TextPostIn,
-    user: User = Depends(require_user),
-    db: Session = Depends(get_db),
-):
-    post = Post(
-        user_id=user.id,
-        caption=data.caption.strip(),
-        media_url=data.media_url,
-        media_type=data.media_type,
-    )
-
-    db.add(post)
-    db.commit()
-    db.refresh(post)
-
-    return {
-        "ok": True,
-        "post": serialize_post(post, db),
-    }
-
-
-# ============================================================
-# POST SERIALIZER
-# ============================================================
-
-def serialize_post(
-    post: Post,
-    db: Session,
-):
-    likes = db.execute(
-        text("""
-            SELECT COUNT(*)
-            FROM post_likes
-            WHERE post_id = :post_id
-        """),
-        {"post_id": post.id},
-    ).scalar() or 0
-
-    comments = db.execute(
-        text("""
-            SELECT COUNT(*)
-            FROM post_comments
-            WHERE post_id = :post_id
-        """),
-        {"post_id": post.id},
-    ).scalar() or 0
-
-    saves = db.execute(
-        text("""
-            SELECT COUNT(*)
-            FROM post_saves
-            WHERE post_id = :post_id
-        """),
-        {"post_id": post.id},
-    ).scalar() or 0
-
-    shares = db.execute(
-        text("""
-            SELECT COUNT(*)
-            FROM post_shares
-            WHERE post_id = :post_id
-        """),
-        {"post_id": post.id},
-    ).scalar() or 0
-
-    username = "User"
-    full_name = ""
-
-    try:
-        owner = (
-            db.query(User)
-            .filter(User.id == post.user_id)
-            .first()
-        )
-
-        if owner:
-            username = owner.username
-            full_name = owner.full_name or owner.username
-
-    except Exception:
-        pass
-
-    return {
-        "id": post.id,
-        "user_id": post.user_id,
-        "username": username,
-        "full_name": full_name,
-        "caption": post.caption or "",
-        "media_url": post.media_url or "",
-        "media_type": post.media_type or "text",
-        "created_at": (
-            post.created_at.isoformat()
-            if post.created_at
-            else None
+        "post": serialize_post(
+            db,
+            post,
+            user.id,
         ),
-        "likes": int(likes),
-        "comments": int(comments),
-        "saves": int(saves),
-        "shares": int(shares),
     }
 
 
 # ============================================================
-# GET POSTS
+# GET ALL POSTS
 # ============================================================
 
 @app.get("/api/posts", tags=["posts"])
 def get_posts(
-    limit: int = Query(30, ge=1, le=100),
-    offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
-):
-    posts = (
-        db.query(Post)
-        .order_by(Post.created_at.desc())
-        .offset(offset)
-        .limit(limit)
-        .all()
-    )
-
-    return {
-        "ok": True,
-        "posts": [
-            serialize_post(post, db)
-            for post in posts
-        ],
-        "count": len(posts),
-    }
-
-
-# ============================================================
-# FEED
-# ============================================================
-
-@app.get("/api/feed", tags=["feed"])
-def get_feed(
-    type: str = Query("for-you"),
-    limit: int = Query(30, ge=1, le=100),
-    db: Session = Depends(get_db),
+    user: Optional[User] = Depends(
+        lambda: None
+    ),
+    limit: int = Query(50, ge=1, le=100),
 ):
     posts = (
         db.query(Post)
@@ -640,133 +854,85 @@ def get_feed(
     )
 
     return {
-        "ok": True,
-        "type": type,
         "posts": [
-            serialize_post(post, db)
-            for post in posts
-        ],
+            serialize_post(db, p)
+            for p in posts
+        ]
     }
 
 
 # ============================================================
-# LIKE
+# GET SINGLE POST
 # ============================================================
 
-@app.post("/api/posts/{post_id}/like", tags=["posts"])
-def like_post(
+@app.get("/api/posts/{post_id}", tags=["posts"])
+def get_post(
     post_id: int,
-    user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ):
-    post = (
-        db.query(Post)
-        .filter(Post.id == post_id)
+    post = get_post_or_404(
+        db,
+        post_id,
+    )
+
+    return {
+        "post": serialize_post(
+            db,
+            post,
+        )
+    }
+
+
+# ============================================================
+# LIKE / UNLIKE
+# ============================================================
+
+@app.post(
+    "/api/posts/{post_id}/like",
+    tags=["posts"],
+)
+def toggle_like(
+    post_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_user),
+):
+    post = get_post_or_404(
+        db,
+        post_id,
+    )
+
+    existing = (
+        db.query(PostLike)
+        .filter(
+            PostLike.post_id == post_id,
+            PostLike.user_id == user.id,
+        )
         .first()
     )
 
-    if not post:
-        raise HTTPException(
-            status_code=404,
-            detail="Post not found",
-        )
-
-    existing = db.execute(
-        text("""
-            SELECT id
-            FROM post_likes
-            WHERE post_id = :post_id
-            AND user_id = :user_id
-        """),
-        {
-            "post_id": post_id,
-            "user_id": user.id,
-        },
-    ).first()
-
     if existing:
-        db.execute(
-            text("""
-                DELETE FROM post_likes
-                WHERE post_id = :post_id
-                AND user_id = :user_id
-            """),
-            {
-                "post_id": post_id,
-                "user_id": user.id,
-            },
-        )
+        db.delete(existing)
+        db.commit()
 
         liked = False
-
     else:
-        db.execute(
-            text("""
-                INSERT INTO post_likes
-                (post_id, user_id)
-                VALUES (:post_id, :user_id)
-            """),
-            {
-                "post_id": post_id,
-                "user_id": user.id,
-            },
+        like = PostLike(
+            post_id=post_id,
+            user_id=user.id,
         )
 
+        db.add(like)
+        db.commit()
+
         liked = True
-
-    db.commit()
-
-    count = db.execute(
-        text("""
-            SELECT COUNT(*)
-            FROM post_likes
-            WHERE post_id = :post_id
-        """),
-        {"post_id": post_id},
-    ).scalar() or 0
 
     return {
         "ok": True,
         "liked": liked,
-        "likes": int(count),
-    }
-
-
-# ============================================================
-# LIKE STATUS
-# ============================================================
-
-@app.get("/api/posts/{post_id}/like", tags=["posts"])
-def get_like_status(
-    post_id: int,
-    user: User = Depends(require_user),
-    db: Session = Depends(get_db),
-):
-    row = db.execute(
-        text("""
-            SELECT id
-            FROM post_likes
-            WHERE post_id = :post_id
-            AND user_id = :user_id
-        """),
-        {
-            "post_id": post_id,
-            "user_id": user.id,
-        },
-    ).first()
-
-    count = db.execute(
-        text("""
-            SELECT COUNT(*)
-            FROM post_likes
-            WHERE post_id = :post_id
-        """),
-        {"post_id": post_id},
-    ).scalar() or 0
-
-    return {
-        "liked": row is not None,
-        "likes": int(count),
+        "likes": count_likes(
+            db,
+            post.id,
+        ),
     }
 
 
@@ -774,74 +940,52 @@ def get_like_status(
 # SAVE / UNSAVE
 # ============================================================
 
-@app.post("/api/posts/{post_id}/save", tags=["posts"])
-def save_post(
+@app.post(
+    "/api/posts/{post_id}/save",
+    tags=["posts"],
+)
+def toggle_save(
     post_id: int,
-    user: User = Depends(require_user),
     db: Session = Depends(get_db),
+    user: User = Depends(require_user),
 ):
-    post = (
-        db.query(Post)
-        .filter(Post.id == post_id)
+    post = get_post_or_404(
+        db,
+        post_id,
+    )
+
+    existing = (
+        db.query(PostSave)
+        .filter(
+            PostSave.post_id == post_id,
+            PostSave.user_id == user.id,
+        )
         .first()
     )
 
-    if not post:
-        raise HTTPException(
-            status_code=404,
-            detail="Post not found",
-        )
-
-    existing = db.execute(
-        text("""
-            SELECT id
-            FROM post_saves
-            WHERE post_id = :post_id
-            AND user_id = :user_id
-        """),
-        {
-            "post_id": post_id,
-            "user_id": user.id,
-        },
-    ).first()
-
     if existing:
-
-        db.execute(
-            text("""
-                DELETE FROM post_saves
-                WHERE post_id = :post_id
-                AND user_id = :user_id
-            """),
-            {
-                "post_id": post_id,
-                "user_id": user.id,
-            },
-        )
+        db.delete(existing)
+        db.commit()
 
         saved = False
-
     else:
-
-        db.execute(
-            text("""
-                INSERT INTO post_saves
-                (post_id, user_id)
-                VALUES (:post_id, :user_id)
-            """),
-            {
-                "post_id": post_id,
-                "user_id": user.id,
-            },
+        saved_item = PostSave(
+            post_id=post_id,
+            user_id=user.id,
         )
 
-        saved = True
+        db.add(saved_item)
+        db.commit()
 
-    db.commit()
+        saved = True
 
     return {
         "ok": True,
         "saved": saved,
+        "saves": count_saves(
+            db,
+            post.id,
+        ),
     }
 
 
@@ -849,51 +993,35 @@ def save_post(
 # SHARE
 # ============================================================
 
-@app.post("/api/posts/{post_id}/share", tags=["posts"])
+@app.post(
+    "/api/posts/{post_id}/share",
+    tags=["posts"],
+)
 def share_post(
     post_id: int,
-    user: User = Depends(require_user),
     db: Session = Depends(get_db),
+    user: User = Depends(require_user),
 ):
-    post = (
-        db.query(Post)
-        .filter(Post.id == post_id)
-        .first()
+    post = get_post_or_404(
+        db,
+        post_id,
     )
 
-    if not post:
-        raise HTTPException(
-            status_code=404,
-            detail="Post not found",
-        )
-
-    db.execute(
-        text("""
-            INSERT INTO post_shares
-            (post_id, user_id)
-            VALUES (:post_id, :user_id)
-        """),
-        {
-            "post_id": post_id,
-            "user_id": user.id,
-        },
+    share = PostShare(
+        post_id=post_id,
+        user_id=user.id,
     )
 
+    db.add(share)
     db.commit()
-
-    count = db.execute(
-        text("""
-            SELECT COUNT(*)
-            FROM post_shares
-            WHERE post_id = :post_id
-        """),
-        {"post_id": post_id},
-    ).scalar() or 0
 
     return {
         "ok": True,
-        "shared": True,
-        "shares": int(count),
+        "message": "Post shared successfully",
+        "shares": count_shares(
+            db,
+            post.id,
+        ),
     }
 
 
@@ -902,113 +1030,151 @@ def share_post(
 # ============================================================
 
 class CommentIn(BaseModel):
-    comment: str
+    text: str
 
 
-@app.post("/api/posts/{post_id}/comments", tags=["comments"])
-def add_comment(
+@app.post(
+    "/api/posts/{post_id}/comments",
+    tags=["posts"],
+)
+def create_comment(
     post_id: int,
     data: CommentIn,
-    user: User = Depends(require_user),
     db: Session = Depends(get_db),
+    user: User = Depends(require_user),
 ):
-    post = (
-        db.query(Post)
-        .filter(Post.id == post_id)
-        .first()
+    post = get_post_or_404(
+        db,
+        post_id,
     )
 
-    if not post:
-        raise HTTPException(
-            status_code=404,
-            detail="Post not found",
-        )
+    text_value = data.text.strip()
 
-    comment = data.comment.strip()
-
-    if not comment:
+    if not text_value:
         raise HTTPException(
             status_code=400,
             detail="Comment cannot be empty",
         )
 
-    result = db.execute(
-        text("""
-            INSERT INTO post_comments
-            (post_id, user_id, comment)
-            VALUES (:post_id, :user_id, :comment)
-            RETURNING id, created_at
-        """),
-        {
-            "post_id": post_id,
-            "user_id": user.id,
-            "comment": comment,
-        },
+    comment = PostComment(
+        post_id=post_id,
+        user_id=user.id,
+        text=text_value,
     )
 
-    row = result.first()
-
+    db.add(comment)
     db.commit()
+    db.refresh(comment)
 
     return {
         "ok": True,
         "comment": {
-            "id": row[0],
-            "post_id": post_id,
-            "user_id": user.id,
+            "id": comment.id,
+            "post_id": comment.post_id,
+            "user_id": comment.user_id,
             "username": user.username,
             "full_name": user.full_name,
-            "comment": comment,
+            "text": comment.text,
             "created_at": (
-                row[1].isoformat()
-                if row[1]
+                comment.created_at.isoformat()
+                if comment.created_at
                 else None
             ),
         },
+        "comments": count_comments(
+            db,
+            post.id,
+        ),
     }
 
 
-@app.get("/api/posts/{post_id}/comments", tags=["comments"])
+@app.get(
+    "/api/posts/{post_id}/comments",
+    tags=["posts"],
+)
 def get_comments(
     post_id: int,
     db: Session = Depends(get_db),
 ):
-    rows = db.execute(
-        text("""
-            SELECT
-                pc.id,
-                pc.post_id,
-                pc.user_id,
-                pc.comment,
-                pc.created_at,
-                u.username,
-                u.full_name
-            FROM post_comments pc
-            LEFT JOIN users u
-                ON u.id = pc.user_id
-            WHERE pc.post_id = :post_id
-            ORDER BY pc.created_at ASC
-        """),
-        {"post_id": post_id},
-    ).mappings().all()
+    post = get_post_or_404(
+        db,
+        post_id,
+    )
 
-    return {
-        "ok": True,
-        "comments": [
+    comments = (
+        db.query(PostComment)
+        .filter(
+            PostComment.post_id == post.id
+        )
+        .order_by(
+            PostComment.created_at.asc()
+        )
+        .all()
+    )
+
+    result = []
+
+    for comment in comments:
+        user = get_user_by_id(
+            db,
+            comment.user_id,
+        )
+
+        result.append(
             {
-                "id": row["id"],
-                "post_id": row["post_id"],
-                "user_id": row["user_id"],
-                "username": row["username"],
-                "full_name": row["full_name"],
-                "comment": row["comment"],
+                "id": comment.id,
+                "post_id": comment.post_id,
+                "user_id": comment.user_id,
+                "username": (
+                    user.username
+                    if user
+                    else "User"
+                ),
+                "full_name": (
+                    user.full_name
+                    if user
+                    else ""
+                ),
+                "avatar_url": (
+                    user.avatar_url
+                    if user
+                    else ""
+                ),
+                "text": comment.text,
                 "created_at": (
-                    row["created_at"].isoformat()
-                    if row["created_at"]
+                    comment.created_at.isoformat()
+                    if comment.created_at
                     else None
                 ),
             }
-            for row in rows
+        )
+
+    return {
+        "comments": result
+    }
+
+
+# ============================================================
+# FEED
+# ============================================================
+
+@app.get("/api/feed", tags=["feed"])
+def feed(
+    type: str = Query("for-you"),
+    db: Session = Depends(get_db),
+):
+    posts = (
+        db.query(Post)
+        .order_by(Post.created_at.desc())
+        .limit(100)
+        .all()
+    )
+
+    return {
+        "type": type,
+        "posts": [
+            serialize_post(db, p)
+            for p in posts
         ],
     }
 
@@ -1018,7 +1184,7 @@ def get_comments(
 # ============================================================
 
 @app.get("/api/stories", tags=["stories"])
-def get_stories(
+def stories(
     db: Session = Depends(get_db),
 ):
     statuses = (
@@ -1028,11 +1194,206 @@ def get_stories(
         .all()
     )
 
+    result = []
+
+    for status in statuses:
+        user = get_user_by_id(
+            db,
+            status.user_id,
+        )
+
+        result.append(
+            {
+                "id": status.id,
+                "user_id": status.user_id,
+                "username": (
+                    user.username
+                    if user
+                    else "User"
+                ),
+                "full_name": (
+                    user.full_name
+                    if user
+                    else ""
+                ),
+                "avatar_url": (
+                    user.avatar_url
+                    if user
+                    else ""
+                ),
+                "media_url": status.media_url,
+                "caption": status.caption,
+                "media_type": status.media_type,
+                "created_at": (
+                    status.created_at.isoformat()
+                    if status.created_at
+                    else None
+                ),
+            }
+        )
+
+    return {
+        "stories": result
+    }
+
+
+# ============================================================
+# CREATE STORY
+# ============================================================
+
+@app.post("/api/stories", tags=["stories"])
+async def create_story(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_user),
+):
+    content_type = (
+        request.headers.get(
+            "content-type",
+            "",
+        ).lower()
+    )
+
+    caption = ""
+    media_url = ""
+    media_type = "image"
+
+    if "application/json" in content_type:
+        data = await request.json()
+
+        caption = str(
+            data.get("caption", "")
+        ).strip()
+
+        media_url = str(
+            data.get("media_url", "")
+        ).strip()
+
+        media_type = str(
+            data.get("media_type", "image")
+        )
+
+    else:
+        form = await request.form()
+
+        caption = str(
+            form.get("caption", "")
+        ).strip()
+
+        uploaded = (
+            form.get("file")
+            or form.get("media")
+        )
+
+        if uploaded and hasattr(
+            uploaded,
+            "filename",
+        ):
+            media_url, media_type = save_uploaded_file(
+                uploaded
+            )
+
+        if not media_url:
+            media_url = str(
+                form.get("media_url", "")
+            ).strip()
+
+    if not media_url and not caption:
+        raise HTTPException(
+            status_code=400,
+            detail="Story requires media or caption",
+        )
+
+    story = Status(
+        user_id=user.id,
+        media_url=media_url,
+        caption=caption,
+        media_type=media_type,
+    )
+
+    db.add(story)
+    db.commit()
+    db.refresh(story)
+
     return {
         "ok": True,
-        "stories": [
-            status.to_dict()
-            for status in statuses
+        "message": "Story published",
+        "story": story.to_dict(),
+    }
+
+
+# ============================================================
+# PROFILE
+# ============================================================
+
+@app.get("/api/profile/me", tags=["profile"])
+def profile_me(
+    user: User = Depends(require_user),
+    db: Session = Depends(get_db),
+):
+    posts_count = (
+        db.query(Post)
+        .filter(Post.user_id == user.id)
+        .count()
+    )
+
+    followers = (
+        db.query(Follow)
+        .filter(Follow.following_id == user.id)
+        .count()
+    )
+
+    following = (
+        db.query(Follow)
+        .filter(Follow.follower_id == user.id)
+        .count()
+    )
+
+    data = user.to_dict()
+
+    data.update(
+        {
+            "posts_count": posts_count,
+            "followers": followers,
+            "following": following,
+        }
+    )
+
+    return data
+
+
+@app.get(
+    "/api/profile/{username}",
+    tags=["profile"],
+)
+def profile(
+    username: str,
+    db: Session = Depends(get_db),
+):
+    user = (
+        db.query(User)
+        .filter(User.username == username)
+        .first()
+    )
+
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found",
+        )
+
+    posts = (
+        db.query(Post)
+        .filter(Post.user_id == user.id)
+        .order_by(Post.created_at.desc())
+        .all()
+    )
+
+    return {
+        "user": user.to_dict(),
+        "posts": [
+            serialize_post(db, p)
+            for p in posts
         ],
     }
 
@@ -1041,8 +1402,11 @@ def get_stories(
 # DISCOVERY
 # ============================================================
 
-@app.get("/api/discovery", tags=["discovery"])
-def discovery():
+@app.get(
+    "/api/discovery",
+    tags=["discovery"],
+)
+def get_discovery():
     return {
         "cards": [
             {
@@ -1101,8 +1465,11 @@ def discovery():
 # AI COUNCIL
 # ============================================================
 
-@app.get("/api/ai-council", tags=["discovery"])
-def ai_council():
+@app.get(
+    "/api/ai-council",
+    tags=["discovery"],
+)
+def ai_council_list():
     return {
         "ais": [
             {
@@ -1139,7 +1506,10 @@ def ai_council():
     }
 
 
-@app.get("/api/ai-council/countries", tags=["discovery"])
+@app.get(
+    "/api/ai-council/countries",
+    tags=["discovery"],
+)
 def ai_council_countries():
     return {
         "countries": [
@@ -1165,7 +1535,10 @@ def ai_council_countries():
     }
 
 
-@app.get("/api/ai-council/levels", tags=["discovery"])
+@app.get(
+    "/api/ai-council/levels",
+    tags=["discovery"],
+)
 def ai_council_levels():
     return {
         "levels": [
@@ -1182,7 +1555,10 @@ def ai_council_levels():
     }
 
 
-@app.get("/api/ai-council/content-types", tags=["discovery"])
+@app.get(
+    "/api/ai-council/content-types",
+    tags=["discovery"],
+)
 def ai_council_content_types():
     return {
         "content_types": [
@@ -1194,7 +1570,10 @@ def ai_council_content_types():
     }
 
 
-@app.get("/api/ai-council/chat", tags=["discovery"])
+@app.get(
+    "/api/ai-council/chat",
+    tags=["discovery"],
+)
 def ai_council_chat(
     ai: str = Query("education"),
     country: str = Query("Tanzania"),
@@ -1223,7 +1602,10 @@ def ai_council_chat(
 # CREATIVE STUDIO
 # ============================================================
 
-@app.get("/api/studio", tags=["discovery"])
+@app.get(
+    "/api/studio",
+    tags=["discovery"],
+)
 def studio_tools():
     return {
         "tools": [
@@ -1243,7 +1625,7 @@ def studio_tools():
                 "id": "document",
                 "icon": "📄",
                 "title": "Document Creator",
-                "desc": "Documents and digital resources",
+                "desc": "Documents, digital resources, educational material",
             },
             {
                 "id": "assistant",
@@ -1259,7 +1641,10 @@ def studio_tools():
 # MARKET
 # ============================================================
 
-@app.get("/api/market/categories", tags=["discovery"])
+@app.get(
+    "/api/market/categories",
+    tags=["discovery"],
+)
 def market_categories():
     return {
         "categories": [
@@ -1287,9 +1672,12 @@ def market_categories():
     }
 
 
-@app.get("/api/market/items", tags=["discovery"])
+@app.get(
+    "/api/market/items",
+    tags=["discovery"],
+)
 def market_items(
-    category: str = Query("products")
+    category: str = Query("products"),
 ):
     return {
         "category": category,
@@ -1302,7 +1690,10 @@ def market_items(
 # WORLD MAP
 # ============================================================
 
-@app.get("/api/world-map/countries", tags=["discovery"])
+@app.get(
+    "/api/world-map/countries",
+    tags=["discovery"],
+)
 def world_map_countries():
     return {
         "countries": [
@@ -1321,7 +1712,8 @@ def world_map_countries():
                 "users": 0,
                 "posts": 0,
             },
-        ]
+        ],
+        "phase": "placeholder",
     }
 
 
@@ -1329,8 +1721,11 @@ def world_map_countries():
 # CHANNELS
 # ============================================================
 
-@app.get("/api/channels", tags=["discovery"])
-def channels():
+@app.get(
+    "/api/channels",
+    tags=["discovery"],
+)
+def channels_list():
     return {
         "channels": [
             {
@@ -1371,8 +1766,11 @@ def channels():
 # COMMUNITIES
 # ============================================================
 
-@app.get("/api/communities/categories", tags=["discovery"])
-def communities():
+@app.get(
+    "/api/communities/categories",
+    tags=["discovery"],
+)
+def communities_categories():
     return {
         "categories": [
             {
@@ -1428,19 +1826,23 @@ def communities():
 # USER MANUAL
 # ============================================================
 
-@app.get("/api/user-manual", tags=["settings"])
+@app.get(
+    "/api/user-manual",
+    tags=["settings"],
+)
 def user_manual():
     return {
         "app": APP_NAME,
         "tagline": APP_TAGLINE,
         "version": APP_VERSION,
         "founder": FOUNDER,
+        "year_started": "2026",
         "company": COMPANY,
 
         "about": (
             f"{APP_NAME} is a social, communication, "
-            f"and AI application. Founded by {FOUNDER} "
-            f"under {COMPANY}."
+            f"and AI app. Founded by {FOUNDER} under "
+            f"{COMPANY}. Version: {APP_VERSION}"
         ),
 
         "sections": {
@@ -1449,28 +1851,29 @@ def user_manual():
                 "AI Council, Studio, Market, World Map, "
                 "Channels, Communities"
             ),
-            "chats": "Messaging",
+            "chats": "Messaging (WhatsApp-style)",
             "profile": "Your profile",
         },
 
         "how_to_use": {
-            "create_account":
-                "Register, fill details and create account",
-
-            "post_content":
-                "Create (+), caption, Photo/Video/File, Post",
-
-            "share_story":
-                "My Story, select media, publish",
-
-            "chat":
-                "Open Chats and select a user",
-
-            "explore_ai":
-                "Discovery, AI Council, choose AI",
+            "create_account": (
+                "Register, fill details, Create Account"
+            ),
+            "post_content": (
+                "Create (+), caption, Photo/Video/File, Post"
+            ),
+            "share_story": (
+                "\"+ My Story\", media, Post Story"
+            ),
+            "chat": (
+                "Profile, Message icon, type or record"
+            ),
+            "explore_ai": (
+                "Discovery, AI Council, choose AI"
+            ),
         },
 
-        "support": COMPANY,
+        "support": f"Contact {COMPANY}",
     }
 
 
@@ -1478,7 +1881,10 @@ def user_manual():
 # SETTINGS
 # ============================================================
 
-@app.get("/api/settings", tags=["settings"])
+@app.get(
+    "/api/settings",
+    tags=["settings"],
+)
 def settings():
     return {
         "theme": "light",
@@ -1489,25 +1895,84 @@ def settings():
 
 
 # ============================================================
+# SIMPLE SEARCH
+# ============================================================
+
+@app.get(
+    "/api/search",
+    tags=["search"],
+)
+def search(
+    q: str = Query(""),
+    db: Session = Depends(get_db),
+):
+    query = q.strip()
+
+    if not query:
+        return {
+            "users": [],
+            "posts": [],
+        }
+
+    users = (
+        db.query(User)
+        .filter(
+            (User.username.ilike(f"%{query}%"))
+            | (User.full_name.ilike(f"%{query}%"))
+        )
+        .limit(20)
+        .all()
+    )
+
+    posts = (
+        db.query(Post)
+        .filter(
+            Post.caption.ilike(
+                f"%{query}%"
+            )
+        )
+        .order_by(
+            Post.created_at.desc()
+        )
+        .limit(20)
+        .all()
+    )
+
+    return {
+        "users": [
+            user.to_dict()
+            for user in users
+        ],
+        "posts": [
+            serialize_post(db, p)
+            for p in posts
+        ],
+    }
+
+
+# ============================================================
 # STATIC FILES
 # ============================================================
 
 if os.path.isdir(STATIC_DIR):
-
     app.mount(
         "/static",
         StaticFiles(directory=STATIC_DIR),
         name="static",
     )
 
+    print("Static directory mounted:", STATIC_DIR)
+
 
 # ============================================================
-# FRONTEND ROOT
+# ROOT
 # ============================================================
 
-@app.get("/", include_in_schema=False)
+@app.get(
+    "/",
+    include_in_schema=False,
+)
 async def root():
-
     index_path = os.path.join(
         STATIC_DIR,
         "index.html",
@@ -1516,28 +1981,33 @@ async def root():
     if os.path.isfile(index_path):
         return FileResponse(index_path)
 
-    return JSONResponse({
-        "app": APP_NAME,
-        "version": APP_VERSION,
-        "message": "Frontend not found",
-        "docs": "/docs",
-    })
+    return JSONResponse(
+        {
+            "app": APP_NAME,
+            "version": APP_VERSION,
+            "message": "Frontend not found",
+            "docs": "/docs",
+        }
+    )
 
 
 # ============================================================
 # SPA FALLBACK
 # ============================================================
 
-@app.get("/{full_path:path}", include_in_schema=False)
+@app.get(
+    "/{full_path:path}",
+    include_in_schema=False,
+)
 async def spa_fallback(
     full_path: str,
-    request: Request,
 ):
-
     if full_path.startswith("api/"):
         raise HTTPException(
             status_code=404,
-            detail=f"API route '{full_path}' not found",
+            detail=(
+                f"API route '{full_path}' not found"
+            ),
         )
 
     index_path = os.path.join(
@@ -1563,7 +2033,6 @@ async def not_found_handler(
     request: Request,
     exc,
 ):
-
     if request.url.path.startswith("/api/"):
         return JSONResponse(
             status_code=404,
@@ -1586,12 +2055,17 @@ async def not_found_handler(
 
     return JSONResponse(
         status_code=404,
-        content={"detail": "Not found"},
+        content={
+            "detail": "Not found"
+        },
     )
 
 
 # ============================================================
-# ADMIN — DATABASE RESET
+# DATABASE RESET
+#
+# DO NOT expose this publicly in production.
+# Kept only for development/debugging.
 # ============================================================
 
 @app.get(
@@ -1599,190 +2073,76 @@ async def not_found_handler(
     tags=["admin"],
 )
 def reset_db():
+    from sqlalchemy import text
 
     with engine.begin() as conn:
-
         conn.execute(
             text(
-                "DROP TABLE IF EXISTS "
-                "post_comments CASCADE"
+                "DROP TABLE IF EXISTS post_comments CASCADE"
             )
         )
 
         conn.execute(
             text(
-                "DROP TABLE IF EXISTS "
-                "post_shares CASCADE"
+                "DROP TABLE IF EXISTS post_likes CASCADE"
             )
         )
 
         conn.execute(
             text(
-                "DROP TABLE IF EXISTS "
-                "post_saves CASCADE"
+                "DROP TABLE IF EXISTS post_saves CASCADE"
             )
         )
 
         conn.execute(
             text(
-                "DROP TABLE IF EXISTS "
-                "post_likes CASCADE"
+                "DROP TABLE IF EXISTS post_shares CASCADE"
             )
         )
 
         conn.execute(
             text(
-                "DROP TABLE IF EXISTS "
-                "statuses CASCADE"
+                "DROP TABLE IF EXISTS statuses CASCADE"
             )
         )
 
         conn.execute(
             text(
-                "DROP TABLE IF EXISTS "
-                "posts CASCADE"
+                "DROP TABLE IF EXISTS follows CASCADE"
             )
         )
 
         conn.execute(
             text(
-                "DROP TABLE IF EXISTS "
-                "follows CASCADE"
+                "DROP TABLE IF EXISTS posts CASCADE"
             )
         )
 
         conn.execute(
             text(
-                "DROP TABLE IF EXISTS "
-                "users CASCADE"
+                "DROP TABLE IF EXISTS users CASCADE"
             )
         )
 
-    Base.metadata.create_all(bind=engine)
-    create_social_tables()
+    Base.metadata.create_all(
+        bind=engine
+    )
 
     return {
         "ok": True,
-        "message": "Database reset completed",
+        "message": (
+            "Database reset completed. "
+            "All users, posts, likes, comments, saves "
+            "and shares were deleted."
+        ),
     }
 
 
 # ============================================================
-# ADMIN — FIX USERS TABLE
-# ============================================================
-
-@app.get(
-    "/admin/fix-users-table",
-    tags=["admin"],
-)
-def fix_users_table():
-
-    with engine.begin() as conn:
-
-        conn.execute(text("""
-            ALTER TABLE users
-            ADD COLUMN IF NOT EXISTS
-            hashed_password VARCHAR(255)
-        """))
-
-        conn.execute(text("""
-            ALTER TABLE users
-            ADD COLUMN IF NOT EXISTS
-            full_name VARCHAR(100) DEFAULT ''
-        """))
-
-        conn.execute(text("""
-            ALTER TABLE users
-            ADD COLUMN IF NOT EXISTS
-            bio TEXT DEFAULT ''
-        """))
-
-        conn.execute(text("""
-            ALTER TABLE users
-            ADD COLUMN IF NOT EXISTS
-            location VARCHAR(100) DEFAULT ''
-        """))
-
-        conn.execute(text("""
-            ALTER TABLE users
-            ADD COLUMN IF NOT EXISTS
-            avatar_url VARCHAR(500) DEFAULT ''
-        """))
-
-        conn.execute(text("""
-            ALTER TABLE users
-            ADD COLUMN IF NOT EXISTS
-            created_at TIMESTAMP DEFAULT NOW()
-        """))
-
-        result = conn.execute(text("""
-            SELECT column_name
-            FROM information_schema.columns
-            WHERE table_name = 'users'
-            ORDER BY ordinal_position
-        """))
-
-        columns = [
-            row[0]
-            for row in result
-        ]
-
-    return {
-        "ok": True,
-        "message": "Users table checked",
-        "columns": columns,
-    }
-
-
-# ============================================================
-# OPTIONAL ROUTERS
-# ============================================================
-
-# IMPORTANT:
-# Do NOT mount routers that already define the same routes
-# as the fallback APIs above.
-#
-# We intentionally do not include auth/posts/feed routers here
-# to avoid duplicate endpoint conflicts.
-#
-# If you have separate routers for messages/profile/videos,
-# they can be mounted below if they do not conflict.
-
-if messages_router is not None:
-    try:
-        app.include_router(messages_router.router)
-        print("messages router mounted")
-    except Exception as e:
-        print("messages router skipped:", e)
-
-if profile_router is not None:
-    try:
-        app.include_router(profile_router.router)
-        print("profile router mounted")
-    except Exception as e:
-        print("profile router skipped:", e)
-
-if videos_router is not None:
-    try:
-        app.include_router(videos_router.router)
-        print("videos router mounted")
-    except Exception as e:
-        print("videos router skipped:", e)
-
-if ping_router is not None:
-    try:
-        app.include_router(ping_router.router)
-        print("ping router mounted")
-    except Exception as e:
-        print("ping router skipped:", e)
-
-
-# ============================================================
-# UVICORN
+# RUN LOCALLY / RENDER
 # ============================================================
 
 if __name__ == "__main__":
-
     import uvicorn
 
     port = int(

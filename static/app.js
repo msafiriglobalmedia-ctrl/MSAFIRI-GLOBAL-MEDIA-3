@@ -2,24 +2,37 @@
    MSAFIRI GLOBAL MEDIA
    APP.JS — PHASE 2
    ------------------------------------------------------------
-   Compatible with:
-   - FastAPI main.py
-   - /api/posts
-   - /api/profile
-   - /api/messages
-   - /api/discovery
-   - /api/ai-council
-   - /api/studio
-   - /api/market
-   - /api/world-map
-   - /api/channels
-   - /api/communities
-   - /api/user-manual
-   - /api/settings
-   - /api/health
+   Frontend controller for:
+   - Splash screen
+   - Authentication
+   - Home / Feed
+   - People search
+   - User profiles
+   - Posts
+   - Likes
+   - Comments
+   - Saves
+   - Shares
+   - Stories
+   - Discovery
+   - AI Council navigation
+   - Creative Studio
+   - Market
+   - World Map
+   - Channels
+   - Communities
+   - Videos
+   - Chats
+   - User Manual
+   - Settings
+   - Theme
+   - Back navigation
+   ------------------------------------------------------------
+   Backend:
+   FastAPI + SQLAlchemy
    ============================================================ */
 
-'use strict';
+"use strict";
 
 /* ============================================================
    GLOBAL CONFIG
@@ -27,176 +40,492 @@
 
 const API = window.location.origin;
 
-const APP_NAME = 'MSAFIRI GLOBAL MEDIA';
-const APP_VERSION = '6.0.0-PHASE2';
-const APP_TAGLINE = 'Connect beyond — Media V0.0.1';
+const APP_NAME = "MSAFIRI GLOBAL MEDIA";
+const APP_VERSION = "Media V0.0.1";
+const FOUNDER = "MSAFIRI WILLIAM MUNGA";
+const COMPANY = "ZetroLink Technology Limited";
 
-const STORAGE = {
-    TOKEN: 'msafiri_token',
-    USER: 'msafiri_user',
-    THEME: 'msafiri_theme',
-    VIEW: 'msafiri_view'
-};
+const TOKEN_KEY = "msafiri_access_token";
+const USER_KEY = "msafiri_current_user";
+const THEME_KEY = "msafiri_theme";
 
-let TOKEN = localStorage.getItem(STORAGE.TOKEN) || '';
-let CURRENT_USER = readJSON(STORAGE.USER, null);
+/* ============================================================
+   GLOBAL STATE
+   ============================================================ */
 
-let CURRENT_VIEW =
-    localStorage.getItem(STORAGE.VIEW) || 'home';
+let TOKEN = localStorage.getItem(TOKEN_KEY) || null;
 
-let CURRENT_POSTS = [];
-let CURRENT_CHATS = [];
-let CURRENT_PROFILE = null;
+let CURRENT_USER = null;
 
-let DISCOVERY_DATA = [];
+try {
+    const savedUser = localStorage.getItem(USER_KEY);
+    CURRENT_USER = savedUser ? JSON.parse(savedUser) : null;
+} catch (error) {
+    console.warn("Could not restore saved user:", error);
+    CURRENT_USER = null;
+}
+
+let CURRENT_PAGE = "home";
+
+let PAGE_HISTORY = [];
+
+let CURRENT_FEED = "for-you";
+
+let CACHED_POSTS = [];
+
+let CACHED_CHATS = [];
+
 let SEARCH_RESULTS = [];
+
+let SEARCH_TIMER = null;
+
+let CURRENT_PROFILE_ID = null;
 
 let CURRENT_CHAT_USER = null;
 
-let AI_STATE = {
-    ai: 'education',
-    country: 'Tanzania',
-    level: 'Degree',
-    content: 'Notes'
-};
+let CURRENT_POST_ID = null;
+
+let SPLASH_DONE = false;
 
 
 /* ============================================================
-   DOM HELPERS
+   DOM HELPER
    ============================================================ */
 
-const $ = (selector, root = document) =>
-    root.querySelector(selector);
-
-const $$ = (selector, root = document) =>
-    Array.from(root.querySelectorAll(selector));
-
-function byId(id) {
-    return document.getElementById(id);
+function $(selector) {
+    return document.querySelector(selector);
 }
 
-function safeText(value) {
-    if (value === null || value === undefined) {
-        return '';
-    }
-
-    return String(value);
+function $all(selector) {
+    return Array.from(document.querySelectorAll(selector));
 }
+
+
+/* ============================================================
+   SAFE HTML
+   ============================================================ */
 
 function escapeHTML(value) {
-    return safeText(value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
+    if (value === null || value === undefined) {
+        return "";
+    }
+
+    return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 }
 
-function readJSON(key, fallback = null) {
-    try {
-        const value = localStorage.getItem(key);
 
-        if (!value) {
-            return fallback;
+/* ============================================================
+   INITIALIZATION
+   ============================================================ */
+
+document.addEventListener("DOMContentLoaded", () => {
+    try {
+        initializeTheme();
+        initializeEvents();
+        initializeSplash();
+
+        /*
+         * IMPORTANT:
+         * The splash screen uses CSS animation.
+         * We do not depend only on animationend because some
+         * browsers can behave differently with visibility.
+         */
+        setTimeout(() => {
+            finishSplash();
+        }, 2800);
+
+    } catch (error) {
+        console.error("Application initialization error:", error);
+        emergencyStart();
+    }
+});
+
+
+/* ============================================================
+   SPLASH
+   ============================================================ */
+
+function initializeSplash() {
+    const splash = $("#splash");
+
+    if (!splash) {
+        finishSplash();
+        return;
+    }
+
+    splash.addEventListener("animationend", (event) => {
+        if (event.animationName === "fadeOut") {
+            finishSplash();
         }
+    });
+}
 
-        return JSON.parse(value);
-    } catch (error) {
-        console.warn('JSON storage error:', error);
-        return fallback;
+
+function finishSplash() {
+    if (SPLASH_DONE) {
+        return;
+    }
+
+    SPLASH_DONE = true;
+
+    const splash = $("#splash");
+
+    if (splash) {
+        splash.classList.add("hidden");
+    }
+
+    if (TOKEN) {
+        showApp();
+
+        loadCurrentUser()
+            .then(() => {
+                loadHome();
+            })
+            .catch(() => {
+                /*
+                 * If token is invalid, show authentication.
+                 */
+                showAuth();
+            });
+
+    } else {
+        showAuth();
     }
 }
 
-function saveJSON(key, value) {
-    try {
-        localStorage.setItem(
-            key,
-            JSON.stringify(value)
-        );
-    } catch (error) {
-        console.warn('Storage save error:', error);
+
+function emergencyStart() {
+    const splash = $("#splash");
+    const auth = $("#auth-screen");
+    const app = $("#app");
+
+    if (splash) {
+        splash.classList.add("hidden");
+    }
+
+    if (TOKEN) {
+        if (app) app.classList.remove("hidden");
+        if (auth) auth.classList.add("hidden");
+        loadHome();
+    } else {
+        if (auth) auth.classList.remove("hidden");
+        if (app) app.classList.add("hidden");
     }
 }
 
-function removeStorage(key) {
-    try {
-        localStorage.removeItem(key);
-    } catch (error) {
-        console.warn(error);
+
+/* ============================================================
+   AUTH / APP VISIBILITY
+   ============================================================ */
+
+function showAuth() {
+    const auth = $("#auth-screen");
+    const app = $("#app");
+
+    if (auth) {
+        auth.classList.remove("hidden");
+    }
+
+    if (app) {
+        app.classList.add("hidden");
     }
 }
 
-function sleep(ms) {
-    return new Promise(resolve => {
-        setTimeout(resolve, ms);
+
+function showApp() {
+    const auth = $("#auth-screen");
+    const app = $("#app");
+
+    if (auth) {
+        auth.classList.add("hidden");
+    }
+
+    if (app) {
+        app.classList.remove("hidden");
+    }
+
+    updatePageTitle("MSAFIRI");
+}
+
+
+/* ============================================================
+   EVENTS
+   ============================================================ */
+
+function initializeEvents() {
+
+    /* AUTH TABS */
+
+    $all(".auth-tab").forEach((button) => {
+        button.addEventListener("click", () => {
+            switchAuthTab(button.dataset.tab);
+        });
+    });
+
+
+    /* LOGIN */
+
+    const loginForm = $("#login-form");
+
+    if (loginForm) {
+        loginForm.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            await login();
+        });
+    }
+
+
+    /* REGISTER */
+
+    const registerForm = $("#register-form");
+
+    if (registerForm) {
+        registerForm.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            await register();
+        });
+    }
+
+
+    /* BOTTOM NAV */
+
+    $all(".nav-btn").forEach((button) => {
+        button.addEventListener("click", () => {
+            const page = button.dataset.nav;
+
+            if (page) {
+                navigate(page);
+            }
+        });
+    });
+
+
+    /* BACK */
+
+    const backButton = $("#back-btn");
+
+    if (backButton) {
+        backButton.addEventListener("click", () => {
+            goBack();
+        });
+    }
+
+
+    /* THREE DOTS */
+
+    const dotsButton = $("#dots-btn");
+
+    if (dotsButton) {
+        dotsButton.addEventListener("click", (event) => {
+            event.stopPropagation();
+            toggleDotsMenu();
+        });
+    }
+
+
+    /* CLOSE DROPDOWN WHEN CLICKING OUTSIDE */
+
+    document.addEventListener("click", (event) => {
+        const menu = $("#dots-menu");
+        const button = $("#dots-btn");
+
+        if (
+            menu &&
+            !menu.contains(event.target) &&
+            button &&
+            !button.contains(event.target)
+        ) {
+            menu.classList.add("hidden");
+        }
+    });
+
+
+    /* DROPDOWN */
+
+    $all("#dots-menu button").forEach((button) => {
+        button.addEventListener("click", () => {
+            const action = button.dataset.action;
+
+            closeDotsMenu();
+
+            if (action === "manual") {
+                showUserManual();
+            }
+
+            if (action === "settings") {
+                openSettings();
+            }
+
+            if (action === "logout") {
+                logout();
+            }
+        });
+    });
+
+
+    /* SEARCH */
+
+    const searchInput = $("#search-input");
+
+    if (searchInput) {
+        searchInput.addEventListener("input", () => {
+            const query = searchInput.value.trim();
+
+            clearTimeout(SEARCH_TIMER);
+
+            if (!query) {
+                closeSearchResults();
+                return;
+            }
+
+            SEARCH_TIMER = setTimeout(() => {
+                searchPeople(query);
+            }, 350);
+        });
+
+        searchInput.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+                event.preventDefault();
+
+                const query = searchInput.value.trim();
+
+                if (query) {
+                    searchPeople(query);
+                }
+            }
+        });
+    }
+
+
+    /* FEED TABS */
+
+    $all(".feed-tab").forEach((button) => {
+        button.addEventListener("click", () => {
+            $all(".feed-tab").forEach((item) => {
+                item.classList.remove("active");
+            });
+
+            button.classList.add("active");
+
+            CURRENT_FEED = button.dataset.feed || "for-you";
+
+            loadFeed();
+        });
+    });
+
+
+    /* CREATE POST */
+
+    const createButton = $("#fab-create");
+
+    if (createButton) {
+        createButton.addEventListener("click", () => {
+            openCreatePost();
+        });
+    }
+
+
+    /* STORY */
+
+    const storyButton = $("#add-story-btn");
+
+    if (storyButton) {
+        storyButton.addEventListener("click", () => {
+            openCreateStory();
+        });
+    }
+
+
+    /* EDIT PROFILE */
+
+    const editProfileButton = $("#edit-profile-btn");
+
+    if (editProfileButton) {
+        editProfileButton.addEventListener("click", () => {
+            openEditProfile();
+        });
+    }
+
+
+    /* MODAL CLOSE */
+
+    const modalClose = $("#modal-close");
+
+    if (modalClose) {
+        modalClose.addEventListener("click", closeModal);
+    }
+
+    const modal = $("#modal");
+
+    if (modal) {
+        modal.addEventListener("click", (event) => {
+            if (event.target === modal) {
+                closeModal();
+            }
+        });
+    }
+
+
+    /* ESCAPE KEY */
+
+    document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+            closeModal();
+            closeDotsMenu();
+        }
     });
 }
 
 
 /* ============================================================
-   NOTIFICATION / TOAST
+   AUTH TABS
    ============================================================ */
 
-function showToast(message, type = 'info') {
+function switchAuthTab(tab) {
 
-    let container =
-        byId('msafiri-toast-container');
+    $all(".auth-tab").forEach((button) => {
+        button.classList.toggle(
+            "active",
+            button.dataset.tab === tab
+        );
+    });
 
-    if (!container) {
-        container = document.createElement('div');
+    const loginForm = $("#login-form");
+    const registerForm = $("#register-form");
 
-        container.id =
-            'msafiri-toast-container';
+    if (tab === "login") {
 
-        container.style.position = 'fixed';
-        container.style.left = '50%';
-        container.style.bottom = '85px';
-        container.style.transform = 'translateX(-50%)';
-        container.style.zIndex = '999999';
-        container.style.display = 'flex';
-        container.style.flexDirection = 'column';
-        container.style.gap = '8px';
-        container.style.pointerEvents = 'none';
+        if (loginForm) {
+            loginForm.classList.remove("hidden");
+        }
 
-        document.body.appendChild(container);
+        if (registerForm) {
+            registerForm.classList.add("hidden");
+        }
+
+    } else {
+
+        if (loginForm) {
+            loginForm.classList.add("hidden");
+        }
+
+        if (registerForm) {
+            registerForm.classList.remove("hidden");
+        }
     }
-
-    const toast =
-        document.createElement('div');
-
-    toast.textContent = message;
-
-    toast.style.padding = '12px 18px';
-    toast.style.borderRadius = '14px';
-    toast.style.background =
-        type === 'error'
-            ? '#dc3545'
-            : type === 'success'
-                ? '#198754'
-                : '#212529';
-
-    toast.style.color = '#fff';
-    toast.style.fontSize = '14px';
-    toast.style.maxWidth = '90vw';
-    toast.style.boxShadow =
-        '0 8px 25px rgba(0,0,0,.25)';
-
-    container.appendChild(toast);
-
-    setTimeout(() => {
-        toast.remove();
-    }, 3500);
 }
 
 
 /* ============================================================
-   API REQUEST HELPER
+   API HELPER
    ============================================================ */
 
-async function apiRequest(
-    path,
-    options = {}
-) {
+async function apiFetch(path, options = {}) {
 
     const config = {
         ...options,
@@ -205,59 +534,64 @@ async function apiRequest(
         }
     };
 
-    if (!(config.body instanceof FormData)) {
-        config.headers['Content-Type'] =
-            config.headers['Content-Type'] ||
-            'application/json';
+    /*
+     * Do not automatically send Content-Type for FormData.
+     * Browser must generate multipart boundary.
+     */
+
+    if (
+        TOKEN &&
+        !config.headers.Authorization
+    ) {
+        config.headers.Authorization = `Bearer ${TOKEN}`;
     }
 
-    if (TOKEN) {
-        config.headers.Authorization =
-            `Bearer ${TOKEN}`;
+    let response;
+
+    try {
+        response = await fetch(`${API}${path}`, config);
+    } catch (error) {
+        console.error("Network error:", error);
+        throw new Error("Network connection failed.");
     }
 
-    const response =
-        await fetch(`${API}${path}`, config);
+    const contentType =
+        response.headers.get("content-type") || "";
 
     let data = null;
 
-    const contentType =
-        response.headers.get('content-type') || '';
+    try {
 
-    if (contentType.includes('application/json')) {
-        try {
+        if (contentType.includes("application/json")) {
             data = await response.json();
-        } catch {
-            data = null;
-        }
-    } else {
-        try {
+
+        } else {
             data = await response.text();
-        } catch {
-            data = null;
         }
+
+    } catch (error) {
+        data = null;
     }
+
 
     if (!response.ok) {
 
         let message =
-            data?.detail ||
-            data?.message ||
             `Request failed (${response.status})`;
 
-        if (response.status === 401) {
-            message =
-                'Your session has expired. Please login again.';
+        if (data) {
+
+            if (typeof data === "object") {
+                message =
+                    data.detail ||
+                    data.message ||
+                    message;
+            } else if (typeof data === "string" && data.trim()) {
+                message = data;
+            }
         }
 
-        if (response.status === 405) {
-            message =
-                'This action is not allowed by the current backend route.';
-        }
-
-        const error =
-            new Error(message);
-
+        const error = new Error(message);
         error.status = response.status;
         error.data = data;
 
@@ -269,227 +603,655 @@ async function apiRequest(
 
 
 /* ============================================================
-   API SHORTCUTS
+   LOGIN
    ============================================================ */
 
-async function GET(path) {
-    return apiRequest(path, {
-        method: 'GET'
-    });
-}
+async function login() {
 
-async function POST(path, body = null) {
+    const usernameInput = $("#login-username");
+    const passwordInput = $("#login-password");
 
-    const options = {
-        method: 'POST'
-    };
-
-    if (body instanceof FormData) {
-        options.body = body;
-    } else if (body !== null) {
-        options.body = JSON.stringify(body);
+    if (!usernameInput || !passwordInput) {
+        return;
     }
 
-    return apiRequest(path, options);
-}
+    const username =
+        usernameInput.value.trim();
 
-async function PATCH(path, body = {}) {
-    return apiRequest(path, {
-        method: 'PATCH',
-        body: JSON.stringify(body)
-    });
-}
+    const password =
+        passwordInput.value;
 
-async function DELETE(path) {
-    return apiRequest(path, {
-        method: 'DELETE'
-    });
-}
+    if (!username || !password) {
+        toast("Enter username/email and password.");
+        return;
+    }
+
+    const button =
+        $("#login-form .btn-primary");
+
+    setButtonLoading(button, true, "Logging in...");
+
+    try {
+
+        /*
+         * Most FastAPI OAuth2 implementations expect
+         * application/x-www-form-urlencoded.
+         */
+
+        const form = new URLSearchParams();
+
+        form.append("username", username);
+        form.append("password", password);
+
+        let data;
+
+        try {
+
+            data = await apiFetch(
+                "/api/auth/login",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type":
+                            "application/x-www-form-urlencoded"
+                    },
+                    body: form.toString()
+                }
+            );
+
+        } catch (firstError) {
+
+            /*
+             * Some custom auth routers use JSON.
+             * Try JSON as a fallback.
+             */
+
+            data = await apiFetch(
+                "/api/auth/login",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+                    body: JSON.stringify({
+                        username,
+                        email: username,
+                        password
+                    })
+                }
+            );
+        }
 
 
-/* ============================================================
-   AUTH STATE
-   ============================================================ */
+        const token =
+            data.access_token ||
+            data.token ||
+            data.accessToken;
 
-function setAuth(token, user = null) {
+        if (!token) {
+            throw new Error(
+                "Login succeeded but no access token was returned."
+            );
+        }
 
-    TOKEN = token || '';
+        TOKEN = token;
 
-    if (TOKEN) {
         localStorage.setItem(
-            STORAGE.TOKEN,
+            TOKEN_KEY,
             TOKEN
         );
-    } else {
-        removeStorage(STORAGE.TOKEN);
-    }
 
-    if (user) {
-        CURRENT_USER = user;
 
-        saveJSON(
-            STORAGE.USER,
-            CURRENT_USER
+        CURRENT_USER =
+            data.user ||
+            data.current_user ||
+            data.profile ||
+            null;
+
+
+        if (CURRENT_USER) {
+            saveCurrentUser(CURRENT_USER);
+        }
+
+
+        showApp();
+
+        await loadCurrentUser();
+
+        navigate("home", false);
+
+        toast("Welcome back!");
+
+        await loadHome();
+
+    } catch (error) {
+
+        console.error("Login error:", error);
+
+        toast(
+            error.message ||
+            "Login failed."
+        );
+
+    } finally {
+
+        setButtonLoading(
+            button,
+            false,
+            "Login"
         );
     }
-
-    updateAuthUI();
-}
-
-function clearAuth() {
-
-    TOKEN = '';
-    CURRENT_USER = null;
-
-    removeStorage(STORAGE.TOKEN);
-    removeStorage(STORAGE.USER);
-
-    updateAuthUI();
-}
-
-function isLoggedIn() {
-    return Boolean(TOKEN);
-}
-
-function updateAuthUI() {
-
-    document.body.classList.toggle(
-        'msafiri-authenticated',
-        isLoggedIn()
-    );
-
-    document.body.classList.toggle(
-        'msafiri-guest',
-        !isLoggedIn()
-    );
-
-    const userName =
-        CURRENT_USER?.full_name ||
-        CURRENT_USER?.username ||
-        'User';
-
-    $$('[data-current-user-name]')
-        .forEach(el => {
-            el.textContent = userName;
-        });
-
-    $$('[data-current-username]')
-        .forEach(el => {
-            el.textContent =
-                CURRENT_USER?.username
-                    ? `@${CURRENT_USER.username}`
-                    : '';
-        });
-
-    $$('[data-current-avatar]')
-        .forEach(el => {
-
-            const avatar =
-                CURRENT_USER?.avatar_url || '';
-
-            if (avatar) {
-                el.src = absoluteURL(avatar);
-            }
-        });
 }
 
 
 /* ============================================================
-   URL HELPERS
+   REGISTER
    ============================================================ */
 
-function absoluteURL(url) {
+async function register() {
 
-    if (!url) {
-        return '';
+    const username =
+        $("#reg-username")?.value.trim();
+
+    const email =
+        $("#reg-email")?.value.trim();
+
+    const fullName =
+        $("#reg-fullname")?.value.trim();
+
+    const password =
+        $("#reg-password")?.value;
+
+    if (
+        !username ||
+        !email ||
+        !fullName ||
+        !password
+    ) {
+        toast("Please fill all registration fields.");
+        return;
+    }
+
+    if (password.length < 6) {
+        toast("Password must contain at least 6 characters.");
+        return;
+    }
+
+    const button =
+        $("#register-form .btn-primary");
+
+    setButtonLoading(
+        button,
+        true,
+        "Creating..."
+    );
+
+    try {
+
+        let data;
+
+        /*
+         * First try JSON.
+         */
+
+        try {
+
+            data = await apiFetch(
+                "/api/auth/register",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+                    body: JSON.stringify({
+                        username,
+                        email,
+                        full_name: fullName,
+                        password
+                    })
+                }
+            );
+
+        } catch (jsonError) {
+
+            /*
+             * Fallback for Form based auth.
+             */
+
+            const form =
+                new URLSearchParams();
+
+            form.append("username", username);
+            form.append("email", email);
+            form.append("full_name", fullName);
+            form.append("password", password);
+
+            data = await apiFetch(
+                "/api/auth/register",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type":
+                            "application/x-www-form-urlencoded"
+                    },
+                    body: form.toString()
+                }
+            );
+        }
+
+
+        const token =
+            data?.access_token ||
+            data?.token ||
+            data?.accessToken;
+
+
+        if (token) {
+
+            TOKEN = token;
+
+            localStorage.setItem(
+                TOKEN_KEY,
+                TOKEN
+            );
+
+            CURRENT_USER =
+                data.user ||
+                data.current_user ||
+                null;
+
+            if (CURRENT_USER) {
+                saveCurrentUser(CURRENT_USER);
+            }
+
+            showApp();
+
+            await loadCurrentUser();
+
+            navigate("home", false);
+
+            await loadHome();
+
+            toast("Account created successfully!");
+
+        } else {
+
+            toast(
+                "Account created. Please login."
+            );
+
+            switchAuthTab("login");
+
+            const loginUsername =
+                $("#login-username");
+
+            if (loginUsername) {
+                loginUsername.value = username;
+            }
+        }
+
+    } catch (error) {
+
+        console.error(
+            "Registration error:",
+            error
+        );
+
+        toast(
+            error.message ||
+            "Registration failed."
+        );
+
+    } finally {
+
+        setButtonLoading(
+            button,
+            false,
+            "Create Account"
+        );
+    }
+}
+
+
+/* ============================================================
+   CURRENT USER
+   ============================================================ */
+
+async function loadCurrentUser() {
+
+    if (!TOKEN) {
+        return null;
+    }
+
+    /*
+     * We don't know which exact current-user endpoint
+     * your auth router exposes, so try common endpoints.
+     */
+
+    const candidates = [
+        "/api/auth/me",
+        "/api/profile/me",
+        "/api/auth/user"
+    ];
+
+    for (const endpoint of candidates) {
+
+        try {
+
+            const data =
+                await apiFetch(endpoint);
+
+            const user =
+                data?.user ||
+                data?.profile ||
+                data;
+
+            if (
+                user &&
+                typeof user === "object" &&
+                user.id
+            ) {
+
+                CURRENT_USER = user;
+
+                saveCurrentUser(user);
+
+                updateOwnProfileUI();
+
+                return user;
+            }
+
+        } catch (error) {
+            /*
+             * Try next endpoint.
+             */
+        }
+    }
+
+    /*
+     * If backend does not expose /me,
+     * keep locally stored user.
+     */
+
+    if (CURRENT_USER) {
+        updateOwnProfileUI();
+    }
+
+    return CURRENT_USER;
+}
+
+
+function saveCurrentUser(user) {
+
+    CURRENT_USER = user;
+
+    try {
+        localStorage.setItem(
+            USER_KEY,
+            JSON.stringify(user)
+        );
+    } catch (error) {
+        console.warn(
+            "Could not save user:",
+            error
+        );
+    }
+}
+
+
+function updateOwnProfileUI() {
+
+    if (!CURRENT_USER) {
+        return;
+    }
+
+    const name =
+        CURRENT_USER.full_name ||
+        CURRENT_USER.username ||
+        "User";
+
+    const username =
+        CURRENT_USER.username ||
+        "user";
+
+    const bio =
+        CURRENT_USER.bio ||
+        "Welcome to Msafiri";
+
+    const nameElement =
+        $("#profile-name");
+
+    const usernameElement =
+        $("#profile-username");
+
+    const bioElement =
+        $("#profile-bio");
+
+    const avatar =
+        $("#profile-avatar");
+
+    if (nameElement) {
+        nameElement.textContent = name;
+    }
+
+    if (usernameElement) {
+        usernameElement.textContent =
+            `@${username}`;
+    }
+
+    if (bioElement) {
+        bioElement.textContent = bio;
+    }
+
+    if (avatar) {
+
+        if (CURRENT_USER.avatar_url) {
+
+            avatar.innerHTML =
+                `<img src="${escapeHTML(
+                    mediaURL(CURRENT_USER.avatar_url)
+                )}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+
+        } else {
+
+            avatar.textContent =
+                getInitial(
+                    name
+                );
+        }
+    }
+}
+
+
+/* ============================================================
+   NAVIGATION
+   ============================================================ */
+
+function navigate(page, remember = true) {
+
+    const allowed = [
+        "home",
+        "discovery",
+        "chats",
+        "profile",
+        "sub"
+    ];
+
+    if (!allowed.includes(page)) {
+        page = "home";
     }
 
     if (
-        url.startsWith('http://') ||
-        url.startsWith('https://') ||
-        url.startsWith('data:')
+        remember &&
+        CURRENT_PAGE !== page &&
+        CURRENT_PAGE !== "sub"
     ) {
-        return url;
+        PAGE_HISTORY.push(
+            CURRENT_PAGE
+        );
     }
 
-    if (url.startsWith('/')) {
-        return `${API}${url}`;
+    CURRENT_PAGE = page;
+
+
+    $all(".page").forEach((section) => {
+        section.classList.remove("active");
+    });
+
+
+    const pageElement =
+        $(`#page-${page}`);
+
+    if (pageElement) {
+        pageElement.classList.add("active");
     }
 
-    return `${API}/${url}`;
-}
 
+    /*
+     * Bottom navigation only reflects
+     * the four main pages.
+     */
 
-/* ============================================================
-   VIEW NAVIGATION
-   ============================================================ */
+    let navPage = page;
 
-function setView(view) {
+    if (page === "sub") {
+        navPage = inferParentNavigation();
+    }
 
-    CURRENT_VIEW = view;
+    $all(".nav-btn").forEach((button) => {
 
-    localStorage.setItem(
-        STORAGE.VIEW,
-        view
-    );
-
-    $$('[data-view]').forEach(el => {
-
-        const target =
-            el.dataset.view;
-
-        el.classList.toggle(
-            'active',
-            target === view
+        button.classList.toggle(
+            "active",
+            button.dataset.nav === navPage
         );
     });
 
-    $$(
-        '[data-page]'
-    ).forEach(page => {
 
-        const pageName =
-            page.dataset.page;
+    updateBackButton();
 
-        page.hidden =
-            pageName !== view;
-    });
-
-    if (view === 'home') {
-        loadFeed();
+    if (page === "home") {
+        updatePageTitle("MSAFIRI");
+        loadHome();
     }
 
-    if (view === 'discovery') {
+    if (page === "discovery") {
+        updatePageTitle("Discovery");
         loadDiscovery();
     }
 
-    if (view === 'chats') {
+    if (page === "chats") {
+        updatePageTitle("Chats");
         loadChats();
     }
 
-    if (view === 'profile') {
-        loadOwnProfile();
+    if (page === "profile") {
+        updatePageTitle("Profile");
+        loadMyProfile();
+    }
+}
+
+
+function inferParentNavigation() {
+
+    if (
+        PAGE_HISTORY.length &&
+        [
+            "home",
+            "discovery",
+            "chats",
+            "profile"
+        ].includes(
+            PAGE_HISTORY[
+                PAGE_HISTORY.length - 1
+            ]
+        )
+    ) {
+        return PAGE_HISTORY[
+            PAGE_HISTORY.length - 1
+        ];
+    }
+
+    return "discovery";
+}
+
+
+function goBack() {
+
+    if (
+        PAGE_HISTORY.length === 0
+    ) {
+
+        navigate(
+            "home",
+            false
+        );
+
+        return;
+    }
+
+    const previous =
+        PAGE_HISTORY.pop();
+
+    navigate(
+        previous,
+        false
+    );
+}
+
+
+function updateBackButton() {
+
+    const button =
+        $("#back-btn");
+
+    if (!button) {
+        return;
+    }
+
+    if (
+        CURRENT_PAGE === "sub" ||
+        PAGE_HISTORY.length > 0
+    ) {
+        button.classList.remove("hidden");
+    } else {
+        button.classList.add("hidden");
+    }
+}
+
+
+function updatePageTitle(title) {
+
+    const element =
+        $("#page-title");
+
+    if (element) {
+        element.textContent =
+            title || "MSAFIRI";
     }
 }
 
 
 /* ============================================================
-   FIND OR CREATE APP CONTAINER
+   HOME
    ============================================================ */
 
-function getAppContainer() {
+async function loadHome() {
 
-    let app =
-        byId('app');
+    try {
 
-    if (!app) {
-        app =
-            document.querySelector(
-                '[data-app]'
-            );
+        await Promise.allSettled([
+            loadFeed(),
+            loadStories()
+        ]);
+
+    } catch (error) {
+        console.error(
+            "Home loading error:",
+            error
+        );
     }
-
-    return app || document.body;
 }
 
 
@@ -499,70 +1261,88 @@ function getAppContainer() {
 
 async function loadFeed() {
 
-    const container =
-        byId('feed') ||
-        document.querySelector(
-            '[data-feed]'
+    const feed =
+        $("#feed");
+
+    if (!feed) {
+        return;
+    }
+
+    feed.innerHTML =
+        `<div class="muted" style="padding:20px;text-align:center;">
+            Loading posts...
+        </div>`;
+
+    try {
+
+        let data =
+            await apiFetch(
+                "/api/feed"
+            );
+
+        let posts =
+            extractPosts(data);
+
+        /*
+         * Following filter is handled client-side
+         * only when backend doesn't provide a separate
+         * endpoint.
+         */
+
+        if (
+            CURRENT_FEED === "following" &&
+            CURRENT_USER?.id
+        ) {
+
+            /*
+             * Keep all posts if no follow metadata exists.
+             * This avoids falsely hiding posts.
+             */
+
+            posts =
+                posts.filter(
+                    (post) =>
+                        post.user_id !==
+                        CURRENT_USER.id
+                );
+        }
+
+
+        CACHED_POSTS = posts;
+
+        renderFeed(
+            posts
         );
 
-    if (!container) {
-        return;
+    } catch (error) {
+
+        console.error(
+            "Feed error:",
+            error
+        );
+
+        feed.innerHTML = `
+            <div class="post-card">
+                <strong>Unable to load feed</strong>
+                <p class="muted" style="margin-top:8px;">
+                    ${escapeHTML(
+                        error.message
+                    )}
+                </p>
+                <button
+                    class="btn-secondary"
+                    style="margin-top:12px;"
+                    onclick="loadFeed()"
+                >
+                    Retry
+                </button>
+            </div>
+        `;
     }
-
-    container.innerHTML =
-        '<div class="loading">Loading posts...</div>';
-
-    const possibleEndpoints = [
-        '/api/feed',
-        '/api/posts',
-        '/api/posts/feed'
-    ];
-
-    let result = null;
-
-    for (const endpoint of possibleEndpoints) {
-
-        try {
-            result = await GET(endpoint);
-
-            if (result) {
-                break;
-            }
-
-        } catch (error) {
-
-            if (
-                error.status !== 404 &&
-                error.status !== 405
-            ) {
-                console.warn(
-                    endpoint,
-                    error
-                );
-            }
-        }
-    }
-
-    if (!result) {
-        container.innerHTML =
-            emptyState(
-                'No posts available yet.'
-            );
-        return;
-    }
-
-    const posts =
-        normalizePosts(result);
-
-    CURRENT_POSTS = posts;
-
-    renderPosts(
-        posts,
-        container
-    );
 }
 
-function normalizePosts(data) {
+
+function extractPosts(data) {
 
     if (Array.isArray(data)) {
         return data;
@@ -572,144 +1352,220 @@ function normalizePosts(data) {
         return data.posts;
     }
 
-    if (Array.isArray(data?.items)) {
-        return data.items;
-    }
-
     if (Array.isArray(data?.feed)) {
         return data.feed;
+    }
+
+    if (Array.isArray(data?.items)) {
+        return data.items;
     }
 
     return [];
 }
 
-function renderPosts(posts, container) {
+
+/* ============================================================
+   RENDER FEED
+   ============================================================ */
+
+function renderFeed(posts) {
+
+    const feed =
+        $("#feed");
+
+    if (!feed) {
+        return;
+    }
 
     if (!posts.length) {
-        container.innerHTML =
-            emptyState(
-                'No posts yet. Be the first to post.'
-            );
+
+        feed.innerHTML = `
+            <div class="post-card" style="text-align:center;">
+                <div style="font-size:40px;">🌍</div>
+                <strong>No posts yet</strong>
+                <p class="muted" style="margin-top:6px;">
+                    Be the first person to share something.
+                </p>
+            </div>
+        `;
 
         return;
     }
 
-    container.innerHTML =
-        posts
-            .map(renderPost)
-            .join('');
 
-    bindPostEvents(container);
+    feed.innerHTML =
+        posts
+            .map(
+                (post) =>
+                    renderPost(post)
+            )
+            .join("");
 }
 
-function renderPost(post) {
 
-    const avatar =
-        absoluteURL(
-            post.avatar_url
-        );
+/* ============================================================
+   POST HTML
+   ============================================================ */
+
+function renderPost(post) {
 
     const name =
         post.full_name ||
         post.username ||
-        'User';
+        "User";
 
     const username =
-        post.username
-            ? `@${post.username}`
-            : '';
+        post.username ||
+        "user";
 
-    const media =
-        renderPostMedia(post);
+    const avatar =
+        post.avatar_url
+            ? `<img src="${escapeHTML(
+                mediaURL(post.avatar_url)
+              )}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
+            : escapeHTML(
+                getInitial(name)
+              );
+
+
+    let mediaHTML = "";
+
+    if (
+        post.media_url &&
+        post.media_type === "image"
+    ) {
+
+        mediaHTML = `
+            <img
+                class="post-media"
+                src="${escapeHTML(
+                    mediaURL(post.media_url)
+                )}"
+                alt="Post image"
+                loading="lazy"
+            >
+        `;
+
+    } else if (
+        post.media_url &&
+        post.media_type === "video"
+    ) {
+
+        mediaHTML = `
+            <video
+                class="post-media"
+                src="${escapeHTML(
+                    mediaURL(post.media_url)
+                )}"
+                controls
+                playsinline
+                preload="metadata"
+            ></video>
+        `;
+    }
+
+
+    const liked =
+        post.liked
+            ? "liked"
+            : "";
+
+    const likeIcon =
+        post.liked
+            ? "❤️"
+            : "♡";
+
+    const saveIcon =
+        post.saved
+            ? "🔖"
+            : "🔖";
+
 
     return `
         <article
-            class="msafiri-post"
-            data-post-id="${escapeHTML(post.id)}"
+            class="post-card"
+            data-post-id="${Number(post.id) || 0}"
         >
 
-            <header class="post-header">
+            <div
+                class="post-header"
+                onclick="openUserProfile(${Number(post.user_id) || 0})"
+                style="cursor:pointer;"
+            >
 
-                <button
-                    class="post-user"
-                    data-open-profile="${escapeHTML(post.user_id || '')}"
-                >
+                <div class="post-avatar">
+                    ${avatar}
+                </div>
 
-                    ${
-                        avatar
-                            ? `<img
-                                src="${escapeHTML(avatar)}"
-                                alt=""
-                                class="post-avatar"
-                              >`
-                            : `<div class="post-avatar placeholder">
-                                ${escapeHTML(
-                                    name.charAt(0).toUpperCase()
-                                )}
-                              </div>`
-                    }
+                <div class="post-user">
+                    <strong>
+                        ${escapeHTML(name)}
+                    </strong>
 
                     <span>
-                        <strong>
-                            ${escapeHTML(name)}
-                        </strong>
-
-                        <small>
-                            ${escapeHTML(username)}
-                        </small>
+                        @${escapeHTML(username)}
+                        ${post.created_at
+                            ? ` · ${formatTime(post.created_at)}`
+                            : ""}
                     </span>
+                </div>
 
-                </button>
+            </div>
 
-                <button
-                    class="post-more"
-                    data-post-menu="${escapeHTML(post.id)}"
-                >
-                    ⋯
-                </button>
-
-            </header>
 
             ${
                 post.caption
-                    ? `<div class="post-caption">
-                        ${escapeHTML(post.caption)}
-                       </div>`
-                    : ''
+                    ? `
+                        <div class="post-caption">
+                            ${formatText(
+                                post.caption
+                            )}
+                        </div>
+                      `
+                    : ""
             }
 
-            ${media}
+
+            ${mediaHTML}
+
 
             <div class="post-actions">
 
                 <button
-                    data-like-post="${post.id}"
-                    class="${post.liked ? 'active' : ''}"
+                    class="${liked}"
+                    onclick="toggleLike(${Number(post.id) || 0})"
                 >
-                    ❤️
-                    <span>${post.likes || 0}</span>
+                    ${likeIcon}
+                    <span>
+                        ${Number(post.likes) || 0}
+                    </span>
                 </button>
 
                 <button
-                    data-comment-post="${post.id}"
+                    onclick="openComments(${Number(post.id) || 0})"
                 >
                     💬
-                    <span>${post.comments || 0}</span>
+                    <span>
+                        ${Number(post.comments) || 0}
+                    </span>
                 </button>
 
                 <button
-                    data-save-post="${post.id}"
-                    class="${post.saved ? 'active' : ''}"
+                    onclick="toggleSave(${Number(post.id) || 0})"
                 >
-                    🔖
-                    <span>${post.saves || 0}</span>
+                    ${saveIcon}
+                    <span>
+                        ${Number(post.saves) || 0}
+                    </span>
                 </button>
 
                 <button
-                    data-share-post="${post.id}"
+                    onclick="sharePost(${Number(post.id) || 0})"
                 >
                     ↗️
-                    <span>${post.shares || 0}</span>
+                    <span>
+                        ${Number(post.shares) || 0}
+                    </span>
                 </button>
 
             </div>
@@ -718,352 +1574,57 @@ function renderPost(post) {
     `;
 }
 
-function renderPostMedia(post) {
-
-    if (!post.media_url) {
-        return '';
-    }
-
-    const url =
-        absoluteURL(
-            post.media_url
-        );
-
-    if (post.media_type === 'video') {
-
-        return `
-            <video
-                class="post-media"
-                src="${escapeHTML(url)}"
-                controls
-                playsinline
-                preload="metadata"
-            ></video>
-        `;
-    }
-
-    if (post.media_type === 'image') {
-
-        return `
-            <img
-                class="post-media"
-                src="${escapeHTML(url)}"
-                alt="Post media"
-                loading="lazy"
-            >
-        `;
-    }
-
-    return '';
-}
-
-function bindPostEvents(container) {
-
-    $$(
-        '[data-like-post]',
-        container
-    ).forEach(button => {
-
-        button.addEventListener(
-            'click',
-            () => toggleLike(
-                button.dataset.likePost,
-                button
-            )
-        );
-    });
-
-    $$(
-        '[data-save-post]',
-        container
-    ).forEach(button => {
-
-        button.addEventListener(
-            'click',
-            () => toggleSave(
-                button.dataset.savePost,
-                button
-            )
-        );
-    });
-
-    $$(
-        '[data-share-post]',
-        container
-    ).forEach(button => {
-
-        button.addEventListener(
-            'click',
-            () => sharePost(
-                button.dataset.sharePost
-            )
-        );
-    });
-
-    $$(
-        '[data-comment-post]',
-        container
-    ).forEach(button => {
-
-        button.addEventListener(
-            'click',
-            () => openComments(
-                button.dataset.commentPost
-            )
-        );
-    });
-
-    $$(
-        '[data-open-profile]',
-        container
-    ).forEach(button => {
-
-        button.addEventListener(
-            'click',
-            () => openProfile(
-                button.dataset.openProfile
-            )
-        );
-    });
-
-    $$(
-        '[data-post-menu]',
-        container
-    ).forEach(button => {
-
-        button.addEventListener(
-            'click',
-            () => postMenu(
-                button.dataset.postMenu
-            )
-        );
-    });
-}
-
-
-/* ============================================================
-   CREATE POST
-   ============================================================ */
-
-async function createPost(form) {
-
-    if (!isLoggedIn()) {
-        showToast(
-            'Please login before posting.',
-            'error'
-        );
-        return;
-    }
-
-    const captionInput =
-        form.querySelector(
-            '[name="caption"]'
-        );
-
-    const fileInput =
-        form.querySelector(
-            '[name="media"]'
-        );
-
-    const caption =
-        captionInput?.value?.trim() || '';
-
-    const file =
-        fileInput?.files?.[0] || null;
-
-    if (!caption && !file) {
-        showToast(
-            'Write a caption or select an image/video.',
-            'error'
-        );
-        return;
-    }
-
-    const data =
-        new FormData();
-
-    data.append(
-        'caption',
-        caption
-    );
-
-    if (file) {
-        data.append(
-            'media',
-            file
-        );
-    }
-
-    try {
-
-        const result =
-            await POST(
-                '/api/posts/create',
-                data
-            );
-
-        showToast(
-            result?.message ||
-            'Post created successfully.',
-            'success'
-        );
-
-        form.reset();
-
-        closeCreatePost();
-
-        await loadFeed();
-
-    } catch (error) {
-
-        console.error(
-            'Create post error:',
-            error
-        );
-
-        showToast(
-            error.message ||
-            'Could not create post.',
-            'error'
-        );
-    }
-}
-
-
-/* ============================================================
-   CREATE POST MODAL
-   ============================================================ */
-
-function openCreatePost() {
-
-    let modal =
-        byId('create-post-modal');
-
-    if (!modal) {
-
-        modal =
-            document.createElement('div');
-
-        modal.id =
-            'create-post-modal';
-
-        modal.className =
-            'msafiri-modal';
-
-        modal.innerHTML = `
-            <div class="msafiri-modal-card">
-
-                <button
-                    class="modal-close"
-                    data-close-create
-                >
-                    ×
-                </button>
-
-                <h2>Create Post</h2>
-
-                <form
-                    id="dynamic-create-post-form"
-                >
-
-                    <textarea
-                        name="caption"
-                        placeholder="What's on your mind?"
-                        rows="5"
-                    ></textarea>
-
-                    <input
-                        type="file"
-                        name="media"
-                        accept="image/*,video/*"
-                    >
-
-                    <button
-                        type="submit"
-                    >
-                        Post
-                    </button>
-
-                </form>
-
-            </div>
-        `;
-
-        document.body.appendChild(
-            modal
-        );
-
-        modal.querySelector(
-            '[data-close-create]'
-        ).addEventListener(
-            'click',
-            closeCreatePost
-        );
-
-        modal.querySelector(
-            'form'
-        ).addEventListener(
-            'submit',
-            event => {
-
-                event.preventDefault();
-
-                createPost(
-                    event.currentTarget
-                );
-            }
-        );
-    }
-
-    modal.hidden = false;
-}
-
-function closeCreatePost() {
-
-    const modal =
-        byId('create-post-modal');
-
-    if (modal) {
-        modal.hidden = true;
-    }
-}
-
 
 /* ============================================================
    LIKE
    ============================================================ */
 
-async function toggleLike(
-    postId,
-    button
-) {
+async function toggleLike(postId) {
+
+    if (!requireLogin()) {
+        return;
+    }
 
     try {
 
         const result =
-            await POST(
-                `/api/posts/${postId}/like`
+            await apiFetch(
+                `/api/posts/${postId}/like`,
+                {
+                    method: "POST"
+                }
             );
 
-        button.classList.toggle(
-            'active',
-            Boolean(result?.liked)
-        );
+        const post =
+            CACHED_POSTS.find(
+                (item) =>
+                    Number(item.id) ===
+                    Number(postId)
+            );
 
-        const count =
-            button.querySelector('span');
+        if (post) {
 
-        if (count) {
-            count.textContent =
-                result?.likes ?? 0;
+            post.liked =
+                !!result.liked;
+
+            post.likes =
+                Number(result.likes) || 0;
         }
+
+        renderFeed(
+            CACHED_POSTS
+        );
 
     } catch (error) {
 
-        showToast(
+        console.error(
+            "Like error:",
+            error
+        );
+
+        toast(
             error.message ||
-            'Unable to like post.',
-            'error'
+            "Could not update like."
         );
     }
 }
@@ -1073,37 +1634,52 @@ async function toggleLike(
    SAVE
    ============================================================ */
 
-async function toggleSave(
-    postId,
-    button
-) {
+async function toggleSave(postId) {
+
+    if (!requireLogin()) {
+        return;
+    }
 
     try {
 
         const result =
-            await POST(
-                `/api/posts/${postId}/save`
+            await apiFetch(
+                `/api/posts/${postId}/save`,
+                {
+                    method: "POST"
+                }
             );
 
-        button.classList.toggle(
-            'active',
-            Boolean(result?.saved)
-        );
+        const post =
+            CACHED_POSTS.find(
+                (item) =>
+                    Number(item.id) ===
+                    Number(postId)
+            );
 
-        const count =
-            button.querySelector('span');
+        if (post) {
 
-        if (count) {
-            count.textContent =
-                result?.saves ?? 0;
+            post.saved =
+                !!result.saved;
+
+            post.saves =
+                Number(result.saves) || 0;
         }
+
+        renderFeed(
+            CACHED_POSTS
+        );
 
     } catch (error) {
 
-        showToast(
+        console.error(
+            "Save error:",
+            error
+        );
+
+        toast(
             error.message ||
-            'Unable to save post.',
-            'error'
+            "Could not save post."
         );
     }
 }
@@ -1115,57 +1691,75 @@ async function toggleSave(
 
 async function sharePost(postId) {
 
+    if (!requireLogin()) {
+        return;
+    }
+
     try {
 
         const result =
-            await POST(
-                `/api/posts/${postId}/share`
+            await apiFetch(
+                `/api/posts/${postId}/share`,
+                {
+                    method: "POST"
+                }
             );
+
+        const post =
+            CACHED_POSTS.find(
+                (item) =>
+                    Number(item.id) ===
+                    Number(postId)
+            );
+
+        if (post) {
+            post.shares =
+                Number(result.shares) || 0;
+        }
+
+        renderFeed(
+            CACHED_POSTS
+        );
 
         const shareURL =
             `${window.location.origin}/?post=${postId}`;
 
         if (
-            navigator.share
+            navigator.clipboard &&
+            navigator.clipboard.writeText
         ) {
 
             try {
+                await navigator.clipboard.writeText(
+                    shareURL
+                );
 
-                await navigator.share({
-                    title: APP_NAME,
-                    text: 'Check out this post on MSAFIRI GLOBAL MEDIA.',
-                    url: shareURL
-                });
+                toast(
+                    "Post link copied."
+                );
 
             } catch {
-                /* User cancelled native share */
+                toast(
+                    "Post shared."
+                );
             }
 
-        } else if (
-            navigator.clipboard
-        ) {
-
-            await navigator.clipboard.writeText(
-                shareURL
-            );
-
-            showToast(
-                'Post link copied.',
-                'success'
+        } else {
+            toast(
+                "Post shared."
             );
         }
 
-        console.log(
-            'Share result:',
-            result
-        );
-
     } catch (error) {
 
-        showToast(
+        console.error(
+            "Share error:",
+            error
+        );
+
+        toast(
             error.message ||
-            'Unable to share post.',
-            'error'
+            "Could not share post."
         );
     }
 }
@@ -1177,264 +1771,4016 @@ async function sharePost(postId) {
 
 async function openComments(postId) {
 
+    CURRENT_POST_ID = postId;
+
+    openModal(
+        `<h2>Comments</h2>
+         <div id="comments-container">
+            <p class="muted">Loading comments...</p>
+         </div>
+         <form
+            id="comment-form"
+            style="margin-top:16px;display:flex;gap:8px;"
+         >
+            <input
+                id="comment-input"
+                type="text"
+                placeholder="Write a comment..."
+                style="
+                    flex:1;
+                    padding:12px;
+                    border-radius:10px;
+                    border:1px solid var(--border);
+                    background:var(--bg-3);
+                    color:var(--text);
+                    outline:none;
+                "
+            >
+            <button
+                class="btn-primary"
+                type="submit"
+            >
+                Send
+            </button>
+         </form>`
+    );
+
+
+    const form =
+        $("#comment-form");
+
+    if (form) {
+
+        form.addEventListener(
+            "submit",
+            async (event) => {
+
+                event.preventDefault();
+
+                await createComment(
+                    postId
+                );
+            }
+        );
+    }
+
+
+    await loadComments(
+        postId
+    );
+}
+
+
+async function loadComments(postId) {
+
+    const container =
+        $("#comments-container");
+
+    if (!container) {
+        return;
+    }
+
     try {
 
-        const result =
-            await GET(
+        const data =
+            await apiFetch(
                 `/api/posts/${postId}/comments`
             );
 
         const comments =
-            result?.comments || [];
+            Array.isArray(data?.comments)
+                ? data.comments
+                : [];
 
-        let modal =
-            byId('comments-modal');
+        if (!comments.length) {
 
-        if (!modal) {
+            container.innerHTML =
+                `<p class="muted">
+                    No comments yet.
+                 </p>`;
 
-            modal =
-                document.createElement('div');
-
-            modal.id =
-                'comments-modal';
-
-            modal.className =
-                'msafiri-modal';
-
-            document.body.appendChild(
-                modal
-            );
+            return;
         }
 
-        modal.innerHTML = `
-            <div class="msafiri-modal-card">
 
-                <button
-                    class="modal-close"
-                    data-close-comments
-                >
-                    ×
-                </button>
+        container.innerHTML =
+            comments
+                .map(
+                    (comment) => `
+                        <div
+                            style="
+                                padding:12px 0;
+                                border-bottom:1px solid var(--border);
+                            "
+                        >
+                            <strong>
+                                ${escapeHTML(
+                                    comment.full_name ||
+                                    comment.username ||
+                                    "User"
+                                )}
+                            </strong>
 
-                <h2>Comments</h2>
+                            <div
+                                style="
+                                    margin-top:4px;
+                                    font-size:14px;
+                                    line-height:1.4;
+                                "
+                            >
+                                ${formatText(
+                                    comment.text
+                                )}
+                            </div>
 
-                <div
-                    class="comments-list"
-                    id="comments-list"
-                >
-                    ${
-                        comments.length
-                            ? comments
-                                .map(renderComment)
-                                .join('')
-                            : '<p>No comments yet.</p>'
-                    }
-                </div>
-
-                <form
-                    id="comment-form"
-                    data-post-id="${postId}"
-                >
-
-                    <input
-                        name="text"
-                        type="text"
-                        placeholder="Write a comment..."
-                        required
-                    >
-
-                    <button type="submit">
-                        Send
-                    </button>
-
-                </form>
-
-            </div>
-        `;
-
-        modal.hidden = false;
-
-        modal.querySelector(
-            '[data-close-comments]'
-        ).onclick = () => {
-            modal.hidden = true;
-        };
-
-        modal.querySelector(
-            '#comment-form'
-        ).addEventListener(
-            'submit',
-            event => {
-
-                event.preventDefault();
-
-                createComment(
-                    postId,
-                    event.currentTarget
-                );
-            }
-        );
+                            <div
+                                class="muted"
+                                style="margin-top:4px;"
+                            >
+                                ${formatTime(
+                                    comment.created_at
+                                )}
+                            </div>
+                        </div>
+                    `
+                )
+                .join("");
 
     } catch (error) {
 
-        showToast(
-            error.message ||
-            'Unable to load comments.',
-            'error'
+        container.innerHTML =
+            `<p class="muted">
+                Could not load comments.
+             </p>`;
+
+        console.error(
+            "Comments error:",
+            error
         );
     }
 }
 
-function renderComment(comment) {
 
-    return `
-        <div class="comment-item">
+async function createComment(postId) {
 
-            <strong>
-                ${escapeHTML(
-                    comment.full_name ||
-                    comment.username ||
-                    'User'
-                )}
-            </strong>
+    if (!requireLogin()) {
+        return;
+    }
 
-            <p>
-                ${escapeHTML(
-                    comment.text
-                )}
+    const input =
+        $("#comment-input");
+
+    if (!input) {
+        return;
+    }
+
+    const text =
+        input.value.trim();
+
+    if (!text) {
+        toast("Write a comment first.");
+        return;
+    }
+
+
+    try {
+
+        const form =
+            new FormData();
+
+        form.append(
+            "text",
+            text
+        );
+
+        await apiFetch(
+            `/api/posts/${postId}/comments`,
+            {
+                method: "POST",
+                body: form
+            }
+        );
+
+        input.value = "";
+
+        await loadComments(
+            postId
+        );
+
+        /*
+         * Refresh feed counters.
+         */
+
+        await loadFeed();
+
+        toast(
+            "Comment added."
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Comment error:",
+            error
+        );
+
+        toast(
+            error.message ||
+            "Could not add comment."
+        );
+    }
+}
+
+
+/* ============================================================
+   CREATE POST
+   ============================================================ */
+
+function openCreatePost() {
+
+    if (!requireLogin()) {
+        return;
+    }
+
+    openModal(`
+        <h2>Create Post</h2>
+
+        <form id="create-post-form">
+
+            <textarea
+                id="post-caption"
+                placeholder="What's on your mind?"
+                rows="5"
+                style="
+                    width:100%;
+                    padding:14px;
+                    border:1px solid var(--border);
+                    background:var(--bg-3);
+                    color:var(--text);
+                    border-radius:12px;
+                    resize:vertical;
+                    outline:none;
+                    font-family:inherit;
+                    margin-bottom:12px;
+                "
+            ></textarea>
+
+            <input
+                id="post-media"
+                type="file"
+                accept="image/*,video/*"
+                style="
+                    width:100%;
+                    margin-bottom:16px;
+                "
+            >
+
+            <button
+                class="btn-primary"
+                type="submit"
+                style="width:100%;"
+            >
+                Publish Post
+            </button>
+
+        </form>
+    `);
+
+
+    const form =
+        $("#create-post-form");
+
+    if (form) {
+
+        form.addEventListener(
+            "submit",
+            async (event) => {
+
+                event.preventDefault();
+
+                await createPost();
+            }
+        );
+    }
+}
+
+
+async function createPost() {
+
+    const caption =
+        $("#post-caption")?.value.trim() || "";
+
+    const file =
+        $("#post-media")?.files?.[0] || null;
+
+    if (!caption && !file) {
+        toast(
+            "Write something or select media."
+        );
+        return;
+    }
+
+
+    const form =
+        new FormData();
+
+    form.append(
+        "caption",
+        caption
+    );
+
+    if (file) {
+        form.append(
+            "media",
+            file
+        );
+    }
+
+
+    const button =
+        $("#create-post-form .btn-primary");
+
+    setButtonLoading(
+        button,
+        true,
+        "Publishing..."
+    );
+
+
+    try {
+
+        await apiFetch(
+            "/api/posts/create",
+            {
+                method: "POST",
+                body: form
+            }
+        );
+
+        closeModal();
+
+        await loadFeed();
+
+        toast(
+            "Post published successfully."
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Create post error:",
+            error
+        );
+
+        toast(
+            error.message ||
+            "Could not publish post."
+        );
+
+    } finally {
+
+        setButtonLoading(
+            button,
+            false,
+            "Publish Post"
+        );
+    }
+}
+
+
+/* ============================================================
+   SEARCH PEOPLE
+   ============================================================ */
+
+async function searchPeople(query) {
+
+    if (!query) {
+        closeSearchResults();
+        return;
+    }
+
+
+    /*
+     * Your current backend does not expose a dedicated
+     * search router. Therefore we try several likely
+     * endpoints without breaking the application.
+     */
+
+    const candidates = [
+        `/api/profile/search?q=${encodeURIComponent(query)}`,
+        `/api/users/search?q=${encodeURIComponent(query)}`,
+        `/api/search/users?q=${encodeURIComponent(query)}`
+    ];
+
+
+    let found = false;
+
+
+    for (const endpoint of candidates) {
+
+        try {
+
+            const data =
+                await apiFetch(endpoint);
+
+            const users =
+                extractUsers(data);
+
+            SEARCH_RESULTS =
+                users;
+
+            renderSearchResults(
+                users,
+                query
+            );
+
+            found = true;
+
+            break;
+
+        } catch (error) {
+
+            /*
+             * Continue to next endpoint.
+             */
+        }
+    }
+
+
+    /*
+     * If there is no search endpoint yet,
+     * use the current feed's users as a fallback.
+     * This allows testing profiles immediately.
+     */
+
+    if (!found) {
+
+        const unique =
+            new Map();
+
+        CACHED_POSTS.forEach(
+            (post) => {
+
+                if (!post.user_id) {
+                    return;
+                }
+
+                const key =
+                    String(post.user_id);
+
+                if (!unique.has(key)) {
+
+                    unique.set(
+                        key,
+                        {
+                            id: post.user_id,
+                            username:
+                                post.username,
+                            full_name:
+                                post.full_name,
+                            avatar_url:
+                                post.avatar_url
+                        }
+                    );
+                }
+            }
+        );
+
+
+        const users =
+            Array.from(
+                unique.values()
+            ).filter(
+                (user) => {
+
+                    const text = (
+                        `${user.username || ""} ` +
+                        `${user.full_name || ""}`
+                    ).toLowerCase();
+
+                    return text.includes(
+                        query.toLowerCase()
+                    );
+                }
+            );
+
+
+        SEARCH_RESULTS =
+            users;
+
+        renderSearchResults(
+            users,
+            query
+        );
+    }
+}
+
+
+function extractUsers(data) {
+
+    if (Array.isArray(data)) {
+        return data;
+    }
+
+    if (Array.isArray(data?.users)) {
+        return data.users;
+    }
+
+    if (Array.isArray(data?.results)) {
+        return data.results;
+    }
+
+    if (Array.isArray(data?.items)) {
+        return data.items;
+    }
+
+    return [];
+}
+
+
+/* ============================================================
+   SEARCH RESULT UI
+   ============================================================ */
+
+function renderSearchResults(
+    users,
+    query
+) {
+
+    closeSearchResults();
+
+
+    if (!users.length) {
+
+        const element =
+            document.createElement("div");
+
+        element.id =
+            "search-results";
+
+        element.style.cssText = `
+            background:var(--bg-2);
+            border:1px solid var(--border);
+            border-radius:14px;
+            margin-top:8px;
+            padding:14px;
+        `;
+
+        element.innerHTML = `
+            <p class="muted">
+                No user found for
+                "${escapeHTML(query)}"
+            </p>
+        `;
+
+
+        const searchBar =
+            $(".search-bar");
+
+        if (searchBar) {
+            searchBar.appendChild(
+                element
+            );
+        }
+
+        return;
+    }
+
+
+    const element =
+        document.createElement("div");
+
+    element.id =
+        "search-results";
+
+    element.style.cssText = `
+        background:var(--bg-2);
+        border:1px solid var(--border);
+        border-radius:14px;
+        margin-top:8px;
+        overflow:hidden;
+        position:relative;
+        z-index:80;
+    `;
+
+
+    element.innerHTML =
+        users
+            .slice(0, 20)
+            .map(
+                (user) => {
+
+                    const name =
+                        user.full_name ||
+                        user.username ||
+                        "User";
+
+                    const avatar =
+                        user.avatar_url
+                            ? `<img
+                                src="${escapeHTML(
+                                    mediaURL(user.avatar_url)
+                                )}"
+                                style="
+                                    width:100%;
+                                    height:100%;
+                                    object-fit:cover;
+                                    border-radius:50%;
+                                "
+                               >`
+                            : escapeHTML(
+                                getInitial(name)
+                              );
+
+                    return `
+                        <button
+                            type="button"
+                            onclick="openUserProfile(${Number(user.id) || 0})"
+                            style="
+                                width:100%;
+                                display:flex;
+                                align-items:center;
+                                gap:12px;
+                                padding:12px;
+                                border:0;
+                                border-bottom:1px solid var(--border);
+                                background:transparent;
+                                color:var(--text);
+                                text-align:left;
+                                cursor:pointer;
+                            "
+                        >
+
+                            <span
+                                style="
+                                    width:44px;
+                                    height:44px;
+                                    border-radius:50%;
+                                    display:flex;
+                                    align-items:center;
+                                    justify-content:center;
+                                    background:linear-gradient(
+                                        135deg,
+                                        var(--accent),
+                                        var(--accent-2)
+                                    );
+                                    font-weight:700;
+                                    overflow:hidden;
+                                    flex-shrink:0;
+                                "
+                            >
+                                ${avatar}
+                            </span>
+
+                            <span>
+                                <strong>
+                                    ${escapeHTML(name)}
+                                </strong>
+
+                                <small
+                                    class="muted"
+                                    style="display:block;"
+                                >
+                                    @${escapeHTML(
+                                        user.username || "user"
+                                    )}
+                                </small>
+                            </span>
+
+                        </button>
+                    `;
+                }
+            )
+            .join("");
+
+
+    const searchBar =
+        $(".search-bar");
+
+    if (searchBar) {
+        searchBar.appendChild(
+            element
+        );
+    }
+}
+
+
+function closeSearchResults() {
+
+    const results =
+        $("#search-results");
+
+    if (results) {
+        results.remove();
+    }
+}
+
+
+/* ============================================================
+   USER PROFILE
+   ============================================================ */
+
+async function openUserProfile(userId) {
+
+    if (!userId) {
+        toast("User profile is unavailable.");
+        return;
+    }
+
+    closeSearchResults();
+
+    CURRENT_PROFILE_ID =
+        Number(userId);
+
+
+    /*
+     * Own profile can be displayed immediately.
+     */
+
+    if (
+        CURRENT_USER &&
+        Number(CURRENT_USER.id) ===
+        Number(userId)
+    ) {
+
+        navigate(
+            "profile"
+        );
+
+        return;
+    }
+
+
+    PAGE_HISTORY.push(
+        CURRENT_PAGE
+    );
+
+    CURRENT_PAGE =
+        "sub";
+
+
+    $all(".page").forEach(
+        (page) =>
+            page.classList.remove("active")
+    );
+
+
+    const sub =
+        $("#page-sub");
+
+    if (sub) {
+        sub.classList.add("active");
+    }
+
+
+    updatePageTitle(
+        "Profile"
+    );
+
+    updateBackButton();
+
+
+    const content =
+        $("#sub-content");
+
+    if (!content) {
+        return;
+    }
+
+
+    content.innerHTML = `
+        <div class="post-card">
+            <p class="muted">
+                Loading profile...
+            </p>
+        </div>
+    `;
+
+
+    try {
+
+        const data =
+            await apiFetch(
+                `/api/profile/${Number(userId)}`
+            );
+
+        const user =
+            data?.user ||
+            data;
+
+
+        renderUserProfile(
+            user
+        );
+
+
+        /*
+         * Load user's posts from the existing feed
+         * if available.
+         */
+
+        await appendUserPosts(
+            user.id
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            "Profile error:",
+            error
+        );
+
+        content.innerHTML = `
+            <div class="post-card">
+                <strong>
+                    User not found
+                </strong>
+
+                <p class="muted"
+                   style="margin-top:8px;">
+                    ${escapeHTML(
+                        error.message
+                    )}
+                </p>
+            </div>
+        `;
+    }
+}
+
+
+function renderUserProfile(user) {
+
+    const content =
+        $("#sub-content");
+
+    if (!content) {
+        return;
+    }
+
+
+    const name =
+        user.full_name ||
+        user.username ||
+        "User";
+
+    const username =
+        user.username ||
+        "user";
+
+    const avatar =
+        user.avatar_url
+            ? `<img
+                src="${escapeHTML(
+                    mediaURL(user.avatar_url)
+                )}"
+                style="
+                    width:100%;
+                    height:100%;
+                    object-fit:cover;
+                    border-radius:50%;
+                "
+               >`
+            : escapeHTML(
+                getInitial(name)
+              );
+
+
+    content.innerHTML = `
+
+        <div
+            style="
+                background:linear-gradient(
+                    135deg,
+                    var(--accent),
+                    var(--accent-2)
+                );
+                height:120px;
+                margin:-16px -16px 0;
+            "
+        ></div>
+
+
+        <div
+            style="
+                text-align:center;
+                margin-top:-40px;
+                position:relative;
+            "
+        >
+
+            <div
+                style="
+                    width:80px;
+                    height:80px;
+                    border-radius:50%;
+                    margin:0 auto 12px;
+                    border:4px solid var(--bg);
+                    background:var(--bg-3);
+                    display:flex;
+                    align-items:center;
+                    justify-content:center;
+                    font-size:30px;
+                    font-weight:900;
+                    overflow:hidden;
+                "
+            >
+                ${avatar}
+            </div>
+
+            <h2>
+                ${escapeHTML(name)}
+            </h2>
+
+            <p class="muted">
+                @${escapeHTML(username)}
             </p>
 
+            ${
+                user.bio
+                    ? `
+                        <p
+                            class="muted"
+                            style="
+                                max-width:500px;
+                                margin:10px auto;
+                                line-height:1.5;
+                            "
+                        >
+                            ${formatText(
+                                user.bio
+                            )}
+                        </p>
+                      `
+                    : ""
+            }
+
+            ${
+                user.location
+                    ? `
+                        <p class="muted">
+                            📍 ${escapeHTML(
+                                user.location
+                            )}
+                        </p>
+                      `
+                    : ""
+            }
+
+
+            <div
+                style="
+                    display:flex;
+                    justify-content:center;
+                    gap:30px;
+                    margin:18px 0;
+                "
+            >
+                <div>
+                    <strong id="other-post-count">
+                        0
+                    </strong>
+                    <small
+                        class="muted"
+                        style="display:block;"
+                    >
+                        Posts
+                    </small>
+                </div>
+
+                <div>
+                    <strong>
+                        0
+                    </strong>
+                    <small
+                        class="muted"
+                        style="display:block;"
+                    >
+                        Followers
+                    </small>
+                </div>
+
+                <div>
+                    <strong>
+                        0
+                    </strong>
+                    <small
+                        class="muted"
+                        style="display:block;"
+                    >
+                        Following
+                    </small>
+                </div>
+            </div>
+
+
+            ${
+                Number(user.id) !==
+                Number(CURRENT_USER?.id)
+                    ? `
+                        <button
+                            class="btn-primary"
+                            onclick="startChatWithUser(${Number(user.id)})"
+                        >
+                            💬 Message
+                        </button>
+                      `
+                    : ""
+            }
+
+        </div>
+
+
+        <div
+            id="other-user-posts"
+            class="feed"
+            style="margin-top:20px;"
+        ></div>
+    `;
+}
+
+
+async function appendUserPosts(
+    userId
+) {
+
+    const container =
+        $("#other-user-posts");
+
+    if (!container) {
+        return;
+    }
+
+
+    try {
+
+        const data =
+            await apiFetch(
+                "/api/feed"
+            );
+
+        const posts =
+            extractPosts(data)
+                .filter(
+                    (post) =>
+                        Number(post.user_id) ===
+                        Number(userId)
+                );
+
+
+        const count =
+            $("#other-post-count");
+
+        if (count) {
+            count.textContent =
+                String(posts.length);
+        }
+
+
+        if (!posts.length) {
+
+            container.innerHTML = `
+                <div class="post-card">
+                    <p class="muted">
+                        No posts yet.
+                    </p>
+                </div>
+            `;
+
+            return;
+        }
+
+
+        container.innerHTML =
+            posts
+                .map(
+                    (post) =>
+                        renderPost(post)
+                )
+                .join("");
+
+
+    } catch (error) {
+
+        console.error(
+            "User posts error:",
+            error
+        );
+
+        container.innerHTML = `
+            <div class="post-card">
+                <p class="muted">
+                    Could not load posts.
+                </p>
+            </div>
+        `;
+    }
+}
+
+
+/* ============================================================
+   CHAT
+   ============================================================ */
+
+async function loadChats() {
+
+    const list =
+        $("#chat-list");
+
+    if (!list) {
+        return;
+    }
+
+
+    list.innerHTML = `
+        <div class="muted"
+             style="padding:20px;text-align:center;">
+            Loading chats...
+        </div>
+    `;
+
+
+    try {
+
+        const data =
+            await apiFetch(
+                "/api/messages"
+            );
+
+        const chats =
+            Array.isArray(data?.chats)
+                ? data.chats
+                : [];
+
+
+        CACHED_CHATS =
+            chats;
+
+
+        renderChatList(
+            chats
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            "Chat list error:",
+            error
+        );
+
+        list.innerHTML = `
+            <div class="post-card">
+                <strong>
+                    Chats
+                </strong>
+
+                <p class="muted"
+                   style="margin-top:8px;">
+                    No conversations yet.
+                </p>
+            </div>
+        `;
+    }
+}
+
+
+function renderChatList(chats) {
+
+    const list =
+        $("#chat-list");
+
+    if (!list) {
+        return;
+    }
+
+
+    if (!chats.length) {
+
+        list.innerHTML = `
+            <div
+                class="post-card"
+                style="text-align:center;margin-top:10px;"
+            >
+                <div style="font-size:42px;">
+                    💬
+                </div>
+
+                <strong>
+                    No chats yet
+                </strong>
+
+                <p
+                    class="muted"
+                    style="margin-top:8px;"
+                >
+                    Search for another user from Home
+                    and tap Message to start a conversation.
+                </p>
+            </div>
+        `;
+
+        return;
+    }
+
+
+    list.innerHTML =
+        chats
+            .map(
+                (chat) => {
+
+                    const user =
+                        chat.user ||
+                        chat.other_user ||
+                        chat.recipient ||
+                        chat;
+
+                    const name =
+                        user.full_name ||
+                        user.username ||
+                        chat.name ||
+                        "User";
+
+                    const username =
+                        user.username ||
+                        "";
+
+                    const initial =
+                        getInitial(name);
+
+                    return `
+                        <div
+                            class="chat-item"
+                            onclick="openChat(
+                                ${Number(
+                                    user.id ||
+                                    chat.user_id ||
+                                    chat.recipient_id ||
+                                    0
+                                )}
+                            )"
+                        >
+
+                            <div class="chat-avatar">
+                                ${escapeHTML(
+                                    initial
+                                )}
+                            </div>
+
+                            <div class="chat-info">
+
+                                <strong>
+                                    ${escapeHTML(name)}
+                                </strong>
+
+                                <span>
+                                    ${
+                                        chat.last_message ||
+                                        chat.message ||
+                                        (
+                                            username
+                                                ? `@${username}`
+                                                : "Conversation"
+                                        )
+                                    }
+                                </span>
+
+                            </div>
+
+                        </div>
+                    `;
+                }
+            )
+            .join("");
+}
+
+
+/* ============================================================
+   START CHAT
+   ============================================================ */
+
+async function startChatWithUser(
+    userId
+) {
+
+    if (!requireLogin()) {
+        return;
+    }
+
+    if (!userId) {
+        toast("User unavailable.");
+        return;
+    }
+
+    CURRENT_CHAT_USER =
+        Number(userId);
+
+    openChat(
+        userId
+    );
+}
+
+
+async function openChat(
+    userId
+) {
+
+    if (!userId) {
+        toast("Chat user unavailable.");
+        return;
+    }
+
+    CURRENT_CHAT_USER =
+        Number(userId);
+
+
+    PAGE_HISTORY.push(
+        CURRENT_PAGE
+    );
+
+    CURRENT_PAGE =
+        "sub";
+
+
+    $all(".page").forEach(
+        (page) =>
+            page.classList.remove("active")
+    );
+
+
+    const sub =
+        $("#page-sub");
+
+    if (sub) {
+        sub.classList.add("active");
+    }
+
+
+    updatePageTitle(
+        "Chat"
+    );
+
+    updateBackButton();
+
+
+    const content =
+        $("#sub-content");
+
+    if (!content) {
+        return;
+    }
+
+
+    content.innerHTML = `
+
+        <div
+            style="
+                display:flex;
+                flex-direction:column;
+                min-height:calc(100vh - 150px);
+            "
+        >
+
+            <div
+                id="chat-header"
+                style="
+                    display:flex;
+                    align-items:center;
+                    gap:10px;
+                    padding:0 0 14px;
+                    border-bottom:1px solid var(--border);
+                "
+            >
+                <div
+                    class="chat-avatar"
+                    style="
+                        width:42px;
+                        height:42px;
+                        font-size:15px;
+                    "
+                >
+                    ?
+                </div>
+
+                <div>
+                    <strong>
+                        Loading...
+                    </strong>
+                    <div class="muted">
+                        @user
+                    </div>
+                </div>
+            </div>
+
+
+            <div
+                id="chat-messages"
+                class="chat-msgs"
+                style="
+                    flex:1;
+                    overflow-y:auto;
+                "
+            >
+                <p class="muted">
+                    Loading conversation...
+                </p>
+            </div>
+
+
+            <form
+                id="chat-send-form"
+                style="
+                    display:flex;
+                    gap:8px;
+                    padding-top:12px;
+                    border-top:1px solid var(--border);
+                "
+            >
+
+                <input
+                    id="chat-message-input"
+                    type="text"
+                    placeholder="Type a message..."
+                    autocomplete="off"
+                    style="
+                        flex:1;
+                        padding:12px;
+                        border-radius:12px;
+                        border:1px solid var(--border);
+                        background:var(--bg-3);
+                        color:var(--text);
+                        outline:none;
+                    "
+                >
+
+                <button
+                    class="btn-primary"
+                    type="submit"
+                >
+                    ➤
+                </button>
+
+            </form>
+
+        </div>
+    `;
+
+
+    await loadChatUser(
+        userId
+    );
+
+    await loadConversation(
+        userId
+    );
+
+
+    const form =
+        $("#chat-send-form");
+
+    if (form) {
+
+        form.addEventListener(
+            "submit",
+            async (event) => {
+
+                event.preventDefault();
+
+                await sendMessage(
+                    userId
+                );
+            }
+        );
+    }
+}
+
+
+/* ============================================================
+   CHAT USER
+   ============================================================ */
+
+async function loadChatUser(
+    userId
+) {
+
+    const header =
+        $("#chat-header");
+
+    if (!header) {
+        return;
+    }
+
+
+    try {
+
+        const data =
+            await apiFetch(
+                `/api/profile/${Number(userId)}`
+            );
+
+        const user =
+            data?.user ||
+            data;
+
+
+        const name =
+            user.full_name ||
+            user.username ||
+            "User";
+
+        header.innerHTML = `
+            <div
+                class="chat-avatar"
+                style="
+                    width:42px;
+                    height:42px;
+                    font-size:15px;
+                "
+            >
+                ${escapeHTML(
+                    getInitial(name)
+                )}
+            </div>
+
+            <div>
+                <strong>
+                    ${escapeHTML(name)}
+                </strong>
+
+                <div class="muted">
+                    @${escapeHTML(
+                        user.username || "user"
+                    )}
+                </div>
+            </div>
+        `;
+
+    } catch (error) {
+
+        console.warn(
+            "Could not load chat user:",
+            error
+        );
+    }
+}
+
+
+/* ============================================================
+   LOAD CONVERSATION
+   ============================================================ */
+
+async function loadConversation(
+    userId
+) {
+
+    const container =
+        $("#chat-messages");
+
+    if (!container) {
+        return;
+    }
+
+
+    /*
+     * Current messages.py only exposes:
+     *
+     * GET /api/messages
+     *
+     * Therefore this function gracefully supports
+     * future conversation endpoints without crashing.
+     */
+
+    const candidates = [
+        `/api/messages/${Number(userId)}`,
+        `/api/messages/user/${Number(userId)}`,
+        `/api/messages?user_id=${Number(userId)}`
+    ];
+
+
+    for (const endpoint of candidates) {
+
+        try {
+
+            const data =
+                await apiFetch(
+                    endpoint
+                );
+
+            const messages =
+                extractMessages(data);
+
+            renderMessages(
+                messages
+            );
+
+            return;
+
+        } catch (error) {
+            /*
+             * Try next candidate.
+             */
+        }
+    }
+
+
+    /*
+     * Current backend has no conversation route yet.
+     */
+
+    container.innerHTML = `
+        <div
+            style="
+                text-align:center;
+                padding:30px 10px;
+            "
+        >
+            <div style="font-size:38px;">
+                💬
+            </div>
+
+            <strong>
+                Conversation ready
+            </strong>
+
+            <p
+                class="muted"
+                style="
+                    margin-top:8px;
+                    line-height:1.5;
+                "
+            >
+                The current messages router exposes
+                the chat list only. A conversation
+                send/read endpoint is required for
+                real-time messaging.
+            </p>
         </div>
     `;
 }
 
-async function createComment(
-    postId,
-    form
+
+function extractMessages(
+    data
 ) {
 
+    if (Array.isArray(data)) {
+        return data;
+    }
+
+    if (Array.isArray(data?.messages)) {
+        return data.messages;
+    }
+
+    if (Array.isArray(data?.chat)) {
+        return data.chat;
+    }
+
+    return [];
+}
+
+
+function renderMessages(
+    messages
+) {
+
+    const container =
+        $("#chat-messages");
+
+    if (!container) {
+        return;
+    }
+
+
+    if (!messages.length) {
+
+        container.innerHTML = `
+            <p
+                class="muted"
+                style="
+                    text-align:center;
+                    padding:30px 0;
+                "
+            >
+                No messages yet.
+                Start the conversation.
+            </p>
+        `;
+
+        return;
+    }
+
+
+    container.innerHTML =
+        messages
+            .map(
+                (message) => {
+
+                    const senderId =
+                        message.sender_id ||
+                        message.user_id;
+
+                    const mine =
+                        Number(senderId) ===
+                        Number(CURRENT_USER?.id);
+
+                    return `
+                        <div
+                            class="msg ${mine ? "user" : "ai"}"
+                        >
+                            ${formatText(
+                                message.text ||
+                                message.content ||
+                                message.message ||
+                                ""
+                            )}
+                        </div>
+                    `;
+                }
+            )
+            .join("");
+
+
+    container.scrollTop =
+        container.scrollHeight;
+}
+
+
+/* ============================================================
+   SEND MESSAGE
+   ============================================================ */
+
+async function sendMessage(
+    userId
+) {
+
+    if (!requireLogin()) {
+        return;
+    }
+
+
+    const input =
+        $("#chat-message-input");
+
+    if (!input) {
+        return;
+    }
+
+
     const text =
-        form.querySelector(
-            '[name="text"]'
-        )?.value?.trim();
+        input.value.trim();
 
     if (!text) {
         return;
     }
 
-    const data =
+
+    /*
+     * Future-compatible endpoint candidates.
+     */
+
+    const candidates = [
+        {
+            url: "/api/messages/send",
+            body: {
+                receiver_id: Number(userId),
+                recipient_id: Number(userId),
+                text
+            }
+        },
+        {
+            url: `/api/messages/${Number(userId)}`,
+            body: {
+                receiver_id: Number(userId),
+                text
+            }
+        }
+    ];
+
+
+    let sent = false;
+
+
+    for (const candidate of candidates) {
+
+        try {
+
+            await apiFetch(
+                candidate.url,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+                    body: JSON.stringify(
+                        candidate.body
+                    )
+                }
+            );
+
+            sent = true;
+            break;
+
+        } catch (error) {
+            /*
+             * Try next endpoint.
+             */
+        }
+    }
+
+
+    if (!sent) {
+
+        /*
+         * IMPORTANT:
+         * Do not pretend the message was saved.
+         */
+
+        toast(
+            "Messaging endpoint is not implemented in the current backend."
+        );
+
+        return;
+    }
+
+
+    input.value = "";
+
+    await loadConversation(
+        userId
+    );
+}
+
+
+/* ============================================================
+   STORIES
+   ============================================================ */
+
+async function loadStories() {
+
+    const bar =
+        $("#stories-bar");
+
+    if (!bar) {
+        return;
+    }
+
+
+    try {
+
+        const data =
+            await apiFetch(
+                "/api/stories"
+            );
+
+        const stories =
+            Array.isArray(data?.stories)
+                ? data.stories
+                : Array.isArray(data)
+                    ? data
+                    : [];
+
+
+        renderStories(
+            stories
+        );
+
+    } catch (error) {
+
+        /*
+         * Keep My Story button visible.
+         */
+
+        console.warn(
+            "Stories loading:",
+            error.message
+        );
+    }
+}
+
+
+function renderStories(
+    stories
+) {
+
+    const bar =
+        $("#stories-bar");
+
+    if (!bar) {
+        return;
+    }
+
+
+    const myStory = `
+        <div
+            class="story-item add-story"
+            id="add-story-btn"
+        >
+            <div
+                class="story-avatar add-avatar"
+            >
+                +
+            </div>
+            <span>
+                My Story
+            </span>
+        </div>
+    `;
+
+
+    bar.innerHTML =
+        myStory +
+        stories
+            .map(
+                (story) => {
+
+                    const name =
+                        story.full_name ||
+                        story.username ||
+                        "User";
+
+                    return `
+                        <div
+                            class="story-item"
+                            onclick="openStory(${Number(
+                                story.id
+                            ) || 0})"
+                        >
+
+                            <div
+                                class="story-avatar"
+                            >
+                                ${escapeHTML(
+                                    getInitial(name)
+                                )}
+                            </div>
+
+                            <span>
+                                ${escapeHTML(
+                                    name
+                                )}
+                            </span>
+
+                        </div>
+                    `;
+                }
+            )
+            .join("");
+
+
+    const add =
+        $("#add-story-btn");
+
+    if (add) {
+        add.addEventListener(
+            "click",
+            openCreateStory
+        );
+    }
+}
+
+
+/* ============================================================
+   CREATE STORY
+   ============================================================ */
+
+function openCreateStory() {
+
+    if (!requireLogin()) {
+        return;
+    }
+
+    openModal(`
+        <h2>My Story</h2>
+
+        <form id="create-story-form">
+
+            <textarea
+                id="story-caption"
+                rows="3"
+                placeholder="Add a caption..."
+                style="
+                    width:100%;
+                    padding:12px;
+                    border-radius:12px;
+                    border:1px solid var(--border);
+                    background:var(--bg-3);
+                    color:var(--text);
+                    outline:none;
+                    margin-bottom:12px;
+                    font-family:inherit;
+                "
+            ></textarea>
+
+            <input
+                id="story-media"
+                type="file"
+                accept="image/*,video/*"
+                style="
+                    width:100%;
+                    margin-bottom:16px;
+                "
+            >
+
+            <button
+                type="submit"
+                class="btn-primary"
+                style="width:100%;"
+            >
+                Post Story
+            </button>
+
+        </form>
+    `);
+
+
+    const form =
+        $("#create-story-form");
+
+    if (form) {
+
+        form.addEventListener(
+            "submit",
+            async (event) => {
+
+                event.preventDefault();
+
+                await createStory();
+            }
+        );
+    }
+}
+
+
+async function createStory() {
+
+    const file =
+        $("#story-media")?.files?.[0];
+
+    const caption =
+        $("#story-caption")?.value.trim() || "";
+
+
+    if (!file && !caption) {
+        toast(
+            "Select media or write a caption."
+        );
+        return;
+    }
+
+
+    const form =
         new FormData();
 
-    data.append(
-        'text',
-        text
+    form.append(
+        "caption",
+        caption
     );
 
+    if (file) {
+        form.append(
+            "media",
+            file
+        );
+    }
+
+
     try {
 
-        await POST(
-            `/api/posts/${postId}/comments`,
-            data
+        await apiFetch(
+            "/api/stories/create",
+            {
+                method: "POST",
+                body: form
+            }
         );
 
-        form.reset();
+        closeModal();
 
-        await openComments(
-            postId
-        );
+        await loadStories();
 
-        showToast(
-            'Comment added.',
-            'success'
+        toast(
+            "Story posted."
         );
 
     } catch (error) {
 
-        showToast(
+        toast(
             error.message ||
-            'Unable to comment.',
-            'error'
+            "Story endpoint is not available."
         );
     }
 }
 
 
-/* ============================================================
-   POST MENU
-   ============================================================ */
+async function openStory(
+    storyId
+) {
 
-function postMenu(postId) {
-
-    const post =
-        CURRENT_POSTS.find(
-            item =>
-                String(item.id) ===
-                String(postId)
-        );
-
-    if (!post) {
+    if (!storyId) {
         return;
     }
 
-    const own =
-        CURRENT_USER &&
-        Number(post.user_id) ===
-        Number(CURRENT_USER.id);
+    try {
 
-    const choice =
-        window.prompt(
-            own
-                ? 'Type DELETE to delete this post, or Cancel.'
-                : 'Post options: type SHARE to share.'
-        );
+        const data =
+            await apiFetch(
+                `/api/stories/${Number(storyId)}`
+            );
 
-    if (
-        own &&
-        choice &&
-        choice.toUpperCase() === 'DELETE'
-    ) {
+        const story =
+            data?.story ||
+            data;
 
-        deletePost(
-            postId
+        openModal(`
+            <h2>Story</h2>
+            <p>
+                ${formatText(
+                    story.caption || ""
+                )}
+            </p>
+        `);
+
+    } catch (error) {
+
+        toast(
+            "Story could not be opened."
         );
     }
 }
 
 
 /* ============================================================
-   DELETE POST
+   DISCOVERY
    ============================================================ */
 
-async function deletePost(postId) {
+async function loadDiscovery() {
+
+    const grid =
+        $("#discovery-grid");
+
+    if (!grid) {
+        return;
+    }
+
+
+    grid.innerHTML = `
+        <div
+            class="muted"
+            style="
+                grid-column:1/-1;
+                text-align:center;
+                padding:20px;
+            "
+        >
+            Loading Discovery...
+        </div>
+    `;
+
+
+    try {
+
+        const data =
+            await apiFetch(
+                "/api/discovery"
+            );
+
+        const cards =
+            Array.isArray(data?.cards)
+                ? data.cards
+                : [];
+
+
+        if (!cards.length) {
+            renderDefaultDiscovery();
+            return;
+        }
+
+
+        grid.innerHTML =
+            cards
+                .map(
+                    (card) =>
+                        `
+                        <div
+                            class="disc-card"
+                            onclick="openDiscovery('${escapeHTML(
+                                card.id
+                            )}')"
+                        >
+
+                            <span class="icon">
+                                ${escapeHTML(
+                                    card.icon || "✨"
+                                )}
+                            </span>
+
+                            <div class="title">
+                                ${escapeHTML(
+                                    card.title
+                                )}
+                            </div>
+
+                            <div class="desc">
+                                ${escapeHTML(
+                                    card.desc || ""
+                                )}
+                            </div>
+
+                        </div>
+                        `
+                )
+                .join("");
+
+
+    } catch (error) {
+
+        console.error(
+            "Discovery error:",
+            error
+        );
+
+        renderDefaultDiscovery();
+    }
+}
+
+
+function renderDefaultDiscovery() {
+
+    const grid =
+        $("#discovery-grid");
+
+    if (!grid) {
+        return;
+    }
+
+
+    const cards = [
+        ["ai-council", "📖", "AI Council", "Education, Health, Agriculture, Research"],
+        ["creative-studio", "🖼️", "Creative Studio", "Image, Video, Documents"],
+        ["market", "🛍️", "Market", "Products, Services, Digital"],
+        ["world-map", "🌍", "World Map", "Explore the world"],
+        ["channels", "📺", "Channels", "News and media"],
+        ["communities", "👥", "Communities", "Groups and communities"],
+        ["videos", "▶️", "Videos", "Short videos feed"],
+        ["settings", "⚙️", "Settings", "App preferences"]
+    ];
+
+
+    grid.innerHTML =
+        cards
+            .map(
+                (card) => `
+                    <div
+                        class="disc-card"
+                        onclick="openDiscovery('${card[0]}')"
+                    >
+                        <span class="icon">
+                            ${card[1]}
+                        </span>
+
+                        <div class="title">
+                            ${escapeHTML(card[2])}
+                        </div>
+
+                        <div class="desc">
+                            ${escapeHTML(card[3])}
+                        </div>
+                    </div>
+                `
+            )
+            .join("");
+}
+
+
+/* ============================================================
+   DISCOVERY ROUTER
+   ============================================================ */
+
+function openDiscovery(
+    id
+) {
+
+    if (!id) {
+        return;
+    }
+
+
+    if (id === "ai-council") {
+        openAICouncil();
+        return;
+    }
+
+    if (id === "creative-studio") {
+        openCreativeStudio();
+        return;
+    }
+
+    if (id === "market") {
+        openMarket();
+        return;
+    }
+
+    if (id === "world-map") {
+        openWorldMap();
+        return;
+    }
+
+    if (id === "channels") {
+        openChannels();
+        return;
+    }
+
+    if (id === "communities") {
+        openCommunities();
+        return;
+    }
+
+    if (id === "videos") {
+        openVideos();
+        return;
+    }
+
+    if (id === "settings") {
+        openSettings();
+        return;
+    }
+}
+
+
+/* ============================================================
+   SUB PAGE HELPER
+   ============================================================ */
+
+function openSubPage(
+    title,
+    html
+) {
+
+    PAGE_HISTORY.push(
+        CURRENT_PAGE
+    );
+
+    CURRENT_PAGE =
+        "sub";
+
+
+    $all(".page").forEach(
+        (page) =>
+            page.classList.remove("active")
+    );
+
+
+    const sub =
+        $("#page-sub");
+
+    if (sub) {
+        sub.classList.add("active");
+    }
+
+
+    const content =
+        $("#sub-content");
+
+    if (content) {
+        content.innerHTML =
+            html;
+    }
+
+
+    updatePageTitle(
+        title
+    );
+
+    updateBackButton();
+}
+
+
+/* ============================================================
+   AI COUNCIL
+   ============================================================ */
+
+async function openAICouncil() {
+
+    openSubPage(
+        "AI Council",
+        `
+        <div class="page-h">
+            AI Council
+        </div>
+
+        <div id="ai-list">
+            <p class="muted">
+                Loading AI Council...
+            </p>
+        </div>
+        `
+    );
+
+
+    try {
+
+        const data =
+            await apiFetch(
+                "/api/ai-council"
+            );
+
+        const ais =
+            Array.isArray(data?.ais)
+                ? data.ais
+                : [];
+
+
+        const list =
+            $("#ai-list");
+
+        if (!list) {
+            return;
+        }
+
+
+        list.innerHTML =
+            ais
+                .map(
+                    (ai) => `
+                        <div
+                            class="sub-item"
+                            onclick="openAI('${escapeHTML(
+                                ai.id
+                            )}')"
+                        >
+
+                            <div class="icon">
+                                ${escapeHTML(
+                                    ai.icon || "🤖"
+                                )}
+                            </div>
+
+                            <div class="text">
+
+                                <strong>
+                                    ${escapeHTML(
+                                        ai.title
+                                    )}
+                                </strong>
+
+                                <span>
+                                    ${escapeHTML(
+                                        ai.desc || ""
+                                    )}
+                                </span>
+
+                            </div>
+
+                            <span>
+                                →
+                            </span>
+
+                        </div>
+                    `
+                )
+                .join("");
+
+
+    } catch (error) {
+
+        toast(
+            "Could not load AI Council."
+        );
+    }
+}
+
+
+async function openAI(
+    aiId
+) {
+
+    if (aiId === "education") {
+        openEducationAI();
+        return;
+    }
 
     if (
-        !window.confirm(
-            'Delete this post?'
+        aiId === "health" ||
+        aiId === "agriculture" ||
+        aiId === "research"
+    ) {
+
+        openAIChat(
+            aiId,
+            aiId.charAt(0).toUpperCase() +
+            aiId.slice(1)
+        );
+
+        return;
+    }
+
+    if (aiId === "canvas") {
+
+        openSubPage(
+            "AI Canvas",
+            `
+                <div class="page-h">
+                    AI Canvas
+                </div>
+
+                <div class="sub-item">
+                    <div class="icon">
+                        📐
+                    </div>
+
+                    <div class="text">
+                        <strong>
+                            Workspace
+                        </strong>
+
+                        <span>
+                            Documents and AI workspace.
+                        </span>
+                    </div>
+                </div>
+
+                <p class="muted">
+                    AI Canvas is prepared for the
+                    next implementation phase.
+                </p>
+            `
+        );
+
+        return;
+    }
+}
+
+
+/* ============================================================
+   EDUCATION AI
+   ============================================================ */
+
+async function openEducationAI() {
+
+    openSubPage(
+        "Education AI",
+        `
+        <div class="page-h">
+            Education AI
+        </div>
+
+        <p class="muted"
+           style="margin-bottom:16px;">
+            Choose your country.
+        </p>
+
+        <div id="country-list">
+            <p class="muted">
+                Loading countries...
+            </p>
+        </div>
+        `
+    );
+
+
+    try {
+
+        const data =
+            await apiFetch(
+                "/api/ai-council/countries"
+            );
+
+        const countries =
+            Array.isArray(data?.countries)
+                ? data.countries
+                : [];
+
+
+        const list =
+            $("#country-list");
+
+        if (!list) {
+            return;
+        }
+
+
+        list.innerHTML =
+            countries
+                .map(
+                    (country) => `
+                        <div
+                            class="sub-item"
+                            onclick="chooseEducationCountry('${escapeHTML(
+                                country
+                            )}')"
+                        >
+
+                            <div class="icon">
+                                🌍
+                            </div>
+
+                            <div class="text">
+                                <strong>
+                                    ${escapeHTML(
+                                        country
+                                    )}
+                                </strong>
+
+                                <span>
+                                    Continue
+                                </span>
+                            </div>
+
+                            <span>
+                                →
+                            </span>
+
+                        </div>
+                    `
+                )
+                .join("");
+
+    } catch (error) {
+
+        toast(
+            "Could not load countries."
+        );
+    }
+}
+
+
+function chooseEducationCountry(
+    country
+) {
+
+    openSubPage(
+        "Choose Level",
+        `
+        <div class="page-h">
+            ${escapeHTML(country)}
+        </div>
+
+        <p class="muted"
+           style="margin-bottom:16px;">
+            Choose education level.
+        </p>
+
+        <div id="level-list">
+            Loading levels...
+        </div>
+        `
+    );
+
+
+    apiFetch(
+        "/api/ai-council/levels"
+    )
+        .then(
+            (data) => {
+
+                const levels =
+                    Array.isArray(data?.levels)
+                        ? data.levels
+                        : [];
+
+                const list =
+                    $("#level-list");
+
+                if (!list) {
+                    return;
+                }
+
+                list.innerHTML =
+                    levels
+                        .map(
+                            (level) => `
+                                <div
+                                    class="sub-item"
+                                    onclick="chooseEducationLevel(
+                                        '${escapeHTML(country)}',
+                                        '${escapeHTML(level)}'
+                                    )"
+                                >
+
+                                    <div class="icon">
+                                        🎓
+                                    </div>
+
+                                    <div class="text">
+                                        <strong>
+                                            ${escapeHTML(
+                                                level
+                                            )}
+                                        </strong>
+
+                                        <span>
+                                            Continue
+                                        </span>
+                                    </div>
+
+                                    <span>
+                                        →
+                                    </span>
+
+                                </div>
+                            `
+                        )
+                        .join("");
+            }
         )
-    ) {
+        .catch(
+            () => toast(
+                "Could not load levels."
+            )
+        );
+}
+
+
+function chooseEducationLevel(
+    country,
+    level
+) {
+
+    openSubPage(
+        "Choose Content",
+        `
+        <div class="page-h">
+            ${escapeHTML(level)}
+        </div>
+
+        <p class="muted"
+           style="margin-bottom:16px;">
+            ${escapeHTML(country)} ·
+            ${escapeHTML(level)}
+        </p>
+
+        <div id="content-type-list">
+            Loading content types...
+        </div>
+        `
+    );
+
+
+    apiFetch(
+        "/api/ai-council/content-types"
+    )
+        .then(
+            (data) => {
+
+                const types =
+                    Array.isArray(data?.content_types)
+                        ? data.content_types
+                        : [];
+
+                const list =
+                    $("#content-type-list");
+
+                if (!list) {
+                    return;
+                }
+
+
+                list.innerHTML =
+                    types
+                        .map(
+                            (content) => `
+                                <div
+                                    class="sub-item"
+                                    onclick="openEducationChat(
+                                        '${escapeHTML(country)}',
+                                        '${escapeHTML(level)}',
+                                        '${escapeHTML(content)}'
+                                    )"
+                                >
+
+                                    <div class="icon">
+                                        📚
+                                    </div>
+
+                                    <div class="text">
+                                        <strong>
+                                            ${escapeHTML(
+                                                content
+                                            )}
+                                        </strong>
+
+                                        <span>
+                                            Open AI assistant
+                                        </span>
+                                    </div>
+
+                                    <span>
+                                        →
+                                    </span>
+
+                                </div>
+                            `
+                        )
+                        .join("");
+            }
+        )
+        .catch(
+            () => toast(
+                "Could not load content types."
+            )
+        );
+}
+
+
+function openEducationChat(
+    country,
+    level,
+    content
+) {
+
+    openSubPage(
+        "AI Chat",
+        `
+        <div class="page-h">
+            Education AI
+        </div>
+
+        <div
+            class="post-card"
+            style="margin-bottom:12px;"
+        >
+            <strong>
+                ${escapeHTML(content)} assistant
+            </strong>
+
+            <p
+                class="muted"
+                style="
+                    margin-top:8px;
+                    line-height:1.5;
+                "
+            >
+                Hello! I'm your
+                ${escapeHTML(content)}
+                assistant for
+                ${escapeHTML(level)}
+                curriculum in
+                ${escapeHTML(country)}.
+                Ask me anything about a subject or topic.
+            </p>
+        </div>
+
+        <div
+            id="education-chat-messages"
+            class="chat-msgs"
+        ></div>
+
+        <form
+            id="education-chat-form"
+            style="
+                display:flex;
+                gap:8px;
+                margin-top:12px;
+            "
+        >
+            <input
+                id="education-chat-input"
+                type="text"
+                placeholder="Ask a question..."
+                style="
+                    flex:1;
+                    padding:12px;
+                    border-radius:12px;
+                    border:1px solid var(--border);
+                    background:var(--bg-3);
+                    color:var(--text);
+                    outline:none;
+                "
+            >
+
+            <button
+                class="btn-primary"
+                type="submit"
+            >
+                ➤
+            </button>
+        </form>
+        `
+    );
+
+
+    const form =
+        $("#education-chat-form");
+
+    if (form) {
+
+        form.addEventListener(
+            "submit",
+            async (event) => {
+
+                event.preventDefault();
+
+                await askEducationAI(
+                    country,
+                    level,
+                    content
+                );
+            }
+        );
+    }
+}
+
+
+async function askEducationAI(
+    country,
+    level,
+    content
+) {
+
+    const input =
+        $("#education-chat-input");
+
+    const messages =
+        $("#education-chat-messages");
+
+    if (!input || !messages) {
         return;
     }
 
+
+    const question =
+        input.value.trim();
+
+    if (!question) {
+        return;
+    }
+
+
+    messages.innerHTML += `
+        <div class="msg user">
+            ${formatText(question)}
+        </div>
+    `;
+
+    input.value = "";
+
+
     try {
 
-        await DELETE(
-            `/api/posts/${postId}`
-        );
+        const query =
+            new URLSearchParams({
+                ai: "education",
+                country,
+                level,
+                content,
+                q: question
+            });
 
-        showToast(
-            'Post deleted.',
-            'success'
-        );
 
-        await loadFeed();
+        const data =
+            await apiFetch(
+                `/api/ai-council/chat?${query.toString()}`
+            );
+
+
+        messages.innerHTML += `
+            <div class="msg ai">
+                ${formatText(
+                    data?.reply ||
+                    "AI response unavailable."
+                )}
+            </div>
+        `;
+
+
+        messages.scrollTop =
+            messages.scrollHeight;
 
     } catch (error) {
 
-        showToast(
-            error.message ||
-            'Unable to delete post.',
-            'error'
+        messages.innerHTML += `
+            <div class="msg ai">
+                ${escapeHTML(
+                    error.message ||
+                    "AI request failed."
+                )}
+            </div>
+        `;
+    }
+}
+
+
+function openAIChat(
+    ai,
+    title
+) {
+
+    openSubPage(
+        `${title} AI`,
+        `
+        <div class="page-h">
+            ${escapeHTML(title)} AI
+        </div>
+
+        <div
+            id="generic-ai-messages"
+            class="chat-msgs"
+        >
+            <div class="msg ai">
+                Hello! I'm your
+                ${escapeHTML(title)}
+                assistant.
+                Ask me a question.
+            </div>
+        </div>
+
+        <form
+            id="generic-ai-form"
+            style="
+                display:flex;
+                gap:8px;
+                margin-top:12px;
+            "
+        >
+            <input
+                id="generic-ai-input"
+                type="text"
+                placeholder="Ask a question..."
+                style="
+                    flex:1;
+                    padding:12px;
+                    border-radius:12px;
+                    border:1px solid var(--border);
+                    background:var(--bg-3);
+                    color:var(--text);
+                    outline:none;
+                "
+            >
+
+            <button
+                class="btn-primary"
+                type="submit"
+            >
+                ➤
+            </button>
+        </form>
+        `
+    );
+
+
+    const form =
+        $("#generic-ai-form");
+
+    if (form) {
+
+        form.addEventListener(
+            "submit",
+            async (event) => {
+
+                event.preventDefault();
+
+                const input =
+                    $("#generic-ai-input");
+
+                const messages =
+                    $("#generic-ai-messages");
+
+                if (!input || !messages) {
+                    return;
+                }
+
+                const question =
+                    input.value.trim();
+
+                if (!question) {
+                    return;
+                }
+
+                messages.innerHTML += `
+                    <div class="msg user">
+                        ${formatText(question)}
+                    </div>
+                `;
+
+                input.value = "";
+
+
+                try {
+
+                    const params =
+                        new URLSearchParams({
+                            ai,
+                            q: question
+                        });
+
+
+                    const data =
+                        await apiFetch(
+                            `/api/ai-council/chat?${params.toString()}`
+                        );
+
+
+                    messages.innerHTML += `
+                        <div class="msg ai">
+                            ${formatText(
+                                data?.reply ||
+                                "No response."
+                            )}
+                        </div>
+                    `;
+
+                } catch (error) {
+
+                    messages.innerHTML += `
+                        <div class="msg ai">
+                            ${escapeHTML(
+                                error.message
+                            )}
+                        </div>
+                    `;
+                }
+            }
         );
+    }
+}
+
+
+/* ============================================================
+   CREATIVE STUDIO
+   ============================================================ */
+
+async function openCreativeStudio() {
+
+    openSubPage(
+        "Creative Studio",
+        `
+        <div class="page-h">
+            Creative Studio
+        </div>
+
+        <div id="studio-tools">
+            Loading tools...
+        </div>
+        `
+    );
+
+
+    try {
+
+        const data =
+            await apiFetch(
+                "/api/studio"
+            );
+
+        const tools =
+            Array.isArray(data?.tools)
+                ? data.tools
+                : [];
+
+
+        const container =
+            $("#studio-tools");
+
+        if (!container) {
+            return;
+        }
+
+
+        container.innerHTML =
+            tools
+                .map(
+                    (tool) => `
+                        <div
+                            class="sub-item"
+                            onclick="openStudioTool('${escapeHTML(
+                                tool.id
+                            )}','${escapeHTML(
+                                tool.title
+                            )}')"
+                        >
+
+                            <div class="icon">
+                                ${escapeHTML(
+                                    tool.icon || "✨"
+                                )}
+                            </div>
+
+                            <div class="text">
+
+                                <strong>
+                                    ${escapeHTML(
+                                        tool.title
+                                    )}
+                                </strong>
+
+                                <span>
+                                    ${escapeHTML(
+                                        tool.desc || ""
+                                    )}
+                                </span>
+
+                            </div>
+
+                            <span>
+                                →
+                            </span>
+
+                        </div>
+                    `
+                )
+                .join("");
+
+    } catch (error) {
+
+        toast(
+            "Could not load Studio."
+        );
+    }
+}
+
+
+function openStudioTool(
+    id,
+    title
+) {
+
+    openSubPage(
+        title,
+        `
+        <div class="page-h">
+            ${escapeHTML(title)}
+        </div>
+
+        <div class="post-card">
+
+            <div
+                style="
+                    font-size:48px;
+                    text-align:center;
+                    margin-bottom:16px;
+                "
+            >
+                ✨
+            </div>
+
+            <strong>
+                ${escapeHTML(title)}
+            </strong>
+
+            <p
+                class="muted"
+                style="
+                    margin-top:8px;
+                    line-height:1.5;
+                "
+            >
+                This Creative Studio module is
+                prepared for the next implementation
+                phase.
+            </p>
+
+        </div>
+        `
+    );
+}
+
+
+/* ============================================================
+   MARKET
+   ============================================================ */
+
+async function openMarket() {
+
+    openSubPage(
+        "Market",
+        `
+        <div class="page-h">
+            Market
+        </div>
+
+        <div id="market-categories">
+            Loading categories...
+        </div>
+        `
+    );
+
+
+    try {
+
+        const data =
+            await apiFetch(
+                "/api/market/categories"
+            );
+
+        const categories =
+            Array.isArray(data?.categories)
+                ? data.categories
+                : [];
+
+
+        const container =
+            $("#market-categories");
+
+        if (!container) {
+            return;
+        }
+
+
+        container.innerHTML =
+            categories
+                .map(
+                    (category) => `
+                        <div
+                            class="sub-item"
+                            onclick="openMarketCategory('${escapeHTML(
+                                category.id
+                            )}','${escapeHTML(
+                                category.title
+                            )}')"
+                        >
+
+                            <div class="icon">
+                                ${
+                                    category.id === "products"
+                                        ? "🛍️"
+                                        : category.id === "services"
+                                            ? "🛠️"
+                                            : category.id === "digital"
+                                                ? "💾"
+                                                : "💼"
+                                }
+                            </div>
+
+                            <div class="text">
+                                <strong>
+                                    ${escapeHTML(
+                                        category.title
+                                    )}
+                                </strong>
+
+                                <span>
+                                    ${escapeHTML(
+                                        category.desc || ""
+                                    )}
+                                </span>
+                            </div>
+
+                            <span>
+                                →
+                            </span>
+
+                        </div>
+                    `
+                )
+                .join("");
+
+    } catch (error) {
+
+        toast(
+            "Could not load Market."
+        );
+    }
+}
+
+
+async function openMarketCategory(
+    category,
+    title
+) {
+
+    openSubPage(
+        title,
+        `
+        <div class="page-h">
+            ${escapeHTML(title)}
+        </div>
+
+        <div id="market-items">
+            Loading...
+        </div>
+        `
+    );
+
+
+    try {
+
+        const data =
+            await apiFetch(
+                `/api/market/items?category=${encodeURIComponent(
+                    category
+                )}`
+            );
+
+        const items =
+            Array.isArray(data?.items)
+                ? data.items
+                : [];
+
+
+        const container =
+            $("#market-items");
+
+        if (!container) {
+            return;
+        }
+
+
+        if (!items.length) {
+
+            container.innerHTML = `
+                <div class="post-card"
+                     style="text-align:center;">
+
+                    <div style="font-size:40px;">
+                        🛍️
+                    </div>
+
+                    <strong>
+                        No items yet
+                    </strong>
+
+                    <p
+                        class="muted"
+                        style="margin-top:8px;"
+                    >
+                        Market data will be available
+                        when the marketplace module
+                        is connected.
+                    </p>
+
+                </div>
+            `;
+
+            return;
+        }
+
+
+        container.innerHTML =
+            items
+                .map(
+                    (item) => `
+                        <div class="sub-item">
+
+                            <div class="icon">
+                                🛍️
+                            </div>
+
+                            <div class="text">
+                                <strong>
+                                    ${escapeHTML(
+                                        item.name ||
+                                        "Item"
+                                    )}
+                                </strong>
+
+                                <span>
+                                    ${escapeHTML(
+                                        item.description ||
+                                        ""
+                                    )}
+                                </span>
+                            </div>
+
+                        </div>
+                    `
+                )
+                .join("");
+
+    } catch (error) {
+
+        toast(
+            "Could not load Market items."
+        );
+    }
+}
+
+
+/* ============================================================
+   WORLD MAP
+   ============================================================ */
+
+async function openWorldMap() {
+
+    openSubPage(
+        "World Map",
+        `
+        <div class="page-h">
+            🌍 World Map
+        </div>
+
+        <div id="world-countries">
+            Loading countries...
+        </div>
+        `
+    );
+
+
+    try {
+
+        const data =
+            await apiFetch(
+                "/api/world-map/countries"
+            );
+
+        const countries =
+            Array.isArray(data?.countries)
+                ? data.countries
+                : [];
+
+
+        const container =
+            $("#world-countries");
+
+        if (!container) {
+            return;
+        }
+
+
+        container.innerHTML =
+            countries
+                .map(
+                    (country) => `
+                        <div
+                            class="sub-item"
+                            onclick="openCountry(
+                                '${escapeHTML(
+                                    country.name
+                                )}'
+                            )"
+                        >
+
+                            <div class="icon">
+                                🌍
+                            </div>
+
+                            <div class="text">
+
+                                <strong>
+                                    ${escapeHTML(
+                                        country.name
+                                    )}
+                                </strong>
+
+                                <span>
+                                    Users:
+                                    ${Number(
+                                        country.users
+                                    ) || 0}
+                                    · Posts:
+                                    ${Number(
+                                        country.posts
+                                    ) || 0}
+                                </span>
+
+                            </div>
+
+                            <span>
+                                →
+                            </span>
+
+                        </div>
+                    `
+                )
+                .join("");
+
+    } catch (error) {
+
+        toast(
+            "Could not load World Map."
+        );
+    }
+}
+
+
+function openCountry(
+    country
+) {
+
+    openSubPage(
+        country,
+        `
+        <div class="page-h">
+            🌍 ${escapeHTML(country)}
+        </div>
+
+        <div class="post-card">
+
+            <strong>
+                ${escapeHTML(country)}
+            </strong>
+
+            <p
+                class="muted"
+                style="margin-top:8px;line-height:1.5;"
+            >
+                Country users, posts, trending content
+                and local communities will appear here
+                as the World Map backend develops.
+            </p>
+
+        </div>
+        `
+    );
+}
+
+
+/* ============================================================
+   CHANNELS
+   ============================================================ */
+
+async function openChannels() {
+
+    openSubPage(
+        "Channels",
+        `
+        <div class="page-h">
+            📺 Channels
+        </div>
+
+        <div id="channels-list">
+            Loading...
+        </div>
+        `
+    );
+
+
+    try {
+
+        const data =
+            await apiFetch(
+                "/api/channels"
+            );
+
+        const channels =
+            Array.isArray(data?.channels)
+                ? data.channels
+                : [];
+
+
+        const container =
+            $("#channels-list");
+
+        if (!container) {
+            return;
+        }
+
+
+        container.innerHTML =
+            channels
+                .map(
+                    (channel) => `
+                        <div
+                            class="sub-item"
+                            onclick="openChannel('${escapeHTML(
+                                channel.id
+                            )}')"
+                        >
+
+                            <div class="icon">
+                                📺
+                            </div>
+
+                            <div class="text">
+
+                                <strong>
+                                    ${escapeHTML(
+                                        channel.name
+                                    )}
+                                </strong>
+
+                                <span>
+                                    ${escapeHTML(
+                                        channel.desc || ""
+                                    )}
+                                </span>
+
+                            </div>
+
+                            <span>
+                                →
+                            </span>
+
+                        </div>
+                    `
+                )
+                .join("");
+
+    } catch (error) {
+
+        toast(
+            "Could not load channels."
+        );
+    }
+}
+
+
+function openChannel(
+    channelId
+) {
+
+    openSubPage(
+        "Channel",
+        `
+        <div class="page-h">
+            📺 Channel
+        </div>
+
+        <div class="post-card">
+
+            <div style="font-size:40px;">
+                📺
+            </div>
+
+            <h3 style="margin-top:10px;">
+                Channel content
+            </h3>
+
+            <p
+                class="muted"
+                style="margin-top:8px;"
+            >
+                Live updates, articles, videos,
+                subscriptions and notifications
+                will be connected in the next phase.
+            </p>
+
+        </div>
+        `
+    );
+}
+
+
+/* ============================================================
+   COMMUNITIES
+   ============================================================ */
+
+async function openCommunities() {
+
+    openSubPage(
+        "Communities",
+        `
+        <div class="page-h">
+            👥 Communities
+        </div>
+
+        <div id="community-categories">
+            Loading...
+        </div>
+        `
+    );
+
+
+    try {
+
+        const data =
+            await apiFetch(
+                "/api/communities/categories"
+            );
+
+        const categories =
+            Array.isArray(data?.categories)
+                ? data.categories
+                : [];
+
+
+        const container =
+            $("#community-categories");
+
+        if (!container) {
+            return;
+        }
+
+
+        container.innerHTML =
+            categories
+                .map(
+                    (category) => `
+                        <div
+                            class="sub-item"
+                            onclick="openCommunityCategory(
+                                '${escapeHTML(
+                                    category.id
+                                )}',
+                                '${escapeHTML(
+                                    category.title
+                                )}'
+                            )"
+                        >
+
+                            <div class="icon">
+                                👥
+                            </div>
+
+                            <div class="text">
+
+                                <strong>
+                                    ${escapeHTML(
+                                        category.title
+                                    )}
+                                </strong>
+
+                                <span>
+                                    ${escapeHTML(
+                                        category.desc || ""
+                                    )}
+                                </span>
+
+                            </div>
+
+                            <span>
+                                →
+                            </span>
+
+                        </div>
+                    `
+                )
+                .join("");
+
+    } catch (error) {
+
+        toast(
+            "Could not load communities."
+        );
+    }
+}
+
+
+function openCommunityCategory(
+    id,
+    title
+) {
+
+    openSubPage(
+        title,
+        `
+        <div class="page-h">
+            👥 ${escapeHTML(title)}
+        </div>
+
+        <div class="post-card">
+
+            <strong>
+                ${escapeHTML(title)} Community
+            </strong>
+
+            <p
+                class="muted"
+                style="
+                    margin-top:8px;
+                    line-height:1.5;
+                "
+            >
+                Community posts, members, Join,
+                Leave and Create Community will be
+                connected in the community backend phase.
+            </p>
+
+            <button
+                class="btn-primary"
+                style="
+                    margin-top:16px;
+                    width:100%;
+                "
+                onclick="toast('Community backend coming soon.')"
+            >
+                Join Community
+            </button>
+
+        </div>
+        `
+    );
+}
+
+
+/* ============================================================
+   VIDEOS
+   ============================================================ */
+
+async function openVideos() {
+
+    openSubPage(
+        "Videos",
+        `
+        <div class="page-h">
+            ▶️ Videos
+        </div>
+
+        <div id="video-feed">
+            Loading videos...
+        </div>
+        `
+    );
+
+
+    try {
+
+        const data =
+            await apiFetch(
+                "/api/videos"
+            );
+
+        const videos =
+            Array.isArray(data?.videos)
+                ? data.videos
+                : Array.isArray(data)
+                    ? data
+                    : [];
+
+
+        const container =
+            $("#video-feed");
+
+        if (!container) {
+            return;
+        }
+
+
+        if (!videos.length) {
+
+            container.innerHTML = `
+                <div class="post-card"
+                     style="text-align:center;">
+
+                    <div style="font-size:42px;">
+                        ▶️
+                    </div>
+
+                    <strong>
+                        No videos yet
+                    </strong>
+
+                    <p
+                        class="muted"
+                        style="margin-top:8px;"
+                    >
+                        Video feed is ready for
+                        backend content.
+                    </p>
+
+                </div>
+            `;
+
+            return;
+        }
+
+
+        container.innerHTML =
+            videos
+                .map(
+                    (video) => `
+                        <div class="post-card">
+
+                            <video
+                                class="post-media"
+                                controls
+                                playsinline
+                                loop
+                                src="${escapeHTML(
+                                    mediaURL(
+                                        video.media_url ||
+                                        video.url ||
+                                        ""
+                                    )
+                                )}"
+                            ></video>
+
+                            <strong>
+                                ${escapeHTML(
+                                    video.username ||
+                                    video.full_name ||
+                                    "User"
+                                )}
+                            </strong>
+
+                            <p class="post-caption">
+                                ${formatText(
+                                    video.caption || ""
+                                )}
+                            </p>
+
+                        </div>
+                    `
+                )
+                .join("");
+
+    } catch (error) {
+
+        console.warn(
+            "Video endpoint:",
+            error.message
+        );
+
+        const container =
+            $("#video-feed");
+
+        if (container) {
+
+            container.innerHTML = `
+                <div class="post-card">
+                    <strong>
+                        Videos
+                    </strong>
+
+                    <p
+                        class="muted"
+                        style="margin-top:8px;"
+                    >
+                        Video module is ready.
+                    </p>
+                </div>
+            `;
+        }
     }
 }
 
@@ -1443,158 +5789,85 @@ async function deletePost(postId) {
    PROFILE
    ============================================================ */
 
-async function openProfile(userId) {
+async function loadMyProfile() {
 
-    if (!userId) {
+    if (!CURRENT_USER) {
+
+        await loadCurrentUser();
+
+        if (!CURRENT_USER) {
+            showAuth();
+            return;
+        }
+    }
+
+
+    updateOwnProfileUI();
+
+
+    const profilePosts =
+        $("#profile-posts");
+
+    if (!profilePosts) {
         return;
     }
+
 
     try {
 
-        const result =
-            await GET(
-                `/api/profile/${userId}`
+        const data =
+            await apiFetch(
+                "/api/feed"
             );
 
-        CURRENT_PROFILE =
-            result;
+        const posts =
+            extractPosts(data)
+                .filter(
+                    (post) =>
+                        Number(post.user_id) ===
+                        Number(CURRENT_USER.id)
+                );
 
-        renderProfilePage(
-            result
-        );
 
-        setView('profile');
+        const postCount =
+            $("#stat-posts");
+
+        if (postCount) {
+            postCount.textContent =
+                String(posts.length);
+        }
+
+
+        profilePosts.innerHTML =
+            posts.length
+                ? posts
+                    .map(
+                        (post) =>
+                            renderPost(post)
+                    )
+                    .join("")
+                : `
+                    <div class="post-card"
+                         style="text-align:center;">
+                        <strong>
+                            No posts yet
+                        </strong>
+
+                        <p
+                            class="muted"
+                            style="margin-top:8px;"
+                        >
+                            Your posts will appear here.
+                        </p>
+                    </div>
+                  `;
 
     } catch (error) {
 
-        showToast(
-            error.message ||
-            'User not found.',
-            'error'
+        console.error(
+            "Profile posts error:",
+            error
         );
-    }
-}
-
-async function loadOwnProfile() {
-
-    if (!CURRENT_USER?.id) {
-        return;
-    }
-
-    await openProfile(
-        CURRENT_USER.id
-    );
-}
-
-function renderProfilePage(user) {
-
-    const container =
-        byId('profile-content') ||
-        document.querySelector(
-            '[data-profile-content]'
-        );
-
-    if (!container) {
-        return;
-    }
-
-    const avatar =
-        absoluteURL(
-            user.avatar_url
-        );
-
-    container.innerHTML = `
-
-        <section class="profile-header">
-
-            ${
-                avatar
-                    ? `<img
-                        src="${escapeHTML(avatar)}"
-                        class="profile-avatar"
-                        alt=""
-                      >`
-                    : `<div class="profile-avatar placeholder">
-                        ${escapeHTML(
-                            (
-                                user.full_name ||
-                                user.username ||
-                                'U'
-                            ).charAt(0)
-                        )}
-                      </div>`
-            }
-
-            <h2>
-                ${escapeHTML(
-                    user.full_name ||
-                    user.username ||
-                    'User'
-                )}
-            </h2>
-
-            <p>
-                @${escapeHTML(
-                    user.username || ''
-                )}
-            </p>
-
-            <p>
-                ${escapeHTML(
-                    user.bio || ''
-                )}
-            </p>
-
-            <p>
-                📍 ${escapeHTML(
-                    user.location || ''
-                )}
-            </p>
-
-            ${
-                CURRENT_USER &&
-                Number(user.id) ===
-                Number(CURRENT_USER.id)
-                    ? `
-                        <button
-                            data-edit-profile
-                        >
-                            Edit Profile
-                        </button>
-                      `
-                    : `
-                        <button
-                            data-message-user="${user.id}"
-                        >
-                            💬 Message
-                        </button>
-                      `
-            }
-
-        </section>
-    `;
-
-    const editButton =
-        container.querySelector(
-            '[data-edit-profile]'
-        );
-
-    if (editButton) {
-        editButton.onclick =
-            openEditProfile;
-    }
-
-    const messageButton =
-        container.querySelector(
-            '[data-message-user]'
-        );
-
-    if (messageButton) {
-
-        messageButton.onclick =
-            () => openChatWithUser(
-                user
-            );
     }
 }
 
@@ -1609,1967 +5882,188 @@ function openEditProfile() {
         return;
     }
 
-    const fullName =
-        window.prompt(
-            'Full name:',
-            CURRENT_USER.full_name || ''
-        );
 
-    if (fullName === null) {
-        return;
+    openModal(`
+        <h2>Edit Profile</h2>
+
+        <form id="edit-profile-form">
+
+            <input
+                id="edit-fullname"
+                type="text"
+                value="${escapeHTML(
+                    CURRENT_USER.full_name || ""
+                )}"
+                placeholder="Full Name"
+                style="
+                    width:100%;
+                    padding:12px;
+                    margin-bottom:10px;
+                    border-radius:10px;
+                    border:1px solid var(--border);
+                    background:var(--bg-3);
+                    color:var(--text);
+                    outline:none;
+                "
+            >
+
+            <textarea
+                id="edit-bio"
+                rows="4"
+                placeholder="Bio"
+                style="
+                    width:100%;
+                    padding:12px;
+                    margin-bottom:10px;
+                    border-radius:10px;
+                    border:1px solid var(--border);
+                    background:var(--bg-3);
+                    color:var(--text);
+                    outline:none;
+                    font-family:inherit;
+                "
+            >${escapeHTML(
+                CURRENT_USER.bio || ""
+            )}</textarea>
+
+            <input
+                id="edit-location"
+                type="text"
+                value="${escapeHTML(
+                    CURRENT_USER.location || ""
+                )}"
+                placeholder="Location"
+                style="
+                    width:100%;
+                    padding:12px;
+                    margin-bottom:16px;
+                    border-radius:10px;
+                    border:1px solid var(--border);
+                    background:var(--bg-3);
+                    color:var(--text);
+                    outline:none;
+                "
+            >
+
+            <button
+                class="btn-primary"
+                type="submit"
+                style="width:100%;"
+            >
+                Save Changes
+            </button>
+
+        </form>
+    `);
+
+
+    const form =
+        $("#edit-profile-form");
+
+    if (form) {
+
+        form.addEventListener(
+            "submit",
+            async (event) => {
+
+                event.preventDefault();
+
+                await updateProfile();
+            }
+        );
     }
+}
+
+
+async function updateProfile() {
+
+    const fullName =
+        $("#edit-fullname")?.value.trim();
 
     const bio =
-        window.prompt(
-            'Bio:',
-            CURRENT_USER.bio || ''
-        );
-
-    if (bio === null) {
-        return;
-    }
+        $("#edit-bio")?.value.trim();
 
     const location =
-        window.prompt(
-            'Location:',
-            CURRENT_USER.location || ''
-        );
+        $("#edit-location")?.value.trim();
 
-    if (location === null) {
-        return;
-    }
-
-    updateProfile({
-        full_name: fullName,
-        bio,
-        location
-    });
-}
-
-async function updateProfile(data) {
 
     try {
 
-        const result =
-            await PATCH(
-                '/api/profile',
-                data
+        /*
+         * Current profile.py accepts query parameters.
+         * Therefore PATCH is sent using URLSearchParams.
+         */
+
+        const params =
+            new URLSearchParams();
+
+        params.append(
+            "full_name",
+            fullName || ""
+        );
+
+        params.append(
+            "bio",
+            bio || ""
+        );
+
+        params.append(
+            "location",
+            location || ""
+        );
+
+
+        const data =
+            await apiFetch(
+                `/api/profile?${params.toString()}`,
+                {
+                    method: "PATCH"
+                }
             );
 
-        CURRENT_USER =
-            result;
 
-        saveJSON(
-            STORAGE.USER,
-            CURRENT_USER
-        );
-
-        updateAuthUI();
-
-        renderProfilePage(
-            result
-        );
-
-        showToast(
-            'Profile updated.',
-            'success'
-        );
-
-    } catch (error) {
-
-        showToast(
-            error.message ||
-            'Unable to update profile.',
-            'error'
-        );
-    }
-}
+        const user =
+            data?.user ||
+            data;
 
 
-/* ============================================================
-   USER SEARCH
-   ============================================================ */
+        if (user?.id) {
+            saveCurrentUser(user);
+        } else {
 
-/*
-   IMPORTANT:
-   The current backend supplied by the user does NOT contain
-   a search endpoint.
+            CURRENT_USER.full_name =
+                fullName || "";
 
-   This function tries several possible endpoints safely.
-   When none exists, it tells the user instead of crashing.
-*/
+            CURRENT_USER.bio =
+                bio || "";
 
-async function searchUsers(query) {
+            CURRENT_USER.location =
+                location || "";
 
-    query =
-        safeText(query).trim();
-
-    if (!query) {
-        SEARCH_RESULTS = [];
-        renderSearchResults([]);
-        return;
-    }
-
-    const endpoints = [
-
-        `/api/profile/search?q=${encodeURIComponent(query)}`,
-
-        `/api/users/search?q=${encodeURIComponent(query)}`,
-
-        `/api/auth/users?q=${encodeURIComponent(query)}`
-
-    ];
-
-    for (const endpoint of endpoints) {
-
-        try {
-
-            const result =
-                await GET(endpoint);
-
-            const users =
-                Array.isArray(result)
-                    ? result
-                    : (
-                        result?.users ||
-                        result?.results ||
-                        []
-                    );
-
-            SEARCH_RESULTS =
-                users;
-
-            renderSearchResults(
-                users
+            saveCurrentUser(
+                CURRENT_USER
             );
-
-            return;
-
-        } catch (error) {
-
-            if (
-                error.status !== 404 &&
-                error.status !== 405
-            ) {
-                console.warn(
-                    'Search error:',
-                    error
-                );
-            }
         }
-    }
-
-    SEARCH_RESULTS = [];
-
-    renderSearchResults([]);
-
-    showToast(
-        'User search endpoint is not yet available in the backend.',
-        'error'
-    );
-}
-
-function renderSearchResults(users) {
-
-    const container =
-        byId('search-results') ||
-        document.querySelector(
-            '[data-search-results]'
-        );
-
-    if (!container) {
-        return;
-    }
-
-    if (!users.length) {
-
-        container.innerHTML =
-            '<div class="search-empty">No users found.</div>';
-
-        return;
-    }
-
-    container.innerHTML =
-        users
-            .map(user => {
-
-                const avatar =
-                    absoluteURL(
-                        user.avatar_url
-                    );
-
-                return `
-                    <button
-                        class="search-user"
-                        data-search-user="${escapeHTML(user.id)}"
-                    >
-
-                        ${
-                            avatar
-                                ? `<img
-                                    src="${escapeHTML(avatar)}"
-                                    alt=""
-                                  >`
-                                : '👤'
-                        }
-
-                        <span>
-                            <strong>
-                                ${escapeHTML(
-                                    user.full_name ||
-                                    user.username ||
-                                    'User'
-                                )}
-                            </strong>
-
-                            <small>
-                                @${escapeHTML(
-                                    user.username || ''
-                                )}
-                            </small>
-                        </span>
-
-                    </button>
-                `;
-            })
-            .join('');
-
-    $$(
-        '[data-search-user]',
-        container
-    ).forEach(button => {
-
-        button.onclick =
-            () => openProfile(
-                button.dataset.searchUser
-            );
-    });
-}
 
 
-/* ============================================================
-   CHAT
-   ============================================================ */
+        updateOwnProfileUI();
 
-async function loadChats() {
+        closeModal();
 
-    const container =
-        byId('chat-list') ||
-        document.querySelector(
-            '[data-chat-list]'
-        );
-
-    if (!container) {
-        return;
-    }
-
-    container.innerHTML =
-        '<div class="loading">Loading chats...</div>';
-
-    try {
-
-        const result =
-            await GET(
-                '/api/messages'
-            );
-
-        CURRENT_CHATS =
-            result?.chats || [];
-
-        renderChatList(
-            CURRENT_CHATS,
-            container
+        toast(
+            "Profile updated."
         );
 
     } catch (error) {
 
         console.error(
-            'Chat loading error:',
+            "Profile update error:",
             error
         );
 
-        container.innerHTML =
-            emptyState(
-                'Unable to load chats.'
-            );
-    }
-}
-
-function renderChatList(
-    chats,
-    container
-) {
-
-    if (!chats.length) {
-
-        container.innerHTML = `
-            <div class="chat-empty">
-
-                <div style="font-size:40px;">
-                    💬
-                </div>
-
-                <h3>No chats yet</h3>
-
-                <p>
-                    Search for another user and
-                    start a conversation.
-                </p>
-
-            </div>
-        `;
-
-        return;
-    }
-
-    container.innerHTML =
-        chats
-            .map(chat => {
-
-                const user =
-                    chat.user ||
-                    chat.other_user ||
-                    chat;
-
-                return `
-                    <button
-                        class="chat-item"
-                        data-chat-user="${escapeHTML(
-                            user.id || ''
-                        )}"
-                    >
-
-                        <div class="chat-avatar">
-                            ${
-                                user.avatar_url
-                                    ? `<img
-                                        src="${escapeHTML(
-                                            absoluteURL(
-                                                user.avatar_url
-                                            )
-                                        )}"
-                                        alt=""
-                                      >`
-                                    : '👤'
-                            }
-                        </div>
-
-                        <div>
-                            <strong>
-                                ${escapeHTML(
-                                    user.full_name ||
-                                    user.username ||
-                                    'User'
-                                )}
-                            </strong>
-
-                            <p>
-                                ${escapeHTML(
-                                    chat.last_message ||
-                                    ''
-                                )}
-                            </p>
-                        </div>
-
-                    </button>
-                `;
-            })
-            .join('');
-
-    $$(
-        '[data-chat-user]',
-        container
-    ).forEach(button => {
-
-        button.onclick =
-            async () => {
-
-                const userId =
-                    button.dataset.chatUser;
-
-                try {
-
-                    const user =
-                        await GET(
-                            `/api/profile/${userId}`
-                        );
-
-                    openChatWithUser(
-                        user
-                    );
-
-                } catch (error) {
-
-                    showToast(
-                        error.message,
-                        'error'
-                    );
-                }
-            };
-    });
-}
-
-
-/* ============================================================
-   OPEN CHAT
-   ============================================================ */
-
-function openChatWithUser(user) {
-
-    CURRENT_CHAT_USER =
-        user;
-
-    setView('chats');
-
-    renderChatWindow(
-        user
-    );
-}
-
-function renderChatWindow(user) {
-
-    let container =
-        byId('chat-window') ||
-        document.querySelector(
-            '[data-chat-window]'
-        );
-
-    if (!container) {
-
-        container =
-            document.createElement('div');
-
-        container.id =
-            'chat-window';
-
-        container.className =
-            'chat-window';
-
-        document.body.appendChild(
-            container
-        );
-    }
-
-    container.innerHTML = `
-
-        <div class="chat-header">
-
-            <button
-                data-close-chat
-            >
-                ←
-            </button>
-
-            <div>
-
-                <strong>
-                    ${escapeHTML(
-                        user.full_name ||
-                        user.username ||
-                        'User'
-                    )}
-                </strong>
-
-                <small>
-                    @${escapeHTML(
-                        user.username || ''
-                    )}
-                </small>
-
-            </div>
-
-            <div>
-                📞
-                🎥
-            </div>
-
-        </div>
-
-        <div
-            class="chat-messages"
-            id="chat-messages"
-        >
-            <div class="chat-placeholder">
-                Chat messages will appear here.
-            </div>
-        </div>
-
-        <form
-            id="chat-message-form"
-            class="chat-input-area"
-        >
-
-            <button
-                type="button"
-                data-chat-attachment
-            >
-                +
-            </button>
-
-            <input
-                type="text"
-                name="message"
-                placeholder="Message..."
-                autocomplete="off"
-                required
-            >
-
-            <button
-                type="submit"
-            >
-                ➤
-            </button>
-
-        </form>
-
-    `;
-
-    container.hidden = false;
-
-    container.querySelector(
-        '[data-close-chat]'
-    ).onclick = () => {
-
-        container.hidden = true;
-
-        loadChats();
-    };
-
-    container.querySelector(
-        '#chat-message-form'
-    ).addEventListener(
-        'submit',
-        event => {
-
-            event.preventDefault();
-
-            sendMessage(
-                user,
-                event.currentTarget
-            );
-        }
-    );
-
-    loadConversation(
-        user
-    );
-}
-
-
-/* ============================================================
-   LOAD CONVERSATION
-   ============================================================ */
-
-async function loadConversation(user) {
-
-    const container =
-        byId('chat-messages');
-
-    if (!container) {
-        return;
-    }
-
-    /*
-       The current backend only exposes:
-       GET /api/messages
-
-       Therefore we safely try conversation endpoints
-       but do not crash if they are unavailable.
-    */
-
-    const endpoints = [
-
-        `/api/messages/${user.id}`,
-
-        `/api/messages/chat/${user.id}`,
-
-        `/api/messages/conversation/${user.id}`
-
-    ];
-
-    for (const endpoint of endpoints) {
-
-        try {
-
-            const result =
-                await GET(endpoint);
-
-            const messages =
-                result?.messages ||
-                result?.chat ||
-                (
-                    Array.isArray(result)
-                        ? result
-                        : []
-                );
-
-            renderMessages(
-                messages,
-                container
-            );
-
-            return;
-
-        } catch (error) {
-
-            if (
-                error.status !== 404 &&
-                error.status !== 405
-            ) {
-                console.warn(
-                    error
-                );
-            }
-        }
-    }
-
-    container.innerHTML = `
-        <div class="chat-placeholder">
-
-            <div style="font-size:40px;">
-                💬
-            </div>
-
-            <p>
-                Conversation is ready,
-                but the message conversation
-                endpoint has not been added
-                to the backend yet.
-            </p>
-
-        </div>
-    `;
-}
-
-function renderMessages(
-    messages,
-    container
-) {
-
-    if (!messages.length) {
-
-        container.innerHTML =
-            '<div class="chat-placeholder">No messages yet.</div>';
-
-        return;
-    }
-
-    container.innerHTML =
-        messages
-            .map(message => {
-
-                const mine =
-                    Number(message.sender_id) ===
-                    Number(CURRENT_USER?.id);
-
-                return `
-                    <div
-                        class="chat-message ${
-                            mine
-                                ? 'mine'
-                                : 'theirs'
-                        }"
-                    >
-                        ${escapeHTML(
-                            message.text ||
-                            message.content ||
-                            message.message ||
-                            ''
-                        )}
-                    </div>
-                `;
-            })
-            .join('');
-}
-
-
-/* ============================================================
-   SEND MESSAGE
-   ============================================================ */
-
-async function sendMessage(
-    user,
-    form
-) {
-
-    const input =
-        form.querySelector(
-            '[name="message"]'
-        );
-
-    const text =
-        input?.value?.trim();
-
-    if (!text) {
-        return;
-    }
-
-    /*
-       Current backend does not yet have
-       POST /api/messages.
-
-       Try common endpoints safely.
-    */
-
-    const endpoints = [
-        '/api/messages',
-        `/api/messages/${user.id}`
-    ];
-
-    let sent = false;
-
-    for (const endpoint of endpoints) {
-
-        try {
-
-            const result =
-                await POST(
-                    endpoint,
-                    {
-                        recipient_id: user.id,
-                        receiver_id: user.id,
-                        text
-                    }
-                );
-
-            sent = true;
-
-            input.value = '';
-
-            appendLocalMessage(
-                text,
-                true
-            );
-
-            console.log(
-                'Message sent:',
-                result
-            );
-
-            break;
-
-        } catch (error) {
-
-            if (
-                error.status !== 404 &&
-                error.status !== 405
-            ) {
-                console.warn(
-                    endpoint,
-                    error
-                );
-            }
-        }
-    }
-
-    if (!sent) {
-
-        showToast(
-            'Message sending is not available yet because the backend has no POST message route.',
-            'error'
-        );
-    }
-}
-
-function appendLocalMessage(
-    text,
-    mine
-) {
-
-    const container =
-        byId('chat-messages');
-
-    if (!container) {
-        return;
-    }
-
-    const placeholder =
-        container.querySelector(
-            '.chat-placeholder'
-        );
-
-    if (placeholder) {
-        placeholder.remove();
-    }
-
-    const message =
-        document.createElement('div');
-
-    message.className =
-        `chat-message ${
-            mine
-                ? 'mine'
-                : 'theirs'
-        }`;
-
-    message.textContent =
-        text;
-
-    container.appendChild(
-        message
-    );
-
-    container.scrollTop =
-        container.scrollHeight;
-}
-
-
-/* ============================================================
-   DISCOVERY
-   ============================================================ */
-
-async function loadDiscovery() {
-
-    const container =
-        byId('discovery-content') ||
-        document.querySelector(
-            '[data-discovery]'
-        );
-
-    if (!container) {
-        return;
-    }
-
-    container.innerHTML =
-        '<div class="loading">Loading Discovery...</div>';
-
-    try {
-
-        const result =
-            await GET(
-                '/api/discovery'
-            );
-
-        DISCOVERY_DATA =
-            result?.cards || [];
-
-        renderDiscovery(
-            DISCOVERY_DATA,
-            container
-        );
-
-    } catch (error) {
-
-        container.innerHTML =
-            emptyState(
-                'Unable to load Discovery.'
-            );
-
-        showToast(
-            error.message,
-            'error'
-        );
-    }
-}
-
-function renderDiscovery(
-    cards,
-    container
-) {
-
-    container.innerHTML = `
-        <section class="discovery-page">
-
-            <header>
-                <h1>Discovery</h1>
-                <p>
-                    Explore MSAFIRI GLOBAL MEDIA
-                </p>
-            </header>
-
-            <div class="discovery-grid">
-
-                ${
-                    cards
-                        .map(card => `
-                            <button
-                                class="discovery-card"
-                                data-discovery-id="${escapeHTML(
-                                    card.id
-                                )}"
-                            >
-
-                                <div class="discovery-icon">
-                                    ${escapeHTML(
-                                        card.icon
-                                    )}
-                                </div>
-
-                                <strong>
-                                    ${escapeHTML(
-                                        card.title
-                                    )}
-                                </strong>
-
-                                <span>
-                                    ${escapeHTML(
-                                        card.desc
-                                    )}
-                                </span>
-
-                            </button>
-                        `)
-                        .join('')
-                }
-
-            </div>
-
-        </section>
-    `;
-
-    $$(
-        '[data-discovery-id]',
-        container
-    ).forEach(card => {
-
-        card.onclick =
-            () => openDiscoveryFeature(
-                card.dataset.discoveryId
-            );
-    });
-}
-
-
-/* ============================================================
-   DISCOVERY ROUTER
-   ============================================================ */
-
-async function openDiscoveryFeature(id) {
-
-    switch (id) {
-
-        case 'ai-council':
-            await openAICouncil();
-            break;
-
-        case 'creative-studio':
-            await openStudio();
-            break;
-
-        case 'market':
-            await openMarket();
-            break;
-
-        case 'world-map':
-            await openWorldMap();
-            break;
-
-        case 'channels':
-            await openChannels();
-            break;
-
-        case 'communities':
-            await openCommunities();
-            break;
-
-        case 'videos':
-            setView('videos');
-            break;
-
-        case 'settings':
-            openSettings();
-            break;
-
-        default:
-            showToast(
-                'Feature not available.',
-                'error'
-            );
-    }
-}
-
-
-/* ============================================================
-   DISCOVERY SUBPAGE
-   ============================================================ */
-
-function openDiscoveryPage(
-    title,
-    content,
-    onBack = null
-) {
-
-    let page =
-        byId('discovery-subpage');
-
-    if (!page) {
-
-        page =
-            document.createElement('div');
-
-        page.id =
-            'discovery-subpage';
-
-        page.className =
-            'msafiri-discovery-subpage';
-
-        document.body.appendChild(
-            page
-        );
-    }
-
-    page.innerHTML = `
-
-        <div class="subpage-header">
-
-            <button
-                data-subpage-back
-            >
-                ←
-            </button>
-
-            <h2>
-                ${escapeHTML(title)}
-            </h2>
-
-        </div>
-
-        <div class="subpage-content">
-            ${content}
-        </div>
-
-    `;
-
-    page.hidden = false;
-
-    page.querySelector(
-        '[data-subpage-back]'
-    ).onclick = () => {
-
-        page.hidden = true;
-
-        if (typeof onBack === 'function') {
-            onBack();
-        }
-    };
-}
-
-
-/* ============================================================
-   AI COUNCIL
-   ============================================================ */
-
-async function openAICouncil() {
-
-    try {
-
-        const result =
-            await GET(
-                '/api/ai-council'
-            );
-
-        const ais =
-            result?.ais || [];
-
-        openDiscoveryPage(
-            'AI Council',
-            `
-                <div class="option-grid">
-
-                    ${
-                        ais
-                            .map(ai => `
-                                <button
-                                    data-ai="${escapeHTML(
-                                        ai.id
-                                    )}"
-                                >
-
-                                    <span>
-                                        ${escapeHTML(
-                                            ai.icon
-                                        )}
-                                    </span>
-
-                                    <strong>
-                                        ${escapeHTML(
-                                            ai.title
-                                        )}
-                                    </strong>
-
-                                    <small>
-                                        ${escapeHTML(
-                                            ai.desc
-                                        )}
-                                    </small>
-
-                                </button>
-                            `)
-                            .join('')
-                    }
-
-                </div>
-            `
-        );
-
-        $$(
-            '[data-ai]',
-            byId('discovery-subpage')
-        ).forEach(button => {
-
-            button.onclick =
-                () => openAI(
-                    button.dataset.ai
-                );
-        });
-
-    } catch (error) {
-
-        showToast(
-            error.message,
-            'error'
-        );
-    }
-}
-
-
-/* ============================================================
-   EDUCATION AI
-   ============================================================ */
-
-async function openAI(ai) {
-
-    if (ai !== 'education') {
-
-        openDiscoveryPage(
-            `${ai} AI`,
-            `
-                <div class="ai-placeholder">
-
-                    <h3>
-                        ${escapeHTML(
-                            ai
-                        )} AI
-                    </h3>
-
-                    <p>
-                        AI chat interface prepared
-                        for a future AI integration.
-                    </p>
-
-                </div>
-            `
-        );
-
-        return;
-    }
-
-    try {
-
-        const countryResult =
-            await GET(
-                '/api/ai-council/countries'
-            );
-
-        const countries =
-            countryResult?.countries || [];
-
-        openDiscoveryPage(
-            'Education AI — Choose Country',
-            `
-                <div class="option-grid">
-
-                    ${
-                        countries
-                            .map(country => `
-                                <button
-                                    data-ai-country="${escapeHTML(
-                                        country
-                                    )}"
-                                >
-                                    🌍
-                                    ${escapeHTML(
-                                        country
-                                    )}
-                                </button>
-                            `)
-                            .join('')
-                    }
-
-                </div>
-            `
-        );
-
-        $$(
-            '[data-ai-country]',
-            byId('discovery-subpage')
-        ).forEach(button => {
-
-            button.onclick =
-                () => {
-
-                    AI_STATE.country =
-                        button.dataset.aiCountry;
-
-                    openAILevels();
-                };
-        });
-
-    } catch (error) {
-
-        showToast(
-            error.message,
-            'error'
-        );
-    }
-}
-
-async function openAILevels() {
-
-    const result =
-        await GET(
-            '/api/ai-council/levels'
-        );
-
-    const levels =
-        result?.levels || [];
-
-    openDiscoveryPage(
-        `Education AI — ${AI_STATE.country}`,
-        `
-            <div class="option-grid">
-
-                ${
-                    levels
-                        .map(level => `
-                            <button
-                                data-ai-level="${escapeHTML(
-                                    level
-                                )}"
-                            >
-                                🎓
-                                ${escapeHTML(
-                                    level
-                                )}
-                            </button>
-                        `)
-                        .join('')
-                }
-
-            </div>
-        `
-    );
-
-    $$(
-        '[data-ai-level]',
-        byId('discovery-subpage')
-    ).forEach(button => {
-
-        button.onclick =
-            () => {
-
-                AI_STATE.level =
-                    button.dataset.aiLevel;
-
-                openAIContentTypes();
-            };
-    });
-}
-
-async function openAIContentTypes() {
-
-    const result =
-        await GET(
-            '/api/ai-council/content-types'
-        );
-
-    const types =
-        result?.content_types || [];
-
-    openDiscoveryPage(
-        `Choose Content — ${AI_STATE.level}`,
-        `
-            <div class="option-grid">
-
-                ${
-                    types
-                        .map(type => `
-                            <button
-                                data-ai-content="${escapeHTML(
-                                    type
-                                )}"
-                            >
-                                📚
-                                ${escapeHTML(
-                                    type
-                                )}
-                            </button>
-                        `)
-                        .join('')
-                }
-
-            </div>
-        `
-    );
-
-    $$(
-        '[data-ai-content]',
-        byId('discovery-subpage')
-    ).forEach(button => {
-
-        button.onclick =
-            () => {
-
-                AI_STATE.content =
-                    button.dataset.aiContent;
-
-                openAIChat();
-            };
-    });
-}
-
-function openAIChat() {
-
-    openDiscoveryPage(
-        'AI Chat',
-        `
-
-            <div class="ai-chat">
-
-                <div class="ai-message">
-                    Hello! I'm your
-                    ${escapeHTML(
-                        AI_STATE.content
-                    )}
-                    assistant for
-                    ${escapeHTML(
-                        AI_STATE.level
-                    )}
-                    curriculum in
-                    ${escapeHTML(
-                        AI_STATE.country
-                    )}.
-                    Ask me anything about
-                    a subject or topic.
-                </div>
-
-                <div
-                    id="ai-chat-messages"
-                ></div>
-
-                <form
-                    id="ai-question-form"
-                >
-
-                    <input
-                        name="question"
-                        placeholder="Ask a question..."
-                        required
-                    >
-
-                    <button>
-                        Ask
-                    </button>
-
-                </form>
-
-            </div>
-
-        `
-    );
-
-    const form =
-        byId('ai-question-form');
-
-    form?.addEventListener(
-        'submit',
-        async event => {
-
-            event.preventDefault();
-
-            const question =
-                form.querySelector(
-                    '[name="question"]'
-                ).value.trim();
-
-            if (!question) {
-                return;
-            }
-
-            await askAI(
-                question
-            );
-
-            form.reset();
-        }
-    );
-}
-
-async function askAI(question) {
-
-    try {
-
-        const params =
-            new URLSearchParams({
-                ai: 'education',
-                country: AI_STATE.country,
-                level: AI_STATE.level,
-                content: AI_STATE.content,
-                q: question
-            });
-
-        const result =
-            await GET(
-                `/api/ai-council/chat?${params}`
-            );
-
-        const container =
-            byId('ai-chat-messages');
-
-        if (!container) {
-            return;
-        }
-
-        container.insertAdjacentHTML(
-            'beforeend',
-            `
-                <div class="ai-question">
-                    ${escapeHTML(
-                        question
-                    )}
-                </div>
-
-                <div class="ai-answer">
-                    ${escapeHTML(
-                        result?.reply ||
-                        'No answer.'
-                    )}
-                </div>
-            `
-        );
-
-    } catch (error) {
-
-        showToast(
-            error.message,
-            'error'
-        );
-    }
-}
-
-
-/* ============================================================
-   CREATIVE STUDIO
-   ============================================================ */
-
-async function openStudio() {
-
-    try {
-
-        const result =
-            await GET(
-                '/api/studio'
-            );
-
-        const tools =
-            result?.tools || [];
-
-        openDiscoveryPage(
-            'Creative Studio',
-            `
-                <div class="option-grid">
-
-                    ${
-                        tools
-                            .map(tool => `
-                                <button
-                                    data-studio-tool="${escapeHTML(
-                                        tool.id
-                                    )}"
-                                >
-
-                                    <span>
-                                        ${escapeHTML(
-                                            tool.icon
-                                        )}
-                                    </span>
-
-                                    <strong>
-                                        ${escapeHTML(
-                                            tool.title
-                                        )}
-                                    </strong>
-
-                                    <small>
-                                        ${escapeHTML(
-                                            tool.desc
-                                        )}
-                                    </small>
-
-                                </button>
-                            `)
-                            .join('')
-                    }
-
-                </div>
-            `
-        );
-
-        $$(
-            '[data-studio-tool]',
-            byId('discovery-subpage')
-        ).forEach(button => {
-
-            button.onclick =
-                () => {
-
-                    showToast(
-                        'Creative Studio tool prepared for the next phase.',
-                        'info'
-                    );
-                };
-        });
-
-    } catch (error) {
-
-        showToast(
-            error.message,
-            'error'
-        );
-    }
-}
-
-
-/* ============================================================
-   MARKET
-   ============================================================ */
-
-async function openMarket() {
-
-    try {
-
-        const result =
-            await GET(
-                '/api/market/categories'
-            );
-
-        const categories =
-            result?.categories || [];
-
-        openDiscoveryPage(
-            'MSAFIRI MARKET',
-            `
-                <div class="option-grid">
-
-                    ${
-                        categories
-                            .map(category => `
-                                <button
-                                    data-market-category="${escapeHTML(
-                                        category.id
-                                    )}"
-                                >
-
-                                    🛍️
-
-                                    <strong>
-                                        ${escapeHTML(
-                                            category.title
-                                        )}
-                                    </strong>
-
-                                    <small>
-                                        ${escapeHTML(
-                                            category.desc
-                                        )}
-                                    </small>
-
-                                </button>
-                            `)
-                            .join('')
-                    }
-
-                </div>
-            `
-        );
-
-        $$(
-            '[data-market-category]',
-            byId('discovery-subpage')
-        ).forEach(button => {
-
-            button.onclick =
-                () => openMarketItems(
-                    button.dataset.marketCategory
-                );
-        });
-
-    } catch (error) {
-
-        showToast(
-            error.message,
-            'error'
-        );
-    }
-}
-
-async function openMarketItems(category) {
-
-    try {
-
-        const result =
-            await GET(
-                `/api/market/items?category=${encodeURIComponent(category)}`
-            );
-
-        const items =
-            result?.items || [];
-
-        openDiscoveryPage(
-            `Market — ${category}`,
-            items.length
-                ? items
-                    .map(item => `
-                        <article class="market-item">
-
-                            <h3>
-                                ${escapeHTML(
-                                    item.name ||
-                                    'Product'
-                                )}
-                            </h3>
-
-                            <p>
-                                ${escapeHTML(
-                                    item.description ||
-                                    ''
-                                )}
-                            </p>
-
-                        </article>
-                    `)
-                    .join('')
-                : `
-                    <div class="empty-state">
-
-                        <div style="font-size:40px;">
-                            🛍️
-                        </div>
-
-                        <h3>
-                            No items yet
-                        </h3>
-
-                        <p>
-                            Market items will appear here
-                            when sellers publish products.
-                        </p>
-
-                    </div>
-                `
-        );
-
-    } catch (error) {
-
-        showToast(
-            error.message,
-            'error'
-        );
-    }
-}
-
-
-/* ============================================================
-   WORLD MAP
-   ============================================================ */
-
-async function openWorldMap() {
-
-    try {
-
-        const result =
-            await GET(
-                '/api/world-map/countries'
-            );
-
-        const countries =
-            result?.countries || [];
-
-        openDiscoveryPage(
-            'World Map',
-            `
-                <div class="world-map-placeholder">
-
-                    <div style="font-size:70px;">
-                        🌍
-                    </div>
-
-                    <h3>
-                        MSAFIRI World
-                    </h3>
-
-                    <p>
-                        Explore users and content
-                        around the world.
-                    </p>
-
-                </div>
-
-                <div class="option-grid">
-
-                    ${
-                        countries
-                            .map(country => `
-                                <button
-                                    data-map-country="${escapeHTML(
-                                        country.name
-                                    )}"
-                                >
-
-                                    🌍
-                                    ${escapeHTML(
-                                        country.name
-                                    )}
-
-                                    <small>
-                                        Users:
-                                        ${country.users || 0}
-                                    </small>
-
-                                    <small>
-                                        Posts:
-                                        ${country.posts || 0}
-                                    </small>
-
-                                </button>
-                            `)
-                            .join('')
-                    }
-
-                </div>
-            `
-        );
-
-    } catch (error) {
-
-        showToast(
-            error.message,
-            'error'
-        );
-    }
-}
-
-
-/* ============================================================
-   CHANNELS
-   ============================================================ */
-
-async function openChannels() {
-
-    try {
-
-        const result =
-            await GET(
-                '/api/channels'
-            );
-
-        const channels =
-            result?.channels || [];
-
-        openDiscoveryPage(
-            'Channels',
-            `
-                <div class="channel-list">
-
-                    ${
-                        channels
-                            .map(channel => `
-                                <button
-                                    class="channel-item"
-                                    data-channel-id="${escapeHTML(
-                                        channel.id
-                                    )}"
-                                >
-
-                                    📺
-
-                                    <strong>
-                                        ${escapeHTML(
-                                            channel.name
-                                        )}
-                                    </strong>
-
-                                    <small>
-                                        ${escapeHTML(
-                                            channel.desc
-                                        )}
-                                    </small>
-
-                                </button>
-                            `)
-                            .join('')
-                    }
-
-                </div>
-            `
-        );
-
-    } catch (error) {
-
-        showToast(
-            error.message,
-            'error'
-        );
-    }
-}
-
-
-/* ============================================================
-   COMMUNITIES
-   ============================================================ */
-
-async function openCommunities() {
-
-    try {
-
-        const result =
-            await GET(
-                '/api/communities/categories'
-            );
-
-        const categories =
-            result?.categories || [];
-
-        openDiscoveryPage(
-            'Communities',
-            `
-                <div class="option-grid">
-
-                    ${
-                        categories
-                            .map(category => `
-                                <button
-                                    data-community-category="${escapeHTML(
-                                        category.id
-                                    )}"
-                                >
-
-                                    👥
-
-                                    <strong>
-                                        ${escapeHTML(
-                                            category.title
-                                        )}
-                                    </strong>
-
-                                    <small>
-                                        ${escapeHTML(
-                                            category.desc
-                                        )}
-                                    </small>
-
-                                </button>
-                            `)
-                            .join('')
-                    }
-
-                </div>
-            `
-        );
-
-    } catch (error) {
-
-        showToast(
-            error.message,
-            'error'
-        );
-    }
-}
-
-
-/* ============================================================
-   SETTINGS
-   ============================================================ */
-
-async function openSettings() {
-
-    try {
-
-        const result =
-            await GET(
-                '/api/settings'
-            );
-
-        openDiscoveryPage(
-            'Settings',
-            `
-
-                <div class="settings-list">
-
-                    <button
-                        data-setting-manual
-                    >
-                        📖
-                        <span>
-                            User Manual
-                        </span>
-                    </button>
-
-                    <button
-                        data-setting-theme
-                    >
-                        🌓
-                        <span>
-                            Toggle Theme
-                        </span>
-                    </button>
-
-                    <button>
-                        ℹ️
-                        <span>
-                            Version
-                            ${escapeHTML(
-                                result?.version ||
-                                APP_VERSION
-                            )}
-                        </span>
-                    </button>
-
-                    <button
-                        data-setting-logout
-                    >
-                        🚪
-                        <span>
-                            Logout
-                        </span>
-                    </button>
-
-                </div>
-
-            `
-        );
-
-        const page =
-            byId(
-                'discovery-subpage'
-            );
-
-        page.querySelector(
-            '[data-setting-manual]'
-        )?.addEventListener(
-            'click',
-            openUserManual
-        );
-
-        page.querySelector(
-            '[data-setting-theme]'
-        )?.addEventListener(
-            'click',
-            toggleTheme
-        );
-
-        page.querySelector(
-            '[data-setting-logout]'
-        )?.addEventListener(
-            'click',
-            logout
-        );
-
-    } catch (error) {
-
-        showToast(
-            error.message,
-            'error'
+        toast(
+            error.message ||
+            "Could not update profile."
         );
     }
 }
@@ -3579,206 +6073,286 @@ async function openSettings() {
    USER MANUAL
    ============================================================ */
 
-async function openUserManual() {
+async function showUserManual() {
+
+    let manual;
 
     try {
 
-        const manual =
-            await GET(
-                '/api/user-manual'
+        manual =
+            await apiFetch(
+                "/api/user-manual"
             );
-
-        openDiscoveryPage(
-            'User Manual',
-            `
-
-                <div class="user-manual">
-
-                    <div class="manual-logo">
-                        M
-                    </div>
-
-                    <h1>
-                        ${escapeHTML(
-                            manual.app
-                        )}
-                    </h1>
-
-                    <p>
-                        ${escapeHTML(
-                            manual.tagline
-                        )}
-                    </p>
-
-                    <hr>
-
-                    <h2>
-                        About MSAFIRI
-                    </h2>
-
-                    <p>
-                        ${escapeHTML(
-                            manual.about
-                        )}
-                    </p>
-
-                    <h2>
-                        Sections of the App
-                    </h2>
-
-                    ${
-                        Object.entries(
-                            manual.sections || {}
-                        )
-                        .map(
-                            ([key, value]) => `
-                                <p>
-                                    <strong>
-                                        ${escapeHTML(
-                                            key
-                                        )}
-                                    :
-                                    </strong>
-                                    ${escapeHTML(
-                                        value
-                                    )}
-                                </p>
-                            `
-                        )
-                        .join('')
-                    }
-
-                    <h2>
-                        How to Use MSAFIRI
-                    </h2>
-
-                    ${
-                        Object.entries(
-                            manual.how_to_use || {}
-                        )
-                        .map(
-                            ([key, value]) => `
-                                <p>
-                                    <strong>
-                                        ${escapeHTML(
-                                            key
-                                        )}
-                                    :
-                                    </strong>
-                                    ${escapeHTML(
-                                        value
-                                    )}
-                                </p>
-                            `
-                        )
-                        .join('')
-                    }
-
-                    <h2>
-                        Support
-                    </h2>
-
-                    <p>
-                        ${escapeHTML(
-                            manual.support
-                        )}
-                    </p>
-
-                    <button
-                        id="download-manual"
-                    >
-                        📥 Download User Manual
-                    </button>
-
-                </div>
-
-            `
-        );
-
-        byId(
-            'download-manual'
-        )?.addEventListener(
-            'click',
-            () => downloadManual(
-                manual
-            )
-        );
 
     } catch (error) {
 
-        showToast(
-            error.message,
-            'error'
-        );
+        manual = {
+            app: APP_NAME,
+            tagline: APP_VERSION,
+            founder: FOUNDER,
+            company: COMPANY,
+            version: APP_VERSION
+        };
     }
+
+
+    openModal(`
+        <h2>
+            ${escapeHTML(
+                manual.app || APP_NAME
+            )}
+        </h2>
+
+        <p class="muted">
+            ${escapeHTML(
+                manual.tagline || "Connect beyond"
+            )}
+        </p>
+
+
+        <div class="manual-section">
+
+            <h3>
+                About MSAFIRI
+            </h3>
+
+            <p>
+                ${escapeHTML(
+                    manual.about ||
+                    `${APP_NAME} is a social, communication and AI application.`
+                )}
+            </p>
+
+        </div>
+
+
+        <div class="manual-section">
+
+            <h3>
+                Founder & Company
+            </h3>
+
+            <p>
+                Founder:
+                ${escapeHTML(
+                    manual.founder ||
+                    FOUNDER
+                )}
+            </p>
+
+            <p>
+                Company:
+                ${escapeHTML(
+                    manual.company ||
+                    COMPANY
+                )}
+            </p>
+
+        </div>
+
+
+        <div class="manual-section">
+
+            <h3>
+                Sections of the App
+            </h3>
+
+            <ul>
+
+                <li>
+                    Home — Feed, Stories, Posts
+                </li>
+
+                <li>
+                    Discovery — AI Council, Studio,
+                    Market, World Map, Channels,
+                    Communities, Videos, Settings
+                </li>
+
+                <li>
+                    Chats — Messaging
+                </li>
+
+                <li>
+                    Profile — Your profile
+                </li>
+
+            </ul>
+
+        </div>
+
+
+        <div class="manual-section">
+
+            <h3>
+                How to Use MSAFIRI
+            </h3>
+
+            <ul>
+
+                <li>
+                    Register → Fill details →
+                    Create Account
+                </li>
+
+                <li>
+                    Home → + → Create Post
+                </li>
+
+                <li>
+                    My Story → Select media →
+                    Post Story
+                </li>
+
+                <li>
+                    Search people → Open profile →
+                    Message
+                </li>
+
+                <li>
+                    Discovery → AI Council →
+                    Choose AI
+                </li>
+
+            </ul>
+
+        </div>
+
+
+        <div class="manual-section">
+
+            <h3>
+                Support
+            </h3>
+
+            <p>
+                ${escapeHTML(
+                    manual.support ||
+                    `Contact ${COMPANY}`
+                )}
+            </p>
+
+        </div>
+
+
+        <button
+            class="btn-primary"
+            style="width:100%;"
+            onclick="downloadUserManual()"
+        >
+            📥 Download User Manual
+        </button>
+    `);
 }
 
-function downloadManual(manual) {
+
+function downloadUserManual() {
 
     const text = `
-MSAFIRI GLOBAL MEDIA
-${manual.tagline}
+${APP_NAME}
+${APP_VERSION}
 
-USER MANUAL
-
-ABOUT MSAFIRI
-${manual.about}
-
-SECTIONS OF THE APP
-
-${Object.entries(
-    manual.sections || {}
-)
-.map(
-    ([key, value]) =>
-        `${key}: ${value}`
-)
-.join('\n')}
-
-HOW TO USE MSAFIRI
-
-${Object.entries(
-    manual.how_to_use || {}
-)
-.map(
-    ([key, value]) =>
-        `${key}: ${value}`
-)
-.join('\n')}
-
-SUPPORT
-${manual.support}
-
-Version:
-${manual.version}
+${APP_TAGLINE_PLACEHOLDER()}
 
 Founder:
-${manual.founder}
+${FOUNDER}
 
 Company:
-${manual.company}
-`.trim();
+${COMPANY}
+
+==================================================
+ABOUT MSAFIRI
+==================================================
+
+MSAFIRI GLOBAL MEDIA is a social, communication,
+and AI platform.
+
+==================================================
+SECTIONS OF THE APP
+==================================================
+
+Home
+- Feed
+- Stories
+- Posts
+
+Discovery
+- AI Council
+- Creative Studio
+- Market
+- World Map
+- Channels
+- Communities
+- Videos
+- Settings
+
+Chats
+- Messaging
+- Conversations
+
+Profile
+- Profile information
+- Posts
+
+==================================================
+HOW TO USE
+==================================================
+
+Create Account:
+Register → Fill details → Create Account
+
+Create Post:
+Home → + → Caption → Photo/Video → Publish
+
+Share Story:
+My Story → Select media → Post Story
+
+Chat:
+Search people → Open profile → Message
+
+Explore AI:
+Discovery → AI Council → Choose AI
+
+==================================================
+FOUNDER
+==================================================
+
+${FOUNDER}
+
+==================================================
+COMPANY
+==================================================
+
+${COMPANY}
+
+==================================================
+VERSION
+==================================================
+
+${APP_VERSION}
+
+==================================================
+`;
 
     const blob =
         new Blob(
             [text],
             {
-                type:
-                    'text/plain;charset=utf-8'
+                type: "text/plain;charset=utf-8"
             }
         );
 
     const url =
-        URL.createObjectURL(
-            blob
-        );
+        URL.createObjectURL(blob);
 
     const anchor =
-        document.createElement('a');
+        document.createElement("a");
 
-    anchor.href = url;
+    anchor.href =
+        url;
+
     anchor.download =
-        'MSAFIRI-UserManual.txt';
+        "MSAFIRI-UserManual.txt";
 
     document.body.appendChild(
         anchor
@@ -3792,10 +6366,116 @@ ${manual.company}
         url
     );
 
-    showToast(
-        'User Manual downloaded.',
-        'success'
+    toast(
+        "User Manual downloaded."
     );
+}
+
+
+function APP_TAGLINE_PLACEHOLDER() {
+    return "Connect beyond — Media V0.0.1";
+}
+
+
+/* ============================================================
+   SETTINGS
+   ============================================================ */
+
+async function openSettings() {
+
+    openModal(`
+        <h2>
+            Settings
+        </h2>
+
+        <div class="sub-item"
+             onclick="showUserManual()">
+
+            <div class="icon">
+                📖
+            </div>
+
+            <div class="text">
+                <strong>
+                    User Manual
+                </strong>
+
+                <span>
+                    Learn how to use MSAFIRI
+                </span>
+            </div>
+
+            <span>
+                →
+            </span>
+
+        </div>
+
+
+        <div class="sub-item"
+             onclick="toggleTheme()">
+
+            <div class="icon">
+                🌓
+            </div>
+
+            <div class="text">
+                <strong>
+                    Toggle Theme
+                </strong>
+
+                <span>
+                    Light / Dark
+                </span>
+            </div>
+
+            <span>
+                →
+            </span>
+
+        </div>
+
+
+        <div class="sub-item">
+
+            <div class="icon">
+                ℹ️
+            </div>
+
+            <div class="text">
+                <strong>
+                    Version
+                </strong>
+
+                <span>
+                    ${escapeHTML(
+                        APP_VERSION
+                    )}
+                </span>
+            </div>
+
+        </div>
+
+
+        <div class="sub-item"
+             onclick="logout()">
+
+            <div class="icon">
+                🚪
+            </div>
+
+            <div class="text">
+                <strong>
+                    Logout
+                </strong>
+
+                <span>
+                    Sign out of your account
+                </span>
+            </div>
+
+        </div>
+    `);
 }
 
 
@@ -3803,53 +6483,127 @@ ${manual.company}
    THEME
    ============================================================ */
 
-function applyTheme(theme) {
+function initializeTheme() {
 
-    if (
-        theme !== 'light' &&
-        theme !== 'dark'
-    ) {
-        theme = 'dark';
+    const saved =
+        localStorage.getItem(
+            THEME_KEY
+        );
+
+    if (saved === "light") {
+        applyLightTheme();
+    } else {
+        applyDarkTheme();
     }
-
-    document.documentElement.dataset.theme =
-        theme;
-
-    localStorage.setItem(
-        STORAGE.THEME,
-        theme
-    );
-
-    document.body.classList.toggle(
-        'dark-theme',
-        theme === 'dark'
-    );
-
-    document.body.classList.toggle(
-        'light-theme',
-        theme === 'light'
-    );
 }
+
 
 function toggleTheme() {
 
     const current =
         localStorage.getItem(
-            STORAGE.THEME
-        ) || 'dark';
+            THEME_KEY
+        ) || "dark";
 
-    const next =
-        current === 'dark'
-            ? 'light'
-            : 'dark';
+    if (current === "dark") {
 
-    applyTheme(
-        next
+        localStorage.setItem(
+            THEME_KEY,
+            "light"
+        );
+
+        applyLightTheme();
+
+        toast(
+            "Light theme enabled."
+        );
+
+    } else {
+
+        localStorage.setItem(
+            THEME_KEY,
+            "dark"
+        );
+
+        applyDarkTheme();
+
+        toast(
+            "Dark theme enabled."
+        );
+    }
+}
+
+
+function applyLightTheme() {
+
+    const root =
+        document.documentElement;
+
+    root.style.setProperty(
+        "--bg",
+        "#f4f7ff"
     );
 
-    showToast(
-        `Theme changed to ${next}.`,
-        'success'
+    root.style.setProperty(
+        "--bg-2",
+        "#ffffff"
+    );
+
+    root.style.setProperty(
+        "--bg-3",
+        "#e9edfa"
+    );
+
+    root.style.setProperty(
+        "--text",
+        "#111827"
+    );
+
+    root.style.setProperty(
+        "--text-2",
+        "#64748b"
+    );
+
+    root.style.setProperty(
+        "--border",
+        "#d9def0"
+    );
+}
+
+
+function applyDarkTheme() {
+
+    const root =
+        document.documentElement;
+
+    root.style.setProperty(
+        "--bg",
+        "#0a0e27"
+    );
+
+    root.style.setProperty(
+        "--bg-2",
+        "#131837"
+    );
+
+    root.style.setProperty(
+        "--bg-3",
+        "#1c2350"
+    );
+
+    root.style.setProperty(
+        "--text",
+        "#ffffff"
+    );
+
+    root.style.setProperty(
+        "--text-2",
+        "#a0a8c8"
+    );
+
+    root.style.setProperty(
+        "--border",
+        "#2a3260"
     );
 }
 
@@ -3862,916 +6616,527 @@ async function logout() {
 
     try {
 
-        await POST(
-            '/api/auth/logout'
+        if (TOKEN) {
+
+            /*
+             * Logout endpoint may or may not exist.
+             * Failure here should never prevent local logout.
+             */
+
+            try {
+
+                await apiFetch(
+                    "/api/auth/logout",
+                    {
+                        method: "POST"
+                    }
+                );
+
+            } catch (error) {
+                console.warn(
+                    "Server logout unavailable:",
+                    error.message
+                );
+            }
+        }
+
+    } finally {
+
+        TOKEN = null;
+
+        CURRENT_USER = null;
+
+        CACHED_POSTS = [];
+
+        CACHED_CHATS = [];
+
+        PAGE_HISTORY = [];
+
+        localStorage.removeItem(
+            TOKEN_KEY
         );
 
-    } catch {
-        /*
-           Logout endpoint may not exist.
-           Local logout still proceeds.
-        */
+        localStorage.removeItem(
+            USER_KEY
+        );
+
+
+        closeModal();
+
+        showAuth();
+
+        switchAuthTab(
+            "login"
+        );
+
+        toast(
+            "Logged out."
+        );
+    }
+}
+
+
+/* ============================================================
+   MODAL
+   ============================================================ */
+
+function openModal(
+    html
+) {
+
+    const modal =
+        $("#modal");
+
+    const body =
+        $("#modal-body");
+
+    if (!modal || !body) {
+        return;
     }
 
-    clearAuth();
+    body.innerHTML =
+        html;
 
-    showToast(
-        'Logged out.',
-        'success'
+    modal.classList.remove(
+        "hidden"
+    );
+}
+
+
+function closeModal() {
+
+    const modal =
+        $("#modal");
+
+    const body =
+        $("#modal-body");
+
+    if (modal) {
+        modal.classList.add(
+            "hidden"
+        );
+    }
+
+    if (body) {
+        body.innerHTML = "";
+    }
+}
+
+
+/* ============================================================
+   DROPDOWN
+   ============================================================ */
+
+function toggleDotsMenu() {
+
+    const menu =
+        $("#dots-menu");
+
+    if (!menu) {
+        return;
+    }
+
+    menu.classList.toggle(
+        "hidden"
+    );
+}
+
+
+function closeDotsMenu() {
+
+    const menu =
+        $("#dots-menu");
+
+    if (menu) {
+        menu.classList.add(
+            "hidden"
+        );
+    }
+}
+
+
+/* ============================================================
+   TOAST
+   ============================================================ */
+
+function toast(
+    message
+) {
+
+    const old =
+        document.querySelector(
+            ".toast"
+        );
+
+    if (old) {
+        old.remove();
+    }
+
+
+    const element =
+        document.createElement("div");
+
+    element.className =
+        "toast";
+
+    element.textContent =
+        message || "Done";
+
+
+    document.body.appendChild(
+        element
     );
 
-    setView(
-        'home'
-    );
 
     setTimeout(
         () => {
-            window.location.reload();
+
+            if (element) {
+                element.remove();
+            }
+
         },
-        500
+        3000
     );
 }
 
 
 /* ============================================================
-   AUTH FORM HANDLING
+   BUTTON LOADING
    ============================================================ */
 
-async function handleLogin(form) {
-
-    const username =
-        form.querySelector(
-            '[name="username"]'
-        )?.value?.trim();
-
-    const email =
-        form.querySelector(
-            '[name="email"]'
-        )?.value?.trim();
-
-    const password =
-        form.querySelector(
-            '[name="password"]'
-        )?.value || '';
-
-    if (!password) {
-
-        showToast(
-            'Password is required.',
-            'error'
-        );
-
-        return;
-    }
-
-    /*
-       Support common OAuth2-style login.
-    */
-
-    const data =
-        new URLSearchParams();
-
-    data.append(
-        'username',
-        username || email || ''
-    );
-
-    data.append(
-        'password',
-        password
-    );
-
-    try {
-
-        const result =
-            await apiRequest(
-                '/api/auth/login',
-                {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type':
-                            'application/x-www-form-urlencoded'
-                    },
-                    body: data
-                }
-            );
-
-        const token =
-            result?.access_token ||
-            result?.token ||
-            result?.accessToken;
-
-        if (!token) {
-
-            throw new Error(
-                'Login succeeded but no access token was returned.'
-            );
-        }
-
-        setAuth(
-            token,
-            result?.user || null
-        );
-
-        showToast(
-            'Login successful.',
-            'success'
-        );
-
-        setView(
-            'home'
-        );
-
-    } catch (error) {
-
-        showToast(
-            error.message ||
-            'Login failed.',
-            'error'
-        );
-    }
-}
-
-
-/* ============================================================
-   REGISTER
-   ============================================================ */
-
-async function handleRegister(form) {
-
-    const payload = {
-
-        username:
-            form.querySelector(
-                '[name="username"]'
-            )?.value?.trim(),
-
-        email:
-            form.querySelector(
-                '[name="email"]'
-            )?.value?.trim(),
-
-        password:
-            form.querySelector(
-                '[name="password"]'
-            )?.value || '',
-
-        full_name:
-            form.querySelector(
-                '[name="full_name"]'
-            )?.value?.trim() || ''
-
-    };
-
-    if (
-        !payload.username ||
-        !payload.email ||
-        !payload.password
-    ) {
-
-        showToast(
-            'Username, email and password are required.',
-            'error'
-        );
-
-        return;
-    }
-
-    try {
-
-        const result =
-            await POST(
-                '/api/auth/register',
-                payload
-            );
-
-        showToast(
-            result?.message ||
-            'Account created successfully.',
-            'success'
-        );
-
-        const token =
-            result?.access_token ||
-            result?.token;
-
-        if (token) {
-
-            setAuth(
-                token,
-                result?.user || null
-            );
-
-            setView(
-                'home'
-            );
-        }
-
-    } catch (error) {
-
-        showToast(
-            error.message ||
-            'Registration failed.',
-            'error'
-        );
-    }
-}
-
-
-/* ============================================================
-   SEARCH BAR
-   ============================================================ */
-
-function setupSearch() {
-
-    const inputs =
-        $$(
-            '[data-user-search], #user-search, #search-input'
-        );
-
-    inputs.forEach(input => {
-
-        let timeout = null;
-
-        input.addEventListener(
-            'input',
-            () => {
-
-                clearTimeout(
-                    timeout
-                );
-
-                const value =
-                    input.value.trim();
-
-                timeout =
-                    setTimeout(
-                        () => {
-
-                            if (value) {
-                                searchUsers(
-                                    value
-                                );
-                            } else {
-                                renderSearchResults(
-                                    []
-                                );
-                            }
-
-                        },
-                        350
-                    );
-            }
-        );
-
-        input.addEventListener(
-            'keydown',
-            event => {
-
-                if (
-                    event.key === 'Enter'
-                ) {
-
-                    event.preventDefault();
-
-                    searchUsers(
-                        input.value
-                    );
-                }
-            }
-        );
-    });
-}
-
-
-/* ============================================================
-   BOTTOM NAVIGATION
-   ============================================================ */
-
-function setupNavigation() {
-
-    $$(
-        '[data-view]'
-    ).forEach(button => {
-
-        button.addEventListener(
-            'click',
-            () => {
-
-                const view =
-                    button.dataset.view;
-
-                if (view) {
-                    setView(
-                        view
-                    );
-                }
-            }
-        );
-    });
-
-    $$(
-        '[data-nav-home]'
-    ).forEach(button => {
-
-        button.onclick =
-            () => setView('home');
-    });
-
-    $$(
-        '[data-nav-discovery]'
-    ).forEach(button => {
-
-        button.onclick =
-            () => setView(
-                'discovery'
-            );
-    });
-
-    $$(
-        '[data-nav-chats]'
-    ).forEach(button => {
-
-        button.onclick =
-            () => setView('chats');
-    });
-
-    $$(
-        '[data-nav-profile]'
-    ).forEach(button => {
-
-        button.onclick =
-            () => setView('profile');
-    });
-
-    $$(
-        '[data-create-post]'
-    ).forEach(button => {
-
-        button.onclick =
-            openCreatePost;
-    });
-
-    $$(
-        '#create-button, #post-button'
-    ).forEach(button => {
-
-        button.onclick =
-            openCreatePost;
-    });
-}
-
-
-/* ============================================================
-   3-DOTS MENU
-   ============================================================ */
-
-function setupThreeDots() {
-
-    $$(
-        '[data-menu], #three-dots, #more-menu'
-    ).forEach(button => {
-
-        button.addEventListener(
-            'click',
-            openMainMenu
-        );
-    });
-}
-
-function openMainMenu() {
-
-    let menu =
-        byId('msafiri-main-menu');
-
-    if (!menu) {
-
-        menu =
-            document.createElement('div');
-
-        menu.id =
-            'msafiri-main-menu';
-
-        menu.className =
-            'msafiri-menu';
-
-        menu.innerHTML = `
-
-            <button data-main-manual>
-                📖 User Manual
-            </button>
-
-            <button data-main-settings>
-                ⚙️ Settings
-            </button>
-
-            <button data-main-theme>
-                🌓 Toggle Theme
-            </button>
-
-            <button data-main-logout>
-                🚪 Logout
-            </button>
-
-        `;
-
-        document.body.appendChild(
-            menu
-        );
-
-        menu.querySelector(
-            '[data-main-manual]'
-        ).onclick =
-            openUserManual;
-
-        menu.querySelector(
-            '[data-main-settings]'
-        ).onclick =
-            openSettings;
-
-        menu.querySelector(
-            '[data-main-theme]'
-        ).onclick =
-            toggleTheme;
-
-        menu.querySelector(
-            '[data-main-logout]'
-        ).onclick =
-            logout;
-    }
-
-    menu.hidden =
-        !menu.hidden;
-}
-
-
-/* ============================================================
-   STORY / STATUS
-   ============================================================ */
-
-async function loadStories() {
-
-    const container =
-        byId('stories') ||
-        document.querySelector(
-            '[data-stories]'
-        );
-
-    if (!container) {
-        return;
-    }
-
-    const endpoints = [
-        '/api/stories',
-        '/api/statuses'
-    ];
-
-    for (const endpoint of endpoints) {
-
-        try {
-
-            const result =
-                await GET(
-                    endpoint
-                );
-
-            const stories =
-                result?.stories ||
-                result?.statuses ||
-                [];
-
-            renderStories(
-                stories,
-                container
-            );
-
-            return;
-
-        } catch (error) {
-
-            if (
-                error.status !== 404 &&
-                error.status !== 405
-            ) {
-                console.warn(
-                    error
-                );
-            }
-        }
-    }
-
-    renderStories(
-        [],
-        container
-    );
-}
-
-function renderStories(
-    stories,
-    container
+function setButtonLoading(
+    button,
+    loading,
+    text
 ) {
 
-    container.innerHTML = `
-
-        <div class="story-add"
-             data-story-create>
-
-            <div class="story-avatar">
-                +
-            </div>
-
-            <span>
-                My Story
-            </span>
-
-        </div>
-
-        ${
-            stories
-                .map(story => `
-                    <button
-                        class="story-item"
-                        data-story-id="${escapeHTML(
-                            story.id
-                        )}"
-                    >
-
-                        <div class="story-avatar">
-                            ${
-                                story.media_url
-                                    ? `<img
-                                        src="${escapeHTML(
-                                            absoluteURL(
-                                                story.media_url
-                                            )
-                                        )}"
-                                        alt=""
-                                      >`
-                                    : '👤'
-                            }
-                        </div>
-
-                        <span>
-                            ${escapeHTML(
-                                story.username ||
-                                'User'
-                            )}
-                        </span>
-
-                    </button>
-                `)
-                .join('')
-        }
-
-    `;
-
-    container.querySelector(
-        '[data-story-create]'
-    )?.addEventListener(
-        'click',
-        () => {
-
-            showToast(
-                'Story creator will be connected to the status upload route.',
-                'info'
-            );
-        }
-    );
-}
-
-
-/* ============================================================
-   HEALTH CHECK
-   ============================================================ */
-
-async function checkServer() {
-
-    try {
-
-        const result =
-            await GET(
-                '/api/health'
-            );
-
-        console.log(
-            `${APP_NAME} server:`,
-            result
-        );
-
-        document.body.dataset.server =
-            'online';
-
-        return true;
-
-    } catch (error) {
-
-        console.warn(
-            'Server health check failed:',
-            error
-        );
-
-        document.body.dataset.server =
-            'offline';
-
-        return false;
+    if (!button) {
+        return;
     }
-}
 
 
-/* ============================================================
-   EMPTY STATE
-   ============================================================ */
+    if (loading) {
 
-function emptyState(message) {
-
-    return `
-        <div class="empty-state">
-
-            <div style="font-size:42px;">
-                🌍
-            </div>
-
-            <p>
-                ${escapeHTML(
-                    message
-                )}
-            </p>
-
-        </div>
-    `;
-}
-
-
-/* ============================================================
-   GLOBAL CLICK HANDLER
-   ============================================================ */
-
-document.addEventListener(
-    'click',
-    event => {
-
-        const target =
-            event.target.closest(
-                '[data-action]'
-            );
-
-        if (!target) {
-            return;
+        if (!button.dataset.originalText) {
+            button.dataset.originalText =
+                button.textContent;
         }
 
-        const action =
-            target.dataset.action;
+        button.disabled =
+            true;
 
-        switch (action) {
-
-            case 'home':
-                setView('home');
-                break;
-
-            case 'discovery':
-                setView('discovery');
-                break;
-
-            case 'chats':
-                setView('chats');
-                break;
-
-            case 'profile':
-                setView('profile');
-                break;
-
-            case 'create-post':
-                openCreatePost();
-                break;
-
-            case 'logout':
-                logout();
-                break;
-
-            case 'theme':
-                toggleTheme();
-                break;
-
-            case 'manual':
-                openUserManual();
-                break;
-
-            default:
-                break;
-        }
-    }
-);
-
-
-/* ============================================================
-   FORM AUTO-DETECTION
-   ============================================================ */
-
-document.addEventListener(
-    'submit',
-    event => {
-
-        const form =
-            event.target;
-
-        if (!(form instanceof HTMLFormElement)) {
-            return;
-        }
-
-        if (
-            form.matches(
-                '#login-form, [data-login-form]'
-            )
-        ) {
-
-            event.preventDefault();
-
-            handleLogin(
-                form
-            );
-
-            return;
-        }
-
-        if (
-            form.matches(
-                '#register-form, [data-register-form]'
-            )
-        ) {
-
-            event.preventDefault();
-
-            handleRegister(
-                form
-            );
-
-            return;
-        }
-
-        if (
-            form.matches(
-                '#create-post-form, [data-create-post-form]'
-            )
-        ) {
-
-            event.preventDefault();
-
-            createPost(
-                form
-            );
-        }
-    }
-);
-
-
-/* ============================================================
-   INITIALIZATION
-   ============================================================ */
-
-async function initializeApp() {
-
-    console.log(
-        '================================================'
-    );
-
-    console.log(
-        `${APP_NAME} ${APP_VERSION}`
-    );
-
-    console.log(
-        APP_TAGLINE
-    );
-
-    console.log(
-        'Initializing application...'
-    );
-
-    console.log(
-        '================================================'
-    );
-
-    applyTheme(
-        localStorage.getItem(
-            STORAGE.THEME
-        ) || 'dark'
-    );
-
-    updateAuthUI();
-
-    setupNavigation();
-
-    setupSearch();
-
-    setupThreeDots();
-
-    await checkServer();
-
-    if (CURRENT_VIEW === 'home') {
-
-        await loadFeed();
-
-        await loadStories();
+        button.textContent =
+            text || "Loading...";
 
     } else {
 
-        setView(
-            CURRENT_VIEW
-        );
+        button.disabled =
+            false;
+
+        button.textContent =
+            button.dataset.originalText ||
+            text ||
+            "Submit";
+    }
+}
+
+
+/* ============================================================
+   LOGIN REQUIREMENT
+   ============================================================ */
+
+function requireLogin() {
+
+    if (TOKEN) {
+        return true;
     }
 
-    console.log(
-        'MSAFIRI GLOBAL MEDIA initialized successfully.'
+    showAuth();
+
+    toast(
+        "Please login first."
     );
+
+    return false;
 }
 
 
 /* ============================================================
-   DOM READY
+   MEDIA URL
    ============================================================ */
 
-if (
-    document.readyState === 'loading'
+function mediaURL(
+    url
 ) {
 
-    document.addEventListener(
-        'DOMContentLoaded',
-        initializeApp
-    );
+    if (!url) {
+        return "";
+    }
 
-} else {
 
-    initializeApp();
+    if (
+        url.startsWith("http://") ||
+        url.startsWith("https://") ||
+        url.startsWith("data:")
+    ) {
+        return url;
+    }
+
+
+    if (url.startsWith("/")) {
+        return `${API}${url}`;
+    }
+
+
+    return `${API}/${url}`;
 }
 
 
 /* ============================================================
-   GLOBAL API
-   ------------------------------------------------------------
-   Useful if index.html has inline buttons or other scripts.
+   INITIAL
    ============================================================ */
 
-window.MSAFIRI = {
+function getInitial(
+    name
+) {
 
-    API,
+    const value =
+        String(name || "M")
+            .trim();
 
-    APP_NAME,
+    if (!value) {
+        return "M";
+    }
 
-    APP_VERSION,
+    return value
+        .charAt(0)
+        .toUpperCase();
+}
 
-    getToken: () =>
-        TOKEN,
 
-    getCurrentUser: () =>
-        CURRENT_USER,
+/* ============================================================
+   TIME
+   ============================================================ */
 
-    isLoggedIn,
+function formatTime(
+    value
+) {
 
-    setView,
+    if (!value) {
+        return "";
+    }
 
-    loadFeed,
 
-    loadStories,
+    const date =
+        new Date(value);
 
-    loadChats,
+    if (
+        Number.isNaN(
+            date.getTime()
+        )
+    ) {
+        return "";
+    }
 
-    searchUsers,
 
-    openProfile,
+    const now =
+        Date.now();
 
-    openChatWithUser,
+    const diff =
+        Math.max(
+            0,
+            now - date.getTime()
+        );
 
-    openCreatePost,
 
-    openAICouncil,
+    const seconds =
+        Math.floor(
+            diff / 1000
+        );
 
-    openStudio,
+    if (seconds < 60) {
+        return "now";
+    }
 
-    openMarket,
 
-    openWorldMap,
+    const minutes =
+        Math.floor(
+            seconds / 60
+        );
 
-    openChannels,
+    if (minutes < 60) {
+        return `${minutes}m`;
+    }
 
-    openCommunities,
 
-    openSettings,
+    const hours =
+        Math.floor(
+            minutes / 60
+        );
 
-    openUserManual,
+    if (hours < 24) {
+        return `${hours}h`;
+    }
 
-    toggleTheme,
 
-    logout,
+    const days =
+        Math.floor(
+            hours / 24
+        );
 
-    createPost,
+    if (days < 7) {
+        return `${days}d`;
+    }
 
-    toggleLike,
 
-    toggleSave,
+    return date.toLocaleDateString();
+}
 
-    sharePost,
 
-    openComments,
+/* ============================================================
+   TEXT FORMAT
+   ============================================================ */
 
-    checkServer
+function formatText(
+    value
+) {
 
-};
+    const safe =
+        escapeHTML(
+            value || ""
+        );
+
+    return safe
+        .replace(
+            /\n/g,
+            "<br>"
+        );
+}
+
+
+/* ============================================================
+   GLOBAL ERROR PROTECTION
+   ============================================================ */
+
+window.addEventListener(
+    "error",
+    (event) => {
+
+        console.error(
+            "Global JavaScript error:",
+            event.error ||
+            event.message
+        );
+    }
+);
+
+
+window.addEventListener(
+    "unhandledrejection",
+    (event) => {
+
+        console.error(
+            "Unhandled Promise rejection:",
+            event.reason
+        );
+    }
+);
+
+
+/* ============================================================
+   GLOBAL FUNCTIONS
+   ------------------------------------------------------------
+   Functions used by inline onclick handlers must be exposed
+   on window.
+   ============================================================ */
+
+window.navigate = navigate;
+window.goBack = goBack;
+
+window.toggleLike = toggleLike;
+window.toggleSave = toggleSave;
+window.sharePost = sharePost;
+
+window.openComments = openComments;
+window.openCreatePost = openCreatePost;
+window.openCreateStory = openCreateStory;
+
+window.openUserProfile = openUserProfile;
+window.startChatWithUser = startChatWithUser;
+window.openChat = openChat;
+
+window.openDiscovery = openDiscovery;
+window.openAICouncil = openAICouncil;
+window.openAI = openAI;
+
+window.chooseEducationCountry =
+    chooseEducationCountry;
+
+window.chooseEducationLevel =
+    chooseEducationLevel;
+
+window.openEducationChat =
+    openEducationChat;
+
+window.openCreativeStudio =
+    openCreativeStudio;
+
+window.openStudioTool =
+    openStudioTool;
+
+window.openMarket =
+    openMarket;
+
+window.openMarketCategory =
+    openMarketCategory;
+
+window.openWorldMap =
+    openWorldMap;
+
+window.openCountry =
+    openCountry;
+
+window.openChannels =
+    openChannels;
+
+window.openChannel =
+    openChannel;
+
+window.openCommunities =
+    openCommunities;
+
+window.openCommunityCategory =
+    openCommunityCategory;
+
+window.openVideos =
+    openVideos;
+
+window.openSettings =
+    openSettings;
+
+window.showUserManual =
+    showUserManual;
+
+window.downloadUserManual =
+    downloadUserManual;
+
+window.toggleTheme =
+    toggleTheme;
+
+window.logout =
+    logout;
+
+window.toast =
+    toast;
+
+window.closeModal =
+    closeModal;
+
+window.loadFeed =
+    loadFeed;
+
+
+/* ============================================================
+   END
+   ============================================================ */

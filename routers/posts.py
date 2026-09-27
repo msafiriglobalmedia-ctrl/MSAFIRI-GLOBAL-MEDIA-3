@@ -1,7 +1,7 @@
 # ============================================================
-# MSAFIRI GLOBAL MEDIA — Posts Router
+# MSAFIRI GLOBAL MEDIA — Messages Router
 # Version: Media V0.0.1
-# Purpose: Create, Read, Update, Delete Posts + Likes + Comments
+# Purpose: Conversations, Messages, Chat media (WhatsApp-style)
 # ============================================================
 
 import os
@@ -10,373 +10,368 @@ from datetime import datetime
 from werkzeug.utils import secure_filename
 
 from flask import Blueprint, request, jsonify, current_app
-from sqlalchemy import desc
+from sqlalchemy import or_, and_, desc
 
 from database import db
-from models import User, Post, Like, Comment
+from models import User, Conversation, Message
 from routers.auth import token_required
 
 
 # ------------------------------------------------------------
 # 1. DEFINE BLUEPRINT
 # ------------------------------------------------------------
-posts_bp = Blueprint("posts", __name__)
+messages_bp = Blueprint("messages", __name__)
 
 
 # ------------------------------------------------------------
-# 2. FILE UPLOAD HELPER
+# 2. CONSTANTS
 # ------------------------------------------------------------
 ALLOWED_IMAGE_EXT = {"png", "jpg", "jpeg", "gif", "webp"}
 ALLOWED_VIDEO_EXT = {"mp4", "mov", "avi", "webm"}
-ALLOWED_FILE_EXT = {"pdf", "doc", "docx", "txt", "zip"}
+ALLOWED_AUDIO_EXT = {"webm", "mp3", "wav", "ogg", "m4a"}
+ALLOWED_DOC_EXT = {"pdf", "doc", "docx", "txt", "zip"}
 
 
-def allowed_file(filename, allowed_set):
-    return "." in filename and filename.rsplit(".", 1)[1].lower() in allowed_set
-
-
-def save_uploaded_file(file, subfolder="posts"):
-    """Save an uploaded file and return its public URL path."""
+def save_chat_file(file, subfolder="messages"):
+    """Save a chat file and return (url, media_type)."""
     if not file or file.filename == "":
-        return None
+        return None, None
 
     filename = secure_filename(file.filename)
     ext = filename.rsplit(".", 1)[1].lower() if "." in filename else ""
-    unique_name = f"{uuid.uuid4().hex}.{ext}"
 
-    upload_dir = os.path.join(
-        current_app.config["UPLOAD_FOLDER"],
-        subfolder
-    )
+    if ext in ALLOWED_IMAGE_EXT:
+        media_type = "image"
+    elif ext in ALLOWED_VIDEO_EXT:
+        media_type = "video"
+    elif ext in ALLOWED_AUDIO_EXT:
+        media_type = "voice"
+    elif ext in ALLOWED_DOC_EXT:
+        media_type = "document"
+    else:
+        return None, None
+
+    unique_name = f"{uuid.uuid4().hex}.{ext}"
+    upload_dir = os.path.join(current_app.config["UPLOAD_FOLDER"], subfolder)
     os.makedirs(upload_dir, exist_ok=True)
 
     file_path = os.path.join(upload_dir, unique_name)
     file.save(file_path)
 
-    # Return public URL
-    return f"/static/uploads/{subfolder}/{unique_name}"
+    url = f"/static/uploads/{subfolder}/{unique_name}"
+    return url, media_type
 
 
 # ------------------------------------------------------------
-# 3. CREATE POST
+# 3. GET ALL CONVERSATIONS
 # ------------------------------------------------------------
-@posts_bp.route("", methods=["POST"])
-@posts_bp.route("/", methods=["POST"])
+@messages_bp.route("/conversations", methods=["GET"])
 @token_required
-def create_post(current_user):
+def get_conversations(current_user):
+    """Get all conversations of the current user."""
+    convos = Conversation.query.filter(
+        or_(
+            Conversation.user1_id == current_user.id,
+            Conversation.user2_id == current_user.id
+        )
+    ).order_by(desc(Conversation.updated_at)).all()
+
+    return jsonify({
+        "count": len(convos),
+        "conversations": [c.to_dict(current_user.id) for c in convos]
+    }), 200
+
+
+# ------------------------------------------------------------
+# 4. CREATE / GET CONVERSATION
+# ------------------------------------------------------------
+@messages_bp.route("/conversations", methods=["POST"])
+@token_required
+def create_conversation(current_user):
     """
-    Create a new post.
-    Accepts: multipart/form-data OR application/json
-    Fields:
-        - content (optional, text)
-        - media (optional, file — image/video)
-        - file (optional, file — document)
-        - is_public (optional, bool)
+    Start a conversation with another user.
+    Body: { participant_id: <user_id> }
+    If already exists, return existing.
     """
-    content = ""
-    media_url = None
-    media_type = None
-    is_public = True
+    data = request.get_json(silent=True) or {}
+    participant_id = data.get("participant_id") or data.get("user_id")
 
-    # Handle JSON body
-    if request.is_json:
-        data = request.get_json(silent=True) or {}
-        content = (data.get("content") or data.get("caption") or "").strip()
-        media_url = data.get("media_url")
-        media_type = data.get("media_type")
-        is_public = data.get("is_public", True)
+    if not participant_id:
+        return jsonify({"error": "participant_id is required"}), 400
 
-    # Handle form-data (file uploads)
-    else:
-        content = (request.form.get("content") or request.form.get("caption") or "").strip()
-        is_public = request.form.get("is_public", "true").lower() != "false"
+    if participant_id == current_user.id:
+        return jsonify({"error": "Cannot create conversation with yourself"}), 400
 
-        # Media (image/video)
-        if "media" in request.files:
-            file = request.files["media"]
-            if file and file.filename:
-                ext = file.filename.rsplit(".", 1)[1].lower() if "." in file.filename else ""
-                if ext in ALLOWED_IMAGE_EXT:
-                    media_url = save_uploaded_file(file, "posts")
-                    media_type = "image"
-                elif ext in ALLOWED_VIDEO_EXT:
-                    media_url = save_uploaded_file(file, "posts")
-                    media_type = "video"
-                else:
-                    return jsonify({"error": "Unsupported media type"}), 400
+    other = User.query.get(participant_id)
+    if not other:
+        return jsonify({"error": "User not found"}), 404
 
-        # Document file
-        if not media_url and "file" in request.files:
-            file = request.files["file"]
-            if file and file.filename:
-                if allowed_file(file.filename, ALLOWED_FILE_EXT):
-                    media_url = save_uploaded_file(file, "posts")
-                    media_type = "file"
-                else:
-                    return jsonify({"error": "Unsupported file type"}), 400
+    # Check if conversation exists (either direction)
+    user1_id, user2_id = sorted([current_user.id, participant_id])
+    convo = Conversation.query.filter_by(
+        user1_id=user1_id,
+        user2_id=user2_id
+    ).first()
 
-    if not content and not media_url:
-        return jsonify({"error": "Post must have content or media"}), 400
+    if convo:
+        return jsonify({
+            "message": "Conversation already exists",
+            "conversation_id": convo.id,
+            "conversation": convo.to_dict(current_user.id)
+        }), 200
 
-    # Create post
-    post = Post(
-        user_id=current_user.id,
-        content=content,
-        media_url=media_url,
-        media_type=media_type,
-        is_public=is_public
+    # Create new conversation
+    convo = Conversation(
+        user1_id=user1_id,
+        user2_id=user2_id
     )
-
-    db.session.add(post)
+    db.session.add(convo)
     db.session.commit()
 
     return jsonify({
-        "message": "Post created successfully",
-        "post": post.to_dict()
+        "message": "Conversation created",
+        "conversation_id": convo.id,
+        "conversation": convo.to_dict(current_user.id)
     }), 201
 
 
 # ------------------------------------------------------------
-# 4. GET SINGLE POST
+# 5. GET MESSAGES IN CONVERSATION
 # ------------------------------------------------------------
-@posts_bp.route("/<int:post_id>", methods=["GET"])
+@messages_bp.route("/<int:conversation_id>", methods=["GET"])
 @token_required
-def get_post(current_user, post_id):
-    """Get a single post by ID."""
-    post = Post.query.get(post_id)
-    if not post:
-        return jsonify({"error": "Post not found"}), 404
+def get_messages(current_user, conversation_id):
+    """Get all messages in a conversation."""
+    convo = Conversation.query.get(conversation_id)
+    if not convo:
+        return jsonify({"error": "Conversation not found"}), 404
 
-    if not post.is_public and post.user_id != current_user.id:
-        return jsonify({"error": "Post is private"}), 403
-
-    return jsonify({"post": post.to_dict()}), 200
-
-
-# ------------------------------------------------------------
-# 5. DELETE POST
-# ------------------------------------------------------------
-@posts_bp.route("/<int:post_id>", methods=["DELETE"])
-@token_required
-def delete_post(current_user, post_id):
-    """Delete a post (only owner or admin)."""
-    post = Post.query.get(post_id)
-    if not post:
-        return jsonify({"error": "Post not found"}), 404
-
-    if post.user_id != current_user.id and not current_user.is_admin:
-        return jsonify({"error": "Not authorized to delete this post"}), 403
-
-    db.session.delete(post)
-    db.session.commit()
-
-    return jsonify({"message": "Post deleted successfully"}), 200
-
-
-# ------------------------------------------------------------
-# 6. UPDATE POST
-# ------------------------------------------------------------
-@posts_bp.route("/<int:post_id>", methods=["PUT"])
-@token_required
-def update_post(current_user, post_id):
-    """Update post content (only owner)."""
-    post = Post.query.get(post_id)
-    if not post:
-        return jsonify({"error": "Post not found"}), 404
-
-    if post.user_id != current_user.id:
+    # Verify user is part of this conversation
+    if current_user.id not in (convo.user1_id, convo.user2_id):
         return jsonify({"error": "Not authorized"}), 403
 
-    data = request.get_json(silent=True) or {}
-    content = data.get("content")
-    if content is not None:
-        post.content = content.strip()
-    if "is_public" in data:
-        post.is_public = bool(data["is_public"])
+    page = int(request.args.get("page", 1))
+    limit = min(int(request.args.get("limit", 50)), 100)
+    offset = (page - 1) * limit
 
-    db.session.commit()
+    query = Message.query.filter_by(conversation_id=conversation_id) \
+        .order_by(Message.created_at.asc())
+
+    total = query.count()
+    messages = query.offset(offset).limit(limit).all()
+
+    # Mark messages as read (those sent to current user)
+    unread = Message.query.filter_by(
+        conversation_id=conversation_id,
+        receiver_id=current_user.id,
+        is_read=False
+    ).all()
+    for msg in unread:
+        msg.is_read = True
+    if unread:
+        db.session.commit()
 
     return jsonify({
-        "message": "Post updated",
-        "post": post.to_dict()
+        "conversation_id": conversation_id,
+        "page": page,
+        "total": total,
+        "has_more": offset + len(messages) < total,
+        "messages": [m.to_dict(current_user.id) for m in messages]
     }), 200
 
 
 # ------------------------------------------------------------
-# 7. LIKE / UNLIKE POST
+# 6. SEND TEXT MESSAGE
 # ------------------------------------------------------------
-@posts_bp.route("/<int:post_id>/like", methods=["POST"])
+@messages_bp.route("/<int:conversation_id>", methods=["POST"])
 @token_required
-def toggle_like(current_user, post_id):
-    """Like or unlike a post (toggle)."""
-    post = Post.query.get(post_id)
-    if not post:
-        return jsonify({"error": "Post not found"}), 404
+def send_message(current_user, conversation_id):
+    """
+    Send a text message.
+    Body: { content: "Hello!" }
+    """
+    convo = Conversation.query.get(conversation_id)
+    if not convo:
+        return jsonify({"error": "Conversation not found"}), 404
 
-    existing = Like.query.filter_by(user_id=current_user.id, post_id=post_id).first()
-
-    if existing:
-        db.session.delete(existing)
-        post.likes_count = max(0, post.likes_count - 1)
-        liked = False
-    else:
-        like = Like(user_id=current_user.id, post_id=post_id)
-        db.session.add(like)
-        post.likes_count += 1
-        liked = True
-
-    db.session.commit()
-
-    return jsonify({
-        "liked": liked,
-        "likes_count": post.likes_count
-    }), 200
-
-
-# ------------------------------------------------------------
-# 8. GET LIKES OF A POST
-# ------------------------------------------------------------
-@posts_bp.route("/<int:post_id>/likes", methods=["GET"])
-@token_required
-def get_likes(current_user, post_id):
-    """Get all users who liked this post."""
-    post = Post.query.get(post_id)
-    if not post:
-        return jsonify({"error": "Post not found"}), 404
-
-    likes = Like.query.filter_by(post_id=post_id).all()
-    users = [like.user.to_dict() for like in likes if like.user]
-
-    return jsonify({
-        "count": len(users),
-        "users": users
-    }), 200
-
-
-# ------------------------------------------------------------
-# 9. COMMENT ON POST
-# ------------------------------------------------------------
-@posts_bp.route("/<int:post_id>/comment", methods=["POST"])
-@token_required
-def add_comment(current_user, post_id):
-    """Add a comment to a post."""
-    post = Post.query.get(post_id)
-    if not post:
-        return jsonify({"error": "Post not found"}), 404
+    if current_user.id not in (convo.user1_id, convo.user2_id):
+        return jsonify({"error": "Not authorized"}), 403
 
     data = request.get_json(silent=True) or {}
     content = (data.get("content") or "").strip()
 
     if not content:
-        return jsonify({"error": "Comment content is required"}), 400
+        return jsonify({"error": "Message content is required"}), 400
 
-    comment = Comment(
-        user_id=current_user.id,
-        post_id=post_id,
-        content=content
+    # Determine receiver
+    receiver_id = convo.user2_id if convo.user1_id == current_user.id else convo.user1_id
+
+    message = Message(
+        conversation_id=conversation_id,
+        sender_id=current_user.id,
+        receiver_id=receiver_id,
+        content=content,
+        is_delivered=True
     )
-    db.session.add(comment)
-    post.comments_count += 1
+    db.session.add(message)
+
+    # Update conversation
+    convo.last_message = content[:255]
+    convo.last_message_at = datetime.utcnow()
+    convo.updated_at = datetime.utcnow()
+
     db.session.commit()
 
     return jsonify({
-        "message": "Comment added",
-        "comment": comment.to_dict()
+        "message": "Message sent",
+        "data": message.to_dict(current_user.id)
     }), 201
 
 
 # ------------------------------------------------------------
-# 10. GET COMMENTS
+# 7. SEND MEDIA MESSAGE
 # ------------------------------------------------------------
-@posts_bp.route("/<int:post_id>/comments", methods=["GET"])
+@messages_bp.route("/<int:conversation_id>/media", methods=["POST"])
 @token_required
-def get_comments(current_user, post_id):
-    """Get all comments of a post."""
-    post = Post.query.get(post_id)
-    if not post:
-        return jsonify({"error": "Post not found"}), 404
+def send_media_message(current_user, conversation_id):
+    """
+    Send a media message (image/video/voice/document).
+    Accepts: multipart/form-data
+    Fields: media (file), type (optional)
+    """
+    convo = Conversation.query.get(conversation_id)
+    if not convo:
+        return jsonify({"error": "Conversation not found"}), 404
 
-    comments = Comment.query.filter_by(post_id=post_id) \
-        .order_by(desc(Comment.created_at)) \
-        .all()
-
-    return jsonify({
-        "count": len(comments),
-        "comments": [c.to_dict() for c in comments]
-    }), 200
-
-
-# ------------------------------------------------------------
-# 11. DELETE COMMENT
-# ------------------------------------------------------------
-@posts_bp.route("/comments/<int:comment_id>", methods=["DELETE"])
-@token_required
-def delete_comment(current_user, comment_id):
-    """Delete a comment (owner or admin)."""
-    comment = Comment.query.get(comment_id)
-    if not comment:
-        return jsonify({"error": "Comment not found"}), 404
-
-    if comment.user_id != current_user.id and not current_user.is_admin:
+    if current_user.id not in (convo.user1_id, convo.user2_id):
         return jsonify({"error": "Not authorized"}), 403
 
-    # Decrement comments_count
-    post = comment.post
-    if post:
-        post.comments_count = max(0, post.comments_count - 1)
+    if "media" not in request.files:
+        return jsonify({"error": "No media file provided"}), 400
 
-    db.session.delete(comment)
-    db.session.commit()
+    file = request.files["media"]
+    url, media_type = save_chat_file(file)
 
-    return jsonify({"message": "Comment deleted"}), 200
+    if not url:
+        return jsonify({"error": "Unsupported file type"}), 400
 
+    receiver_id = convo.user2_id if convo.user1_id == current_user.id else convo.user1_id
 
-# ------------------------------------------------------------
-# 12. SHARE POST (Increment share count)
-# ------------------------------------------------------------
-@posts_bp.route("/<int:post_id>/share", methods=["POST"])
-@token_required
-def share_post(current_user, post_id):
-    """Increment share count of a post."""
-    post = Post.query.get(post_id)
-    if not post:
-        return jsonify({"error": "Post not found"}), 404
+    # Default content per media type
+    default_content = {
+        "image": "📷 Photo",
+        "video": "🎥 Video",
+        "voice": "🎤 Voice message",
+        "document": "📎 Document"
+    }.get(media_type, "Media")
 
-    post.shares_count += 1
+    message = Message(
+        conversation_id=conversation_id,
+        sender_id=current_user.id,
+        receiver_id=receiver_id,
+        content=request.form.get("content", default_content),
+        media_url=url,
+        media_type=media_type,
+        is_delivered=True
+    )
+    db.session.add(message)
+
+    convo.last_message = default_content
+    convo.last_message_at = datetime.utcnow()
+    convo.updated_at = datetime.utcnow()
     db.session.commit()
 
     return jsonify({
-        "message": "Post shared",
-        "shares_count": post.shares_count
+        "message": "Media sent",
+        "data": message.to_dict(current_user.id)
+    }), 201
+
+
+# ------------------------------------------------------------
+# 8. MARK MESSAGES AS READ
+# ------------------------------------------------------------
+@messages_bp.route("/<int:conversation_id>/read", methods=["POST"])
+@token_required
+def mark_read(current_user, conversation_id):
+    """Mark all messages in conversation as read."""
+    convo = Conversation.query.get(conversation_id)
+    if not convo:
+        return jsonify({"error": "Conversation not found"}), 404
+
+    if current_user.id not in (convo.user1_id, convo.user2_id):
+        return jsonify({"error": "Not authorized"}), 403
+
+    unread = Message.query.filter_by(
+        conversation_id=conversation_id,
+        receiver_id=current_user.id,
+        is_read=False
+    ).all()
+
+    for msg in unread:
+        msg.is_read = True
+    db.session.commit()
+
+    return jsonify({
+        "message": f"Marked {len(unread)} messages as read"
     }), 200
 
 
 # ------------------------------------------------------------
-# 13. MY POSTS
+# 9. DELETE MESSAGE
 # ------------------------------------------------------------
-@posts_bp.route("/my-posts", methods=["GET"])
+@messages_bp.route("/message/<int:message_id>", methods=["DELETE"])
 @token_required
-def my_posts(current_user):
-    """Get current user's own posts."""
-    page = int(request.args.get("page", 1))
-    limit = min(int(request.args.get("limit", 20)), 50)
-    offset = (page - 1) * limit
+def delete_message(current_user, message_id):
+    """Delete a message (sender only)."""
+    message = Message.query.get(message_id)
+    if not message:
+        return jsonify({"error": "Message not found"}), 404
 
-    query = Post.query.filter_by(user_id=current_user.id) \
-        .order_by(desc(Post.created_at))
+    if message.sender_id != current_user.id:
+        return jsonify({"error": "Not authorized"}), 403
 
-    total = query.count()
-    posts = query.offset(offset).limit(limit).all()
+    db.session.delete(message)
+    db.session.commit()
 
-    return jsonify({
-        "page": page,
-        "total": total,
-        "has_more": offset + len(posts) < total,
-        "posts": [p.to_dict() for p in posts]
-    }), 200
+    return jsonify({"message": "Message deleted"}), 200
 
 
 # ------------------------------------------------------------
-# 14. EXPORTS
+# 10. DELETE CONVERSATION
 # ------------------------------------------------------------
-__all__ = ["posts_bp"]
+@messages_bp.route("/<int:conversation_id>", methods=["DELETE"])
+@token_required
+def delete_conversation(current_user, conversation_id):
+    """Delete a whole conversation (both users)."""
+    convo = Conversation.query.get(conversation_id)
+    if not convo:
+        return jsonify({"error": "Conversation not found"}), 404
+
+    if current_user.id not in (convo.user1_id, convo.user2_id):
+        return jsonify({"error": "Not authorized"}), 403
+
+    db.session.delete(convo)
+    db.session.commit()
+
+    return jsonify({"message": "Conversation deleted"}), 200
+
+
+# ------------------------------------------------------------
+# 11. UNREAD COUNT (Total)
+# ------------------------------------------------------------
+@messages_bp.route("/unread-count", methods=["GET"])
+@token_required
+def unread_count(current_user):
+    """Get total unread messages for current user."""
+    count = Message.query.filter_by(
+        receiver_id=current_user.id,
+        is_read=False
+    ).count()
+
+    return jsonify({"unread_count": count}), 200
+
+
+# ------------------------------------------------------------
+# 12. EXPORTS
+# ------------------------------------------------------------
+__all__ = ["messages_bp"]

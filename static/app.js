@@ -1,767 +1,524 @@
 /* ============================================================
    MSAFIRI GLOBAL MEDIA
-   APP.JS — PHASE 2
-   ------------------------------------------------------------
-   Frontend controller for:
-   - Splash screen
-   - Authentication
-   - Home / Feed
-   - People search
-   - User profiles
-   - Posts
-   - Likes
-   - Comments
-   - Saves
-   - Shares
-   - Stories
-   - Discovery
-   - AI Council navigation
-   - Creative Studio
-   - Market
-   - World Map
-   - Channels
-   - Communities
-   - Videos
-   - Chats
-   - User Manual
-   - Settings
-   - Theme
-   - Back navigation
-   ------------------------------------------------------------
-   Backend:
-   FastAPI + SQLAlchemy
+   APP.JS — STABLE FRONTEND
+   Compatible with supplied:
+   - index.html
+   - style.css
+   - /api/health
+   - /api/feed
+   - /api/posts/*
+   - /api/profile/*
+   - /api/messages
    ============================================================ */
 
-"use strict";
+'use strict';
 
 /* ============================================================
-   GLOBAL CONFIG
+   CONFIG
    ============================================================ */
 
 const API = window.location.origin;
 
-const APP_NAME = "MSAFIRI GLOBAL MEDIA";
-const APP_VERSION = "Media V0.0.1";
-const FOUNDER = "MSAFIRI WILLIAM MUNGA";
-const COMPANY = "ZetroLink Technology Limited";
+const STORAGE = {
+    TOKEN: 'msafiri_token',
+    USER: 'msafiri_user',
+    THEME: 'msafiri_theme'
+};
 
-const TOKEN_KEY = "msafiri_access_token";
-const USER_KEY = "msafiri_current_user";
-const THEME_KEY = "msafiri_theme";
+const ENDPOINTS = {
+    health: '/api/health',
+    feed: '/api/feed',
+    messages: '/api/messages',
+    posts: '/api/posts',
+    profile: '/api/profile'
+};
 
-/* ============================================================
-   GLOBAL STATE
-   ============================================================ */
+let TOKEN = localStorage.getItem(STORAGE.TOKEN) || '';
+let CURRENT_USER = safeJSONParse(
+    localStorage.getItem(STORAGE.USER)
+) || null;
 
-let TOKEN = localStorage.getItem(TOKEN_KEY) || null;
-
-let CURRENT_USER = null;
-
-try {
-    const savedUser = localStorage.getItem(USER_KEY);
-    CURRENT_USER = savedUser ? JSON.parse(savedUser) : null;
-} catch (error) {
-    console.warn("Could not restore saved user:", error);
-    CURRENT_USER = null;
-}
-
-let CURRENT_PAGE = "home";
-
-let PAGE_HISTORY = [];
-
-let CURRENT_FEED = "for-you";
-
+let CURRENT_VIEW = 'home';
+let CURRENT_FEED = 'for-you';
 let CACHED_POSTS = [];
-
 let CACHED_CHATS = [];
-
-let SEARCH_RESULTS = [];
-
+let CURRENT_CHAT = null;
 let SEARCH_TIMER = null;
-
-let CURRENT_PROFILE_ID = null;
-
-let CURRENT_CHAT_USER = null;
-
-let CURRENT_POST_ID = null;
-
-let SPLASH_DONE = false;
-
+let SPLASH_FINISHED = false;
 
 /* ============================================================
-   DOM HELPER
+   DOM HELPERS
    ============================================================ */
 
-function $(selector) {
-    return document.querySelector(selector);
+const $ = (selector) => {
+    try {
+        return document.querySelector(selector);
+    } catch {
+        return null;
+    }
+};
+
+const $$ = (selector) => {
+    try {
+        return Array.from(document.querySelectorAll(selector));
+    } catch {
+        return [];
+    }
+};
+
+function byId(id) {
+    return document.getElementById(id);
 }
 
-function $all(selector) {
-    return Array.from(document.querySelectorAll(selector));
+function safeJSONParse(value) {
+    if (!value) return null;
+
+    try {
+        return JSON.parse(value);
+    } catch {
+        return null;
+    }
 }
-
-
-/* ============================================================
-   SAFE HTML
-   ============================================================ */
 
 function escapeHTML(value) {
-    if (value === null || value === undefined) {
-        return "";
-    }
-
-    return String(value)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 }
 
+function initials(name) {
+    const text = String(name || 'M').trim();
+
+    if (!text) return 'M';
+
+    return text
+        .split(/\s+/)
+        .slice(0, 2)
+        .map(part => part.charAt(0))
+        .join('')
+        .toUpperCase();
+}
+
+function absoluteURL(url) {
+    if (!url) return '';
+
+    if (
+        url.startsWith('http://') ||
+        url.startsWith('https://') ||
+        url.startsWith('data:')
+    ) {
+        return url;
+    }
+
+    if (url.startsWith('/')) {
+        return `${API}${url}`;
+    }
+
+    return `${API}/${url}`;
+}
+
+function formatDate(dateValue) {
+    if (!dateValue) return '';
+
+    const date = new Date(dateValue);
+
+    if (Number.isNaN(date.getTime())) {
+        return '';
+    }
+
+    const now = new Date();
+    const diff = Math.floor((now - date) / 1000);
+
+    if (diff < 60) return 'now';
+    if (diff < 3600) return `${Math.floor(diff / 60)}m`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
+    if (diff < 604800) return `${Math.floor(diff / 86400)}d`;
+
+    return date.toLocaleDateString();
+}
 
 /* ============================================================
-   INITIALIZATION
+   TOAST
    ============================================================ */
 
-document.addEventListener("DOMContentLoaded", () => {
-    try {
-        initializeTheme();
-        initializeEvents();
-        initializeSplash();
+function showToast(message, duration = 2600) {
+    if (!message) return;
 
-        /*
-         * IMPORTANT:
-         * The splash screen uses CSS animation.
-         * We do not depend only on animationend because some
-         * browsers can behave differently with visibility.
-         */
-        setTimeout(() => {
-            finishSplash();
-        }, 2800);
+    const old = byId('msafiri-toast');
 
-    } catch (error) {
-        console.error("Application initialization error:", error);
-        emergencyStart();
+    if (old) {
+        old.remove();
     }
-});
 
+    const toast = document.createElement('div');
+
+    toast.id = 'msafiri-toast';
+    toast.className = 'toast';
+    toast.textContent = message;
+
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.remove();
+    }, duration);
+}
+
+/* ============================================================
+   API REQUEST
+   ============================================================ */
+
+async function apiRequest(
+    path,
+    options = {},
+    allow401 = false
+) {
+    const config = {
+        method: options.method || 'GET',
+        headers: {
+            ...(options.headers || {})
+        }
+    };
+
+    if (TOKEN) {
+        config.headers.Authorization = `Bearer ${TOKEN}`;
+    }
+
+    if (
+        options.body &&
+        !(options.body instanceof FormData) &&
+        !(options.body instanceof Blob)
+    ) {
+        config.headers['Content-Type'] =
+            'application/json';
+
+        config.body = JSON.stringify(options.body);
+    } else if (options.body) {
+        config.body = options.body;
+    }
+
+    let response;
+
+    try {
+        response = await fetch(
+            `${API}${path}`,
+            config
+        );
+    } catch (error) {
+        console.error('Network error:', error);
+
+        throw new Error(
+            'Unable to connect to the server.'
+        );
+    }
+
+    const text = await response.text();
+
+    let data = {};
+
+    if (text) {
+        try {
+            data = JSON.parse(text);
+        } catch {
+            data = {
+                raw: text
+            };
+        }
+    }
+
+    if (response.status === 401 && !allow401) {
+        clearSession();
+        showAuth();
+        throw new Error('Session expired.');
+    }
+
+    if (!response.ok) {
+        const detail =
+            data?.detail ||
+            data?.message ||
+            data?.error ||
+            `Request failed (${response.status})`;
+
+        throw new Error(detail);
+    }
+
+    return data;
+}
+
+/* ============================================================
+   SESSION
+   ============================================================ */
+
+function saveSession(token, user) {
+    TOKEN = token || '';
+
+    CURRENT_USER = user || null;
+
+    if (TOKEN) {
+        localStorage.setItem(
+            STORAGE.TOKEN,
+            TOKEN
+        );
+    }
+
+    if (CURRENT_USER) {
+        localStorage.setItem(
+            STORAGE.USER,
+            JSON.stringify(CURRENT_USER)
+        );
+    }
+}
+
+function clearSession() {
+    TOKEN = '';
+    CURRENT_USER = null;
+
+    localStorage.removeItem(STORAGE.TOKEN);
+    localStorage.removeItem(STORAGE.USER);
+}
 
 /* ============================================================
    SPLASH
    ============================================================ */
 
-function initializeSplash() {
-    const splash = $("#splash");
+function finishSplash() {
+    if (SPLASH_FINISHED) return;
+
+    SPLASH_FINISHED = true;
+
+    const splash = byId('splash');
 
     if (!splash) {
-        finishSplash();
+        bootApplication();
         return;
     }
 
-    splash.addEventListener("animationend", (event) => {
-        if (event.animationName === "fadeOut") {
-            finishSplash();
-        }
-    });
+    splash.style.pointerEvents = 'none';
+    splash.style.opacity = '0';
+    splash.style.visibility = 'hidden';
+
+    setTimeout(() => {
+        splash.classList.add('hidden');
+        bootApplication();
+    }, 650);
 }
-
-
-function finishSplash() {
-    if (SPLASH_DONE) {
-        return;
-    }
-
-    SPLASH_DONE = true;
-
-    const splash = $("#splash");
-
-    if (splash) {
-        splash.classList.add("hidden");
-    }
-
-    if (TOKEN) {
-        showApp();
-
-        loadCurrentUser()
-            .then(() => {
-                loadHome();
-            })
-            .catch(() => {
-                /*
-                 * If token is invalid, show authentication.
-                 */
-                showAuth();
-            });
-
-    } else {
-        showAuth();
-    }
-}
-
-
-function emergencyStart() {
-    const splash = $("#splash");
-    const auth = $("#auth-screen");
-    const app = $("#app");
-
-    if (splash) {
-        splash.classList.add("hidden");
-    }
-
-    if (TOKEN) {
-        if (app) app.classList.remove("hidden");
-        if (auth) auth.classList.add("hidden");
-        loadHome();
-    } else {
-        if (auth) auth.classList.remove("hidden");
-        if (app) app.classList.add("hidden");
-    }
-}
-
 
 /* ============================================================
    AUTH / APP VISIBILITY
    ============================================================ */
 
 function showAuth() {
-    const auth = $("#auth-screen");
-    const app = $("#app");
+    const auth = byId('auth-screen');
+    const app = byId('app');
 
     if (auth) {
-        auth.classList.remove("hidden");
+        auth.classList.remove('hidden');
     }
 
     if (app) {
-        app.classList.add("hidden");
+        app.classList.add('hidden');
     }
 }
-
 
 function showApp() {
-    const auth = $("#auth-screen");
-    const app = $("#app");
+    const auth = byId('auth-screen');
+    const app = byId('app');
 
     if (auth) {
-        auth.classList.add("hidden");
+        auth.classList.add('hidden');
     }
 
     if (app) {
-        app.classList.remove("hidden");
+        app.classList.remove('hidden');
     }
-
-    updatePageTitle("MSAFIRI");
 }
 
-
-/* ============================================================
-   EVENTS
-   ============================================================ */
-
-function initializeEvents() {
-
-    /* AUTH TABS */
-
-    $all(".auth-tab").forEach((button) => {
-        button.addEventListener("click", () => {
-            switchAuthTab(button.dataset.tab);
-        });
-    });
-
-
-    /* LOGIN */
-
-    const loginForm = $("#login-form");
-
-    if (loginForm) {
-        loginForm.addEventListener("submit", async (event) => {
-            event.preventDefault();
-            await login();
-        });
-    }
-
-
-    /* REGISTER */
-
-    const registerForm = $("#register-form");
-
-    if (registerForm) {
-        registerForm.addEventListener("submit", async (event) => {
-            event.preventDefault();
-            await register();
-        });
-    }
-
-
-    /* BOTTOM NAV */
-
-    $all(".nav-btn").forEach((button) => {
-        button.addEventListener("click", () => {
-            const page = button.dataset.nav;
-
-            if (page) {
-                navigate(page);
-            }
-        });
-    });
-
-
-    /* BACK */
-
-    const backButton = $("#back-btn");
-
-    if (backButton) {
-        backButton.addEventListener("click", () => {
-            goBack();
-        });
-    }
-
-
-    /* THREE DOTS */
-
-    const dotsButton = $("#dots-btn");
-
-    if (dotsButton) {
-        dotsButton.addEventListener("click", (event) => {
-            event.stopPropagation();
-            toggleDotsMenu();
-        });
-    }
-
-
-    /* CLOSE DROPDOWN WHEN CLICKING OUTSIDE */
-
-    document.addEventListener("click", (event) => {
-        const menu = $("#dots-menu");
-        const button = $("#dots-btn");
-
-        if (
-            menu &&
-            !menu.contains(event.target) &&
-            button &&
-            !button.contains(event.target)
-        ) {
-            menu.classList.add("hidden");
+function bootApplication() {
+    try {
+        if (TOKEN) {
+            showApp();
+            navigate('home');
+            loadHome();
+        } else {
+            showAuth();
         }
-    });
+    } catch (error) {
+        console.error(
+            'Application boot error:',
+            error
+        );
 
-
-    /* DROPDOWN */
-
-    $all("#dots-menu button").forEach((button) => {
-        button.addEventListener("click", () => {
-            const action = button.dataset.action;
-
-            closeDotsMenu();
-
-            if (action === "manual") {
-                showUserManual();
-            }
-
-            if (action === "settings") {
-                openSettings();
-            }
-
-            if (action === "logout") {
-                logout();
-            }
-        });
-    });
-
-
-    /* SEARCH */
-
-    const searchInput = $("#search-input");
-
-    if (searchInput) {
-        searchInput.addEventListener("input", () => {
-            const query = searchInput.value.trim();
-
-            clearTimeout(SEARCH_TIMER);
-
-            if (!query) {
-                closeSearchResults();
-                return;
-            }
-
-            SEARCH_TIMER = setTimeout(() => {
-                searchPeople(query);
-            }, 350);
-        });
-
-        searchInput.addEventListener("keydown", (event) => {
-            if (event.key === "Enter") {
-                event.preventDefault();
-
-                const query = searchInput.value.trim();
-
-                if (query) {
-                    searchPeople(query);
-                }
-            }
-        });
+        showAuth();
     }
-
-
-    /* FEED TABS */
-
-    $all(".feed-tab").forEach((button) => {
-        button.addEventListener("click", () => {
-            $all(".feed-tab").forEach((item) => {
-                item.classList.remove("active");
-            });
-
-            button.classList.add("active");
-
-            CURRENT_FEED = button.dataset.feed || "for-you";
-
-            loadFeed();
-        });
-    });
-
-
-    /* CREATE POST */
-
-    const createButton = $("#fab-create");
-
-    if (createButton) {
-        createButton.addEventListener("click", () => {
-            openCreatePost();
-        });
-    }
-
-
-    /* STORY */
-
-    const storyButton = $("#add-story-btn");
-
-    if (storyButton) {
-        storyButton.addEventListener("click", () => {
-            openCreateStory();
-        });
-    }
-
-
-    /* EDIT PROFILE */
-
-    const editProfileButton = $("#edit-profile-btn");
-
-    if (editProfileButton) {
-        editProfileButton.addEventListener("click", () => {
-            openEditProfile();
-        });
-    }
-
-
-    /* MODAL CLOSE */
-
-    const modalClose = $("#modal-close");
-
-    if (modalClose) {
-        modalClose.addEventListener("click", closeModal);
-    }
-
-    const modal = $("#modal");
-
-    if (modal) {
-        modal.addEventListener("click", (event) => {
-            if (event.target === modal) {
-                closeModal();
-            }
-        });
-    }
-
-
-    /* ESCAPE KEY */
-
-    document.addEventListener("keydown", (event) => {
-        if (event.key === "Escape") {
-            closeModal();
-            closeDotsMenu();
-        }
-    });
 }
-
 
 /* ============================================================
    AUTH TABS
    ============================================================ */
 
-function switchAuthTab(tab) {
+function setupAuthTabs() {
+    $$('.auth-tab').forEach(button => {
+        button.addEventListener(
+            'click',
+            () => {
+                const tab =
+                    button.dataset.tab;
 
-    $all(".auth-tab").forEach((button) => {
-        button.classList.toggle(
-            "active",
-            button.dataset.tab === tab
+                $$('.auth-tab').forEach(btn => {
+                    btn.classList.toggle(
+                        'active',
+                        btn === button
+                    );
+                });
+
+                const loginForm =
+                    byId('login-form');
+
+                const registerForm =
+                    byId('register-form');
+
+                if (loginForm) {
+                    loginForm.classList.toggle(
+                        'hidden',
+                        tab !== 'login'
+                    );
+                }
+
+                if (registerForm) {
+                    registerForm.classList.toggle(
+                        'hidden',
+                        tab !== 'register'
+                    );
+                }
+            }
         );
     });
-
-    const loginForm = $("#login-form");
-    const registerForm = $("#register-form");
-
-    if (tab === "login") {
-
-        if (loginForm) {
-            loginForm.classList.remove("hidden");
-        }
-
-        if (registerForm) {
-            registerForm.classList.add("hidden");
-        }
-
-    } else {
-
-        if (loginForm) {
-            loginForm.classList.add("hidden");
-        }
-
-        if (registerForm) {
-            registerForm.classList.remove("hidden");
-        }
-    }
 }
-
-
-/* ============================================================
-   API HELPER
-   ============================================================ */
-
-async function apiFetch(path, options = {}) {
-
-    const config = {
-        ...options,
-        headers: {
-            ...(options.headers || {})
-        }
-    };
-
-    /*
-     * Do not automatically send Content-Type for FormData.
-     * Browser must generate multipart boundary.
-     */
-
-    if (
-        TOKEN &&
-        !config.headers.Authorization
-    ) {
-        config.headers.Authorization = `Bearer ${TOKEN}`;
-    }
-
-    let response;
-
-    try {
-        response = await fetch(`${API}${path}`, config);
-    } catch (error) {
-        console.error("Network error:", error);
-        throw new Error("Network connection failed.");
-    }
-
-    const contentType =
-        response.headers.get("content-type") || "";
-
-    let data = null;
-
-    try {
-
-        if (contentType.includes("application/json")) {
-            data = await response.json();
-
-        } else {
-            data = await response.text();
-        }
-
-    } catch (error) {
-        data = null;
-    }
-
-
-    if (!response.ok) {
-
-        let message =
-            `Request failed (${response.status})`;
-
-        if (data) {
-
-            if (typeof data === "object") {
-                message =
-                    data.detail ||
-                    data.message ||
-                    message;
-            } else if (typeof data === "string" && data.trim()) {
-                message = data;
-            }
-        }
-
-        const error = new Error(message);
-        error.status = response.status;
-        error.data = data;
-
-        throw error;
-    }
-
-    return data;
-}
-
 
 /* ============================================================
    LOGIN
    ============================================================ */
 
 async function login() {
-
-    const usernameInput = $("#login-username");
-    const passwordInput = $("#login-password");
-
-    if (!usernameInput || !passwordInput) {
-        return;
-    }
-
     const username =
-        usernameInput.value.trim();
+        byId('login-username')?.value.trim();
 
     const password =
-        passwordInput.value;
+        byId('login-password')?.value || '';
 
     if (!username || !password) {
-        toast("Enter username/email and password.");
+        showToast(
+            'Please enter username/email and password.'
+        );
+
         return;
     }
 
     const button =
-        $("#login-form .btn-primary");
+        $('#login-form button[type="submit"]');
 
-    setButtonLoading(button, true, "Logging in...");
+    setButtonLoading(button, true);
 
     try {
-
         /*
-         * Most FastAPI OAuth2 implementations expect
-         * application/x-www-form-urlencoded.
+         * Supports common FastAPI OAuth login.
          */
 
-        const form = new URLSearchParams();
+        const body =
+            new URLSearchParams();
 
-        form.append("username", username);
-        form.append("password", password);
+        body.append(
+            'username',
+            username
+        );
+
+        body.append(
+            'password',
+            password
+        );
 
         let data;
 
         try {
-
-            data = await apiFetch(
-                "/api/auth/login",
+            data = await apiRequest(
+                '/api/auth/login',
                 {
-                    method: "POST",
-                    headers: {
-                        "Content-Type":
-                            "application/x-www-form-urlencoded"
-                    },
-                    body: form.toString()
-                }
+                    method: 'POST',
+                    body
+                },
+                true
             );
-
         } catch (firstError) {
-
             /*
-             * Some custom auth routers use JSON.
-             * Try JSON as a fallback.
+             * Some backends use /api/login.
              */
 
-            data = await apiFetch(
-                "/api/auth/login",
+            data = await apiRequest(
+                '/api/login',
                 {
-                    method: "POST",
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    },
-                    body: JSON.stringify({
-                        username,
-                        email: username,
-                        password
-                    })
-                }
+                    method: 'POST',
+                    body
+                },
+                true
             );
         }
 
-
         const token =
-            data.access_token ||
-            data.token ||
-            data.accessToken;
+            data?.access_token ||
+            data?.token ||
+            data?.data?.access_token ||
+            '';
+
+        const user =
+            data?.user ||
+            data?.data?.user ||
+            null;
 
         if (!token) {
             throw new Error(
-                "Login succeeded but no access token was returned."
+                data?.detail ||
+                'Login succeeded but no token was returned.'
             );
         }
 
-        TOKEN = token;
-
-        localStorage.setItem(
-            TOKEN_KEY,
-            TOKEN
-        );
-
-
-        CURRENT_USER =
-            data.user ||
-            data.current_user ||
-            data.profile ||
-            null;
-
-
-        if (CURRENT_USER) {
-            saveCurrentUser(CURRENT_USER);
-        }
-
+        saveSession(token, user);
 
         showApp();
-
-        await loadCurrentUser();
-
-        navigate("home", false);
-
-        toast("Welcome back!");
+        navigate('home');
 
         await loadHome();
 
+        showToast('Welcome back!');
     } catch (error) {
+        console.error('Login error:', error);
 
-        console.error("Login error:", error);
-
-        toast(
+        showToast(
             error.message ||
-            "Login failed."
+            'Login failed.'
         );
-
     } finally {
-
-        setButtonLoading(
-            button,
-            false,
-            "Login"
-        );
+        setButtonLoading(button, false);
     }
 }
-
 
 /* ============================================================
    REGISTER
    ============================================================ */
 
 async function register() {
-
     const username =
-        $("#reg-username")?.value.trim();
+        byId('reg-username')?.value.trim();
 
     const email =
-        $("#reg-email")?.value.trim();
+        byId('reg-email')?.value.trim();
 
     const fullName =
-        $("#reg-fullname")?.value.trim();
+        byId('reg-fullname')?.value.trim();
 
     const password =
-        $("#reg-password")?.value;
+        byId('reg-password')?.value || '';
 
     if (
         !username ||
@@ -769,581 +526,249 @@ async function register() {
         !fullName ||
         !password
     ) {
-        toast("Please fill all registration fields.");
-        return;
-    }
+        showToast(
+            'Please complete all registration fields.'
+        );
 
-    if (password.length < 6) {
-        toast("Password must contain at least 6 characters.");
         return;
     }
 
     const button =
-        $("#register-form .btn-primary");
+        $('#register-form button[type="submit"]');
 
-    setButtonLoading(
-        button,
-        true,
-        "Creating..."
-    );
+    setButtonLoading(button, true);
 
     try {
-
-        let data;
-
-        /*
-         * First try JSON.
-         */
-
-        try {
-
-            data = await apiFetch(
-                "/api/auth/register",
+        const data =
+            await apiRequest(
+                '/api/auth/register',
                 {
-                    method: "POST",
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    },
-                    body: JSON.stringify({
+                    method: 'POST',
+                    body: {
                         username,
                         email,
                         full_name: fullName,
                         password
-                    })
-                }
+                    }
+                },
+                true
             );
-
-        } catch (jsonError) {
-
-            /*
-             * Fallback for Form based auth.
-             */
-
-            const form =
-                new URLSearchParams();
-
-            form.append("username", username);
-            form.append("email", email);
-            form.append("full_name", fullName);
-            form.append("password", password);
-
-            data = await apiFetch(
-                "/api/auth/register",
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type":
-                            "application/x-www-form-urlencoded"
-                    },
-                    body: form.toString()
-                }
-            );
-        }
-
 
         const token =
             data?.access_token ||
             data?.token ||
-            data?.accessToken;
+            data?.data?.access_token;
 
+        const user =
+            data?.user ||
+            data?.data?.user ||
+            null;
 
         if (token) {
-
-            TOKEN = token;
-
-            localStorage.setItem(
-                TOKEN_KEY,
-                TOKEN
+            saveSession(
+                token,
+                user
             );
 
-            CURRENT_USER =
-                data.user ||
-                data.current_user ||
-                null;
-
-            if (CURRENT_USER) {
-                saveCurrentUser(CURRENT_USER);
-            }
-
             showApp();
-
-            await loadCurrentUser();
-
-            navigate("home", false);
+            navigate('home');
 
             await loadHome();
 
-            toast("Account created successfully!");
-
+            showToast(
+                'Account created successfully.'
+            );
         } else {
-
-            toast(
-                "Account created. Please login."
+            showToast(
+                'Account created. Please login.'
             );
 
-            switchAuthTab("login");
+            const loginTab =
+                $('.auth-tab[data-tab="login"]');
 
-            const loginUsername =
-                $("#login-username");
-
-            if (loginUsername) {
-                loginUsername.value = username;
+            if (loginTab) {
+                loginTab.click();
             }
         }
-
     } catch (error) {
-
         console.error(
-            "Registration error:",
+            'Register error:',
             error
         );
 
-        toast(
+        showToast(
             error.message ||
-            "Registration failed."
+            'Registration failed.'
         );
-
     } finally {
-
         setButtonLoading(
             button,
-            false,
-            "Create Account"
+            false
         );
     }
 }
-
 
 /* ============================================================
-   CURRENT USER
+   BUTTON LOADING
    ============================================================ */
 
-async function loadCurrentUser() {
+function setButtonLoading(
+    button,
+    loading
+) {
+    if (!button) return;
 
-    if (!TOKEN) {
-        return null;
-    }
+    if (loading) {
+        button.dataset.originalText =
+            button.textContent;
 
-    /*
-     * We don't know which exact current-user endpoint
-     * your auth router exposes, so try common endpoints.
-     */
+        button.disabled = true;
+        button.textContent = 'Please wait...';
+    } else {
+        button.disabled = false;
 
-    const candidates = [
-        "/api/auth/me",
-        "/api/profile/me",
-        "/api/auth/user"
-    ];
-
-    for (const endpoint of candidates) {
-
-        try {
-
-            const data =
-                await apiFetch(endpoint);
-
-            const user =
-                data?.user ||
-                data?.profile ||
-                data;
-
-            if (
-                user &&
-                typeof user === "object" &&
-                user.id
-            ) {
-
-                CURRENT_USER = user;
-
-                saveCurrentUser(user);
-
-                updateOwnProfileUI();
-
-                return user;
-            }
-
-        } catch (error) {
-            /*
-             * Try next endpoint.
-             */
-        }
-    }
-
-    /*
-     * If backend does not expose /me,
-     * keep locally stored user.
-     */
-
-    if (CURRENT_USER) {
-        updateOwnProfileUI();
-    }
-
-    return CURRENT_USER;
-}
-
-
-function saveCurrentUser(user) {
-
-    CURRENT_USER = user;
-
-    try {
-        localStorage.setItem(
-            USER_KEY,
-            JSON.stringify(user)
-        );
-    } catch (error) {
-        console.warn(
-            "Could not save user:",
-            error
-        );
-    }
-}
-
-
-function updateOwnProfileUI() {
-
-    if (!CURRENT_USER) {
-        return;
-    }
-
-    const name =
-        CURRENT_USER.full_name ||
-        CURRENT_USER.username ||
-        "User";
-
-    const username =
-        CURRENT_USER.username ||
-        "user";
-
-    const bio =
-        CURRENT_USER.bio ||
-        "Welcome to Msafiri";
-
-    const nameElement =
-        $("#profile-name");
-
-    const usernameElement =
-        $("#profile-username");
-
-    const bioElement =
-        $("#profile-bio");
-
-    const avatar =
-        $("#profile-avatar");
-
-    if (nameElement) {
-        nameElement.textContent = name;
-    }
-
-    if (usernameElement) {
-        usernameElement.textContent =
-            `@${username}`;
-    }
-
-    if (bioElement) {
-        bioElement.textContent = bio;
-    }
-
-    if (avatar) {
-
-        if (CURRENT_USER.avatar_url) {
-
-            avatar.innerHTML =
-                `<img src="${escapeHTML(
-                    mediaURL(CURRENT_USER.avatar_url)
-                )}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
-
-        } else {
-
-            avatar.textContent =
-                getInitial(
-                    name
-                );
+        if (
+            button.dataset.originalText
+        ) {
+            button.textContent =
+                button.dataset.originalText;
         }
     }
 }
-
 
 /* ============================================================
    NAVIGATION
    ============================================================ */
 
-function navigate(page, remember = true) {
-
-    const allowed = [
-        "home",
-        "discovery",
-        "chats",
-        "profile",
-        "sub"
+function navigate(view) {
+    const validViews = [
+        'home',
+        'discovery',
+        'chats',
+        'profile'
     ];
 
-    if (!allowed.includes(page)) {
-        page = "home";
+    if (!validViews.includes(view)) {
+        view = 'home';
     }
 
-    if (
-        remember &&
-        CURRENT_PAGE !== page &&
-        CURRENT_PAGE !== "sub"
-    ) {
-        PAGE_HISTORY.push(
-            CURRENT_PAGE
-        );
-    }
+    CURRENT_VIEW = view;
 
-    CURRENT_PAGE = page;
-
-
-    $all(".page").forEach((section) => {
-        section.classList.remove("active");
+    $$('.page').forEach(page => {
+        page.classList.remove('active');
     });
 
+    const target =
+        byId(`page-${view}`);
 
-    const pageElement =
-        $(`#page-${page}`);
-
-    if (pageElement) {
-        pageElement.classList.add("active");
+    if (target) {
+        target.classList.add('active');
     }
 
-
-    /*
-     * Bottom navigation only reflects
-     * the four main pages.
-     */
-
-    let navPage = page;
-
-    if (page === "sub") {
-        navPage = inferParentNavigation();
-    }
-
-    $all(".nav-btn").forEach((button) => {
-
+    $$('.nav-btn').forEach(button => {
         button.classList.toggle(
-            "active",
-            button.dataset.nav === navPage
+            'active',
+            button.dataset.nav === view
         );
     });
 
+    const title =
+        byId('page-title');
 
-    updateBackButton();
+    if (title) {
+        const titles = {
+            home: 'MSAFIRI',
+            discovery: 'Discovery',
+            chats: 'Chats',
+            profile: 'Profile'
+        };
 
-    if (page === "home") {
-        updatePageTitle("MSAFIRI");
+        title.textContent =
+            titles[view];
+    }
+
+    const backButton =
+        byId('back-btn');
+
+    if (backButton) {
+        backButton.classList.add('hidden');
+    }
+
+    if (view === 'home') {
         loadHome();
     }
 
-    if (page === "discovery") {
-        updatePageTitle("Discovery");
+    if (view === 'discovery') {
         loadDiscovery();
     }
 
-    if (page === "chats") {
-        updatePageTitle("Chats");
+    if (view === 'chats') {
         loadChats();
     }
 
-    if (page === "profile") {
-        updatePageTitle("Profile");
-        loadMyProfile();
+    if (view === 'profile') {
+        loadProfile();
     }
 }
-
-
-function inferParentNavigation() {
-
-    if (
-        PAGE_HISTORY.length &&
-        [
-            "home",
-            "discovery",
-            "chats",
-            "profile"
-        ].includes(
-            PAGE_HISTORY[
-                PAGE_HISTORY.length - 1
-            ]
-        )
-    ) {
-        return PAGE_HISTORY[
-            PAGE_HISTORY.length - 1
-        ];
-    }
-
-    return "discovery";
-}
-
-
-function goBack() {
-
-    if (
-        PAGE_HISTORY.length === 0
-    ) {
-
-        navigate(
-            "home",
-            false
-        );
-
-        return;
-    }
-
-    const previous =
-        PAGE_HISTORY.pop();
-
-    navigate(
-        previous,
-        false
-    );
-}
-
-
-function updateBackButton() {
-
-    const button =
-        $("#back-btn");
-
-    if (!button) {
-        return;
-    }
-
-    if (
-        CURRENT_PAGE === "sub" ||
-        PAGE_HISTORY.length > 0
-    ) {
-        button.classList.remove("hidden");
-    } else {
-        button.classList.add("hidden");
-    }
-}
-
-
-function updatePageTitle(title) {
-
-    const element =
-        $("#page-title");
-
-    if (element) {
-        element.textContent =
-            title || "MSAFIRI";
-    }
-}
-
-
-/* ============================================================
-   HOME
-   ============================================================ */
-
-async function loadHome() {
-
-    try {
-
-        await Promise.allSettled([
-            loadFeed(),
-            loadStories()
-        ]);
-
-    } catch (error) {
-        console.error(
-            "Home loading error:",
-            error
-        );
-    }
-}
-
 
 /* ============================================================
    FEED
    ============================================================ */
 
-async function loadFeed() {
-
+async function loadHome() {
     const feed =
-        $("#feed");
+        byId('feed');
 
-    if (!feed) {
-        return;
-    }
+    if (!feed) return;
 
-    feed.innerHTML =
-        `<div class="muted" style="padding:20px;text-align:center;">
-            Loading posts...
-        </div>`;
+    renderFeedLoading(feed);
 
     try {
-
-        let data =
-            await apiFetch(
-                "/api/feed"
+        const data =
+            await apiRequest(
+                ENDPOINTS.feed
             );
 
-        let posts =
+        const posts =
             extractPosts(data);
-
-        /*
-         * Following filter is handled client-side
-         * only when backend doesn't provide a separate
-         * endpoint.
-         */
-
-        if (
-            CURRENT_FEED === "following" &&
-            CURRENT_USER?.id
-        ) {
-
-            /*
-             * Keep all posts if no follow metadata exists.
-             * This avoids falsely hiding posts.
-             */
-
-            posts =
-                posts.filter(
-                    (post) =>
-                        post.user_id !==
-                        CURRENT_USER.id
-                );
-        }
-
 
         CACHED_POSTS = posts;
 
         renderFeed(
+            feed,
             posts
         );
-
     } catch (error) {
-
         console.error(
-            "Feed error:",
+            'Feed error:',
             error
         );
 
         feed.innerHTML = `
-            <div class="post-card">
-                <strong>Unable to load feed</strong>
-                <p class="muted" style="margin-top:8px;">
-                    ${escapeHTML(
-                        error.message
-                    )}
-                </p>
-                <button
-                    class="btn-secondary"
-                    style="margin-top:12px;"
-                    onclick="loadFeed()"
-                >
-                    Retry
-                </button>
+            <div class="sub-item">
+                <div class="icon">📡</div>
+                <div class="text">
+                    <strong>Unable to load feed</strong>
+                    <span>${escapeHTML(error.message)}</span>
+                </div>
             </div>
         `;
     }
 }
 
+function renderFeedLoading(feed) {
+    feed.innerHTML = `
+        <div class="sub-item">
+            <div class="icon">⏳</div>
+            <div class="text">
+                <strong>Loading feed...</strong>
+                <span>Please wait.</span>
+            </div>
+        </div>
+    `;
+}
 
 function extractPosts(data) {
-
     if (Array.isArray(data)) {
         return data;
     }
@@ -1360,103 +785,86 @@ function extractPosts(data) {
         return data.items;
     }
 
+    if (Array.isArray(data?.data)) {
+        return data.data;
+    }
+
     return [];
 }
-
 
 /* ============================================================
    RENDER FEED
    ============================================================ */
 
-function renderFeed(posts) {
-
-    const feed =
-        $("#feed");
-
-    if (!feed) {
-        return;
-    }
+function renderFeed(
+    container,
+    posts
+) {
+    if (!container) return;
 
     if (!posts.length) {
-
-        feed.innerHTML = `
-            <div class="post-card" style="text-align:center;">
-                <div style="font-size:40px;">🌍</div>
-                <strong>No posts yet</strong>
-                <p class="muted" style="margin-top:6px;">
-                    Be the first person to share something.
-                </p>
+        container.innerHTML = `
+            <div class="sub-item">
+                <div class="icon">🌍</div>
+                <div class="text">
+                    <strong>No posts yet</strong>
+                    <span>Create the first post on MSAFIRI GLOBAL MEDIA.</span>
+                </div>
             </div>
         `;
 
         return;
     }
 
-
-    feed.innerHTML =
-        posts
-            .map(
-                (post) =>
-                    renderPost(post)
-            )
-            .join("");
+    container.innerHTML =
+        posts.map(
+            renderPost
+        ).join('');
 }
 
-
-/* ============================================================
-   POST HTML
-   ============================================================ */
-
 function renderPost(post) {
-
     const name =
         post.full_name ||
         post.username ||
-        "User";
+        'MSAFIRI USER';
 
     const username =
         post.username ||
-        "user";
+        'user';
 
     const avatar =
-        post.avatar_url
-            ? `<img src="${escapeHTML(
-                mediaURL(post.avatar_url)
-              )}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
-            : escapeHTML(
-                getInitial(name)
-              );
+        post.avatar_url;
 
+    const mediaURL =
+        absoluteURL(
+            post.media_url
+        );
 
-    let mediaHTML = "";
+    let mediaHTML = '';
 
     if (
-        post.media_url &&
-        post.media_type === "image"
+        mediaURL &&
+        post.media_type === 'image'
     ) {
-
         mediaHTML = `
             <img
                 class="post-media"
-                src="${escapeHTML(
-                    mediaURL(post.media_url)
-                )}"
+                src="${escapeHTML(mediaURL)}"
                 alt="Post image"
                 loading="lazy"
+                onerror="this.style.display='none'"
             >
         `;
+    }
 
-    } else if (
-        post.media_url &&
-        post.media_type === "video"
+    if (
+        mediaURL &&
+        post.media_type === 'video'
     ) {
-
         mediaHTML = `
             <video
                 class="post-media"
-                src="${escapeHTML(
-                    mediaURL(post.media_url)
-                )}"
+                src="${escapeHTML(mediaURL)}"
                 controls
                 playsinline
                 preload="metadata"
@@ -1464,22 +872,21 @@ function renderPost(post) {
         `;
     }
 
-
-    const liked =
-        post.liked
-            ? "liked"
-            : "";
-
-    const likeIcon =
-        post.liked
-            ? "❤️"
-            : "♡";
-
-    const saveIcon =
-        post.saved
-            ? "🔖"
-            : "🔖";
-
+    const avatarHTML =
+        avatar
+            ? `
+                <img
+                    class="post-avatar"
+                    src="${escapeHTML(absoluteURL(avatar))}"
+                    alt=""
+                    style="object-fit:cover"
+                >
+              `
+            : `
+                <div class="post-avatar">
+                    ${escapeHTML(initials(name))}
+                </div>
+              `;
 
     return `
         <article
@@ -1487,15 +894,9 @@ function renderPost(post) {
             data-post-id="${Number(post.id) || 0}"
         >
 
-            <div
-                class="post-header"
-                onclick="openUserProfile(${Number(post.user_id) || 0})"
-                style="cursor:pointer;"
-            >
+            <div class="post-header">
 
-                <div class="post-avatar">
-                    ${avatar}
-                </div>
+                ${avatarHTML}
 
                 <div class="post-user">
                     <strong>
@@ -1505,67 +906,59 @@ function renderPost(post) {
                     <span>
                         @${escapeHTML(username)}
                         ${post.created_at
-                            ? ` · ${formatTime(post.created_at)}`
-                            : ""}
+                            ? ` · ${escapeHTML(formatDate(post.created_at))}`
+                            : ''
+                        }
                     </span>
                 </div>
 
             </div>
 
-
             ${
                 post.caption
                     ? `
                         <div class="post-caption">
-                            ${formatText(
-                                post.caption
-                            )}
+                            ${escapeHTML(post.caption)}
                         </div>
                       `
-                    : ""
+                    : ''
             }
 
-
             ${mediaHTML}
-
 
             <div class="post-actions">
 
                 <button
-                    class="${liked}"
-                    onclick="toggleLike(${Number(post.id) || 0})"
+                    type="button"
+                    data-post-action="like"
+                    data-post-id="${Number(post.id)}"
+                    class="${post.liked ? 'liked' : ''}"
                 >
-                    ${likeIcon}
-                    <span>
-                        ${Number(post.likes) || 0}
-                    </span>
+                    ❤️ ${Number(post.likes) || 0}
                 </button>
 
                 <button
-                    onclick="openComments(${Number(post.id) || 0})"
+                    type="button"
+                    data-post-action="comment"
+                    data-post-id="${Number(post.id)}"
                 >
-                    💬
-                    <span>
-                        ${Number(post.comments) || 0}
-                    </span>
+                    💬 ${Number(post.comments) || 0}
                 </button>
 
                 <button
-                    onclick="toggleSave(${Number(post.id) || 0})"
+                    type="button"
+                    data-post-action="save"
+                    data-post-id="${Number(post.id)}"
                 >
-                    ${saveIcon}
-                    <span>
-                        ${Number(post.saves) || 0}
-                    </span>
+                    🔖 ${Number(post.saves) || 0}
                 </button>
 
                 <button
-                    onclick="sharePost(${Number(post.id) || 0})"
+                    type="button"
+                    data-post-action="share"
+                    data-post-id="${Number(post.id)}"
                 >
-                    ↗️
-                    <span>
-                        ${Number(post.shares) || 0}
-                    </span>
+                    ↗️ ${Number(post.shares) || 0}
                 </button>
 
             </div>
@@ -1574,218 +967,172 @@ function renderPost(post) {
     `;
 }
 
-
 /* ============================================================
-   LIKE
+   POST ACTIONS
    ============================================================ */
 
-async function toggleLike(postId) {
-
-    if (!requireLogin()) {
-        return;
-    }
+async function handlePostAction(
+    action,
+    postId
+) {
+    if (!postId) return;
 
     try {
+        let data;
 
-        const result =
-            await apiFetch(
-                `/api/posts/${postId}/like`,
+        if (action === 'like') {
+            data = await apiRequest(
+                `${ENDPOINTS.posts}/${postId}/like`,
                 {
-                    method: "POST"
+                    method: 'POST'
                 }
             );
 
-        const post =
-            CACHED_POSTS.find(
-                (item) =>
-                    Number(item.id) ===
-                    Number(postId)
+            updatePostCounts(
+                postId,
+                data
             );
 
-        if (post) {
-
-            post.liked =
-                !!result.liked;
-
-            post.likes =
-                Number(result.likes) || 0;
+            return;
         }
 
-        renderFeed(
-            CACHED_POSTS
-        );
+        if (action === 'save') {
+            data = await apiRequest(
+                `${ENDPOINTS.posts}/${postId}/save`,
+                {
+                    method: 'POST'
+                }
+            );
 
+            updatePostCounts(
+                postId,
+                data
+            );
+
+            return;
+        }
+
+        if (action === 'share') {
+            data = await apiRequest(
+                `${ENDPOINTS.posts}/${postId}/share`,
+                {
+                    method: 'POST'
+                }
+            );
+
+            updatePostCounts(
+                postId,
+                data
+            );
+
+            showToast(
+                'Post shared successfully.'
+            );
+
+            return;
+        }
+
+        if (action === 'comment') {
+            openCommentModal(
+                postId
+            );
+
+            return;
+        }
     } catch (error) {
-
         console.error(
-            "Like error:",
+            'Post action error:',
             error
         );
 
-        toast(
+        showToast(
             error.message ||
-            "Could not update like."
+            'Action failed.'
         );
     }
 }
 
-
-/* ============================================================
-   SAVE
-   ============================================================ */
-
-async function toggleSave(postId) {
-
-    if (!requireLogin()) {
-        return;
-    }
-
-    try {
-
-        const result =
-            await apiFetch(
-                `/api/posts/${postId}/save`,
-                {
-                    method: "POST"
-                }
-            );
-
-        const post =
-            CACHED_POSTS.find(
-                (item) =>
-                    Number(item.id) ===
-                    Number(postId)
-            );
-
-        if (post) {
-
-            post.saved =
-                !!result.saved;
-
-            post.saves =
-                Number(result.saves) || 0;
-        }
-
-        renderFeed(
-            CACHED_POSTS
+function updatePostCounts(
+    postId,
+    data
+) {
+    const card =
+        document.querySelector(
+            `.post-card[data-post-id="${CSS.escape(String(postId))}"]`
         );
 
-    } catch (error) {
+    if (!card) return;
 
-        console.error(
-            "Save error:",
-            error
+    const buttons =
+        card.querySelectorAll(
+            '[data-post-action]'
         );
 
-        toast(
-            error.message ||
-            "Could not save post."
-        );
-    }
-}
-
-
-/* ============================================================
-   SHARE
-   ============================================================ */
-
-async function sharePost(postId) {
-
-    if (!requireLogin()) {
-        return;
-    }
-
-    try {
-
-        const result =
-            await apiFetch(
-                `/api/posts/${postId}/share`,
-                {
-                    method: "POST"
-                }
-            );
-
-        const post =
-            CACHED_POSTS.find(
-                (item) =>
-                    Number(item.id) ===
-                    Number(postId)
-            );
-
-        if (post) {
-            post.shares =
-                Number(result.shares) || 0;
-        }
-
-        renderFeed(
-            CACHED_POSTS
-        );
-
-        const shareURL =
-            `${window.location.origin}/?post=${postId}`;
+    buttons.forEach(button => {
+        const action =
+            button.dataset.postAction;
 
         if (
-            navigator.clipboard &&
-            navigator.clipboard.writeText
+            action === 'like' &&
+            data.likes !== undefined
         ) {
+            button.textContent =
+                `❤️ ${data.likes}`;
 
-            try {
-                await navigator.clipboard.writeText(
-                    shareURL
-                );
-
-                toast(
-                    "Post link copied."
-                );
-
-            } catch {
-                toast(
-                    "Post shared."
-                );
-            }
-
-        } else {
-            toast(
-                "Post shared."
+            button.classList.toggle(
+                'liked',
+                Boolean(data.liked)
             );
         }
 
-    } catch (error) {
+        if (
+            action === 'save' &&
+            data.saves !== undefined
+        ) {
+            button.textContent =
+                `🔖 ${data.saves}`;
+        }
 
-        console.error(
-            "Share error:",
-            error
-        );
-
-        toast(
-            error.message ||
-            "Could not share post."
-        );
-    }
+        if (
+            action === 'share' &&
+            data.shares !== undefined
+        ) {
+            button.textContent =
+                `↗️ ${data.shares}`;
+        }
+    });
 }
-
 
 /* ============================================================
    COMMENTS
    ============================================================ */
 
-async function openComments(postId) {
+async function openCommentModal(
+    postId
+) {
+    const body =
+        byId('modal-body');
 
-    CURRENT_POST_ID = postId;
+    if (!body) return;
 
-    openModal(
-        `<h2>Comments</h2>
-         <div id="comments-container">
-            <p class="muted">Loading comments...</p>
-         </div>
-         <form
-            id="comment-form"
-            style="margin-top:16px;display:flex;gap:8px;"
-         >
+    openModal();
+
+    body.innerHTML = `
+        <h2>Comments</h2>
+        <div id="comments-list">
+            <div class="sub-item">
+                Loading comments...
+            </div>
+        </div>
+
+        <form id="comment-form"
+              style="margin-top:16px;display:flex;gap:8px;">
+
             <input
                 id="comment-input"
                 type="text"
                 placeholder="Write a comment..."
+                required
                 style="
                     flex:1;
                     padding:12px;
@@ -1796,55 +1143,21 @@ async function openComments(postId) {
                     outline:none;
                 "
             >
+
             <button
-                class="btn-primary"
                 type="submit"
+                class="btn-primary"
             >
                 Send
             </button>
-         </form>`
-    );
 
-
-    const form =
-        $("#comment-form");
-
-    if (form) {
-
-        form.addEventListener(
-            "submit",
-            async (event) => {
-
-                event.preventDefault();
-
-                await createComment(
-                    postId
-                );
-            }
-        );
-    }
-
-
-    await loadComments(
-        postId
-    );
-}
-
-
-async function loadComments(postId) {
-
-    const container =
-        $("#comments-container");
-
-    if (!container) {
-        return;
-    }
+        </form>
+    `;
 
     try {
-
         const data =
-            await apiFetch(
-                `/api/posts/${postId}/comments`
+            await apiRequest(
+                `${ENDPOINTS.posts}/${postId}/comments`
             );
 
         const comments =
@@ -1852,4058 +1165,671 @@ async function loadComments(postId) {
                 ? data.comments
                 : [];
 
+        const list =
+            byId('comments-list');
+
+        if (!list) return;
+
         if (!comments.length) {
-
-            container.innerHTML =
-                `<p class="muted">
+            list.innerHTML = `
+                <div class="sub-item">
                     No comments yet.
-                 </p>`;
-
-            return;
-        }
-
-
-        container.innerHTML =
-            comments
-                .map(
-                    (comment) => `
-                        <div
-                            style="
-                                padding:12px 0;
-                                border-bottom:1px solid var(--border);
-                            "
-                        >
-                            <strong>
+                </div>
+            `;
+        } else {
+            list.innerHTML =
+                comments.map(
+                    comment => `
+                        <div class="sub-item">
+                            <div class="icon">
                                 ${escapeHTML(
-                                    comment.full_name ||
-                                    comment.username ||
-                                    "User"
-                                )}
-                            </strong>
-
-                            <div
-                                style="
-                                    margin-top:4px;
-                                    font-size:14px;
-                                    line-height:1.4;
-                                "
-                            >
-                                ${formatText(
-                                    comment.text
+                                    initials(
+                                        comment.full_name ||
+                                        comment.username
+                                    )
                                 )}
                             </div>
 
-                            <div
-                                class="muted"
-                                style="margin-top:4px;"
-                            >
-                                ${formatTime(
-                                    comment.created_at
-                                )}
+                            <div class="text">
+                                <strong>
+                                    ${escapeHTML(
+                                        comment.full_name ||
+                                        comment.username ||
+                                        'User'
+                                    )}
+                                </strong>
+
+                                <span>
+                                    ${escapeHTML(
+                                        comment.text
+                                    )}
+                                </span>
                             </div>
                         </div>
                     `
-                )
-                .join("");
-
+                ).join('');
+        }
     } catch (error) {
+        console.error(error);
 
-        container.innerHTML =
-            `<p class="muted">
-                Could not load comments.
-             </p>`;
+        const list =
+            byId('comments-list');
 
-        console.error(
-            "Comments error:",
-            error
-        );
-    }
-}
-
-
-async function createComment(postId) {
-
-    if (!requireLogin()) {
-        return;
+        if (list) {
+            list.innerHTML = `
+                <div class="sub-item">
+                    Unable to load comments.
+                </div>
+            `;
+        }
     }
 
-    const input =
-        $("#comment-input");
+    const form =
+        byId('comment-form');
 
-    if (!input) {
-        return;
-    }
+    if (form) {
+        form.addEventListener(
+            'submit',
+            async event => {
+                event.preventDefault();
 
-    const text =
-        input.value.trim();
+                const input =
+                    byId('comment-input');
 
-    if (!text) {
-        toast("Write a comment first.");
-        return;
-    }
+                const text =
+                    input?.value.trim();
 
+                if (!text) return;
 
-    try {
+                const formData =
+                    new FormData();
 
-        const form =
-            new FormData();
+                formData.append(
+                    'text',
+                    text
+                );
 
-        form.append(
-            "text",
-            text
-        );
+                try {
+                    await apiRequest(
+                        `${ENDPOINTS.posts}/${postId}/comments`,
+                        {
+                            method: 'POST',
+                            body: formData
+                        }
+                    );
 
-        await apiFetch(
-            `/api/posts/${postId}/comments`,
-            {
-                method: "POST",
-                body: form
+                    showToast(
+                        'Comment added.'
+                    );
+
+                    closeModal();
+
+                    await loadHome();
+                } catch (error) {
+                    showToast(
+                        error.message ||
+                        'Unable to comment.'
+                    );
+                }
             }
         );
-
-        input.value = "";
-
-        await loadComments(
-            postId
-        );
-
-        /*
-         * Refresh feed counters.
-         */
-
-        await loadFeed();
-
-        toast(
-            "Comment added."
-        );
-
-    } catch (error) {
-
-        console.error(
-            "Comment error:",
-            error
-        );
-
-        toast(
-            error.message ||
-            "Could not add comment."
-        );
     }
 }
-
 
 /* ============================================================
    CREATE POST
    ============================================================ */
 
 function openCreatePost() {
+    const body =
+        byId('modal-body');
 
-    if (!requireLogin()) {
-        return;
-    }
+    if (!body) return;
 
-    openModal(`
+    openModal();
+
+    body.innerHTML = `
         <h2>Create Post</h2>
 
         <form id="create-post-form">
 
             <textarea
-                id="post-caption"
-                placeholder="What's on your mind?"
+                id="create-caption"
+                placeholder="What's happening?"
                 rows="5"
                 style="
                     width:100%;
+                    resize:vertical;
                     padding:14px;
+                    border-radius:12px;
                     border:1px solid var(--border);
                     background:var(--bg-3);
                     color:var(--text);
-                    border-radius:12px;
-                    resize:vertical;
                     outline:none;
-                    font-family:inherit;
                     margin-bottom:12px;
+                    font-family:inherit;
                 "
             ></textarea>
 
             <input
-                id="post-media"
+                id="create-media"
                 type="file"
                 accept="image/*,video/*"
-                style="
-                    width:100%;
-                    margin-bottom:16px;
-                "
+                style="margin-bottom:16px;width:100%;"
             >
 
             <button
-                class="btn-primary"
                 type="submit"
+                class="btn-primary"
                 style="width:100%;"
             >
                 Publish Post
             </button>
 
         </form>
-    `);
-
+    `;
 
     const form =
-        $("#create-post-form");
+        byId('create-post-form');
 
-    if (form) {
+    if (!form) return;
 
-        form.addEventListener(
-            "submit",
-            async (event) => {
+    form.addEventListener(
+        'submit',
+        async event => {
+            event.preventDefault();
 
-                event.preventDefault();
+            const caption =
+                byId('create-caption')?.value.trim() ||
+                '';
 
-                await createPost();
-            }
-        );
-    }
-}
+            const file =
+                byId('create-media')?.files?.[0] ||
+                null;
 
-
-async function createPost() {
-
-    const caption =
-        $("#post-caption")?.value.trim() || "";
-
-    const file =
-        $("#post-media")?.files?.[0] || null;
-
-    if (!caption && !file) {
-        toast(
-            "Write something or select media."
-        );
-        return;
-    }
-
-
-    const form =
-        new FormData();
-
-    form.append(
-        "caption",
-        caption
-    );
-
-    if (file) {
-        form.append(
-            "media",
-            file
-        );
-    }
-
-
-    const button =
-        $("#create-post-form .btn-primary");
-
-    setButtonLoading(
-        button,
-        true,
-        "Publishing..."
-    );
-
-
-    try {
-
-        await apiFetch(
-            "/api/posts/create",
-            {
-                method: "POST",
-                body: form
-            }
-        );
-
-        closeModal();
-
-        await loadFeed();
-
-        toast(
-            "Post published successfully."
-        );
-
-    } catch (error) {
-
-        console.error(
-            "Create post error:",
-            error
-        );
-
-        toast(
-            error.message ||
-            "Could not publish post."
-        );
-
-    } finally {
-
-        setButtonLoading(
-            button,
-            false,
-            "Publish Post"
-        );
-    }
-}
-
-
-/* ============================================================
-   SEARCH PEOPLE
-   ============================================================ */
-
-async function searchPeople(query) {
-
-    if (!query) {
-        closeSearchResults();
-        return;
-    }
-
-
-    /*
-     * Your current backend does not expose a dedicated
-     * search router. Therefore we try several likely
-     * endpoints without breaking the application.
-     */
-
-    const candidates = [
-        `/api/profile/search?q=${encodeURIComponent(query)}`,
-        `/api/users/search?q=${encodeURIComponent(query)}`,
-        `/api/search/users?q=${encodeURIComponent(query)}`
-    ];
-
-
-    let found = false;
-
-
-    for (const endpoint of candidates) {
-
-        try {
-
-            const data =
-                await apiFetch(endpoint);
-
-            const users =
-                extractUsers(data);
-
-            SEARCH_RESULTS =
-                users;
-
-            renderSearchResults(
-                users,
-                query
-            );
-
-            found = true;
-
-            break;
-
-        } catch (error) {
-
-            /*
-             * Continue to next endpoint.
-             */
-        }
-    }
-
-
-    /*
-     * If there is no search endpoint yet,
-     * use the current feed's users as a fallback.
-     * This allows testing profiles immediately.
-     */
-
-    if (!found) {
-
-        const unique =
-            new Map();
-
-        CACHED_POSTS.forEach(
-            (post) => {
-
-                if (!post.user_id) {
-                    return;
-                }
-
-                const key =
-                    String(post.user_id);
-
-                if (!unique.has(key)) {
-
-                    unique.set(
-                        key,
-                        {
-                            id: post.user_id,
-                            username:
-                                post.username,
-                            full_name:
-                                post.full_name,
-                            avatar_url:
-                                post.avatar_url
-                        }
-                    );
-                }
-            }
-        );
-
-
-        const users =
-            Array.from(
-                unique.values()
-            ).filter(
-                (user) => {
-
-                    const text = (
-                        `${user.username || ""} ` +
-                        `${user.full_name || ""}`
-                    ).toLowerCase();
-
-                    return text.includes(
-                        query.toLowerCase()
-                    );
-                }
-            );
-
-
-        SEARCH_RESULTS =
-            users;
-
-        renderSearchResults(
-            users,
-            query
-        );
-    }
-}
-
-
-function extractUsers(data) {
-
-    if (Array.isArray(data)) {
-        return data;
-    }
-
-    if (Array.isArray(data?.users)) {
-        return data.users;
-    }
-
-    if (Array.isArray(data?.results)) {
-        return data.results;
-    }
-
-    if (Array.isArray(data?.items)) {
-        return data.items;
-    }
-
-    return [];
-}
-
-
-/* ============================================================
-   SEARCH RESULT UI
-   ============================================================ */
-
-function renderSearchResults(
-    users,
-    query
-) {
-
-    closeSearchResults();
-
-
-    if (!users.length) {
-
-        const element =
-            document.createElement("div");
-
-        element.id =
-            "search-results";
-
-        element.style.cssText = `
-            background:var(--bg-2);
-            border:1px solid var(--border);
-            border-radius:14px;
-            margin-top:8px;
-            padding:14px;
-        `;
-
-        element.innerHTML = `
-            <p class="muted">
-                No user found for
-                "${escapeHTML(query)}"
-            </p>
-        `;
-
-
-        const searchBar =
-            $(".search-bar");
-
-        if (searchBar) {
-            searchBar.appendChild(
-                element
-            );
-        }
-
-        return;
-    }
-
-
-    const element =
-        document.createElement("div");
-
-    element.id =
-        "search-results";
-
-    element.style.cssText = `
-        background:var(--bg-2);
-        border:1px solid var(--border);
-        border-radius:14px;
-        margin-top:8px;
-        overflow:hidden;
-        position:relative;
-        z-index:80;
-    `;
-
-
-    element.innerHTML =
-        users
-            .slice(0, 20)
-            .map(
-                (user) => {
-
-                    const name =
-                        user.full_name ||
-                        user.username ||
-                        "User";
-
-                    const avatar =
-                        user.avatar_url
-                            ? `<img
-                                src="${escapeHTML(
-                                    mediaURL(user.avatar_url)
-                                )}"
-                                style="
-                                    width:100%;
-                                    height:100%;
-                                    object-fit:cover;
-                                    border-radius:50%;
-                                "
-                               >`
-                            : escapeHTML(
-                                getInitial(name)
-                              );
-
-                    return `
-                        <button
-                            type="button"
-                            onclick="openUserProfile(${Number(user.id) || 0})"
-                            style="
-                                width:100%;
-                                display:flex;
-                                align-items:center;
-                                gap:12px;
-                                padding:12px;
-                                border:0;
-                                border-bottom:1px solid var(--border);
-                                background:transparent;
-                                color:var(--text);
-                                text-align:left;
-                                cursor:pointer;
-                            "
-                        >
-
-                            <span
-                                style="
-                                    width:44px;
-                                    height:44px;
-                                    border-radius:50%;
-                                    display:flex;
-                                    align-items:center;
-                                    justify-content:center;
-                                    background:linear-gradient(
-                                        135deg,
-                                        var(--accent),
-                                        var(--accent-2)
-                                    );
-                                    font-weight:700;
-                                    overflow:hidden;
-                                    flex-shrink:0;
-                                "
-                            >
-                                ${avatar}
-                            </span>
-
-                            <span>
-                                <strong>
-                                    ${escapeHTML(name)}
-                                </strong>
-
-                                <small
-                                    class="muted"
-                                    style="display:block;"
-                                >
-                                    @${escapeHTML(
-                                        user.username || "user"
-                                    )}
-                                </small>
-                            </span>
-
-                        </button>
-                    `;
-                }
-            )
-            .join("");
-
-
-    const searchBar =
-        $(".search-bar");
-
-    if (searchBar) {
-        searchBar.appendChild(
-            element
-        );
-    }
-}
-
-
-function closeSearchResults() {
-
-    const results =
-        $("#search-results");
-
-    if (results) {
-        results.remove();
-    }
-}
-
-
-/* ============================================================
-   USER PROFILE
-   ============================================================ */
-
-async function openUserProfile(userId) {
-
-    if (!userId) {
-        toast("User profile is unavailable.");
-        return;
-    }
-
-    closeSearchResults();
-
-    CURRENT_PROFILE_ID =
-        Number(userId);
-
-
-    /*
-     * Own profile can be displayed immediately.
-     */
-
-    if (
-        CURRENT_USER &&
-        Number(CURRENT_USER.id) ===
-        Number(userId)
-    ) {
-
-        navigate(
-            "profile"
-        );
-
-        return;
-    }
-
-
-    PAGE_HISTORY.push(
-        CURRENT_PAGE
-    );
-
-    CURRENT_PAGE =
-        "sub";
-
-
-    $all(".page").forEach(
-        (page) =>
-            page.classList.remove("active")
-    );
-
-
-    const sub =
-        $("#page-sub");
-
-    if (sub) {
-        sub.classList.add("active");
-    }
-
-
-    updatePageTitle(
-        "Profile"
-    );
-
-    updateBackButton();
-
-
-    const content =
-        $("#sub-content");
-
-    if (!content) {
-        return;
-    }
-
-
-    content.innerHTML = `
-        <div class="post-card">
-            <p class="muted">
-                Loading profile...
-            </p>
-        </div>
-    `;
-
-
-    try {
-
-        const data =
-            await apiFetch(
-                `/api/profile/${Number(userId)}`
-            );
-
-        const user =
-            data?.user ||
-            data;
-
-
-        renderUserProfile(
-            user
-        );
-
-
-        /*
-         * Load user's posts from the existing feed
-         * if available.
-         */
-
-        await appendUserPosts(
-            user.id
-        );
-
-
-    } catch (error) {
-
-        console.error(
-            "Profile error:",
-            error
-        );
-
-        content.innerHTML = `
-            <div class="post-card">
-                <strong>
-                    User not found
-                </strong>
-
-                <p class="muted"
-                   style="margin-top:8px;">
-                    ${escapeHTML(
-                        error.message
-                    )}
-                </p>
-            </div>
-        `;
-    }
-}
-
-
-function renderUserProfile(user) {
-
-    const content =
-        $("#sub-content");
-
-    if (!content) {
-        return;
-    }
-
-
-    const name =
-        user.full_name ||
-        user.username ||
-        "User";
-
-    const username =
-        user.username ||
-        "user";
-
-    const avatar =
-        user.avatar_url
-            ? `<img
-                src="${escapeHTML(
-                    mediaURL(user.avatar_url)
-                )}"
-                style="
-                    width:100%;
-                    height:100%;
-                    object-fit:cover;
-                    border-radius:50%;
-                "
-               >`
-            : escapeHTML(
-                getInitial(name)
-              );
-
-
-    content.innerHTML = `
-
-        <div
-            style="
-                background:linear-gradient(
-                    135deg,
-                    var(--accent),
-                    var(--accent-2)
-                );
-                height:120px;
-                margin:-16px -16px 0;
-            "
-        ></div>
-
-
-        <div
-            style="
-                text-align:center;
-                margin-top:-40px;
-                position:relative;
-            "
-        >
-
-            <div
-                style="
-                    width:80px;
-                    height:80px;
-                    border-radius:50%;
-                    margin:0 auto 12px;
-                    border:4px solid var(--bg);
-                    background:var(--bg-3);
-                    display:flex;
-                    align-items:center;
-                    justify-content:center;
-                    font-size:30px;
-                    font-weight:900;
-                    overflow:hidden;
-                "
-            >
-                ${avatar}
-            </div>
-
-            <h2>
-                ${escapeHTML(name)}
-            </h2>
-
-            <p class="muted">
-                @${escapeHTML(username)}
-            </p>
-
-            ${
-                user.bio
-                    ? `
-                        <p
-                            class="muted"
-                            style="
-                                max-width:500px;
-                                margin:10px auto;
-                                line-height:1.5;
-                            "
-                        >
-                            ${formatText(
-                                user.bio
-                            )}
-                        </p>
-                      `
-                    : ""
-            }
-
-            ${
-                user.location
-                    ? `
-                        <p class="muted">
-                            📍 ${escapeHTML(
-                                user.location
-                            )}
-                        </p>
-                      `
-                    : ""
-            }
-
-
-            <div
-                style="
-                    display:flex;
-                    justify-content:center;
-                    gap:30px;
-                    margin:18px 0;
-                "
-            >
-                <div>
-                    <strong id="other-post-count">
-                        0
-                    </strong>
-                    <small
-                        class="muted"
-                        style="display:block;"
-                    >
-                        Posts
-                    </small>
-                </div>
-
-                <div>
-                    <strong>
-                        0
-                    </strong>
-                    <small
-                        class="muted"
-                        style="display:block;"
-                    >
-                        Followers
-                    </small>
-                </div>
-
-                <div>
-                    <strong>
-                        0
-                    </strong>
-                    <small
-                        class="muted"
-                        style="display:block;"
-                    >
-                        Following
-                    </small>
-                </div>
-            </div>
-
-
-            ${
-                Number(user.id) !==
-                Number(CURRENT_USER?.id)
-                    ? `
-                        <button
-                            class="btn-primary"
-                            onclick="startChatWithUser(${Number(user.id)})"
-                        >
-                            💬 Message
-                        </button>
-                      `
-                    : ""
-            }
-
-        </div>
-
-
-        <div
-            id="other-user-posts"
-            class="feed"
-            style="margin-top:20px;"
-        ></div>
-    `;
-}
-
-
-async function appendUserPosts(
-    userId
-) {
-
-    const container =
-        $("#other-user-posts");
-
-    if (!container) {
-        return;
-    }
-
-
-    try {
-
-        const data =
-            await apiFetch(
-                "/api/feed"
-            );
-
-        const posts =
-            extractPosts(data)
-                .filter(
-                    (post) =>
-                        Number(post.user_id) ===
-                        Number(userId)
+            if (!caption && !file) {
+                showToast(
+                    'Write something or choose media.'
                 );
 
+                return;
+            }
 
-        const count =
-            $("#other-post-count");
+            const formData =
+                new FormData();
 
-        if (count) {
-            count.textContent =
-                String(posts.length);
-        }
-
-
-        if (!posts.length) {
-
-            container.innerHTML = `
-                <div class="post-card">
-                    <p class="muted">
-                        No posts yet.
-                    </p>
-                </div>
-            `;
-
-            return;
-        }
-
-
-        container.innerHTML =
-            posts
-                .map(
-                    (post) =>
-                        renderPost(post)
-                )
-                .join("");
-
-
-    } catch (error) {
-
-        console.error(
-            "User posts error:",
-            error
-        );
-
-        container.innerHTML = `
-            <div class="post-card">
-                <p class="muted">
-                    Could not load posts.
-                </p>
-            </div>
-        `;
-    }
-}
-
-
-/* ============================================================
-   CHAT
-   ============================================================ */
-
-async function loadChats() {
-
-    const list =
-        $("#chat-list");
-
-    if (!list) {
-        return;
-    }
-
-
-    list.innerHTML = `
-        <div class="muted"
-             style="padding:20px;text-align:center;">
-            Loading chats...
-        </div>
-    `;
-
-
-    try {
-
-        const data =
-            await apiFetch(
-                "/api/messages"
+            formData.append(
+                'caption',
+                caption
             );
 
-        const chats =
-            Array.isArray(data?.chats)
-                ? data.chats
-                : [];
-
-
-        CACHED_CHATS =
-            chats;
-
-
-        renderChatList(
-            chats
-        );
-
-
-    } catch (error) {
-
-        console.error(
-            "Chat list error:",
-            error
-        );
-
-        list.innerHTML = `
-            <div class="post-card">
-                <strong>
-                    Chats
-                </strong>
-
-                <p class="muted"
-                   style="margin-top:8px;">
-                    No conversations yet.
-                </p>
-            </div>
-        `;
-    }
-}
-
-
-function renderChatList(chats) {
-
-    const list =
-        $("#chat-list");
-
-    if (!list) {
-        return;
-    }
-
-
-    if (!chats.length) {
-
-        list.innerHTML = `
-            <div
-                class="post-card"
-                style="text-align:center;margin-top:10px;"
-            >
-                <div style="font-size:42px;">
-                    💬
-                </div>
-
-                <strong>
-                    No chats yet
-                </strong>
-
-                <p
-                    class="muted"
-                    style="margin-top:8px;"
-                >
-                    Search for another user from Home
-                    and tap Message to start a conversation.
-                </p>
-            </div>
-        `;
-
-        return;
-    }
-
-
-    list.innerHTML =
-        chats
-            .map(
-                (chat) => {
-
-                    const user =
-                        chat.user ||
-                        chat.other_user ||
-                        chat.recipient ||
-                        chat;
-
-                    const name =
-                        user.full_name ||
-                        user.username ||
-                        chat.name ||
-                        "User";
-
-                    const username =
-                        user.username ||
-                        "";
-
-                    const initial =
-                        getInitial(name);
-
-                    return `
-                        <div
-                            class="chat-item"
-                            onclick="openChat(
-                                ${Number(
-                                    user.id ||
-                                    chat.user_id ||
-                                    chat.recipient_id ||
-                                    0
-                                )}
-                            )"
-                        >
-
-                            <div class="chat-avatar">
-                                ${escapeHTML(
-                                    initial
-                                )}
-                            </div>
-
-                            <div class="chat-info">
-
-                                <strong>
-                                    ${escapeHTML(name)}
-                                </strong>
-
-                                <span>
-                                    ${
-                                        chat.last_message ||
-                                        chat.message ||
-                                        (
-                                            username
-                                                ? `@${username}`
-                                                : "Conversation"
-                                        )
-                                    }
-                                </span>
-
-                            </div>
-
-                        </div>
-                    `;
-                }
-            )
-            .join("");
-}
-
-
-/* ============================================================
-   START CHAT
-   ============================================================ */
-
-async function startChatWithUser(
-    userId
-) {
-
-    if (!requireLogin()) {
-        return;
-    }
-
-    if (!userId) {
-        toast("User unavailable.");
-        return;
-    }
-
-    CURRENT_CHAT_USER =
-        Number(userId);
-
-    openChat(
-        userId
-    );
-}
-
-
-async function openChat(
-    userId
-) {
-
-    if (!userId) {
-        toast("Chat user unavailable.");
-        return;
-    }
-
-    CURRENT_CHAT_USER =
-        Number(userId);
-
-
-    PAGE_HISTORY.push(
-        CURRENT_PAGE
-    );
-
-    CURRENT_PAGE =
-        "sub";
-
-
-    $all(".page").forEach(
-        (page) =>
-            page.classList.remove("active")
-    );
-
-
-    const sub =
-        $("#page-sub");
-
-    if (sub) {
-        sub.classList.add("active");
-    }
-
-
-    updatePageTitle(
-        "Chat"
-    );
-
-    updateBackButton();
-
-
-    const content =
-        $("#sub-content");
-
-    if (!content) {
-        return;
-    }
-
-
-    content.innerHTML = `
-
-        <div
-            style="
-                display:flex;
-                flex-direction:column;
-                min-height:calc(100vh - 150px);
-            "
-        >
-
-            <div
-                id="chat-header"
-                style="
-                    display:flex;
-                    align-items:center;
-                    gap:10px;
-                    padding:0 0 14px;
-                    border-bottom:1px solid var(--border);
-                "
-            >
-                <div
-                    class="chat-avatar"
-                    style="
-                        width:42px;
-                        height:42px;
-                        font-size:15px;
-                    "
-                >
-                    ?
-                </div>
-
-                <div>
-                    <strong>
-                        Loading...
-                    </strong>
-                    <div class="muted">
-                        @user
-                    </div>
-                </div>
-            </div>
-
-
-            <div
-                id="chat-messages"
-                class="chat-msgs"
-                style="
-                    flex:1;
-                    overflow-y:auto;
-                "
-            >
-                <p class="muted">
-                    Loading conversation...
-                </p>
-            </div>
-
-
-            <form
-                id="chat-send-form"
-                style="
-                    display:flex;
-                    gap:8px;
-                    padding-top:12px;
-                    border-top:1px solid var(--border);
-                "
-            >
-
-                <input
-                    id="chat-message-input"
-                    type="text"
-                    placeholder="Type a message..."
-                    autocomplete="off"
-                    style="
-                        flex:1;
-                        padding:12px;
-                        border-radius:12px;
-                        border:1px solid var(--border);
-                        background:var(--bg-3);
-                        color:var(--text);
-                        outline:none;
-                    "
-                >
-
-                <button
-                    class="btn-primary"
-                    type="submit"
-                >
-                    ➤
-                </button>
-
-            </form>
-
-        </div>
-    `;
-
-
-    await loadChatUser(
-        userId
-    );
-
-    await loadConversation(
-        userId
-    );
-
-
-    const form =
-        $("#chat-send-form");
-
-    if (form) {
-
-        form.addEventListener(
-            "submit",
-            async (event) => {
-
-                event.preventDefault();
-
-                await sendMessage(
-                    userId
+            if (file) {
+                formData.append(
+                    'media',
+                    file
                 );
             }
-        );
-    }
-}
 
-
-/* ============================================================
-   CHAT USER
-   ============================================================ */
-
-async function loadChatUser(
-    userId
-) {
-
-    const header =
-        $("#chat-header");
-
-    if (!header) {
-        return;
-    }
-
-
-    try {
-
-        const data =
-            await apiFetch(
-                `/api/profile/${Number(userId)}`
-            );
-
-        const user =
-            data?.user ||
-            data;
-
-
-        const name =
-            user.full_name ||
-            user.username ||
-            "User";
-
-        header.innerHTML = `
-            <div
-                class="chat-avatar"
-                style="
-                    width:42px;
-                    height:42px;
-                    font-size:15px;
-                "
-            >
-                ${escapeHTML(
-                    getInitial(name)
-                )}
-            </div>
-
-            <div>
-                <strong>
-                    ${escapeHTML(name)}
-                </strong>
-
-                <div class="muted">
-                    @${escapeHTML(
-                        user.username || "user"
-                    )}
-                </div>
-            </div>
-        `;
-
-    } catch (error) {
-
-        console.warn(
-            "Could not load chat user:",
-            error
-        );
-    }
-}
-
-
-/* ============================================================
-   LOAD CONVERSATION
-   ============================================================ */
-
-async function loadConversation(
-    userId
-) {
-
-    const container =
-        $("#chat-messages");
-
-    if (!container) {
-        return;
-    }
-
-
-    /*
-     * Current messages.py only exposes:
-     *
-     * GET /api/messages
-     *
-     * Therefore this function gracefully supports
-     * future conversation endpoints without crashing.
-     */
-
-    const candidates = [
-        `/api/messages/${Number(userId)}`,
-        `/api/messages/user/${Number(userId)}`,
-        `/api/messages?user_id=${Number(userId)}`
-    ];
-
-
-    for (const endpoint of candidates) {
-
-        try {
-
-            const data =
-                await apiFetch(
-                    endpoint
+            const submit =
+                form.querySelector(
+                    'button[type="submit"]'
                 );
 
-            const messages =
-                extractMessages(data);
-
-            renderMessages(
-                messages
+            setButtonLoading(
+                submit,
+                true
             );
 
-            return;
+            try {
+                await apiRequest(
+                    `${ENDPOINTS.posts}/create`,
+                    {
+                        method: 'POST',
+                        body: formData
+                    }
+                );
 
-        } catch (error) {
-            /*
-             * Try next candidate.
-             */
-        }
-    }
+                closeModal();
 
+                showToast(
+                    'Post published!'
+                );
 
-    /*
-     * Current backend has no conversation route yet.
-     */
+                await loadHome();
+            } catch (error) {
+                console.error(
+                    error
+                );
 
-    container.innerHTML = `
-        <div
-            style="
-                text-align:center;
-                padding:30px 10px;
-            "
-        >
-            <div style="font-size:38px;">
-                💬
-            </div>
-
-            <strong>
-                Conversation ready
-            </strong>
-
-            <p
-                class="muted"
-                style="
-                    margin-top:8px;
-                    line-height:1.5;
-                "
-            >
-                The current messages router exposes
-                the chat list only. A conversation
-                send/read endpoint is required for
-                real-time messaging.
-            </p>
-        </div>
-    `;
-}
-
-
-function extractMessages(
-    data
-) {
-
-    if (Array.isArray(data)) {
-        return data;
-    }
-
-    if (Array.isArray(data?.messages)) {
-        return data.messages;
-    }
-
-    if (Array.isArray(data?.chat)) {
-        return data.chat;
-    }
-
-    return [];
-}
-
-
-function renderMessages(
-    messages
-) {
-
-    const container =
-        $("#chat-messages");
-
-    if (!container) {
-        return;
-    }
-
-
-    if (!messages.length) {
-
-        container.innerHTML = `
-            <p
-                class="muted"
-                style="
-                    text-align:center;
-                    padding:30px 0;
-                "
-            >
-                No messages yet.
-                Start the conversation.
-            </p>
-        `;
-
-        return;
-    }
-
-
-    container.innerHTML =
-        messages
-            .map(
-                (message) => {
-
-                    const senderId =
-                        message.sender_id ||
-                        message.user_id;
-
-                    const mine =
-                        Number(senderId) ===
-                        Number(CURRENT_USER?.id);
-
-                    return `
-                        <div
-                            class="msg ${mine ? "user" : "ai"}"
-                        >
-                            ${formatText(
-                                message.text ||
-                                message.content ||
-                                message.message ||
-                                ""
-                            )}
-                        </div>
-                    `;
-                }
-            )
-            .join("");
-
-
-    container.scrollTop =
-        container.scrollHeight;
-}
-
-
-/* ============================================================
-   SEND MESSAGE
-   ============================================================ */
-
-async function sendMessage(
-    userId
-) {
-
-    if (!requireLogin()) {
-        return;
-    }
-
-
-    const input =
-        $("#chat-message-input");
-
-    if (!input) {
-        return;
-    }
-
-
-    const text =
-        input.value.trim();
-
-    if (!text) {
-        return;
-    }
-
-
-    /*
-     * Future-compatible endpoint candidates.
-     */
-
-    const candidates = [
-        {
-            url: "/api/messages/send",
-            body: {
-                receiver_id: Number(userId),
-                recipient_id: Number(userId),
-                text
-            }
-        },
-        {
-            url: `/api/messages/${Number(userId)}`,
-            body: {
-                receiver_id: Number(userId),
-                text
+                showToast(
+                    error.message ||
+                    'Unable to publish post.'
+                );
+            } finally {
+                setButtonLoading(
+                    submit,
+                    false
+                );
             }
         }
-    ];
-
-
-    let sent = false;
-
-
-    for (const candidate of candidates) {
-
-        try {
-
-            await apiFetch(
-                candidate.url,
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    },
-                    body: JSON.stringify(
-                        candidate.body
-                    )
-                }
-            );
-
-            sent = true;
-            break;
-
-        } catch (error) {
-            /*
-             * Try next endpoint.
-             */
-        }
-    }
-
-
-    if (!sent) {
-
-        /*
-         * IMPORTANT:
-         * Do not pretend the message was saved.
-         */
-
-        toast(
-            "Messaging endpoint is not implemented in the current backend."
-        );
-
-        return;
-    }
-
-
-    input.value = "";
-
-    await loadConversation(
-        userId
     );
 }
-
-
-/* ============================================================
-   STORIES
-   ============================================================ */
-
-async function loadStories() {
-
-    const bar =
-        $("#stories-bar");
-
-    if (!bar) {
-        return;
-    }
-
-
-    try {
-
-        const data =
-            await apiFetch(
-                "/api/stories"
-            );
-
-        const stories =
-            Array.isArray(data?.stories)
-                ? data.stories
-                : Array.isArray(data)
-                    ? data
-                    : [];
-
-
-        renderStories(
-            stories
-        );
-
-    } catch (error) {
-
-        /*
-         * Keep My Story button visible.
-         */
-
-        console.warn(
-            "Stories loading:",
-            error.message
-        );
-    }
-}
-
-
-function renderStories(
-    stories
-) {
-
-    const bar =
-        $("#stories-bar");
-
-    if (!bar) {
-        return;
-    }
-
-
-    const myStory = `
-        <div
-            class="story-item add-story"
-            id="add-story-btn"
-        >
-            <div
-                class="story-avatar add-avatar"
-            >
-                +
-            </div>
-            <span>
-                My Story
-            </span>
-        </div>
-    `;
-
-
-    bar.innerHTML =
-        myStory +
-        stories
-            .map(
-                (story) => {
-
-                    const name =
-                        story.full_name ||
-                        story.username ||
-                        "User";
-
-                    return `
-                        <div
-                            class="story-item"
-                            onclick="openStory(${Number(
-                                story.id
-                            ) || 0})"
-                        >
-
-                            <div
-                                class="story-avatar"
-                            >
-                                ${escapeHTML(
-                                    getInitial(name)
-                                )}
-                            </div>
-
-                            <span>
-                                ${escapeHTML(
-                                    name
-                                )}
-                            </span>
-
-                        </div>
-                    `;
-                }
-            )
-            .join("");
-
-
-    const add =
-        $("#add-story-btn");
-
-    if (add) {
-        add.addEventListener(
-            "click",
-            openCreateStory
-        );
-    }
-}
-
-
-/* ============================================================
-   CREATE STORY
-   ============================================================ */
-
-function openCreateStory() {
-
-    if (!requireLogin()) {
-        return;
-    }
-
-    openModal(`
-        <h2>My Story</h2>
-
-        <form id="create-story-form">
-
-            <textarea
-                id="story-caption"
-                rows="3"
-                placeholder="Add a caption..."
-                style="
-                    width:100%;
-                    padding:12px;
-                    border-radius:12px;
-                    border:1px solid var(--border);
-                    background:var(--bg-3);
-                    color:var(--text);
-                    outline:none;
-                    margin-bottom:12px;
-                    font-family:inherit;
-                "
-            ></textarea>
-
-            <input
-                id="story-media"
-                type="file"
-                accept="image/*,video/*"
-                style="
-                    width:100%;
-                    margin-bottom:16px;
-                "
-            >
-
-            <button
-                type="submit"
-                class="btn-primary"
-                style="width:100%;"
-            >
-                Post Story
-            </button>
-
-        </form>
-    `);
-
-
-    const form =
-        $("#create-story-form");
-
-    if (form) {
-
-        form.addEventListener(
-            "submit",
-            async (event) => {
-
-                event.preventDefault();
-
-                await createStory();
-            }
-        );
-    }
-}
-
-
-async function createStory() {
-
-    const file =
-        $("#story-media")?.files?.[0];
-
-    const caption =
-        $("#story-caption")?.value.trim() || "";
-
-
-    if (!file && !caption) {
-        toast(
-            "Select media or write a caption."
-        );
-        return;
-    }
-
-
-    const form =
-        new FormData();
-
-    form.append(
-        "caption",
-        caption
-    );
-
-    if (file) {
-        form.append(
-            "media",
-            file
-        );
-    }
-
-
-    try {
-
-        await apiFetch(
-            "/api/stories/create",
-            {
-                method: "POST",
-                body: form
-            }
-        );
-
-        closeModal();
-
-        await loadStories();
-
-        toast(
-            "Story posted."
-        );
-
-    } catch (error) {
-
-        toast(
-            error.message ||
-            "Story endpoint is not available."
-        );
-    }
-}
-
-
-async function openStory(
-    storyId
-) {
-
-    if (!storyId) {
-        return;
-    }
-
-    try {
-
-        const data =
-            await apiFetch(
-                `/api/stories/${Number(storyId)}`
-            );
-
-        const story =
-            data?.story ||
-            data;
-
-        openModal(`
-            <h2>Story</h2>
-            <p>
-                ${formatText(
-                    story.caption || ""
-                )}
-            </p>
-        `);
-
-    } catch (error) {
-
-        toast(
-            "Story could not be opened."
-        );
-    }
-}
-
 
 /* ============================================================
    DISCOVERY
    ============================================================ */
 
-async function loadDiscovery() {
-
+function loadDiscovery() {
     const grid =
-        $("#discovery-grid");
+        byId('discovery-grid');
 
-    if (!grid) {
-        return;
-    }
-
-
-    grid.innerHTML = `
-        <div
-            class="muted"
-            style="
-                grid-column:1/-1;
-                text-align:center;
-                padding:20px;
-            "
-        >
-            Loading Discovery...
-        </div>
-    `;
-
-
-    try {
-
-        const data =
-            await apiFetch(
-                "/api/discovery"
-            );
-
-        const cards =
-            Array.isArray(data?.cards)
-                ? data.cards
-                : [];
-
-
-        if (!cards.length) {
-            renderDefaultDiscovery();
-            return;
-        }
-
-
-        grid.innerHTML =
-            cards
-                .map(
-                    (card) =>
-                        `
-                        <div
-                            class="disc-card"
-                            onclick="openDiscovery('${escapeHTML(
-                                card.id
-                            )}')"
-                        >
-
-                            <span class="icon">
-                                ${escapeHTML(
-                                    card.icon || "✨"
-                                )}
-                            </span>
-
-                            <div class="title">
-                                ${escapeHTML(
-                                    card.title
-                                )}
-                            </div>
-
-                            <div class="desc">
-                                ${escapeHTML(
-                                    card.desc || ""
-                                )}
-                            </div>
-
-                        </div>
-                        `
-                )
-                .join("");
-
-
-    } catch (error) {
-
-        console.error(
-            "Discovery error:",
-            error
-        );
-
-        renderDefaultDiscovery();
-    }
-}
-
-
-function renderDefaultDiscovery() {
-
-    const grid =
-        $("#discovery-grid");
-
-    if (!grid) {
-        return;
-    }
-
+    if (!grid) return;
 
     const cards = [
-        ["ai-council", "📖", "AI Council", "Education, Health, Agriculture, Research"],
-        ["creative-studio", "🖼️", "Creative Studio", "Image, Video, Documents"],
-        ["market", "🛍️", "Market", "Products, Services, Digital"],
-        ["world-map", "🌍", "World Map", "Explore the world"],
-        ["channels", "📺", "Channels", "News and media"],
-        ["communities", "👥", "Communities", "Groups and communities"],
-        ["videos", "▶️", "Videos", "Short videos feed"],
-        ["settings", "⚙️", "Settings", "App preferences"]
+        {
+            icon: '👥',
+            title: 'People',
+            desc: 'Discover people on MSAFIRI.'
+        },
+        {
+            icon: '🔥',
+            title: 'Trending',
+            desc: 'See what is getting attention.'
+        },
+        {
+            icon: '🎬',
+            title: 'Media',
+            desc: 'Explore photos and videos.'
+        },
+        {
+            icon: '🌍',
+            title: 'Global',
+            desc: 'Connect beyond borders.'
+        },
+        {
+            icon: '🤖',
+            title: 'AI',
+            desc: 'AI features are coming.'
+        },
+        {
+            icon: '🛍️',
+            title: 'MSAFIRI MARKET',
+            desc: 'Marketplace coming soon.'
+        }
     ];
 
-
     grid.innerHTML =
-        cards
-            .map(
-                (card) => `
-                    <div
-                        class="disc-card"
-                        onclick="openDiscovery('${card[0]}')"
-                    >
-                        <span class="icon">
-                            ${card[1]}
-                        </span>
+        cards.map(card => `
+            <div class="disc-card">
+                <span class="icon">
+                    ${card.icon}
+                </span>
 
-                        <div class="title">
-                            ${escapeHTML(card[2])}
-                        </div>
-
-                        <div class="desc">
-                            ${escapeHTML(card[3])}
-                        </div>
-                    </div>
-                `
-            )
-            .join("");
-}
-
-
-/* ============================================================
-   DISCOVERY ROUTER
-   ============================================================ */
-
-function openDiscovery(
-    id
-) {
-
-    if (!id) {
-        return;
-    }
-
-
-    if (id === "ai-council") {
-        openAICouncil();
-        return;
-    }
-
-    if (id === "creative-studio") {
-        openCreativeStudio();
-        return;
-    }
-
-    if (id === "market") {
-        openMarket();
-        return;
-    }
-
-    if (id === "world-map") {
-        openWorldMap();
-        return;
-    }
-
-    if (id === "channels") {
-        openChannels();
-        return;
-    }
-
-    if (id === "communities") {
-        openCommunities();
-        return;
-    }
-
-    if (id === "videos") {
-        openVideos();
-        return;
-    }
-
-    if (id === "settings") {
-        openSettings();
-        return;
-    }
-}
-
-
-/* ============================================================
-   SUB PAGE HELPER
-   ============================================================ */
-
-function openSubPage(
-    title,
-    html
-) {
-
-    PAGE_HISTORY.push(
-        CURRENT_PAGE
-    );
-
-    CURRENT_PAGE =
-        "sub";
-
-
-    $all(".page").forEach(
-        (page) =>
-            page.classList.remove("active")
-    );
-
-
-    const sub =
-        $("#page-sub");
-
-    if (sub) {
-        sub.classList.add("active");
-    }
-
-
-    const content =
-        $("#sub-content");
-
-    if (content) {
-        content.innerHTML =
-            html;
-    }
-
-
-    updatePageTitle(
-        title
-    );
-
-    updateBackButton();
-}
-
-
-/* ============================================================
-   AI COUNCIL
-   ============================================================ */
-
-async function openAICouncil() {
-
-    openSubPage(
-        "AI Council",
-        `
-        <div class="page-h">
-            AI Council
-        </div>
-
-        <div id="ai-list">
-            <p class="muted">
-                Loading AI Council...
-            </p>
-        </div>
-        `
-    );
-
-
-    try {
-
-        const data =
-            await apiFetch(
-                "/api/ai-council"
-            );
-
-        const ais =
-            Array.isArray(data?.ais)
-                ? data.ais
-                : [];
-
-
-        const list =
-            $("#ai-list");
-
-        if (!list) {
-            return;
-        }
-
-
-        list.innerHTML =
-            ais
-                .map(
-                    (ai) => `
-                        <div
-                            class="sub-item"
-                            onclick="openAI('${escapeHTML(
-                                ai.id
-                            )}')"
-                        >
-
-                            <div class="icon">
-                                ${escapeHTML(
-                                    ai.icon || "🤖"
-                                )}
-                            </div>
-
-                            <div class="text">
-
-                                <strong>
-                                    ${escapeHTML(
-                                        ai.title
-                                    )}
-                                </strong>
-
-                                <span>
-                                    ${escapeHTML(
-                                        ai.desc || ""
-                                    )}
-                                </span>
-
-                            </div>
-
-                            <span>
-                                →
-                            </span>
-
-                        </div>
-                    `
-                )
-                .join("");
-
-
-    } catch (error) {
-
-        toast(
-            "Could not load AI Council."
-        );
-    }
-}
-
-
-async function openAI(
-    aiId
-) {
-
-    if (aiId === "education") {
-        openEducationAI();
-        return;
-    }
-
-    if (
-        aiId === "health" ||
-        aiId === "agriculture" ||
-        aiId === "research"
-    ) {
-
-        openAIChat(
-            aiId,
-            aiId.charAt(0).toUpperCase() +
-            aiId.slice(1)
-        );
-
-        return;
-    }
-
-    if (aiId === "canvas") {
-
-        openSubPage(
-            "AI Canvas",
-            `
-                <div class="page-h">
-                    AI Canvas
+                <div class="title">
+                    ${escapeHTML(card.title)}
                 </div>
 
-                <div class="sub-item">
-                    <div class="icon">
-                        📐
-                    </div>
-
-                    <div class="text">
-                        <strong>
-                            Workspace
-                        </strong>
-
-                        <span>
-                            Documents and AI workspace.
-                        </span>
-                    </div>
+                <div class="desc">
+                    ${escapeHTML(card.desc)}
                 </div>
-
-                <p class="muted">
-                    AI Canvas is prepared for the
-                    next implementation phase.
-                </p>
-            `
-        );
-
-        return;
-    }
+            </div>
+        `).join('');
 }
-
 
 /* ============================================================
-   EDUCATION AI
+   CHATS
    ============================================================ */
 
-async function openEducationAI() {
-
-    openSubPage(
-        "Education AI",
-        `
-        <div class="page-h">
-            Education AI
-        </div>
-
-        <p class="muted"
-           style="margin-bottom:16px;">
-            Choose your country.
-        </p>
-
-        <div id="country-list">
-            <p class="muted">
-                Loading countries...
-            </p>
-        </div>
-        `
-    );
-
-
-    try {
-
-        const data =
-            await apiFetch(
-                "/api/ai-council/countries"
-            );
-
-        const countries =
-            Array.isArray(data?.countries)
-                ? data.countries
-                : [];
-
-
-        const list =
-            $("#country-list");
-
-        if (!list) {
-            return;
-        }
-
-
-        list.innerHTML =
-            countries
-                .map(
-                    (country) => `
-                        <div
-                            class="sub-item"
-                            onclick="chooseEducationCountry('${escapeHTML(
-                                country
-                            )}')"
-                        >
-
-                            <div class="icon">
-                                🌍
-                            </div>
-
-                            <div class="text">
-                                <strong>
-                                    ${escapeHTML(
-                                        country
-                                    )}
-                                </strong>
-
-                                <span>
-                                    Continue
-                                </span>
-                            </div>
-
-                            <span>
-                                →
-                            </span>
-
-                        </div>
-                    `
-                )
-                .join("");
-
-    } catch (error) {
-
-        toast(
-            "Could not load countries."
-        );
-    }
-}
-
-
-function chooseEducationCountry(
-    country
-) {
-
-    openSubPage(
-        "Choose Level",
-        `
-        <div class="page-h">
-            ${escapeHTML(country)}
-        </div>
-
-        <p class="muted"
-           style="margin-bottom:16px;">
-            Choose education level.
-        </p>
-
-        <div id="level-list">
-            Loading levels...
-        </div>
-        `
-    );
-
-
-    apiFetch(
-        "/api/ai-council/levels"
-    )
-        .then(
-            (data) => {
-
-                const levels =
-                    Array.isArray(data?.levels)
-                        ? data.levels
-                        : [];
-
-                const list =
-                    $("#level-list");
-
-                if (!list) {
-                    return;
-                }
-
-                list.innerHTML =
-                    levels
-                        .map(
-                            (level) => `
-                                <div
-                                    class="sub-item"
-                                    onclick="chooseEducationLevel(
-                                        '${escapeHTML(country)}',
-                                        '${escapeHTML(level)}'
-                                    )"
-                                >
-
-                                    <div class="icon">
-                                        🎓
-                                    </div>
-
-                                    <div class="text">
-                                        <strong>
-                                            ${escapeHTML(
-                                                level
-                                            )}
-                                        </strong>
-
-                                        <span>
-                                            Continue
-                                        </span>
-                                    </div>
-
-                                    <span>
-                                        →
-                                    </span>
-
-                                </div>
-                            `
-                        )
-                        .join("");
-            }
-        )
-        .catch(
-            () => toast(
-                "Could not load levels."
-            )
-        );
-}
-
-
-function chooseEducationLevel(
-    country,
-    level
-) {
-
-    openSubPage(
-        "Choose Content",
-        `
-        <div class="page-h">
-            ${escapeHTML(level)}
-        </div>
-
-        <p class="muted"
-           style="margin-bottom:16px;">
-            ${escapeHTML(country)} ·
-            ${escapeHTML(level)}
-        </p>
-
-        <div id="content-type-list">
-            Loading content types...
-        </div>
-        `
-    );
-
-
-    apiFetch(
-        "/api/ai-council/content-types"
-    )
-        .then(
-            (data) => {
-
-                const types =
-                    Array.isArray(data?.content_types)
-                        ? data.content_types
-                        : [];
-
-                const list =
-                    $("#content-type-list");
-
-                if (!list) {
-                    return;
-                }
-
-
-                list.innerHTML =
-                    types
-                        .map(
-                            (content) => `
-                                <div
-                                    class="sub-item"
-                                    onclick="openEducationChat(
-                                        '${escapeHTML(country)}',
-                                        '${escapeHTML(level)}',
-                                        '${escapeHTML(content)}'
-                                    )"
-                                >
-
-                                    <div class="icon">
-                                        📚
-                                    </div>
-
-                                    <div class="text">
-                                        <strong>
-                                            ${escapeHTML(
-                                                content
-                                            )}
-                                        </strong>
-
-                                        <span>
-                                            Open AI assistant
-                                        </span>
-                                    </div>
-
-                                    <span>
-                                        →
-                                    </span>
-
-                                </div>
-                            `
-                        )
-                        .join("");
-            }
-        )
-        .catch(
-            () => toast(
-                "Could not load content types."
-            )
-        );
-}
-
-
-function openEducationChat(
-    country,
-    level,
-    content
-) {
-
-    openSubPage(
-        "AI Chat",
-        `
-        <div class="page-h">
-            Education AI
-        </div>
-
-        <div
-            class="post-card"
-            style="margin-bottom:12px;"
-        >
-            <strong>
-                ${escapeHTML(content)} assistant
-            </strong>
-
-            <p
-                class="muted"
-                style="
-                    margin-top:8px;
-                    line-height:1.5;
-                "
-            >
-                Hello! I'm your
-                ${escapeHTML(content)}
-                assistant for
-                ${escapeHTML(level)}
-                curriculum in
-                ${escapeHTML(country)}.
-                Ask me anything about a subject or topic.
-            </p>
-        </div>
-
-        <div
-            id="education-chat-messages"
-            class="chat-msgs"
-        ></div>
-
-        <form
-            id="education-chat-form"
-            style="
-                display:flex;
-                gap:8px;
-                margin-top:12px;
-            "
-        >
-            <input
-                id="education-chat-input"
-                type="text"
-                placeholder="Ask a question..."
-                style="
-                    flex:1;
-                    padding:12px;
-                    border-radius:12px;
-                    border:1px solid var(--border);
-                    background:var(--bg-3);
-                    color:var(--text);
-                    outline:none;
-                "
-            >
-
-            <button
-                class="btn-primary"
-                type="submit"
-            >
-                ➤
-            </button>
-        </form>
-        `
-    );
-
-
-    const form =
-        $("#education-chat-form");
-
-    if (form) {
-
-        form.addEventListener(
-            "submit",
-            async (event) => {
-
-                event.preventDefault();
-
-                await askEducationAI(
-                    country,
-                    level,
-                    content
-                );
-            }
-        );
-    }
-}
-
-
-async function askEducationAI(
-    country,
-    level,
-    content
-) {
-
-    const input =
-        $("#education-chat-input");
-
-    const messages =
-        $("#education-chat-messages");
-
-    if (!input || !messages) {
-        return;
-    }
-
-
-    const question =
-        input.value.trim();
-
-    if (!question) {
-        return;
-    }
-
-
-    messages.innerHTML += `
-        <div class="msg user">
-            ${formatText(question)}
+async function loadChats() {
+    const list =
+        byId('chat-list');
+
+    if (!list) return;
+
+    list.innerHTML = `
+        <div class="sub-item">
+            <div class="icon">💬</div>
+            <div class="text">
+                <strong>Loading chats...</strong>
+                <span>Please wait.</span>
+            </div>
         </div>
     `;
 
-    input.value = "";
-
-
     try {
-
-        const query =
-            new URLSearchParams({
-                ai: "education",
-                country,
-                level,
-                content,
-                q: question
-            });
-
-
         const data =
-            await apiFetch(
-                `/api/ai-council/chat?${query.toString()}`
+            await apiRequest(
+                ENDPOINTS.messages
             );
 
-
-        messages.innerHTML += `
-            <div class="msg ai">
-                ${formatText(
-                    data?.reply ||
-                    "AI response unavailable."
-                )}
-            </div>
-        `;
-
-
-        messages.scrollTop =
-            messages.scrollHeight;
-
-    } catch (error) {
-
-        messages.innerHTML += `
-            <div class="msg ai">
-                ${escapeHTML(
-                    error.message ||
-                    "AI request failed."
-                )}
-            </div>
-        `;
-    }
-}
-
-
-function openAIChat(
-    ai,
-    title
-) {
-
-    openSubPage(
-        `${title} AI`,
-        `
-        <div class="page-h">
-            ${escapeHTML(title)} AI
-        </div>
-
-        <div
-            id="generic-ai-messages"
-            class="chat-msgs"
-        >
-            <div class="msg ai">
-                Hello! I'm your
-                ${escapeHTML(title)}
-                assistant.
-                Ask me a question.
-            </div>
-        </div>
-
-        <form
-            id="generic-ai-form"
-            style="
-                display:flex;
-                gap:8px;
-                margin-top:12px;
-            "
-        >
-            <input
-                id="generic-ai-input"
-                type="text"
-                placeholder="Ask a question..."
-                style="
-                    flex:1;
-                    padding:12px;
-                    border-radius:12px;
-                    border:1px solid var(--border);
-                    background:var(--bg-3);
-                    color:var(--text);
-                    outline:none;
-                "
-            >
-
-            <button
-                class="btn-primary"
-                type="submit"
-            >
-                ➤
-            </button>
-        </form>
-        `
-    );
-
-
-    const form =
-        $("#generic-ai-form");
-
-    if (form) {
-
-        form.addEventListener(
-            "submit",
-            async (event) => {
-
-                event.preventDefault();
-
-                const input =
-                    $("#generic-ai-input");
-
-                const messages =
-                    $("#generic-ai-messages");
-
-                if (!input || !messages) {
-                    return;
-                }
-
-                const question =
-                    input.value.trim();
-
-                if (!question) {
-                    return;
-                }
-
-                messages.innerHTML += `
-                    <div class="msg user">
-                        ${formatText(question)}
-                    </div>
-                `;
-
-                input.value = "";
-
-
-                try {
-
-                    const params =
-                        new URLSearchParams({
-                            ai,
-                            q: question
-                        });
-
-
-                    const data =
-                        await apiFetch(
-                            `/api/ai-council/chat?${params.toString()}`
-                        );
-
-
-                    messages.innerHTML += `
-                        <div class="msg ai">
-                            ${formatText(
-                                data?.reply ||
-                                "No response."
-                            )}
-                        </div>
-                    `;
-
-                } catch (error) {
-
-                    messages.innerHTML += `
-                        <div class="msg ai">
-                            ${escapeHTML(
-                                error.message
-                            )}
-                        </div>
-                    `;
-                }
-            }
-        );
-    }
-}
-
-
-/* ============================================================
-   CREATIVE STUDIO
-   ============================================================ */
-
-async function openCreativeStudio() {
-
-    openSubPage(
-        "Creative Studio",
-        `
-        <div class="page-h">
-            Creative Studio
-        </div>
-
-        <div id="studio-tools">
-            Loading tools...
-        </div>
-        `
-    );
-
-
-    try {
-
-        const data =
-            await apiFetch(
-                "/api/studio"
-            );
-
-        const tools =
-            Array.isArray(data?.tools)
-                ? data.tools
-                : [];
-
-
-        const container =
-            $("#studio-tools");
-
-        if (!container) {
-            return;
-        }
-
-
-        container.innerHTML =
-            tools
-                .map(
-                    (tool) => `
-                        <div
-                            class="sub-item"
-                            onclick="openStudioTool('${escapeHTML(
-                                tool.id
-                            )}','${escapeHTML(
-                                tool.title
-                            )}')"
-                        >
-
-                            <div class="icon">
-                                ${escapeHTML(
-                                    tool.icon || "✨"
-                                )}
-                            </div>
-
-                            <div class="text">
-
-                                <strong>
-                                    ${escapeHTML(
-                                        tool.title
-                                    )}
-                                </strong>
-
-                                <span>
-                                    ${escapeHTML(
-                                        tool.desc || ""
-                                    )}
-                                </span>
-
-                            </div>
-
-                            <span>
-                                →
-                            </span>
-
-                        </div>
-                    `
-                )
-                .join("");
-
-    } catch (error) {
-
-        toast(
-            "Could not load Studio."
-        );
-    }
-}
-
-
-function openStudioTool(
-    id,
-    title
-) {
-
-    openSubPage(
-        title,
-        `
-        <div class="page-h">
-            ${escapeHTML(title)}
-        </div>
-
-        <div class="post-card">
-
-            <div
-                style="
-                    font-size:48px;
-                    text-align:center;
-                    margin-bottom:16px;
-                "
-            >
-                ✨
-            </div>
-
-            <strong>
-                ${escapeHTML(title)}
-            </strong>
-
-            <p
-                class="muted"
-                style="
-                    margin-top:8px;
-                    line-height:1.5;
-                "
-            >
-                This Creative Studio module is
-                prepared for the next implementation
-                phase.
-            </p>
-
-        </div>
-        `
-    );
-}
-
-
-/* ============================================================
-   MARKET
-   ============================================================ */
-
-async function openMarket() {
-
-    openSubPage(
-        "Market",
-        `
-        <div class="page-h">
-            Market
-        </div>
-
-        <div id="market-categories">
-            Loading categories...
-        </div>
-        `
-    );
-
-
-    try {
-
-        const data =
-            await apiFetch(
-                "/api/market/categories"
-            );
-
-        const categories =
-            Array.isArray(data?.categories)
-                ? data.categories
-                : [];
-
-
-        const container =
-            $("#market-categories");
-
-        if (!container) {
-            return;
-        }
-
-
-        container.innerHTML =
-            categories
-                .map(
-                    (category) => `
-                        <div
-                            class="sub-item"
-                            onclick="openMarketCategory('${escapeHTML(
-                                category.id
-                            )}','${escapeHTML(
-                                category.title
-                            )}')"
-                        >
-
-                            <div class="icon">
-                                ${
-                                    category.id === "products"
-                                        ? "🛍️"
-                                        : category.id === "services"
-                                            ? "🛠️"
-                                            : category.id === "digital"
-                                                ? "💾"
-                                                : "💼"
-                                }
-                            </div>
-
-                            <div class="text">
-                                <strong>
-                                    ${escapeHTML(
-                                        category.title
-                                    )}
-                                </strong>
-
-                                <span>
-                                    ${escapeHTML(
-                                        category.desc || ""
-                                    )}
-                                </span>
-                            </div>
-
-                            <span>
-                                →
-                            </span>
-
-                        </div>
-                    `
-                )
-                .join("");
-
-    } catch (error) {
-
-        toast(
-            "Could not load Market."
-        );
-    }
-}
-
-
-async function openMarketCategory(
-    category,
-    title
-) {
-
-    openSubPage(
-        title,
-        `
-        <div class="page-h">
-            ${escapeHTML(title)}
-        </div>
-
-        <div id="market-items">
-            Loading...
-        </div>
-        `
-    );
-
-
-    try {
-
-        const data =
-            await apiFetch(
-                `/api/market/items?category=${encodeURIComponent(
-                    category
-                )}`
-            );
-
-        const items =
-            Array.isArray(data?.items)
-                ? data.items
-                : [];
-
-
-        const container =
-            $("#market-items");
-
-        if (!container) {
-            return;
-        }
-
-
-        if (!items.length) {
-
-            container.innerHTML = `
-                <div class="post-card"
-                     style="text-align:center;">
-
-                    <div style="font-size:40px;">
-                        🛍️
-                    </div>
-
-                    <strong>
-                        No items yet
-                    </strong>
-
-                    <p
-                        class="muted"
-                        style="margin-top:8px;"
-                    >
-                        Market data will be available
-                        when the marketplace module
-                        is connected.
-                    </p>
-
-                </div>
-            `;
-
-            return;
-        }
-
-
-        container.innerHTML =
-            items
-                .map(
-                    (item) => `
-                        <div class="sub-item">
-
-                            <div class="icon">
-                                🛍️
-                            </div>
-
-                            <div class="text">
-                                <strong>
-                                    ${escapeHTML(
-                                        item.name ||
-                                        "Item"
-                                    )}
-                                </strong>
-
-                                <span>
-                                    ${escapeHTML(
-                                        item.description ||
-                                        ""
-                                    )}
-                                </span>
-                            </div>
-
-                        </div>
-                    `
-                )
-                .join("");
-
-    } catch (error) {
-
-        toast(
-            "Could not load Market items."
-        );
-    }
-}
-
-
-/* ============================================================
-   WORLD MAP
-   ============================================================ */
-
-async function openWorldMap() {
-
-    openSubPage(
-        "World Map",
-        `
-        <div class="page-h">
-            🌍 World Map
-        </div>
-
-        <div id="world-countries">
-            Loading countries...
-        </div>
-        `
-    );
-
-
-    try {
-
-        const data =
-            await apiFetch(
-                "/api/world-map/countries"
-            );
-
-        const countries =
-            Array.isArray(data?.countries)
-                ? data.countries
-                : [];
-
-
-        const container =
-            $("#world-countries");
-
-        if (!container) {
-            return;
-        }
-
-
-        container.innerHTML =
-            countries
-                .map(
-                    (country) => `
-                        <div
-                            class="sub-item"
-                            onclick="openCountry(
-                                '${escapeHTML(
-                                    country.name
-                                )}'
-                            )"
-                        >
-
-                            <div class="icon">
-                                🌍
-                            </div>
-
-                            <div class="text">
-
-                                <strong>
-                                    ${escapeHTML(
-                                        country.name
-                                    )}
-                                </strong>
-
-                                <span>
-                                    Users:
-                                    ${Number(
-                                        country.users
-                                    ) || 0}
-                                    · Posts:
-                                    ${Number(
-                                        country.posts
-                                    ) || 0}
-                                </span>
-
-                            </div>
-
-                            <span>
-                                →
-                            </span>
-
-                        </div>
-                    `
-                )
-                .join("");
-
-    } catch (error) {
-
-        toast(
-            "Could not load World Map."
-        );
-    }
-}
-
-
-function openCountry(
-    country
-) {
-
-    openSubPage(
-        country,
-        `
-        <div class="page-h">
-            🌍 ${escapeHTML(country)}
-        </div>
-
-        <div class="post-card">
-
-            <strong>
-                ${escapeHTML(country)}
-            </strong>
-
-            <p
-                class="muted"
-                style="margin-top:8px;line-height:1.5;"
-            >
-                Country users, posts, trending content
-                and local communities will appear here
-                as the World Map backend develops.
-            </p>
-
-        </div>
-        `
-    );
-}
-
-
-/* ============================================================
-   CHANNELS
-   ============================================================ */
-
-async function openChannels() {
-
-    openSubPage(
-        "Channels",
-        `
-        <div class="page-h">
-            📺 Channels
-        </div>
-
-        <div id="channels-list">
-            Loading...
-        </div>
-        `
-    );
-
-
-    try {
-
-        const data =
-            await apiFetch(
-                "/api/channels"
-            );
-
-        const channels =
-            Array.isArray(data?.channels)
-                ? data.channels
-                : [];
-
-
-        const container =
-            $("#channels-list");
-
-        if (!container) {
-            return;
-        }
-
-
-        container.innerHTML =
-            channels
-                .map(
-                    (channel) => `
-                        <div
-                            class="sub-item"
-                            onclick="openChannel('${escapeHTML(
-                                channel.id
-                            )}')"
-                        >
-
-                            <div class="icon">
-                                📺
-                            </div>
-
-                            <div class="text">
-
-                                <strong>
-                                    ${escapeHTML(
-                                        channel.name
-                                    )}
-                                </strong>
-
-                                <span>
-                                    ${escapeHTML(
-                                        channel.desc || ""
-                                    )}
-                                </span>
-
-                            </div>
-
-                            <span>
-                                →
-                            </span>
-
-                        </div>
-                    `
-                )
-                .join("");
-
-    } catch (error) {
-
-        toast(
-            "Could not load channels."
-        );
-    }
-}
-
-
-function openChannel(
-    channelId
-) {
-
-    openSubPage(
-        "Channel",
-        `
-        <div class="page-h">
-            📺 Channel
-        </div>
-
-        <div class="post-card">
-
-            <div style="font-size:40px;">
-                📺
-            </div>
-
-            <h3 style="margin-top:10px;">
-                Channel content
-            </h3>
-
-            <p
-                class="muted"
-                style="margin-top:8px;"
-            >
-                Live updates, articles, videos,
-                subscriptions and notifications
-                will be connected in the next phase.
-            </p>
-
-        </div>
-        `
-    );
-}
-
-
-/* ============================================================
-   COMMUNITIES
-   ============================================================ */
-
-async function openCommunities() {
-
-    openSubPage(
-        "Communities",
-        `
-        <div class="page-h">
-            👥 Communities
-        </div>
-
-        <div id="community-categories">
-            Loading...
-        </div>
-        `
-    );
-
-
-    try {
-
-        const data =
-            await apiFetch(
-                "/api/communities/categories"
-            );
-
-        const categories =
-            Array.isArray(data?.categories)
-                ? data.categories
-                : [];
-
-
-        const container =
-            $("#community-categories");
-
-        if (!container) {
-            return;
-        }
-
-
-        container.innerHTML =
-            categories
-                .map(
-                    (category) => `
-                        <div
-                            class="sub-item"
-                            onclick="openCommunityCategory(
-                                '${escapeHTML(
-                                    category.id
-                                )}',
-                                '${escapeHTML(
-                                    category.title
-                                )}'
-                            )"
-                        >
-
-                            <div class="icon">
-                                👥
-                            </div>
-
-                            <div class="text">
-
-                                <strong>
-                                    ${escapeHTML(
-                                        category.title
-                                    )}
-                                </strong>
-
-                                <span>
-                                    ${escapeHTML(
-                                        category.desc || ""
-                                    )}
-                                </span>
-
-                            </div>
-
-                            <span>
-                                →
-                            </span>
-
-                        </div>
-                    `
-                )
-                .join("");
-
-    } catch (error) {
-
-        toast(
-            "Could not load communities."
-        );
-    }
-}
-
-
-function openCommunityCategory(
-    id,
-    title
-) {
-
-    openSubPage(
-        title,
-        `
-        <div class="page-h">
-            👥 ${escapeHTML(title)}
-        </div>
-
-        <div class="post-card">
-
-            <strong>
-                ${escapeHTML(title)} Community
-            </strong>
-
-            <p
-                class="muted"
-                style="
-                    margin-top:8px;
-                    line-height:1.5;
-                "
-            >
-                Community posts, members, Join,
-                Leave and Create Community will be
-                connected in the community backend phase.
-            </p>
-
-            <button
-                class="btn-primary"
-                style="
-                    margin-top:16px;
-                    width:100%;
-                "
-                onclick="toast('Community backend coming soon.')"
-            >
-                Join Community
-            </button>
-
-        </div>
-        `
-    );
-}
-
-
-/* ============================================================
-   VIDEOS
-   ============================================================ */
-
-async function openVideos() {
-
-    openSubPage(
-        "Videos",
-        `
-        <div class="page-h">
-            ▶️ Videos
-        </div>
-
-        <div id="video-feed">
-            Loading videos...
-        </div>
-        `
-    );
-
-
-    try {
-
-        const data =
-            await apiFetch(
-                "/api/videos"
-            );
-
-        const videos =
-            Array.isArray(data?.videos)
-                ? data.videos
+        const chats =
+            Array.isArray(data?.chats)
+                ? data.chats
                 : Array.isArray(data)
                     ? data
                     : [];
 
+        CACHED_CHATS = chats;
 
-        const container =
-            $("#video-feed");
-
-        if (!container) {
-            return;
-        }
-
-
-        if (!videos.length) {
-
-            container.innerHTML = `
-                <div class="post-card"
-                     style="text-align:center;">
-
-                    <div style="font-size:42px;">
-                        ▶️
-                    </div>
-
-                    <strong>
-                        No videos yet
-                    </strong>
-
-                    <p
-                        class="muted"
-                        style="margin-top:8px;"
-                    >
-                        Video feed is ready for
-                        backend content.
-                    </p>
-
-                </div>
-            `;
-
-            return;
-        }
-
-
-        container.innerHTML =
-            videos
-                .map(
-                    (video) => `
-                        <div class="post-card">
-
-                            <video
-                                class="post-media"
-                                controls
-                                playsinline
-                                loop
-                                src="${escapeHTML(
-                                    mediaURL(
-                                        video.media_url ||
-                                        video.url ||
-                                        ""
-                                    )
-                                )}"
-                            ></video>
-
-                            <strong>
-                                ${escapeHTML(
-                                    video.username ||
-                                    video.full_name ||
-                                    "User"
-                                )}
-                            </strong>
-
-                            <p class="post-caption">
-                                ${formatText(
-                                    video.caption || ""
-                                )}
-                            </p>
-
-                        </div>
-                    `
-                )
-                .join("");
-
+        renderChats(
+            list,
+            chats
+        );
     } catch (error) {
-
-        console.warn(
-            "Video endpoint:",
-            error.message
+        console.error(
+            'Chats error:',
+            error
         );
 
-        const container =
-            $("#video-feed");
-
-        if (container) {
-
-            container.innerHTML = `
-                <div class="post-card">
-                    <strong>
-                        Videos
-                    </strong>
-
-                    <p
-                        class="muted"
-                        style="margin-top:8px;"
-                    >
-                        Video module is ready.
-                    </p>
+        list.innerHTML = `
+            <div class="sub-item">
+                <div class="icon">💬</div>
+                <div class="text">
+                    <strong>No chats yet</strong>
+                    <span>
+                        Messaging backend is ready to grow.
+                    </span>
                 </div>
-            `;
-        }
+            </div>
+        `;
     }
 }
 
+function renderChats(
+    container,
+    chats
+) {
+    if (!chats.length) {
+        container.innerHTML = `
+            <div class="sub-item">
+                <div class="icon">💬</div>
+                <div class="text">
+                    <strong>No conversations</strong>
+                    <span>
+                        Start connecting with people.
+                    </span>
+                </div>
+            </div>
+        `;
+
+        return;
+    }
+
+    container.innerHTML =
+        chats.map(
+            chat => {
+                const name =
+                    chat.full_name ||
+                    chat.username ||
+                    chat.name ||
+                    'User';
+
+                const avatar =
+                    chat.avatar_url ||
+                    chat.avatar ||
+                    '';
+
+                const last =
+                    chat.last_message ||
+                    chat.message ||
+                    'No messages yet';
+
+                return `
+                    <div
+                        class="chat-item"
+                        data-chat-id="${escapeHTML(
+                            chat.id ??
+                            chat.user_id ??
+                            ''
+                        )}"
+                    >
+
+                        ${
+                            avatar
+                                ? `
+                                    <img
+                                        class="chat-avatar"
+                                        src="${escapeHTML(
+                                            absoluteURL(avatar)
+                                        )}"
+                                        alt=""
+                                        style="object-fit:cover"
+                                    >
+                                  `
+                                : `
+                                    <div class="chat-avatar">
+                                        ${escapeHTML(
+                                            initials(name)
+                                        )}
+                                    </div>
+                                  `
+                        }
+
+                        <div class="chat-info">
+                            <strong>
+                                ${escapeHTML(name)}
+                            </strong>
+
+                            <span>
+                                ${escapeHTML(last)}
+                            </span>
+                        </div>
+
+                    </div>
+                `;
+            }
+        ).join('');
+}
 
 /* ============================================================
    PROFILE
    ============================================================ */
 
-async function loadMyProfile() {
-
+async function loadProfile() {
     if (!CURRENT_USER) {
-
-        await loadCurrentUser();
-
-        if (!CURRENT_USER) {
-            showAuth();
-            return;
-        }
-    }
-
-
-    updateOwnProfileUI();
-
-
-    const profilePosts =
-        $("#profile-posts");
-
-    if (!profilePosts) {
+        showAuth();
         return;
     }
 
+    const name =
+        CURRENT_USER.full_name ||
+        CURRENT_USER.username ||
+        'User';
+
+    const username =
+        CURRENT_USER.username ||
+        'user';
+
+    const avatar =
+        CURRENT_USER.avatar_url ||
+        '';
+
+    const profileName =
+        byId('profile-name');
+
+    const profileUsername =
+        byId('profile-username');
+
+    const profileBio =
+        byId('profile-bio');
+
+    const profileAvatar =
+        byId('profile-avatar');
+
+    if (profileName) {
+        profileName.textContent =
+            name;
+    }
+
+    if (profileUsername) {
+        profileUsername.textContent =
+            `@${username}`;
+    }
+
+    if (profileBio) {
+        profileBio.textContent =
+            CURRENT_USER.bio ||
+            'Welcome to Msafiri';
+    }
+
+    if (profileAvatar) {
+        if (avatar) {
+            profileAvatar.innerHTML = `
+                <img
+                    src="${escapeHTML(
+                        absoluteURL(avatar)
+                    )}"
+                    alt=""
+                    style="
+                        width:100%;
+                        height:100%;
+                        object-fit:cover;
+                        border-radius:50%;
+                    "
+                >
+            `;
+        } else {
+            profileAvatar.textContent =
+                initials(name);
+        }
+    }
+
+    const id =
+        CURRENT_USER.id;
+
+    if (!id) return;
 
     try {
-
         const data =
-            await apiFetch(
-                "/api/feed"
+            await apiRequest(
+                `${ENDPOINTS.profile}/${id}`
             );
 
-        const posts =
-            extractPosts(data)
-                .filter(
-                    (post) =>
-                        Number(post.user_id) ===
-                        Number(CURRENT_USER.id)
-                );
+        const user =
+            data?.user ||
+            data;
 
+        if (user) {
+            CURRENT_USER = {
+                ...CURRENT_USER,
+                ...user
+            };
 
-        const postCount =
-            $("#stat-posts");
+            localStorage.setItem(
+                STORAGE.USER,
+                JSON.stringify(
+                    CURRENT_USER
+                )
+            );
 
-        if (postCount) {
-            postCount.textContent =
-                String(posts.length);
+            updateProfileUI(
+                CURRENT_USER
+            );
         }
-
-
-        profilePosts.innerHTML =
-            posts.length
-                ? posts
-                    .map(
-                        (post) =>
-                            renderPost(post)
-                    )
-                    .join("")
-                : `
-                    <div class="post-card"
-                         style="text-align:center;">
-                        <strong>
-                            No posts yet
-                        </strong>
-
-                        <p
-                            class="muted"
-                            style="margin-top:8px;"
-                        >
-                            Your posts will appear here.
-                        </p>
-                    </div>
-                  `;
-
     } catch (error) {
-
-        console.error(
-            "Profile posts error:",
-            error
+        console.warn(
+            'Profile refresh:',
+            error.message
         );
     }
 }
 
+function updateProfileUI(user) {
+    const name =
+        user.full_name ||
+        user.username ||
+        'User';
+
+    const username =
+        user.username ||
+        'user';
+
+    const avatar =
+        user.avatar_url ||
+        '';
+
+    const profileName =
+        byId('profile-name');
+
+    const profileUsername =
+        byId('profile-username');
+
+    const profileBio =
+        byId('profile-bio');
+
+    const profileAvatar =
+        byId('profile-avatar');
+
+    if (profileName) {
+        profileName.textContent =
+            name;
+    }
+
+    if (profileUsername) {
+        profileUsername.textContent =
+            `@${username}`;
+    }
+
+    if (profileBio) {
+        profileBio.textContent =
+            user.bio ||
+            'Welcome to Msafiri';
+    }
+
+    if (profileAvatar) {
+        if (avatar) {
+            profileAvatar.innerHTML = `
+                <img
+                    src="${escapeHTML(
+                        absoluteURL(avatar)
+                    )}"
+                    alt=""
+                    style="
+                        width:100%;
+                        height:100%;
+                        object-fit:cover;
+                        border-radius:50%;
+                    "
+                >
+            `;
+        } else {
+            profileAvatar.textContent =
+                initials(name);
+        }
+    }
+}
 
 /* ============================================================
    EDIT PROFILE
    ============================================================ */
 
 function openEditProfile() {
+    const body =
+        byId('modal-body');
 
-    if (!CURRENT_USER) {
-        return;
-    }
+    if (!body || !CURRENT_USER) return;
 
+    openModal();
 
-    openModal(`
+    body.innerHTML = `
         <h2>Edit Profile</h2>
 
         <form id="edit-profile-form">
 
             <input
-                id="edit-fullname"
-                type="text"
+                id="edit-full-name"
                 value="${escapeHTML(
-                    CURRENT_USER.full_name || ""
+                    CURRENT_USER.full_name || ''
                 )}"
-                placeholder="Full Name"
+                placeholder="Full name"
                 style="
                     width:100%;
-                    padding:12px;
+                    padding:13px;
                     margin-bottom:10px;
                     border-radius:10px;
                     border:1px solid var(--border);
                     background:var(--bg-3);
                     color:var(--text);
-                    outline:none;
                 "
             >
 
@@ -5913,1230 +1839,1407 @@ function openEditProfile() {
                 placeholder="Bio"
                 style="
                     width:100%;
-                    padding:12px;
+                    padding:13px;
                     margin-bottom:10px;
                     border-radius:10px;
                     border:1px solid var(--border);
                     background:var(--bg-3);
                     color:var(--text);
-                    outline:none;
-                    font-family:inherit;
                 "
             >${escapeHTML(
-                CURRENT_USER.bio || ""
+                CURRENT_USER.bio || ''
             )}</textarea>
 
             <input
                 id="edit-location"
-                type="text"
                 value="${escapeHTML(
-                    CURRENT_USER.location || ""
+                    CURRENT_USER.location || ''
                 )}"
                 placeholder="Location"
                 style="
                     width:100%;
-                    padding:12px;
-                    margin-bottom:16px;
+                    padding:13px;
+                    margin-bottom:14px;
                     border-radius:10px;
                     border:1px solid var(--border);
                     background:var(--bg-3);
                     color:var(--text);
-                    outline:none;
                 "
             >
 
             <button
-                class="btn-primary"
                 type="submit"
+                class="btn-primary"
                 style="width:100%;"
             >
                 Save Changes
             </button>
 
         </form>
-    `);
-
+    `;
 
     const form =
-        $("#edit-profile-form");
+        byId('edit-profile-form');
 
-    if (form) {
+    if (!form) return;
 
-        form.addEventListener(
-            "submit",
-            async (event) => {
+    form.addEventListener(
+        'submit',
+        async event => {
+            event.preventDefault();
 
-                event.preventDefault();
+            const fullName =
+                byId('edit-full-name')?.value.trim();
 
-                await updateProfile();
-            }
-        );
-    }
-}
+            const bio =
+                byId('edit-bio')?.value.trim();
 
-
-async function updateProfile() {
-
-    const fullName =
-        $("#edit-fullname")?.value.trim();
-
-    const bio =
-        $("#edit-bio")?.value.trim();
-
-    const location =
-        $("#edit-location")?.value.trim();
-
-
-    try {
-
-        /*
-         * Current profile.py accepts query parameters.
-         * Therefore PATCH is sent using URLSearchParams.
-         */
-
-        const params =
-            new URLSearchParams();
-
-        params.append(
-            "full_name",
-            fullName || ""
-        );
-
-        params.append(
-            "bio",
-            bio || ""
-        );
-
-        params.append(
-            "location",
-            location || ""
-        );
-
-
-        const data =
-            await apiFetch(
-                `/api/profile?${params.toString()}`,
-                {
-                    method: "PATCH"
-                }
-            );
-
-
-        const user =
-            data?.user ||
-            data;
-
-
-        if (user?.id) {
-            saveCurrentUser(user);
-        } else {
-
-            CURRENT_USER.full_name =
-                fullName || "";
-
-            CURRENT_USER.bio =
-                bio || "";
-
-            CURRENT_USER.location =
-                location || "";
-
-            saveCurrentUser(
-                CURRENT_USER
-            );
-        }
-
-
-        updateOwnProfileUI();
-
-        closeModal();
-
-        toast(
-            "Profile updated."
-        );
-
-    } catch (error) {
-
-        console.error(
-            "Profile update error:",
-            error
-        );
-
-        toast(
-            error.message ||
-            "Could not update profile."
-        );
-    }
-}
-
-
-/* ============================================================
-   USER MANUAL
-   ============================================================ */
-
-async function showUserManual() {
-
-    let manual;
-
-    try {
-
-        manual =
-            await apiFetch(
-                "/api/user-manual"
-            );
-
-    } catch (error) {
-
-        manual = {
-            app: APP_NAME,
-            tagline: APP_VERSION,
-            founder: FOUNDER,
-            company: COMPANY,
-            version: APP_VERSION
-        };
-    }
-
-
-    openModal(`
-        <h2>
-            ${escapeHTML(
-                manual.app || APP_NAME
-            )}
-        </h2>
-
-        <p class="muted">
-            ${escapeHTML(
-                manual.tagline || "Connect beyond"
-            )}
-        </p>
-
-
-        <div class="manual-section">
-
-            <h3>
-                About MSAFIRI
-            </h3>
-
-            <p>
-                ${escapeHTML(
-                    manual.about ||
-                    `${APP_NAME} is a social, communication and AI application.`
-                )}
-            </p>
-
-        </div>
-
-
-        <div class="manual-section">
-
-            <h3>
-                Founder & Company
-            </h3>
-
-            <p>
-                Founder:
-                ${escapeHTML(
-                    manual.founder ||
-                    FOUNDER
-                )}
-            </p>
-
-            <p>
-                Company:
-                ${escapeHTML(
-                    manual.company ||
-                    COMPANY
-                )}
-            </p>
-
-        </div>
-
-
-        <div class="manual-section">
-
-            <h3>
-                Sections of the App
-            </h3>
-
-            <ul>
-
-                <li>
-                    Home — Feed, Stories, Posts
-                </li>
-
-                <li>
-                    Discovery — AI Council, Studio,
-                    Market, World Map, Channels,
-                    Communities, Videos, Settings
-                </li>
-
-                <li>
-                    Chats — Messaging
-                </li>
-
-                <li>
-                    Profile — Your profile
-                </li>
-
-            </ul>
-
-        </div>
-
-
-        <div class="manual-section">
-
-            <h3>
-                How to Use MSAFIRI
-            </h3>
-
-            <ul>
-
-                <li>
-                    Register → Fill details →
-                    Create Account
-                </li>
-
-                <li>
-                    Home → + → Create Post
-                </li>
-
-                <li>
-                    My Story → Select media →
-                    Post Story
-                </li>
-
-                <li>
-                    Search people → Open profile →
-                    Message
-                </li>
-
-                <li>
-                    Discovery → AI Council →
-                    Choose AI
-                </li>
-
-            </ul>
-
-        </div>
-
-
-        <div class="manual-section">
-
-            <h3>
-                Support
-            </h3>
-
-            <p>
-                ${escapeHTML(
-                    manual.support ||
-                    `Contact ${COMPANY}`
-                )}
-            </p>
-
-        </div>
-
-
-        <button
-            class="btn-primary"
-            style="width:100%;"
-            onclick="downloadUserManual()"
-        >
-            📥 Download User Manual
-        </button>
-    `);
-}
-
-
-function downloadUserManual() {
-
-    const text = `
-${APP_NAME}
-${APP_VERSION}
-
-${APP_TAGLINE_PLACEHOLDER()}
-
-Founder:
-${FOUNDER}
-
-Company:
-${COMPANY}
-
-==================================================
-ABOUT MSAFIRI
-==================================================
-
-MSAFIRI GLOBAL MEDIA is a social, communication,
-and AI platform.
-
-==================================================
-SECTIONS OF THE APP
-==================================================
-
-Home
-- Feed
-- Stories
-- Posts
-
-Discovery
-- AI Council
-- Creative Studio
-- Market
-- World Map
-- Channels
-- Communities
-- Videos
-- Settings
-
-Chats
-- Messaging
-- Conversations
-
-Profile
-- Profile information
-- Posts
-
-==================================================
-HOW TO USE
-==================================================
-
-Create Account:
-Register → Fill details → Create Account
-
-Create Post:
-Home → + → Caption → Photo/Video → Publish
-
-Share Story:
-My Story → Select media → Post Story
-
-Chat:
-Search people → Open profile → Message
-
-Explore AI:
-Discovery → AI Council → Choose AI
-
-==================================================
-FOUNDER
-==================================================
-
-${FOUNDER}
-
-==================================================
-COMPANY
-==================================================
-
-${COMPANY}
-
-==================================================
-VERSION
-==================================================
-
-${APP_VERSION}
-
-==================================================
-`;
-
-    const blob =
-        new Blob(
-            [text],
-            {
-                type: "text/plain;charset=utf-8"
-            }
-        );
-
-    const url =
-        URL.createObjectURL(blob);
-
-    const anchor =
-        document.createElement("a");
-
-    anchor.href =
-        url;
-
-    anchor.download =
-        "MSAFIRI-UserManual.txt";
-
-    document.body.appendChild(
-        anchor
-    );
-
-    anchor.click();
-
-    anchor.remove();
-
-    URL.revokeObjectURL(
-        url
-    );
-
-    toast(
-        "User Manual downloaded."
-    );
-}
-
-
-function APP_TAGLINE_PLACEHOLDER() {
-    return "Connect beyond — Media V0.0.1";
-}
-
-
-/* ============================================================
-   SETTINGS
-   ============================================================ */
-
-async function openSettings() {
-
-    openModal(`
-        <h2>
-            Settings
-        </h2>
-
-        <div class="sub-item"
-             onclick="showUserManual()">
-
-            <div class="icon">
-                📖
-            </div>
-
-            <div class="text">
-                <strong>
-                    User Manual
-                </strong>
-
-                <span>
-                    Learn how to use MSAFIRI
-                </span>
-            </div>
-
-            <span>
-                →
-            </span>
-
-        </div>
-
-
-        <div class="sub-item"
-             onclick="toggleTheme()">
-
-            <div class="icon">
-                🌓
-            </div>
-
-            <div class="text">
-                <strong>
-                    Toggle Theme
-                </strong>
-
-                <span>
-                    Light / Dark
-                </span>
-            </div>
-
-            <span>
-                →
-            </span>
-
-        </div>
-
-
-        <div class="sub-item">
-
-            <div class="icon">
-                ℹ️
-            </div>
-
-            <div class="text">
-                <strong>
-                    Version
-                </strong>
-
-                <span>
-                    ${escapeHTML(
-                        APP_VERSION
-                    )}
-                </span>
-            </div>
-
-        </div>
-
-
-        <div class="sub-item"
-             onclick="logout()">
-
-            <div class="icon">
-                🚪
-            </div>
-
-            <div class="text">
-                <strong>
-                    Logout
-                </strong>
-
-                <span>
-                    Sign out of your account
-                </span>
-            </div>
-
-        </div>
-    `);
-}
-
-
-/* ============================================================
-   THEME
-   ============================================================ */
-
-function initializeTheme() {
-
-    const saved =
-        localStorage.getItem(
-            THEME_KEY
-        );
-
-    if (saved === "light") {
-        applyLightTheme();
-    } else {
-        applyDarkTheme();
-    }
-}
-
-
-function toggleTheme() {
-
-    const current =
-        localStorage.getItem(
-            THEME_KEY
-        ) || "dark";
-
-    if (current === "dark") {
-
-        localStorage.setItem(
-            THEME_KEY,
-            "light"
-        );
-
-        applyLightTheme();
-
-        toast(
-            "Light theme enabled."
-        );
-
-    } else {
-
-        localStorage.setItem(
-            THEME_KEY,
-            "dark"
-        );
-
-        applyDarkTheme();
-
-        toast(
-            "Dark theme enabled."
-        );
-    }
-}
-
-
-function applyLightTheme() {
-
-    const root =
-        document.documentElement;
-
-    root.style.setProperty(
-        "--bg",
-        "#f4f7ff"
-    );
-
-    root.style.setProperty(
-        "--bg-2",
-        "#ffffff"
-    );
-
-    root.style.setProperty(
-        "--bg-3",
-        "#e9edfa"
-    );
-
-    root.style.setProperty(
-        "--text",
-        "#111827"
-    );
-
-    root.style.setProperty(
-        "--text-2",
-        "#64748b"
-    );
-
-    root.style.setProperty(
-        "--border",
-        "#d9def0"
-    );
-}
-
-
-function applyDarkTheme() {
-
-    const root =
-        document.documentElement;
-
-    root.style.setProperty(
-        "--bg",
-        "#0a0e27"
-    );
-
-    root.style.setProperty(
-        "--bg-2",
-        "#131837"
-    );
-
-    root.style.setProperty(
-        "--bg-3",
-        "#1c2350"
-    );
-
-    root.style.setProperty(
-        "--text",
-        "#ffffff"
-    );
-
-    root.style.setProperty(
-        "--text-2",
-        "#a0a8c8"
-    );
-
-    root.style.setProperty(
-        "--border",
-        "#2a3260"
-    );
-}
-
-
-/* ============================================================
-   LOGOUT
-   ============================================================ */
-
-async function logout() {
-
-    try {
-
-        if (TOKEN) {
-
-            /*
-             * Logout endpoint may or may not exist.
-             * Failure here should never prevent local logout.
-             */
+            const location =
+                byId('edit-location')?.value.trim();
 
             try {
+                const data =
+                    await apiRequest(
+                        ENDPOINTS.profile,
+                        {
+                            method: 'PATCH',
+                            body: {
+                                full_name: fullName,
+                                bio,
+                                location
+                            }
+                        }
+                    );
 
-                await apiFetch(
-                    "/api/auth/logout",
-                    {
-                        method: "POST"
-                    }
+                CURRENT_USER =
+                    data?.user ||
+                    data;
+
+                localStorage.setItem(
+                    STORAGE.USER,
+                    JSON.stringify(
+                        CURRENT_USER
+                    )
                 );
 
+                updateProfileUI(
+                    CURRENT_USER
+                );
+
+                closeModal();
+
+                showToast(
+                    'Profile updated.'
+                );
             } catch (error) {
-                console.warn(
-                    "Server logout unavailable:",
-                    error.message
+                showToast(
+                    error.message ||
+                    'Unable to update profile.'
                 );
             }
         }
-
-    } finally {
-
-        TOKEN = null;
-
-        CURRENT_USER = null;
-
-        CACHED_POSTS = [];
-
-        CACHED_CHATS = [];
-
-        PAGE_HISTORY = [];
-
-        localStorage.removeItem(
-            TOKEN_KEY
-        );
-
-        localStorage.removeItem(
-            USER_KEY
-        );
-
-
-        closeModal();
-
-        showAuth();
-
-        switchAuthTab(
-            "login"
-        );
-
-        toast(
-            "Logged out."
-        );
-    }
-}
-
-
-/* ============================================================
-   MODAL
-   ============================================================ */
-
-function openModal(
-    html
-) {
-
-    const modal =
-        $("#modal");
-
-    const body =
-        $("#modal-body");
-
-    if (!modal || !body) {
-        return;
-    }
-
-    body.innerHTML =
-        html;
-
-    modal.classList.remove(
-        "hidden"
     );
 }
 
+/* ============================================================
+   SEARCH
+   ============================================================ */
 
-function closeModal() {
+function setupSearch() {
+    const input =
+        byId('search-input');
 
-    const modal =
-        $("#modal");
+    if (!input) return;
 
-    const body =
-        $("#modal-body");
+    input.addEventListener(
+        'input',
+        () => {
+            clearTimeout(
+                SEARCH_TIMER
+            );
 
-    if (modal) {
-        modal.classList.add(
-            "hidden"
-        );
-    }
+            const value =
+                input.value.trim();
 
-    if (body) {
-        body.innerHTML = "";
-    }
+            SEARCH_TIMER =
+                setTimeout(
+                    () => {
+                        if (!value) {
+                            renderFeed(
+                                byId('feed'),
+                                CACHED_POSTS
+                            );
+
+                            return;
+                        }
+
+                        const results =
+                            CACHED_POSTS.filter(
+                                post => {
+                                    const text =
+                                        [
+                                            post.username,
+                                            post.full_name,
+                                            post.caption
+                                        ]
+                                            .join(' ')
+                                            .toLowerCase();
+
+                                    return text.includes(
+                                        value.toLowerCase()
+                                    );
+                                }
+                            );
+
+                        renderFeed(
+                            byId('feed'),
+                            results
+                        );
+                    },
+                    250
+                );
+        }
+    );
 }
 
+/* ============================================================
+   FEED TABS
+   ============================================================ */
+
+function setupFeedTabs() {
+    $$('.feed-tab').forEach(
+        button => {
+            button.addEventListener(
+                'click',
+                () => {
+                    $$('.feed-tab')
+                        .forEach(btn => {
+                            btn.classList.toggle(
+                                'active',
+                                btn === button
+                            );
+                        });
+
+                    CURRENT_FEED =
+                        button.dataset.feed ||
+                        'for-you';
+
+                    /*
+                     * Following filtering can be connected
+                     * when follow-feed backend is available.
+                     */
+
+                    renderFeed(
+                        byId('feed'),
+                        CACHED_POSTS
+                    );
+                }
+            );
+        }
+    );
+}
 
 /* ============================================================
    DROPDOWN
    ============================================================ */
 
-function toggleDotsMenu() {
+function setupDropdown() {
+    const button =
+        byId('dots-btn');
 
     const menu =
-        $("#dots-menu");
+        byId('dots-menu');
 
-    if (!menu) {
-        return;
-    }
+    if (!button || !menu) return;
 
-    menu.classList.toggle(
-        "hidden"
-    );
-}
+    button.addEventListener(
+        'click',
+        event => {
+            event.stopPropagation();
 
-
-function closeDotsMenu() {
-
-    const menu =
-        $("#dots-menu");
-
-    if (menu) {
-        menu.classList.add(
-            "hidden"
-        );
-    }
-}
-
-
-/* ============================================================
-   TOAST
-   ============================================================ */
-
-function toast(
-    message
-) {
-
-    const old =
-        document.querySelector(
-            ".toast"
-        );
-
-    if (old) {
-        old.remove();
-    }
-
-
-    const element =
-        document.createElement("div");
-
-    element.className =
-        "toast";
-
-    element.textContent =
-        message || "Done";
-
-
-    document.body.appendChild(
-        element
-    );
-
-
-    setTimeout(
-        () => {
-
-            if (element) {
-                element.remove();
-            }
-
-        },
-        3000
-    );
-}
-
-
-/* ============================================================
-   BUTTON LOADING
-   ============================================================ */
-
-function setButtonLoading(
-    button,
-    loading,
-    text
-) {
-
-    if (!button) {
-        return;
-    }
-
-
-    if (loading) {
-
-        if (!button.dataset.originalText) {
-            button.dataset.originalText =
-                button.textContent;
+            menu.classList.toggle(
+                'hidden'
+            );
         }
+    );
 
-        button.disabled =
-            true;
+    document.addEventListener(
+        'click',
+        event => {
+            if (
+                !menu.contains(event.target) &&
+                event.target !== button
+            ) {
+                menu.classList.add(
+                    'hidden'
+                );
+            }
+        }
+    );
 
-        button.textContent =
-            text || "Loading...";
+    menu.querySelectorAll(
+        'button'
+    ).forEach(
+        item => {
+            item.addEventListener(
+                'click',
+                () => {
+                    menu.classList.add(
+                        'hidden'
+                    );
 
-    } else {
+                    const action =
+                        item.dataset.action;
 
-        button.disabled =
-            false;
+                    handleMenuAction(
+                        action
+                    );
+                }
+            );
+        }
+    );
+}
 
-        button.textContent =
-            button.dataset.originalText ||
-            text ||
-            "Submit";
+function handleMenuAction(action) {
+    if (action === 'logout') {
+        logout();
+        return;
+    }
+
+    if (action === 'settings') {
+        openSettings();
+        return;
+    }
+
+    if (action === 'manual') {
+        openManual();
+        return;
     }
 }
 
-
 /* ============================================================
-   LOGIN REQUIREMENT
+   SETTINGS
    ============================================================ */
 
-function requireLogin() {
+function openSettings() {
+    const body =
+        byId('modal-body');
 
-    if (TOKEN) {
-        return true;
+    if (!body) return;
+
+    openModal();
+
+    body.innerHTML = `
+        <h2>Settings</h2>
+
+        <div class="sub-item"
+             id="settings-theme">
+            <div class="icon">🌙</div>
+            <div class="text">
+                <strong>Appearance</strong>
+                <span>
+                    Toggle dark/light interface.
+                </span>
+            </div>
+        </div>
+
+        <div class="sub-item"
+             id="settings-logout">
+            <div class="icon">🚪</div>
+            <div class="text">
+                <strong>Logout</strong>
+                <span>Sign out of this device.</span>
+            </div>
+        </div>
+    `;
+
+    byId('settings-theme')
+        ?.addEventListener(
+            'click',
+            toggleTheme
+        );
+
+    byId('settings-logout')
+        ?.addEventListener(
+            'click',
+            logout
+        );
+}
+
+function toggleTheme() {
+    const current =
+        document.documentElement
+            .dataset.theme;
+
+    const next =
+        current === 'light'
+            ? 'dark'
+            : 'light';
+
+    document.documentElement
+        .dataset.theme = next;
+
+    localStorage.setItem(
+        STORAGE.THEME,
+        next
+    );
+
+    showToast(
+        `${next === 'dark'
+            ? 'Dark'
+            : 'Light'} mode enabled.`
+    );
+}
+
+function restoreTheme() {
+    const theme =
+        localStorage.getItem(
+            STORAGE.THEME
+        );
+
+    if (theme) {
+        document.documentElement
+            .dataset.theme =
+            theme;
     }
+}
+
+/* ============================================================
+   MANUAL
+   ============================================================ */
+
+function openManual() {
+    const body =
+        byId('modal-body');
+
+    if (!body) return;
+
+    openModal();
+
+    body.innerHTML = `
+        <h2>MSAFIRI GLOBAL MEDIA</h2>
+
+        <div class="manual-section">
+            <h3>Home</h3>
+            <p>
+                View posts, photos and videos
+                shared by people.
+            </p>
+        </div>
+
+        <div class="manual-section">
+            <h3>Discovery</h3>
+            <p>
+                Explore people and future
+                MSAFIRI services.
+            </p>
+        </div>
+
+        <div class="manual-section">
+            <h3>Chats</h3>
+            <p>
+                Messaging features are being
+                connected to the backend.
+            </p>
+        </div>
+
+        <div class="manual-section">
+            <h3>Profile</h3>
+            <p>
+                View and update your profile.
+            </p>
+        </div>
+    `;
+}
+
+/* ============================================================
+   LOGOUT
+   ============================================================ */
+
+function logout() {
+    clearSession();
+
+    closeModal();
 
     showAuth();
 
-    toast(
-        "Please login first."
+    showToast(
+        'You have been logged out.'
+    );
+}
+
+/* ============================================================
+   MODAL
+   ============================================================ */
+
+function openModal() {
+    const modal =
+        byId('modal');
+
+    if (!modal) return;
+
+    modal.classList.remove(
+        'hidden'
+    );
+}
+
+function closeModal() {
+    const modal =
+        byId('modal');
+
+    if (!modal) return;
+
+    modal.classList.add(
+        'hidden'
+    );
+}
+
+/* ============================================================
+   EVENT DELEGATION
+   ============================================================ */
+
+function setupGlobalEvents() {
+    document.addEventListener(
+        'click',
+        event => {
+            const nav =
+                event.target.closest(
+                    '.nav-btn'
+                );
+
+            if (nav) {
+                navigate(
+                    nav.dataset.nav
+                );
+
+                return;
+            }
+
+            const postButton =
+                event.target.closest(
+                    '[data-post-action]'
+                );
+
+            if (postButton) {
+                handlePostAction(
+                    postButton.dataset.postAction,
+                    postButton.dataset.postId
+                );
+
+                return;
+            }
+
+            const chat =
+                event.target.closest(
+                    '.chat-item'
+                );
+
+            if (chat) {
+                openChat(
+                    chat.dataset.chatId
+                );
+
+                return;
+            }
+        }
+    );
+}
+
+/* ============================================================
+   CHAT VIEW
+   ============================================================ */
+
+function openChat(chatId) {
+    const chat =
+        CACHED_CHATS.find(
+            item =>
+                String(
+                    item.id ??
+                    item.user_id
+                ) === String(chatId)
+        );
+
+    CURRENT_CHAT =
+        chat || {
+            id: chatId
+        };
+
+    const page =
+        byId('page-sub');
+
+    const content =
+        byId('sub-content');
+
+    if (!page || !content) return;
+
+    $$('.page').forEach(
+        p => p.classList.remove('active')
     );
 
-    return false;
+    page.classList.add('active');
+
+    const back =
+        byId('back-btn');
+
+    if (back) {
+        back.classList.remove(
+            'hidden'
+        );
+    }
+
+    const name =
+        chat?.full_name ||
+        chat?.username ||
+        chat?.name ||
+        'Chat';
+
+    const avatar =
+        chat?.avatar_url ||
+        chat?.avatar ||
+        '';
+
+    content.innerHTML = `
+        <div style="
+            display:flex;
+            align-items:center;
+            gap:12px;
+            margin-bottom:12px;
+            padding-bottom:12px;
+            border-bottom:1px solid var(--border);
+        ">
+
+            ${
+                avatar
+                    ? `
+                        <img
+                            class="chat-avatar"
+                            src="${escapeHTML(
+                                absoluteURL(avatar)
+                            )}"
+                            alt=""
+                            style="object-fit:cover"
+                        >
+                      `
+                    : `
+                        <div class="chat-avatar">
+                            ${escapeHTML(
+                                initials(name)
+                            )}
+                        </div>
+                      `
+            }
+
+            <div style="flex:1">
+                <strong>
+                    ${escapeHTML(name)}
+                </strong>
+
+                <div class="muted">
+                    Online status will appear here
+                </div>
+            </div>
+
+            <button
+                class="icon-btn"
+                type="button"
+                title="Voice call"
+                onclick="showToast('Voice calls coming soon.')"
+            >
+                📞
+            </button>
+
+            <button
+                class="icon-btn"
+                type="button"
+                title="Video call"
+                onclick="showToast('Video calls coming soon.')"
+            >
+                📹
+            </button>
+
+            <button
+                class="icon-btn"
+                type="button"
+                onclick="openChatMenu()"
+            >
+                ⋮
+            </button>
+
+        </div>
+
+        <div
+            id="chat-messages"
+            class="chat-msgs"
+        >
+            <div class="sub-item">
+                <div class="icon">💬</div>
+                <div class="text">
+                    <strong>Conversation</strong>
+                    <span>
+                        Messaging API is ready for expansion.
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <form
+            id="chat-compose"
+            style="
+                position:sticky;
+                bottom:0;
+                display:flex;
+                gap:8px;
+                padding:10px 0;
+                background:var(--bg);
+            "
+        >
+
+            <button
+                type="button"
+                class="icon-btn"
+                id="chat-plus"
+            >
+                ＋
+            </button>
+
+            <input
+                id="chat-input"
+                type="text"
+                placeholder="Message..."
+                style="
+                    flex:1;
+                    padding:12px;
+                    border-radius:12px;
+                    border:1px solid var(--border);
+                    background:var(--bg-2);
+                    color:var(--text);
+                    outline:none;
+                "
+            >
+
+            <button
+                type="button"
+                class="icon-btn"
+                id="chat-mic"
+            >
+                🎙️
+            </button>
+
+            <button
+                type="submit"
+                class="btn-primary"
+            >
+                Send
+            </button>
+
+        </form>
+    `;
+
+    setupChatComposer();
 }
 
+function setupChatComposer() {
+    const form =
+        byId('chat-compose');
 
-/* ============================================================
-   MEDIA URL
-   ============================================================ */
+    const input =
+        byId('chat-input');
 
-function mediaURL(
-    url
+    const plus =
+        byId('chat-plus');
+
+    const mic =
+        byId('chat-mic');
+
+    if (!form) return;
+
+    form.addEventListener(
+        'submit',
+        event => {
+            event.preventDefault();
+
+            const text =
+                input?.value.trim();
+
+            if (!text) return;
+
+            /*
+             * The supplied message.py currently
+             * only exposes GET /api/messages.
+             *
+             * Therefore we do NOT call a
+             * nonexistent POST endpoint.
+             */
+
+            appendLocalMessage(
+                text
+            );
+
+            input.value = '';
+
+            showToast(
+                'Message composer ready. Backend send endpoint will be connected next.'
+            );
+        }
+    );
+
+    plus?.addEventListener(
+        'click',
+        openAttachmentMenu
+    );
+
+    mic?.addEventListener(
+        'click',
+        () => {
+            showToast(
+                'Voice recording UI ready for backend/media endpoint.'
+            );
+        }
+    );
+}
+
+function appendLocalMessage(
+    text
 ) {
+    const messages =
+        byId('chat-messages');
 
-    if (!url) {
-        return "";
-    }
+    if (!messages) return;
 
+    const wrapper =
+        document.createElement('div');
 
-    if (
-        url.startsWith("http://") ||
-        url.startsWith("https://") ||
-        url.startsWith("data:")
-    ) {
-        return url;
-    }
+    wrapper.className =
+        'msg user';
 
+    wrapper.textContent =
+        text;
 
-    if (url.startsWith("/")) {
-        return `${API}${url}`;
-    }
+    messages.appendChild(
+        wrapper
+    );
 
-
-    return `${API}/${url}`;
+    messages.scrollTop =
+        messages.scrollHeight;
 }
 
-
 /* ============================================================
-   INITIAL
+   CHAT ATTACHMENTS
    ============================================================ */
 
-function getInitial(
-    name
-) {
+function openAttachmentMenu() {
+    const body =
+        byId('modal-body');
 
-    const value =
-        String(name || "M")
-            .trim();
+    if (!body) return;
 
-    if (!value) {
-        return "M";
-    }
+    openModal();
 
-    return value
-        .charAt(0)
-        .toUpperCase();
+    body.innerHTML = `
+        <h2>Send attachment</h2>
+
+        <div
+            class="sub-item"
+            data-attach="photo"
+        >
+            <div class="icon">📷</div>
+            <div class="text">
+                <strong>Photo</strong>
+                <span>Choose an image.</span>
+            </div>
+        </div>
+
+        <div
+            class="sub-item"
+            data-attach="video"
+        >
+            <div class="icon">🎬</div>
+            <div class="text">
+                <strong>Video</strong>
+                <span>Choose a video.</span>
+            </div>
+        </div>
+
+        <div
+            class="sub-item"
+            data-attach="document"
+        >
+            <div class="icon">📄</div>
+            <div class="text">
+                <strong>Document</strong>
+                <span>Choose a document.</span>
+            </div>
+        </div>
+
+        <div
+            class="sub-item"
+            data-attach="voice"
+        >
+            <div class="icon">🎙️</div>
+            <div class="text">
+                <strong>Voice</strong>
+                <span>Voice notes coming soon.</span>
+            </div>
+        </div>
+    `;
+
+    body.querySelectorAll(
+        '[data-attach]'
+    ).forEach(
+        item => {
+            item.addEventListener(
+                'click',
+                () => {
+                    const type =
+                        item.dataset.attach;
+
+                    if (
+                        type === 'voice'
+                    ) {
+                        showToast(
+                            'Voice notes coming soon.'
+                        );
+
+                        return;
+                    }
+
+                    const input =
+                        document.createElement(
+                            'input'
+                        );
+
+                    input.type =
+                        'file';
+
+                    if (
+                        type === 'photo'
+                    ) {
+                        input.accept =
+                            'image/*';
+                    }
+
+                    if (
+                        type === 'video'
+                    ) {
+                        input.accept =
+                            'video/*';
+                    }
+
+                    if (
+                        type === 'document'
+                    ) {
+                        input.accept =
+                            '.pdf,.doc,.docx,.txt,.xls,.xlsx,.ppt,.pptx';
+                    }
+
+                    input.click();
+
+                    input.addEventListener(
+                        'change',
+                        () => {
+                            if (
+                                input.files?.length
+                            ) {
+                                showToast(
+                                    `${type} selected.`
+                                );
+                            }
+                        }
+                    );
+                }
+            );
+        }
+    );
 }
 
-
 /* ============================================================
-   TIME
+   CHAT 3-DOTS MENU
    ============================================================ */
 
-function formatTime(
-    value
-) {
+function openChatMenu() {
+    const body =
+        byId('modal-body');
 
-    if (!value) {
-        return "";
-    }
+    if (!body) return;
 
+    openModal();
 
-    const date =
-        new Date(value);
+    body.innerHTML = `
+        <h2>Chat options</h2>
 
-    if (
-        Number.isNaN(
-            date.getTime()
-        )
-    ) {
-        return "";
-    }
+        <div
+            class="sub-item"
+            onclick="chooseWallpaper()"
+        >
+            <div class="icon">🖼️</div>
+            <div class="text">
+                <strong>Change wallpaper</strong>
+                <span>
+                    Choose a background from gallery.
+                </span>
+            </div>
+        </div>
 
+        <div
+            class="sub-item"
+            onclick="toggleChatBlock()"
+        >
+            <div class="icon">🚫</div>
+            <div class="text">
+                <strong>Block / Unblock</strong>
+                <span>
+                    Manage this conversation.
+                </span>
+            </div>
+        </div>
 
-    const now =
-        Date.now();
+        <div
+            class="sub-item"
+            onclick="toggleChatPin()"
+        >
+            <div class="icon">📌</div>
+            <div class="text">
+                <strong>Pin chat</strong>
+                <span>
+                    Keep this chat at the top.
+                </span>
+            </div>
+        </div>
 
-    const diff =
-        Math.max(
-            0,
-            now - date.getTime()
-        );
+        <div
+            class="sub-item"
+            onclick="showToast('Translation will be enabled in a future version.')"
+        >
+            <div class="icon">🌐</div>
+            <div class="text">
+                <strong>Translate text</strong>
+                <span>
+                    Coming in a future version.
+                </span>
+            </div>
+        </div>
 
+        <div
+            class="sub-item"
+            onclick="toggleFavouriteChat()"
+        >
+            <div class="icon">⭐</div>
+            <div class="text">
+                <strong>Add to favourites</strong>
+                <span>
+                    Keep important chats easy to find.
+                </span>
+            </div>
+        </div>
 
-    const seconds =
-        Math.floor(
-            diff / 1000
-        );
+        <div
+            class="sub-item"
+            onclick="clearLocalChat()"
+        >
+            <div class="icon">🧹</div>
+            <div class="text">
+                <strong>Clear chat</strong>
+                <span>
+                    Clear local conversation display.
+                </span>
+            </div>
+        </div>
 
-    if (seconds < 60) {
-        return "now";
-    }
+        <div
+            class="sub-item"
+            onclick="showChatInfo()"
+        >
+            <div class="icon">ℹ️</div>
+            <div class="text">
+                <strong>Chat info</strong>
+                <span>
+                    View conversation information.
+                </span>
+            </div>
+        </div>
 
-
-    const minutes =
-        Math.floor(
-            seconds / 60
-        );
-
-    if (minutes < 60) {
-        return `${minutes}m`;
-    }
-
-
-    const hours =
-        Math.floor(
-            minutes / 60
-        );
-
-    if (hours < 24) {
-        return `${hours}h`;
-    }
-
-
-    const days =
-        Math.floor(
-            hours / 24
-        );
-
-    if (days < 7) {
-        return `${days}d`;
-    }
-
-
-    return date.toLocaleDateString();
+        <div
+            class="sub-item"
+            onclick="reportChat()"
+        >
+            <div class="icon">⚠️</div>
+            <div class="text">
+                <strong>Report</strong>
+                <span>
+                    Report a problem with this chat.
+                </span>
+            </div>
+        </div>
+    `;
 }
 
-
 /* ============================================================
-   TEXT FORMAT
+   CHAT OPTIONS
    ============================================================ */
 
-function formatText(
-    value
-) {
-
-    const safe =
-        escapeHTML(
-            value || ""
+function chooseWallpaper() {
+    const input =
+        document.createElement(
+            'input'
         );
 
-    return safe
-        .replace(
-            /\n/g,
-            "<br>"
-        );
+    input.type =
+        'file';
+
+    input.accept =
+        'image/*';
+
+    input.click();
+
+    input.addEventListener(
+        'change',
+        () => {
+            const file =
+                input.files?.[0];
+
+            if (!file) return;
+
+            const reader =
+                new FileReader();
+
+            reader.onload =
+                event => {
+                    const page =
+                        byId('page-sub');
+
+                    if (page) {
+                        page.style.backgroundImage =
+                            `url("${event.target.result}")`;
+
+                        page.style.backgroundSize =
+                            'cover';
+
+                        page.style.backgroundPosition =
+                            'center';
+                    }
+
+                    closeModal();
+
+                    showToast(
+                        'Chat wallpaper changed.'
+                    );
+                };
+
+            reader.readAsDataURL(
+                file
+            );
+        }
+    );
 }
 
+function toggleChatBlock() {
+    showToast(
+        'Block/Unblock UI is ready for backend persistence.'
+    );
+}
+
+function toggleChatPin() {
+    showToast(
+        'Pin chat selected.'
+    );
+}
+
+function toggleFavouriteChat() {
+    showToast(
+        'Chat added to favourites.'
+    );
+}
+
+function clearLocalChat() {
+    const messages =
+        byId('chat-messages');
+
+    if (messages) {
+        messages.innerHTML = '';
+    }
+
+    closeModal();
+
+    showToast(
+        'Local chat display cleared.'
+    );
+}
+
+function showChatInfo() {
+    const name =
+        CURRENT_CHAT?.full_name ||
+        CURRENT_CHAT?.username ||
+        CURRENT_CHAT?.name ||
+        'User';
+
+    closeModal();
+
+    showToast(
+        `Chat: ${name}`
+    );
+}
+
+function reportChat() {
+    closeModal();
+
+    showToast(
+        'Report feature prepared for backend integration.'
+    );
+}
 
 /* ============================================================
-   GLOBAL ERROR PROTECTION
+   BACK BUTTON
    ============================================================ */
 
-window.addEventListener(
-    "error",
-    (event) => {
+function setupBackButton() {
+    const button =
+        byId('back-btn');
 
+    if (!button) return;
+
+    button.addEventListener(
+        'click',
+        () => {
+            navigate('chats');
+        }
+    );
+}
+
+/* ============================================================
+   MODAL EVENTS
+   ============================================================ */
+
+function setupModal() {
+    const close =
+        byId('modal-close');
+
+    const modal =
+        byId('modal');
+
+    close?.addEventListener(
+        'click',
+        closeModal
+    );
+
+    modal?.addEventListener(
+        'click',
+        event => {
+            if (
+                event.target === modal
+            ) {
+                closeModal();
+            }
+        }
+    );
+}
+
+/* ============================================================
+   STORY PLACEHOLDER
+   ============================================================ */
+
+function setupStoryButton() {
+    const button =
+        byId('add-story-btn');
+
+    if (!button) return;
+
+    button.addEventListener(
+        'click',
+        () => {
+            showToast(
+                'Stories are ready for future media integration.'
+            );
+        }
+    );
+}
+
+/* ============================================================
+   HEALTH CHECK
+   ============================================================ */
+
+async function checkBackend() {
+    try {
+        const data =
+            await apiRequest(
+                ENDPOINTS.health,
+                {},
+                true
+            );
+
+        console.log(
+            'MSAFIRI backend:',
+            data
+        );
+
+        return true;
+    } catch (error) {
+        console.warn(
+            'Backend health check failed:',
+            error.message
+        );
+
+        return false;
+    }
+}
+
+/* ============================================================
+   INITIALIZATION
+   ============================================================ */
+
+function init() {
+    try {
+        restoreTheme();
+
+        setupAuthTabs();
+        setupSearch();
+        setupFeedTabs();
+        setupDropdown();
+        setupGlobalEvents();
+        setupBackButton();
+        setupModal();
+        setupStoryButton();
+
+        const loginForm =
+            byId('login-form');
+
+        if (loginForm) {
+            loginForm.addEventListener(
+                'submit',
+                event => {
+                    event.preventDefault();
+                    login();
+                }
+            );
+        }
+
+        const registerForm =
+            byId('register-form');
+
+        if (registerForm) {
+            registerForm.addEventListener(
+                'submit',
+                event => {
+                    event.preventDefault();
+                    register();
+                }
+            );
+        }
+
+        byId('fab-create')
+            ?.addEventListener(
+                'click',
+                openCreatePost
+            );
+
+        byId('edit-profile-btn')
+            ?.addEventListener(
+                'click',
+                openEditProfile
+            );
+
+        /*
+         * Do not wait for backend health.
+         * The UI must still open even if backend
+         * temporarily responds slowly.
+         */
+
+        setTimeout(
+            finishSplash,
+            2500
+        );
+
+        checkBackend();
+
+        console.log(
+            'MSAFIRI GLOBAL MEDIA initialized successfully.'
+        );
+    } catch (error) {
         console.error(
-            "Global JavaScript error:",
-            event.error ||
-            event.message
+            'Fatal initialization error:',
+            error
         );
+
+        /*
+         * Critical fallback:
+         * never leave the user staring at
+         * the splash screen.
+         */
+
+        const splash =
+            byId('splash');
+
+        if (splash) {
+            splash.classList.add(
+                'hidden'
+            );
+        }
+
+        if (TOKEN) {
+            showApp();
+        } else {
+            showAuth();
+        }
     }
-);
-
-
-window.addEventListener(
-    "unhandledrejection",
-    (event) => {
-
-        console.error(
-            "Unhandled Promise rejection:",
-            event.reason
-        );
-    }
-);
-
+}
 
 /* ============================================================
-   GLOBAL FUNCTIONS
-   ------------------------------------------------------------
-   Functions used by inline onclick handlers must be exposed
-   on window.
+   GLOBAL EXPORTS
    ============================================================ */
 
-window.navigate = navigate;
-window.goBack = goBack;
+window.MSAFIRI = {
+    API,
+    navigate,
+    loadHome,
+    loadChats,
+    loadProfile,
+    openCreatePost,
+    openChat,
+    openChatMenu,
+    chooseWallpaper,
+    logout,
+    showToast,
+    apiRequest
+};
 
-window.toggleLike = toggleLike;
-window.toggleSave = toggleSave;
-window.sharePost = sharePost;
+window.openChatMenu =
+    openChatMenu;
 
-window.openComments = openComments;
-window.openCreatePost = openCreatePost;
-window.openCreateStory = openCreateStory;
+window.chooseWallpaper =
+    chooseWallpaper;
 
-window.openUserProfile = openUserProfile;
-window.startChatWithUser = startChatWithUser;
-window.openChat = openChat;
+window.toggleChatBlock =
+    toggleChatBlock;
 
-window.openDiscovery = openDiscovery;
-window.openAICouncil = openAICouncil;
-window.openAI = openAI;
+window.toggleChatPin =
+    toggleChatPin;
 
-window.chooseEducationCountry =
-    chooseEducationCountry;
+window.toggleFavouriteChat =
+    toggleFavouriteChat;
 
-window.chooseEducationLevel =
-    chooseEducationLevel;
+window.clearLocalChat =
+    clearLocalChat;
 
-window.openEducationChat =
-    openEducationChat;
+window.showChatInfo =
+    showChatInfo;
 
-window.openCreativeStudio =
-    openCreativeStudio;
-
-window.openStudioTool =
-    openStudioTool;
-
-window.openMarket =
-    openMarket;
-
-window.openMarketCategory =
-    openMarketCategory;
-
-window.openWorldMap =
-    openWorldMap;
-
-window.openCountry =
-    openCountry;
-
-window.openChannels =
-    openChannels;
-
-window.openChannel =
-    openChannel;
-
-window.openCommunities =
-    openCommunities;
-
-window.openCommunityCategory =
-    openCommunityCategory;
-
-window.openVideos =
-    openVideos;
-
-window.openSettings =
-    openSettings;
-
-window.showUserManual =
-    showUserManual;
-
-window.downloadUserManual =
-    downloadUserManual;
-
-window.toggleTheme =
-    toggleTheme;
-
-window.logout =
-    logout;
-
-window.toast =
-    toast;
-
-window.closeModal =
-    closeModal;
-
-window.loadFeed =
-    loadFeed;
-
+window.reportChat =
+    reportChat;
 
 /* ============================================================
-   END
+   START
    ============================================================ */
+
+if (
+    document.readyState ===
+    'loading'
+) {
+    document.addEventListener(
+        'DOMContentLoaded',
+        init,
+        {
+            once: true
+        }
+    );
+} else {
+    init();
+}

@@ -1,7 +1,6 @@
 import os
 import uuid
-import shutil
-from typing import Optional
+from pathlib import Path
 from datetime import datetime
 
 from fastapi import (
@@ -12,15 +11,15 @@ from fastapi import (
     File,
     Form,
 )
-
-from sqlalchemy.orm import Session
+from fastapi.responses import JSONResponse
+from sqlalchemy.orm import Session, joinedload
 
 from database import get_db
 from models import (
     User,
     Post,
-    Comment,
     PostLike,
+    PostComment,
     PostSave,
     PostShare,
 )
@@ -32,106 +31,148 @@ router = APIRouter(
     tags=["posts"]
 )
 
-UPLOAD_DIR = "static/uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+# ============================================================
+# MEDIA DIRECTORY
+# ============================================================
+
+UPLOAD_DIR = Path("static/uploads")
+
+IMAGE_EXTENSIONS = {
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".gif",
+    ".webp",
+}
+
+VIDEO_EXTENSIONS = {
+    ".mp4",
+    ".webm",
+    ".mov",
+    ".m4v",
+}
+
+MAX_IMAGE_SIZE = 15 * 1024 * 1024
+MAX_VIDEO_SIZE = 100 * 1024 * 1024
 
 
-def serialize_comment(comment):
-    return {
-        "id": comment.id,
-        "post_id": comment.post_id,
-        "user_id": comment.user_id,
-        "username": (
-            comment.user.username
-            if comment.user else "User"
-        ),
-        "full_name": (
-            comment.user.full_name
-            if comment.user else "User"
-        ),
-        "text": comment.text,
-        "created_at": (
-            comment.created_at.isoformat()
-            if comment.created_at else None
-        ),
-    }
+def ensure_upload_dir():
+    UPLOAD_DIR.mkdir(
+        parents=True,
+        exist_ok=True
+    )
+
+
+# ============================================================
+# SERIALIZER
+# ============================================================
+
+def serialize_post(
+    post: Post,
+    current_user_id: int | None = None,
+):
+    return post.to_dict(
+        current_user_id=current_user_id
+    )
 
 
 # ============================================================
 # CREATE POST
 # ============================================================
 
-@router.post("")
+@router.post("/create")
 async def create_post(
     caption: str = Form(""),
-    media: Optional[UploadFile] = File(None),
+    media: UploadFile | None = File(None),
     user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ):
+    caption = (caption or "").strip()
 
-    caption = caption.strip()
+    if not caption and media is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Write a caption or select an image/video."
+        )
 
     media_url = ""
     media_type = "text"
 
-    if media and media.filename:
+    if media is not None:
 
-        extension = os.path.splitext(
-            media.filename
-        )[1].lower()
+        ensure_upload_dir()
 
-        image_extensions = {
-            ".jpg",
-            ".jpeg",
-            ".png",
-            ".gif",
-            ".webp",
-        }
+        filename = media.filename or ""
 
-        video_extensions = {
-            ".mp4",
-            ".webm",
-            ".mov",
-            ".m4v",
-        }
+        extension = Path(filename).suffix.lower()
 
-        if extension in image_extensions:
+        content_type = (
+            media.content_type
+            or ""
+        ).lower()
+
+        if extension in IMAGE_EXTENSIONS:
             media_type = "image"
 
-        elif extension in video_extensions:
+            max_size = MAX_IMAGE_SIZE
+
+        elif extension in VIDEO_EXTENSIONS:
             media_type = "video"
+
+            max_size = MAX_VIDEO_SIZE
+
+        elif content_type.startswith("image/"):
+            media_type = "image"
+
+            max_size = MAX_IMAGE_SIZE
+
+        elif content_type.startswith("video/"):
+            media_type = "video"
+
+            max_size = MAX_VIDEO_SIZE
 
         else:
             raise HTTPException(
                 status_code=400,
-                detail="Only image and video files are supported"
+                detail="Only image and video files are supported."
             )
 
-        filename = (
-            uuid.uuid4().hex +
-            extension
-        )
+        data = await media.read()
 
-        filepath = os.path.join(
-            UPLOAD_DIR,
-            filename
-        )
-
-        with open(filepath, "wb") as buffer:
-            shutil.copyfileobj(
-                media.file,
-                buffer
+        if len(data) > max_size:
+            raise HTTPException(
+                status_code=413,
+                detail=(
+                    "File is too large. "
+                    f"Maximum allowed size is "
+                    f"{max_size // (1024 * 1024)}MB."
+                ),
             )
+
+        safe_extension = extension
+
+        if not safe_extension:
+            if media_type == "image":
+                safe_extension = ".jpg"
+            else:
+                safe_extension = ".mp4"
+
+        generated_name = (
+            f"{uuid.uuid4().hex}"
+            f"{safe_extension}"
+        )
+
+        destination = (
+            UPLOAD_DIR /
+            generated_name
+        )
+
+        with open(destination, "wb") as f:
+            f.write(data)
 
         media_url = (
-            "/static/uploads/" +
-            filename
-        )
-
-    if not caption and not media_url:
-        raise HTTPException(
-            status_code=400,
-            detail="Write a caption or select an image/video"
+            f"/static/uploads/{generated_name}"
         )
 
     post = Post(
@@ -146,42 +187,99 @@ async def create_post(
     db.commit()
     db.refresh(post)
 
-    return {
-        "ok": True,
-        "message": "Post published successfully",
-        "post": post.to_dict(),
-    }
-
-
-# ============================================================
-# GET POSTS
-# ============================================================
-
-@router.get("")
-def get_posts(
-    db: Session = Depends(get_db),
-    limit: int = 50,
-    offset: int = 0,
-):
-
-    posts = (
+    post = (
         db.query(Post)
-        .order_by(Post.created_at.desc())
-        .offset(offset)
-        .limit(limit)
-        .all()
+        .options(joinedload(Post.user))
+        .filter(Post.id == post.id)
+        .first()
     )
 
     return {
-        "posts": [
-            p.to_dict()
-            for p in posts
-        ]
+        "ok": True,
+        "message": "Post created successfully",
+        "post": serialize_post(
+            post,
+            user.id
+        ),
     }
 
 
 # ============================================================
-# LIKE
+# GET SINGLE POST
+# ============================================================
+
+@router.get("/{post_id}")
+def get_post(
+    post_id: int,
+    user: User = Depends(require_user),
+    db: Session = Depends(get_db),
+):
+    post = (
+        db.query(Post)
+        .options(
+            joinedload(Post.user),
+            joinedload(Post.likes),
+            joinedload(Post.comments),
+            joinedload(Post.saves),
+            joinedload(Post.shares),
+        )
+        .filter(Post.id == post_id)
+        .first()
+    )
+
+    if not post:
+        raise HTTPException(
+            status_code=404,
+            detail="Post not found"
+        )
+
+    return {
+        "post": serialize_post(
+            post,
+            user.id
+        )
+    }
+
+
+# ============================================================
+# DELETE POST
+# ============================================================
+
+@router.delete("/{post_id}")
+def delete_post(
+    post_id: int,
+    user: User = Depends(require_user),
+    db: Session = Depends(get_db),
+):
+    post = (
+        db.query(Post)
+        .filter(Post.id == post_id)
+        .first()
+    )
+
+    if not post:
+        raise HTTPException(
+            status_code=404,
+            detail="Post not found"
+        )
+
+    if post.user_id != user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="You can only delete your own posts."
+        )
+
+    db.delete(post)
+    db.commit()
+
+    return {
+        "ok": True,
+        "message": "Post deleted"
+    }
+
+
+# ============================================================
+# LIKE / UNLIKE
 # ============================================================
 
 @router.post("/{post_id}/like")
@@ -190,7 +288,6 @@ def toggle_like(
     user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ):
-
     post = (
         db.query(Post)
         .filter(Post.id == post_id)
@@ -219,7 +316,7 @@ def toggle_like(
         db.add(
             PostLike(
                 post_id=post_id,
-                user_id=user.id,
+                user_id=user.id
             )
         )
         liked = True
@@ -228,7 +325,9 @@ def toggle_like(
 
     count = (
         db.query(PostLike)
-        .filter(PostLike.post_id == post_id)
+        .filter(
+            PostLike.post_id == post_id
+        )
         .count()
     )
 
@@ -240,7 +339,105 @@ def toggle_like(
 
 
 # ============================================================
-# SAVE
+# COMMENTS — LIST
+# ============================================================
+
+@router.get("/{post_id}/comments")
+def get_comments(
+    post_id: int,
+    db: Session = Depends(get_db),
+):
+    comments = (
+        db.query(PostComment)
+        .options(
+            joinedload(PostComment.user)
+        )
+        .filter(
+            PostComment.post_id == post_id
+        )
+        .order_by(
+            PostComment.created_at.asc()
+        )
+        .all()
+    )
+
+    return {
+        "comments": [
+            comment.to_dict()
+            for comment in comments
+        ]
+    }
+
+
+# ============================================================
+# COMMENTS — CREATE
+# ============================================================
+
+@router.post("/{post_id}/comments")
+def create_comment(
+    post_id: int,
+    text: str = Form(...),
+    user: User = Depends(require_user),
+    db: Session = Depends(get_db),
+):
+    text = (text or "").strip()
+
+    if not text:
+        raise HTTPException(
+            status_code=400,
+            detail="Comment cannot be empty."
+        )
+
+    post = (
+        db.query(Post)
+        .filter(Post.id == post_id)
+        .first()
+    )
+
+    if not post:
+        raise HTTPException(
+            status_code=404,
+            detail="Post not found"
+        )
+
+    comment = PostComment(
+        post_id=post_id,
+        user_id=user.id,
+        text=text,
+    )
+
+    db.add(comment)
+    db.commit()
+    db.refresh(comment)
+
+    comment = (
+        db.query(PostComment)
+        .options(
+            joinedload(PostComment.user)
+        )
+        .filter(
+            PostComment.id == comment.id
+        )
+        .first()
+    )
+
+    count = (
+        db.query(PostComment)
+        .filter(
+            PostComment.post_id == post_id
+        )
+        .count()
+    )
+
+    return {
+        "ok": True,
+        "comment": comment.to_dict(),
+        "comments": count,
+    }
+
+
+# ============================================================
+# SAVE / UNSAVE
 # ============================================================
 
 @router.post("/{post_id}/save")
@@ -249,7 +446,6 @@ def toggle_save(
     user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ):
-
     post = (
         db.query(Post)
         .filter(Post.id == post_id)
@@ -278,21 +474,30 @@ def toggle_save(
         db.add(
             PostSave(
                 post_id=post_id,
-                user_id=user.id,
+                user_id=user.id
             )
         )
         saved = True
 
     db.commit()
 
+    count = (
+        db.query(PostSave)
+        .filter(
+            PostSave.post_id == post_id
+        )
+        .count()
+    )
+
     return {
         "ok": True,
         "saved": saved,
+        "saves": count,
     }
 
 
 # ============================================================
-# SHARE
+# SHARE / RESHARE
 # ============================================================
 
 @router.post("/{post_id}/share")
@@ -301,7 +506,6 @@ def share_post(
     user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ):
-
     post = (
         db.query(Post)
         .filter(Post.id == post_id)
@@ -316,7 +520,7 @@ def share_post(
 
     share = PostShare(
         post_id=post_id,
-        user_id=user.id,
+        user_id=user.id
     )
 
     db.add(share)
@@ -324,81 +528,15 @@ def share_post(
 
     count = (
         db.query(PostShare)
-        .filter(PostShare.post_id == post_id)
+        .filter(
+            PostShare.post_id == post_id
+        )
         .count()
     )
 
     return {
         "ok": True,
+        "message": "Post shared",
         "shares": count,
-    }
-
-
-# ============================================================
-# COMMENTS
-# ============================================================
-
-@router.get("/{post_id}/comments")
-def get_comments(
-    post_id: int,
-    db: Session = Depends(get_db),
-):
-
-    comments = (
-        db.query(Comment)
-        .filter(Comment.post_id == post_id)
-        .order_by(Comment.created_at.asc())
-        .all()
-    )
-
-    return {
-        "comments": [
-            serialize_comment(c)
-            for c in comments
-        ]
-    }
-
-
-@router.post("/{post_id}/comments")
-def add_comment(
-    post_id: int,
-    text: str = Form(...),
-    user: User = Depends(require_user),
-    db: Session = Depends(get_db),
-):
-
-    post = (
-        db.query(Post)
-        .filter(Post.id == post_id)
-        .first()
-    )
-
-    if not post:
-        raise HTTPException(
-            status_code=404,
-            detail="Post not found"
-        )
-
-    text = text.strip()
-
-    if not text:
-        raise HTTPException(
-            status_code=400,
-            detail="Comment cannot be empty"
-        )
-
-    comment = Comment(
-        post_id=post_id,
-        user_id=user.id,
-        text=text,
-        created_at=datetime.utcnow(),
-    )
-
-    db.add(comment)
-    db.commit()
-    db.refresh(comment)
-
-    return {
-        "ok": True,
-        "comment": serialize_comment(comment),
+        "share_url": f"/?post={post_id}",
     }

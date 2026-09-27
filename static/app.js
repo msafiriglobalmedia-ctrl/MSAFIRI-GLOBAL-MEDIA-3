@@ -1,364 +1,129 @@
-// ============================================
-// MSAFIRI GLOBAL MEDIA — App Logic
-// Authentication/JWT FIXED VERSION
-// ============================================
+// ============================================================
+// MSAFIRI GLOBAL MEDIA — APP.JS
+// Version: 6.0.0-PHASE2
+// Authentication + Navigation + Feed + Stories + Discovery
+// AI Council + Studio + Market + World Map + Channels
+// Communities + Videos + Settings + Profile + Chats
+// ============================================================
 
-const API = "";
+'use strict';
+
+// ============================================================
+// CONFIGURATION
+// ============================================================
+
+const API = window.location.origin;
+
+const TOKEN_KEY = 'msafiri_access_token';
+const OLD_TOKEN_KEY = 'token';
+
 let currentUser = null;
-let currentFeed = "for-you";
+let currentFeed = 'for-you';
 let navStack = [];
-let authBusy = false;
+let authLoading = false;
 
-// ============================================
-// AUTH TOKEN HELPERS
-// ============================================
 
-function getToken() {
-  return localStorage.getItem("token");
+// ============================================================
+// DOM HELPERS
+// ============================================================
+
+function $(selector) {
+  return document.querySelector(selector);
 }
 
-function saveToken(token) {
-  if (token) {
-    localStorage.setItem("token", token);
-  }
+function $all(selector) {
+  return document.querySelectorAll(selector);
 }
 
-function clearToken() {
-  localStorage.removeItem("token");
-}
 
-function authHeaders(extra = {}) {
-  const headers = { ...extra };
-  const token = getToken();
+// ============================================================
+// APP INITIALIZATION
+// ============================================================
 
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-
-  return headers;
-}
-
-async function apiFetch(url, options = {}) {
-  const opts = { ...options };
-
-  opts.headers = authHeaders(opts.headers || {});
-
-  const response = await fetch(url, opts);
-
-  // If token is invalid/expired, clear local authentication.
-  if (response.status === 401) {
-    clearToken();
-    currentUser = null;
-  }
-
-  return response;
-}
-
-// ============================================
-// INIT
-// ============================================
-
-document.addEventListener("DOMContentLoaded", () => {
-  setTimeout(() => {
-    const splash = document.getElementById("splash");
-
-    if (splash) {
-      splash.classList.add("hidden");
-    }
-
-    checkAuth();
-  }, 3000);
+document.addEventListener('DOMContentLoaded', () => {
+  initializeApp();
 });
 
-// ============================================
-// AUTH CHECK
-// ============================================
 
-async function checkAuth() {
-  const token = getToken();
-
-  // No JWT = not authenticated
-  if (!token) {
-    showAuth();
-    return;
-  }
-
+async function initializeApp() {
   try {
-    const r = await apiFetch(`${API}/api/auth/me`);
+    setupAuthTabs();
+    setupNavigation();
+    setupFeedTabs();
+    setupDotsMenu();
+    setupBackButton();
 
-    if (r.ok) {
-      currentUser = await r.json();
-      showApp();
-      return;
-    }
+    const splash = $('#splash');
 
-    clearToken();
-    currentUser = null;
-    showAuth();
+    setTimeout(async () => {
+      if (splash) {
+        splash.classList.add('hidden');
+      }
+
+      await checkAuth();
+    }, 3000);
 
   } catch (error) {
-    console.error("Auth check error:", error);
+    console.error('Application initialization error:', error);
     showAuth();
   }
 }
 
-// ============================================
-// SHOW AUTH / APP
-// ============================================
 
-function showAuth() {
-  const auth = document.getElementById("auth-screen");
-  const app = document.getElementById("app");
+// ============================================================
+// TOKEN MANAGEMENT
+// ============================================================
 
-  if (auth) auth.classList.remove("hidden");
-  if (app) app.classList.add("hidden");
+function getToken() {
+  return (
+    localStorage.getItem(TOKEN_KEY) ||
+    localStorage.getItem(OLD_TOKEN_KEY) ||
+    null
+  );
 }
 
-function showApp() {
-  const auth = document.getElementById("auth-screen");
-  const app = document.getElementById("app");
 
-  if (auth) auth.classList.add("hidden");
-  if (app) app.classList.remove("hidden");
+function saveToken(token) {
+  if (!token) return;
 
-  loadHome();
-  loadDiscovery();
-  loadProfile();
+  localStorage.setItem(TOKEN_KEY, token);
+  localStorage.setItem(OLD_TOKEN_KEY, token);
 }
 
-// ============================================
-// AUTH TABS
-// ============================================
 
-document.querySelectorAll(".auth-tab").forEach(tab => {
-  tab.addEventListener("click", () => {
-    document
-      .querySelectorAll(".auth-tab")
-      .forEach(t => t.classList.remove("active"));
+function removeToken() {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(OLD_TOKEN_KEY);
+}
 
-    tab.classList.add("active");
 
-    const target = tab.dataset.tab;
+// ============================================================
+// AUTHENTICATED FETCH
+// ============================================================
 
-    const loginForm = document.getElementById("login-form");
-    const registerForm = document.getElementById("register-form");
+async function authFetch(url, options = {}) {
+  const token = getToken();
 
-    if (loginForm) {
-      loginForm.classList.toggle("hidden", target !== "login");
-    }
+  const headers = {
+    ...(options.headers || {})
+  };
 
-    if (registerForm) {
-      registerForm.classList.toggle("hidden", target !== "register");
-    }
-  });
-});
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
 
-// ============================================
-// LOGIN
-// ============================================
-
-const loginForm = document.getElementById("login-form");
-
-if (loginForm) {
-  loginForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-
-    if (authBusy) return;
-
-    authBusy = true;
-
-    const submitButton = loginForm.querySelector(
-      'button[type="submit"]'
-    );
-
-    if (submitButton) {
-      submitButton.disabled = true;
-    }
-
-    const username = document
-      .getElementById("login-username")
-      .value
-      .trim();
-
-    const password = document
-      .getElementById("login-password")
-      .value;
-
-    if (!username || !password) {
-      toast("Enter username/email and password");
-      authBusy = false;
-
-      if (submitButton) {
-        submitButton.disabled = false;
-      }
-
-      return;
-    }
-
-    try {
-      const r = await fetch(`${API}/api/auth/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          username,
-          password
-        })
-      });
-
-      const data = await readJSONSafe(r);
-
-      if (!r.ok) {
-        toast(
-          data?.detail ||
-          "Login failed. Check your username/email and password."
-        );
-
-        return;
-      }
-
-      if (!data.access_token) {
-        toast("Login succeeded but no access token was returned.");
-        return;
-      }
-
-      // Save JWT
-      saveToken(data.access_token);
-
-      // Save returned user if available
-      if (data.user) {
-        currentUser = data.user;
-      }
-
-      toast("Login successful!");
-
-      // Verify token with backend
-      await checkAuth();
-
-    } catch (error) {
-      console.error("Login error:", error);
-      toast("Network error during login.");
-    } finally {
-      authBusy = false;
-
-      if (submitButton) {
-        submitButton.disabled = false;
-      }
-    }
+  return fetch(url, {
+    ...options,
+    headers
   });
 }
 
-// ============================================
-// REGISTER
-// ============================================
 
-const registerForm = document.getElementById("register-form");
+// ============================================================
+// SAFE JSON
+// ============================================================
 
-if (registerForm) {
-  registerForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-
-    if (authBusy) return;
-
-    authBusy = true;
-
-    const submitButton = registerForm.querySelector(
-      'button[type="submit"]'
-    );
-
-    if (submitButton) {
-      submitButton.disabled = true;
-    }
-
-    const username = document
-      .getElementById("reg-username")
-      .value
-      .trim();
-
-    const email = document
-      .getElementById("reg-email")
-      .value
-      .trim();
-
-    const full_name = document
-      .getElementById("reg-fullname")
-      .value
-      .trim();
-
-    const password = document
-      .getElementById("reg-password")
-      .value;
-
-    if (!username || !email || !password) {
-      toast("Username, email and password are required.");
-
-      authBusy = false;
-
-      if (submitButton) {
-        submitButton.disabled = false;
-      }
-
-      return;
-    }
-
-    try {
-      const r = await fetch(`${API}/api/auth/register`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          username,
-          email,
-          full_name,
-          password
-        })
-      });
-
-      const data = await readJSONSafe(r);
-
-      if (!r.ok) {
-        toast(
-          data?.detail ||
-          "Registration failed."
-        );
-
-        return;
-      }
-
-      // Backend returns JWT immediately after registration.
-      if (data.access_token) {
-        saveToken(data.access_token);
-      }
-
-      if (data.user) {
-        currentUser = data.user;
-      }
-
-      toast("Account created successfully!");
-
-      // Automatically enter the app.
-      await checkAuth();
-
-    } catch (error) {
-      console.error("Registration error:", error);
-      toast("Network error during registration.");
-    } finally {
-      authBusy = false;
-
-      if (submitButton) {
-        submitButton.disabled = false;
-      }
-    }
-  });
-}
-
-// ============================================
-// SAFE JSON READER
-// ============================================
-
-async function readJSONSafe(response) {
+async function safeJson(response) {
   try {
     return await response.json();
   } catch {
@@ -366,1314 +131,3098 @@ async function readJSONSafe(response) {
   }
 }
 
-// ============================================
-// NAVIGATION
-// ============================================
 
-document.querySelectorAll(".nav-btn").forEach(btn => {
-  btn.addEventListener("click", () => {
-    const nav = btn.dataset.nav;
+// ============================================================
+// AUTHENTICATION CHECK
+// ============================================================
 
-    document
-      .querySelectorAll(".nav-btn")
-      .forEach(b => b.classList.remove("active"));
+async function checkAuth() {
 
-    btn.classList.add("active");
+  if (authLoading) return;
 
-    document
-      .querySelectorAll(".page")
-      .forEach(p => p.classList.remove("active"));
+  authLoading = true;
 
-    const page = document.getElementById(`page-${nav}`);
+  try {
 
-    if (page) {
-      page.classList.add("active");
+    const token = getToken();
+
+    if (!token) {
+      currentUser = null;
+      showAuth();
+      return;
     }
 
-    const titles = {
-      home: "MSAFIRI",
-      discovery: "Discovery",
-      chats: "Chats",
-      profile: "Profile"
-    };
+    const response = await authFetch(
+      `${API}/api/auth/me`,
+      {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json'
+        }
+      }
+    );
 
-    const pageTitle = document.getElementById("page-title");
+    if (response.ok) {
 
-    if (pageTitle) {
-      pageTitle.textContent = titles[nav] || "MSAFIRI";
+      const user = await safeJson(response);
+
+      currentUser = user;
+
+      showApp();
+
+    } else {
+
+      console.warn(
+        'Authentication failed:',
+        response.status
+      );
+
+      removeToken();
+
+      currentUser = null;
+
+      showAuth();
     }
 
-    navStack = [];
+  } catch (error) {
 
-    if (nav === "chats") loadChats();
-    if (nav === "profile") loadProfile();
-  });
-});
+    console.error(
+      'Authentication check failed:',
+      error
+    );
 
-// ============================================
-// BACK BUTTON
-// ============================================
+    showAuth();
 
-const backButton = document.getElementById("back-btn");
+  } finally {
 
-if (backButton) {
-  backButton.addEventListener("click", () => {
-    if (navStack.length > 0) {
-      const prev = navStack.pop();
-      prev();
-    }
+    authLoading = false;
+  }
+}
+
+
+// ============================================================
+// SHOW AUTH SCREEN
+// ============================================================
+
+function showAuth() {
+
+  const authScreen = $('#auth-screen');
+  const app = $('#app');
+
+  if (authScreen) {
+    authScreen.classList.remove('hidden');
+  }
+
+  if (app) {
+    app.classList.add('hidden');
+  }
+}
+
+
+// ============================================================
+// SHOW MAIN APP
+// ============================================================
+
+function showApp() {
+
+  const authScreen = $('#auth-screen');
+  const app = $('#app');
+
+  if (authScreen) {
+    authScreen.classList.add('hidden');
+  }
+
+  if (app) {
+    app.classList.remove('hidden');
+  }
+
+  updateCurrentUserUI();
+
+  loadHome();
+  loadDiscovery();
+  loadProfile();
+}
+
+
+// ============================================================
+// AUTH TABS
+// ============================================================
+
+function setupAuthTabs() {
+
+  $all('.auth-tab').forEach(tab => {
+
+    tab.addEventListener('click', () => {
+
+      $all('.auth-tab').forEach(t => {
+        t.classList.remove('active');
+      });
+
+      tab.classList.add('active');
+
+      const target = tab.dataset.tab;
+
+      const loginForm = $('#login-form');
+      const registerForm = $('#register-form');
+
+      if (loginForm) {
+        loginForm.classList.toggle(
+          'hidden',
+          target !== 'login'
+        );
+      }
+
+      if (registerForm) {
+        registerForm.classList.toggle(
+          'hidden',
+          target !== 'register'
+        );
+      }
+    });
+
   });
 }
+
+
+// ============================================================
+// LOGIN
+// ============================================================
+
+const loginForm = $('#login-form');
+
+if (loginForm) {
+
+  loginForm.addEventListener('submit', async event => {
+
+    event.preventDefault();
+
+    const username = $('#login-username')?.value.trim();
+    const password = $('#login-password')?.value;
+
+    if (!username || !password) {
+      toast('Please enter username and password');
+      return;
+    }
+
+    const submitButton =
+      loginForm.querySelector('button[type="submit"]');
+
+    if (submitButton) {
+      submitButton.disabled = true;
+    }
+
+    try {
+
+      const response = await fetch(
+        `${API}/api/auth/login`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({
+            username,
+            password
+          })
+        }
+      );
+
+      const data = await safeJson(response);
+
+      if (!response.ok) {
+
+        toast(
+          data.detail ||
+          'Login failed. Check your credentials.'
+        );
+
+        return;
+      }
+
+      if (!data.access_token) {
+
+        toast(
+          'Login succeeded but no access token was returned.'
+        );
+
+        console.error(
+          'Login response missing access_token:',
+          data
+        );
+
+        return;
+      }
+
+      saveToken(data.access_token);
+
+      currentUser = data.user || null;
+
+      toast('Login successful');
+
+      showApp();
+
+    } catch (error) {
+
+      console.error('Login error:', error);
+
+      toast(
+        'Network error. Please check your connection.'
+      );
+
+    } finally {
+
+      if (submitButton) {
+        submitButton.disabled = false;
+      }
+    }
+
+  });
+
+}
+
+
+// ============================================================
+// REGISTER
+// ============================================================
+
+const registerForm = $('#register-form');
+
+if (registerForm) {
+
+  registerForm.addEventListener('submit', async event => {
+
+    event.preventDefault();
+
+    const username =
+      $('#reg-username')?.value.trim();
+
+    const email =
+      $('#reg-email')?.value.trim();
+
+    const fullName =
+      $('#reg-fullname')?.value.trim();
+
+    const password =
+      $('#reg-password')?.value;
+
+    if (!username || !email || !password) {
+
+      toast(
+        'Username, email and password are required.'
+      );
+
+      return;
+    }
+
+    const submitButton =
+      registerForm.querySelector(
+        'button[type="submit"]'
+      );
+
+    if (submitButton) {
+      submitButton.disabled = true;
+    }
+
+    try {
+
+      const response = await fetch(
+        `${API}/api/auth/register`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({
+            username,
+            email,
+            full_name: fullName || '',
+            password
+          })
+        }
+      );
+
+      const data = await safeJson(response);
+
+      if (!response.ok) {
+
+        toast(
+          data.detail ||
+          'Registration failed.'
+        );
+
+        return;
+      }
+
+      /*
+       * Backend yako inarudisha access_token
+       * baada ya registration, kwa hiyo hatuhitaji
+       * kumlazimisha user kufanya login tena.
+       */
+
+      if (data.access_token) {
+
+        saveToken(data.access_token);
+
+        currentUser = data.user || null;
+
+        toast(
+          'Account created successfully!'
+        );
+
+        showApp();
+
+      } else {
+
+        toast(
+          'Account created. Please login.'
+        );
+
+        const loginTab =
+          document.querySelector(
+            '[data-tab="login"]'
+          );
+
+        if (loginTab) {
+          loginTab.click();
+        }
+      }
+
+    } catch (error) {
+
+      console.error(
+        'Registration error:',
+        error
+      );
+
+      toast(
+        'Network error. Please check your connection.'
+      );
+
+    } finally {
+
+      if (submitButton) {
+        submitButton.disabled = false;
+      }
+    }
+
+  });
+
+}
+
+
+// ============================================================
+// UPDATE USER UI
+// ============================================================
+
+function updateCurrentUserUI() {
+
+  if (!currentUser) return;
+
+  const name =
+    currentUser.full_name ||
+    currentUser.username ||
+    'User';
+
+  const username =
+    currentUser.username ||
+    'user';
+
+  const avatarLetter =
+    name.charAt(0).toUpperCase();
+
+  const profileName = $('#profile-name');
+
+  if (profileName) {
+    profileName.textContent = name;
+  }
+
+  const profileUsername =
+    $('#profile-username');
+
+  if (profileUsername) {
+    profileUsername.textContent =
+      `@${username}`;
+  }
+
+  const profileBio =
+    $('#profile-bio');
+
+  if (profileBio) {
+    profileBio.textContent =
+      currentUser.bio ||
+      'Welcome to Msafiri Global Media';
+  }
+
+  const profileAvatar =
+    $('#profile-avatar');
+
+  if (profileAvatar) {
+    profileAvatar.textContent =
+      avatarLetter;
+  }
+}
+
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+
+function setupNavigation() {
+
+  $all('.nav-btn').forEach(button => {
+
+    button.addEventListener('click', () => {
+
+      const nav = button.dataset.nav;
+
+      $all('.nav-btn').forEach(btn => {
+        btn.classList.remove('active');
+      });
+
+      button.classList.add('active');
+
+      $all('.page').forEach(page => {
+        page.classList.remove('active');
+      });
+
+      const targetPage =
+        $(`#page-${nav}`);
+
+      if (targetPage) {
+        targetPage.classList.add('active');
+      }
+
+      const titles = {
+        home: 'MSAFIRI',
+        discovery: 'Discovery',
+        chats: 'Chats',
+        profile: 'Profile'
+      };
+
+      const pageTitle =
+        $('#page-title');
+
+      if (pageTitle) {
+        pageTitle.textContent =
+          titles[nav] || 'MSAFIRI';
+      }
+
+      navStack = [];
+
+      const backButton =
+        $('#back-btn');
+
+      if (backButton) {
+        backButton.classList.add('hidden');
+      }
+
+      if (nav === 'home') {
+        loadHome();
+      }
+
+      if (nav === 'chats') {
+        loadChats();
+      }
+
+      if (nav === 'profile') {
+        loadProfile();
+      }
+
+      if (nav === 'discovery') {
+        loadDiscovery();
+      }
+
+    });
+
+  });
+
+}
+
+
+// ============================================================
+// BACK BUTTON
+// ============================================================
+
+function setupBackButton() {
+
+  const button = $('#back-btn');
+
+  if (!button) return;
+
+  button.addEventListener('click', () => {
+
+    if (navStack.length > 0) {
+
+      const previous =
+        navStack.pop();
+
+      if (typeof previous === 'function') {
+        previous();
+      }
+
+    }
+
+  });
+
+}
+
+
+// ============================================================
+// SUB PAGE
+// ============================================================
 
 function showSubPage(title, renderFn) {
-  navStack.push(() => {
-    document.getElementById("page-sub").classList.remove("active");
 
-    const activePage = document.querySelector(".page.active");
+  const subPage =
+    $('#page-sub');
+
+  const subContent =
+    $('#sub-content');
+
+  if (!subPage || !subContent) return;
+
+  const activePage =
+    document.querySelector(
+      '.page.active:not(#page-sub)'
+    );
+
+  navStack.push(() => {
+
+    subPage.classList.remove('active');
 
     if (activePage) {
-      activePage.classList.add("active");
+      activePage.classList.add('active');
     }
 
-    document.getElementById("back-btn").classList.add("hidden");
-    document.getElementById("page-title").textContent = "MSAFIRI";
+    const backButton =
+      $('#back-btn');
+
+    if (backButton) {
+      backButton.classList.add('hidden');
+    }
+
+    const pageTitle =
+      $('#page-title');
+
+    if (pageTitle) {
+      pageTitle.textContent = 'MSAFIRI';
+    }
+
   });
 
-  document
-    .querySelectorAll(".page")
-    .forEach(p => p.classList.remove("active"));
+  $all('.page').forEach(page => {
+    page.classList.remove('active');
+  });
 
-  document.getElementById("page-sub").classList.add("active");
+  subPage.classList.add('active');
 
-  document.getElementById("page-title").textContent = title;
+  const pageTitle =
+    $('#page-title');
 
-  document.getElementById("back-btn").classList.remove("hidden");
+  if (pageTitle) {
+    pageTitle.textContent = title;
+  }
 
-  renderFn(document.getElementById("sub-content"));
+  const backButton =
+    $('#back-btn');
+
+  if (backButton) {
+    backButton.classList.remove('hidden');
+  }
+
+  renderFn(subContent);
 }
 
-// ============================================
+
+// ============================================================
 // HOME
-// ============================================
+// ============================================================
 
 async function loadHome() {
+
   await loadStories();
+
   await loadFeed();
+
 }
 
-document.querySelectorAll(".feed-tab").forEach(tab => {
-  tab.addEventListener("click", () => {
-    document
-      .querySelectorAll(".feed-tab")
-      .forEach(t => t.classList.remove("active"));
 
-    tab.classList.add("active");
+// ============================================================
+// FEED TABS
+// ============================================================
 
-    currentFeed = tab.dataset.feed;
+function setupFeedTabs() {
 
-    loadFeed();
+  $all('.feed-tab').forEach(tab => {
+
+    tab.addEventListener('click', () => {
+
+      $all('.feed-tab').forEach(t => {
+        t.classList.remove('active');
+      });
+
+      tab.classList.add('active');
+
+      currentFeed =
+        tab.dataset.feed ||
+        'for-you';
+
+      loadFeed();
+
+    });
+
   });
-});
 
-// ============================================
+}
+
+
+// ============================================================
 // STORIES
-// ============================================
+// ============================================================
 
 async function loadStories() {
+
   try {
-    const r = await apiFetch(`${API}/api/stories`);
 
-    if (!r.ok) return;
+    const response =
+      await fetch(
+        `${API}/api/stories`
+      );
 
-    const data = await r.json();
+    if (!response.ok) return;
 
-    const bar = document.getElementById("stories-bar");
+    const data =
+      await safeJson(response);
+
+    const bar =
+      $('#stories-bar');
 
     if (!bar) return;
 
     bar
-      .querySelectorAll(".story-item:not(.add-story)")
-      .forEach(el => el.remove());
+      .querySelectorAll(
+        '.story-item:not(.add-story)'
+      )
+      .forEach(element => {
+        element.remove();
+      });
 
-    (data.stories || []).forEach(s => {
-      const el = document.createElement("div");
+    (data.stories || []).forEach(story => {
 
-      el.className = "story-item";
+      const element =
+        document.createElement('div');
 
-      el.innerHTML = `
+      element.className =
+        'story-item';
+
+      const initial =
+        String(
+          story.username ||
+          story.user_id ||
+          'U'
+        )
+        .charAt(0)
+        .toUpperCase();
+
+      element.innerHTML = `
         <div class="story-avatar">
-          ${(s.user_id || "U").toString().charAt(0)}
+          ${escape(initial)}
         </div>
-        <span>User</span>
+        <span>
+          ${escape(
+            story.username ||
+            `User ${story.user_id || ''}`
+          )}
+        </span>
       `;
 
-      bar.appendChild(el);
+      bar.appendChild(element);
+
     });
 
   } catch (error) {
-    console.error("Stories error:", error);
+
+    console.error(
+      'Stories loading error:',
+      error
+    );
+
   }
+
 }
 
-// ============================================
+
+// ============================================================
 // FEED
-// ============================================
+// ============================================================
 
 async function loadFeed() {
-  const feed = document.getElementById("feed");
+
+  const feed =
+    $('#feed');
 
   if (!feed) return;
 
   feed.innerHTML = `
-    <p class="muted" style="text-align:center;padding:20px;">
+    <p class="muted"
+       style="text-align:center;padding:20px;">
       Loading...
     </p>
   `;
 
   try {
-    const r = await apiFetch(
-      `${API}/api/feed?type=${encodeURIComponent(currentFeed)}`
-    );
 
-    if (!r.ok) {
-      feed.innerHTML = `
-        <p class="muted" style="text-align:center;padding:20px;">
-          Failed to load feed
-        </p>
-      `;
-      return;
-    }
-
-    const data = await r.json();
-
-    if (!data.posts || data.posts.length === 0) {
-      feed.innerHTML = `
-        <p class="muted" style="text-align:center;padding:40px 20px;">
-          No posts yet. Be the first to share!
-        </p>
-      `;
-      return;
-    }
-
-    feed.innerHTML = "";
-
-    data.posts.forEach(p => {
-      feed.appendChild(renderPost(p));
-    });
-
-  } catch (error) {
-    console.error("Feed error:", error);
-
-    feed.innerHTML = `
-      <p class="muted" style="text-align:center;padding:20px;">
-        Failed to load feed
-      </p>
-    `;
-  }
-}
-
-function renderPost(p) {
-  const el = document.createElement("div");
-
-  el.className = "post-card";
-
-  el.innerHTML = `
-    <div class="post-header">
-      <div class="post-avatar">
-        ${(p.user_id || "U").toString().charAt(0)}
-      </div>
-
-      <div class="post-user">
-        <strong>User ${p.user_id || ""}</strong>
-        <span>${timeAgo(p.created_at)}</span>
-      </div>
-    </div>
-
-    ${
-      p.caption
-        ? `<p class="post-caption">${escape(p.caption)}</p>`
-        : ""
-    }
-
-    ${
-      p.media_url
-        ? `<img class="post-media" src="${escape(p.media_url)}" alt="">`
-        : ""
-    }
-
-    <div class="post-actions">
-      <button onclick="toggleLike(this)">
-        ❤️ ${p.likes || 0}
-      </button>
-
-      <button>
-        💬 ${p.comments || 0}
-      </button>
-
-      <button>
-        ↗️ Share
-      </button>
-
-      <button>
-        🔖 Save
-      </button>
-    </div>
-  `;
-
-  return el;
-}
-
-window.toggleLike = function(btn) {
-  btn.classList.toggle("liked");
-};
-
-// ============================================
-// DISCOVERY
-// ============================================
-
-async function loadDiscovery() {
-  try {
-    const r = await apiFetch(`${API}/api/discovery`);
-
-    if (!r.ok) return;
-
-    const data = await r.json();
-
-    const grid = document.getElementById("discovery-grid");
-
-    if (!grid) return;
-
-    grid.innerHTML = "";
-
-    data.cards.forEach(card => {
-      const el = document.createElement("div");
-
-      el.className = "disc-card";
-
-      el.innerHTML = `
-        <span class="icon">${card.icon}</span>
-        <div class="title">${escape(card.title)}</div>
-        <div class="desc">${escape(card.desc)}</div>
-      `;
-
-      el.addEventListener("click", () => {
-        handleDiscoveryCard(card.id, card.title);
-      });
-
-      grid.appendChild(el);
-    });
-
-  } catch (error) {
-    console.error("Discovery error:", error);
-  }
-}
-
-function handleDiscoveryCard(id, title) {
-  const handlers = {
-    "ai-council": showAICouncil,
-    "creative-studio": showStudio,
-    "market": showMarket,
-    "world-map": showWorldMap,
-    "channels": showChannels,
-    "communities": showCommunities,
-    "videos": showVideos,
-    "settings": showSettings
-  };
-
-  (handlers[id] || (() => toast("Coming soon")))(title);
-}
-
-// ============================================
-// AI COUNCIL
-// ============================================
-
-async function showAICouncil() {
-  showSubPage("AI Council", async (c) => {
-
-    c.innerHTML = `
-      <h2>AI Council</h2>
-      <p class="muted" style="margin-bottom:16px;">
-        Choose an AI assistant
-      </p>
-    `;
-
-    const r = await apiFetch(`${API}/api/ai-council`);
-
-    if (!r.ok) return;
-
-    const data = await r.json();
-
-    data.ais.forEach(ai => {
-
-      const el = document.createElement("div");
-
-      el.className = "sub-item";
-
-      el.innerHTML = `
-        <span class="icon">${ai.icon}</span>
-        <div class="text">
-          <strong>${escape(ai.title)}</strong>
-          <span>${escape(ai.desc)}</span>
-        </div>
-      `;
-
-      el.addEventListener("click", () => {
-
-        if (ai.id === "education") {
-          showEducationAICountries();
-        } else {
-          showAIChat(ai.id);
-        }
-
-      });
-
-      c.appendChild(el);
-    });
-  });
-}
-
-async function showEducationAICountries() {
-  showSubPage("Education AI", async (c) => {
-
-    c.innerHTML = `
-      <h2>Step 1 — Choose Country</h2>
-      <p class="muted" style="margin-bottom:16px;">
-        Select your country
-      </p>
-    `;
-
-    const r = await apiFetch(
-      `${API}/api/ai-council/countries`
-    );
-
-    if (!r.ok) return;
-
-    const data = await r.json();
-
-    data.countries.forEach(country => {
-
-      const el = document.createElement("div");
-
-      el.className = "sub-item";
-
-      el.innerHTML = `
-        <span class="icon">🌍</span>
-        <div class="text">
-          <strong>${escape(country)}</strong>
-        </div>
-      `;
-
-      el.addEventListener("click", () => {
-        showEducationAILevels(country);
-      });
-
-      c.appendChild(el);
-    });
-  });
-}
-
-async function showEducationAILevels(country) {
-  showSubPage(`Education — ${country}`, async (c) => {
-
-    c.innerHTML = `
-      <h2>Step 2 — Choose Level</h2>
-      <p class="muted" style="margin-bottom:16px;">
-        ${escape(country)}
-      </p>
-    `;
-
-    const r = await apiFetch(
-      `${API}/api/ai-council/levels`
-    );
-
-    if (!r.ok) return;
-
-    const data = await r.json();
-
-    data.levels.forEach(level => {
-
-      const el = document.createElement("div");
-
-      el.className = "sub-item";
-
-      el.innerHTML = `
-        <span class="icon">🎓</span>
-        <div class="text">
-          <strong>${escape(level)}</strong>
-        </div>
-      `;
-
-      el.addEventListener("click", () => {
-        showEducationAIContent(country, level);
-      });
-
-      c.appendChild(el);
-    });
-  });
-}
-
-async function showEducationAIContent(country, level) {
-  showSubPage(`Education — ${level}`, async (c) => {
-
-    c.innerHTML = `
-      <h2>Step 3 — Choose Content</h2>
-      <p class="muted" style="margin-bottom:16px;">
-        ${escape(country)} • ${escape(level)}
-      </p>
-    `;
-
-    const r = await apiFetch(
-      `${API}/api/ai-council/content-types`
-    );
-
-    if (!r.ok) return;
-
-    const data = await r.json();
-
-    data.content_types.forEach(ct => {
-
-      const el = document.createElement("div");
-
-      el.className = "sub-item";
-
-      el.innerHTML = `
-        <span class="icon">📄</span>
-        <div class="text">
-          <strong>${escape(ct)}</strong>
-        </div>
-      `;
-
-      el.addEventListener("click", () => {
-        showAIChat(
-          "education",
-          {
-            country,
-            level,
-            content: ct
-          }
-        );
-      });
-
-      c.appendChild(el);
-    });
-  });
-}
-
-function showAIChat(ai, ctx = {}) {
-
-  showSubPage("AI Chat", (c) => {
-
-    c.innerHTML = `
-      <h2>
-        ${escape(ai.charAt(0).toUpperCase() + ai.slice(1))} AI
-      </h2>
-
-      <div id="chat-msgs" class="chat-msgs">
-        <div class="msg ai">
-          Hello! I'm your
-          ${escape(ctx.content || "")}
-          assistant for
-          ${escape(ctx.level || "")}
-          curriculum in
-          ${escape(ctx.country || "")}.
-          Ask me anything.
-        </div>
-      </div>
-
-      <div
-        class="search-bar"
-        style="display:flex;gap:8px;margin-top:12px;"
-      >
-        <input
-          type="text"
-          id="ai-input"
-          placeholder="Ask a question..."
-          style="flex:1;"
-        >
-
-        <button
-          class="btn-primary"
-          id="ai-send"
-          style="padding:12px 20px;"
-        >
-          Send
-        </button>
-      </div>
-    `;
-
-    const send = async () => {
-
-      const input = document.getElementById("ai-input");
-
-      const q = input.value.trim();
-
-      if (!q) return;
-
-      const msgs = document.getElementById("chat-msgs");
-
-      msgs.innerHTML += `
-        <div class="msg user">
-          ${escape(q)}
-        </div>
-      `;
-
-      input.value = "";
-
-      msgs.scrollTop = msgs.scrollHeight;
-
-      try {
-
-        const params = new URLSearchParams({
-          ai,
-          ...ctx,
-          q
-        });
-
-        const r = await apiFetch(
-          `${API}/api/ai-council/chat?${params}`
-        );
-
-        const data = await r.json();
-
-        msgs.innerHTML += `
-          <div class="msg ai">
-            ${escape(data.reply || "No response.")}
-          </div>
-        `;
-
-        msgs.scrollTop = msgs.scrollHeight;
-
-      } catch {
-
-        msgs.innerHTML += `
-          <div class="msg ai">
-            Error reaching AI.
-          </div>
-        `;
-      }
-    };
-
-    document
-      .getElementById("ai-send")
-      .addEventListener("click", send);
-
-    document
-      .getElementById("ai-input")
-      .addEventListener("keypress", e => {
-        if (e.key === "Enter") send();
-      });
-  });
-}
-
-// ============================================
-// STUDIO
-// ============================================
-
-async function showStudio() {
-  showSubPage("Creative Studio", async (c) => {
-
-    c.innerHTML = `
-      <h2>Creative Studio</h2>
-      <p class="muted" style="margin-bottom:16px;">
-        Canva-style tools
-      </p>
-    `;
-
-    const r = await apiFetch(`${API}/api/studio`);
-
-    if (!r.ok) return;
-
-    const data = await r.json();
-
-    data.tools.forEach(t => {
-
-      const el = document.createElement("div");
-
-      el.className = "sub-item";
-
-      el.innerHTML = `
-        <span class="icon">${t.icon}</span>
-        <div class="text">
-          <strong>${escape(t.title)}</strong>
-          <span>${escape(t.desc)}</span>
-        </div>
-      `;
-
-      el.addEventListener("click", () => {
-        toast(`${t.title} coming soon`);
-      });
-
-      c.appendChild(el);
-    });
-  });
-}
-
-// ============================================
-// MARKET
-// ============================================
-
-async function showMarket() {
-  showSubPage("Market", async (c) => {
-
-    c.innerHTML = `
-      <h2>Market</h2>
-      <p class="muted" style="margin-bottom:16px;">
-        Buy and sell
-      </p>
-    `;
-
-    const r = await apiFetch(
-      `${API}/api/market/categories`
-    );
-
-    if (!r.ok) return;
-
-    const data = await r.json();
-
-    data.categories.forEach(cat => {
-
-      const el = document.createElement("div");
-
-      el.className = "sub-item";
-
-      el.innerHTML = `
-        <span class="icon">🛍️</span>
-        <div class="text">
-          <strong>${escape(cat.title)}</strong>
-          <span>${escape(cat.desc)}</span>
-        </div>
-      `;
-
-      el.addEventListener("click", () => {
-        toast(`${cat.title} — coming soon`);
-      });
-
-      c.appendChild(el);
-    });
-  });
-}
-
-// ============================================
-// WORLD MAP
-// ============================================
-
-async function showWorldMap() {
-  showSubPage("World Map", async (c) => {
-
-    c.innerHTML = `
-      <h2>World Map</h2>
-      <p class="muted" style="margin-bottom:16px;">
-        Explore the world
-      </p>
-    `;
-
-    const r = await apiFetch(
-      `${API}/api/world-map/countries`
-    );
-
-    if (!r.ok) return;
-
-    const data = await r.json();
-
-    data.countries.forEach(co => {
-
-      const el = document.createElement("div");
-
-      el.className = "sub-item";
-
-      el.innerHTML = `
-        <span class="icon">🌍</span>
-        <div class="text">
-          <strong>${escape(co.name)}</strong>
-          <span>${co.users} users • ${co.posts} posts</span>
-        </div>
-      `;
-
-      el.addEventListener("click", () => {
-        toast(`${co.name} — coming soon`);
-      });
-
-      c.appendChild(el);
-    });
-  });
-}
-
-// ============================================
-// CHANNELS
-// ============================================
-
-async function showChannels() {
-  showSubPage("Channels", async (c) => {
-
-    c.innerHTML = `
-      <h2>Channels</h2>
-      <p class="muted" style="margin-bottom:16px;">
-        News and media
-      </p>
-    `;
-
-    const r = await apiFetch(`${API}/api/channels`);
-
-    if (!r.ok) return;
-
-    const data = await r.json();
-
-    data.channels.forEach(ch => {
-
-      const el = document.createElement("div");
-
-      el.className = "sub-item";
-
-      el.innerHTML = `
-        <span class="icon">📺</span>
-        <div class="text">
-          <strong>${escape(ch.name)}</strong>
-          <span>${escape(ch.desc)}</span>
-        </div>
-      `;
-
-      el.addEventListener("click", () => {
-        toast(`${ch.name} — coming soon`);
-      });
-
-      c.appendChild(el);
-    });
-  });
-}
-
-// ============================================
-// COMMUNITIES
-// ============================================
-
-async function showCommunities() {
-  showSubPage("Communities", async (c) => {
-
-    c.innerHTML = `
-      <h2>Communities</h2>
-      <p class="muted" style="margin-bottom:16px;">
-        Join groups
-      </p>
-    `;
-
-    const r = await apiFetch(
-      `${API}/api/communities/categories`
-    );
-
-    if (!r.ok) return;
-
-    const data = await r.json();
-
-    data.categories.forEach(cat => {
-
-      const el = document.createElement("div");
-
-      el.className = "sub-item";
-
-      el.innerHTML = `
-        <span class="icon">👥</span>
-        <div class="text">
-          <strong>${escape(cat.title)}</strong>
-          <span>${escape(cat.desc)}</span>
-        </div>
-      `;
-
-      el.addEventListener("click", () => {
-        toast(`${cat.title} — coming soon`);
-      });
-
-      c.appendChild(el);
-    });
-  });
-}
-
-// ============================================
-// VIDEOS
-// ============================================
-
-async function showVideos() {
-  showSubPage("Videos", async (c) => {
-
-    c.innerHTML = `
-      <h2>Videos</h2>
-      <p class="muted" style="margin-bottom:16px;">
-        Short video feed
-      </p>
-
-      <div class="sub-item">
-        <span class="icon">▶️</span>
-
-        <div class="text">
-          <strong>Coming soon</strong>
-          <span>TikTok-style feed</span>
-        </div>
-      </div>
-    `;
-  });
-}
-
-// ============================================
-// SETTINGS
-// ============================================
-
-function showSettings() {
-
-  showSubPage("Settings", (c) => {
-
-    c.innerHTML = `
-      <h2>Settings</h2>
-
-      <div class="sub-item" id="s-manual">
-        <span class="icon">📖</span>
-        <div class="text">
-          <strong>User Manual</strong>
-          <span>How to use the app</span>
-        </div>
-      </div>
-
-      <div class="sub-item" id="s-theme">
-        <span class="icon">🌓</span>
-        <div class="text">
-          <strong>Theme</strong>
-          <span>Light / Dark</span>
-        </div>
-      </div>
-
-      <div class="sub-item">
-        <span class="icon">ℹ️</span>
-        <div class="text">
-          <strong>Version</strong>
-          <span>MSAFIRI MEDIA V0.0.1</span>
-        </div>
-      </div>
-
-      <div class="sub-item" id="s-logout">
-        <span class="icon">🚪</span>
-        <div class="text">
-          <strong>Logout</strong>
-          <span>Sign out of your account</span>
-        </div>
-      </div>
-    `;
-
-    document
-      .getElementById("s-manual")
-      .addEventListener("click", showUserManual);
-
-    document
-      .getElementById("s-theme")
-      .addEventListener("click", toggleTheme);
-
-    document
-      .getElementById("s-logout")
-      .addEventListener("click", logout);
-  });
-}
-
-// ============================================
-// USER MANUAL
-// ============================================
-
-async function showUserManual() {
-
-  showSubPage("User Manual", async (c) => {
-
-    try {
-
-      const r = await apiFetch(
-        `${API}/api/user-manual`
+    const response =
+      await authFetch(
+        `${API}/api/feed?type=${encodeURIComponent(currentFeed)}`
       );
 
-      if (!r.ok) {
-        c.innerHTML = `<p class="muted">Unable to load manual.</p>`;
+    if (!response.ok) {
+
+      if (response.status === 401) {
+        handleUnauthorized();
         return;
       }
 
-      const m = await r.json();
+      throw new Error(
+        `Feed HTTP ${response.status}`
+      );
+    }
 
-      c.innerHTML = `
-        <div style="text-align:center;margin-bottom:20px;">
+    const data =
+      await safeJson(response);
 
-          <div
-            class="auth-logo"
-            style="margin:0 auto 12px;"
-          >
-            M
-          </div>
+    if (
+      !data.posts ||
+      data.posts.length === 0
+    ) {
 
-          <h2>${escape(m.app)}</h2>
-
-          <p class="muted">
-            ${escape(m.tagline)}
-          </p>
-
-          <p class="muted" style="margin-top:4px;">
-            Founder: ${escape(m.founder)}
-          </p>
-
-          <p class="muted">
-            ${escape(m.company)}
-          </p>
-
-          <p class="muted">
-            Version: ${escape(m.version)}
-          </p>
-
-        </div>
-
-        <div class="manual-section">
-          <h3>About</h3>
-          <p>${escape(m.about)}</p>
-        </div>
-
-        <div class="manual-section">
-          <h3>Sections</h3>
-          <ul>
-            ${Object.entries(m.sections)
-              .map(([k, v]) =>
-                `<li><strong>${escape(k)}:</strong> ${escape(v)}</li>`
-              )
-              .join("")}
-          </ul>
-        </div>
-
-        <div class="manual-section">
-          <h3>How to Use</h3>
-          <ul>
-            ${Object.entries(m.how_to_use)
-              .map(([k, v]) =>
-                `<li><strong>${escape(k.replace("_", " "))}:</strong> ${escape(v)}</li>`
-              )
-              .join("")}
-          </ul>
-        </div>
-
-        <div class="manual-section">
-          <h3>Support</h3>
-          <p>${escape(m.support)}</p>
-        </div>
-
-        <button
-          class="btn-primary"
-          id="dl-manual"
-          style="width:100%;margin-top:16px;"
-        >
-          📥 Download User Manual
-        </button>
-      `;
-
-      document
-        .getElementById("dl-manual")
-        .addEventListener("click", () => {
-
-          const text = `
-MSAFIRI GLOBAL MEDIA
-${m.tagline}
-
-Founder: ${m.founder}
-Company: ${m.company}
-Version: ${m.version}
-
-ABOUT
-${m.about}
-
-SECTIONS
-${Object.entries(m.sections)
-  .map(([k, v]) => `- ${k}: ${v}`)
-  .join("\n")}
-
-HOW TO USE
-${Object.entries(m.how_to_use)
-  .map(([k, v]) => `- ${k}: ${v}`)
-  .join("\n")}
-
-SUPPORT
-${m.support}
-`;
-
-          const blob = new Blob(
-            [text],
-            { type: "text/plain" }
-          );
-
-          const a = document.createElement("a");
-
-          a.href = URL.createObjectURL(blob);
-          a.download = "MSAFIRI-UserManual.txt";
-
-          a.click();
-
-          URL.revokeObjectURL(a.href);
-
-          toast("Downloaded!");
-        });
-
-    } catch (error) {
-
-      console.error("Manual error:", error);
-
-      c.innerHTML = `
-        <p class="muted">
-          Unable to load user manual.
+      feed.innerHTML = `
+        <p class="muted"
+           style="text-align:center;padding:40px 20px;">
+          No posts yet. Be the first to share!
         </p>
       `;
+
+      return;
     }
-  });
-}
 
-// ============================================
-// DOTS MENU
-// ============================================
+    feed.innerHTML = '';
 
-const dotsButton = document.getElementById("dots-btn");
+    data.posts.forEach(post => {
 
-if (dotsButton) {
-
-  dotsButton.addEventListener("click", (e) => {
-
-    e.stopPropagation();
-
-    document
-      .getElementById("dots-menu")
-      .classList.toggle("hidden");
-
-  });
-}
-
-document.addEventListener("click", () => {
-
-  const menu = document.getElementById("dots-menu");
-
-  if (menu) {
-    menu.classList.add("hidden");
-  }
-
-});
-
-document
-  .querySelectorAll("#dots-menu button")
-  .forEach(btn => {
-
-    btn.addEventListener("click", () => {
-
-      const a = btn.dataset.action;
-
-      if (a === "manual") showUserManual();
-      if (a === "settings") showSettings();
-      if (a === "logout") logout();
-
-      document
-        .getElementById("dots-menu")
-        .classList.add("hidden");
+      feed.appendChild(
+        renderPost(post)
+      );
 
     });
 
-  });
+  } catch (error) {
 
-// ============================================
-// CHATS
-// ============================================
+    console.error(
+      'Feed loading error:',
+      error
+    );
 
-async function loadChats() {
+    feed.innerHTML = `
+      <p class="muted"
+         style="text-align:center;padding:20px;">
+        Failed to load feed
+      </p>
+    `;
 
-  const list = document.getElementById("chat-list");
+  }
 
-  if (!list) return;
+}
+
+
+// ============================================================
+// RENDER POST
+// ============================================================
+
+function renderPost(post) {
+
+  const element =
+    document.createElement('div');
+
+  element.className =
+    'post-card';
+
+  const userName =
+    post.username ||
+    post.full_name ||
+    `User ${post.user_id || ''}`;
+
+  const initial =
+    userName
+      .charAt(0)
+      .toUpperCase();
+
+  let mediaHTML = '';
+
+  if (post.media_url) {
+
+    const mediaType =
+      post.media_type ||
+      '';
+
+    if (
+      mediaType === 'video' ||
+      mediaType.startsWith('video')
+    ) {
+
+      mediaHTML = `
+        <video
+          class="post-media"
+          controls
+          playsinline
+          src="${escapeAttr(post.media_url)}">
+        </video>
+      `;
+
+    } else {
+
+      mediaHTML = `
+        <img
+          class="post-media"
+          src="${escapeAttr(post.media_url)}"
+          alt="Post media"
+          loading="lazy">
+      `;
+
+    }
+
+  }
+
+  element.innerHTML = `
+
+    <div class="post-header">
+
+      <div class="post-avatar">
+        ${escape(initial)}
+      </div>
+
+      <div class="post-user">
+
+        <strong>
+          ${escape(userName)}
+        </strong>
+
+        <span>
+          ${timeAgo(post.created_at)}
+        </span>
+
+      </div>
+
+    </div>
+
+    ${
+      post.caption
+        ? `
+          <p class="post-caption">
+            ${escape(post.caption)}
+          </p>
+        `
+        : ''
+    }
+
+    ${mediaHTML}
+
+    <div class="post-actions">
+
+      <button
+        type="button"
+        onclick="toggleLike(this)">
+        ❤️ ${Number(post.likes || 0)}
+      </button>
+
+      <button type="button">
+        💬 ${Number(post.comments || 0)}
+      </button>
+
+      <button
+        type="button"
+        onclick="sharePost(${Number(post.id || 0)})">
+        ↗️ Share
+      </button>
+
+      <button
+        type="button"
+        onclick="savePost(this)">
+        🔖 Save
+      </button>
+
+    </div>
+
+  `;
+
+  return element;
+}
+
+
+// ============================================================
+// LIKE
+// ============================================================
+
+window.toggleLike = function(button) {
+
+  if (!button) return;
+
+  button.classList.toggle('liked');
+
+};
+
+
+// ============================================================
+// SHARE
+// ============================================================
+
+window.sharePost = async function(postId) {
 
   try {
 
-    const r = await apiFetch(
-      `${API}/api/messages`
-    );
+    if (
+      navigator.share
+    ) {
 
-    if (!r.ok) {
+      await navigator.share({
+        title: 'MSAFIRI GLOBAL MEDIA',
+        text: 'Check out this post on MSAFIRI GLOBAL MEDIA',
+        url: window.location.href
+      });
 
-      list.innerHTML = `
-        <p class="muted" style="padding:20px;text-align:center;">
-          No chats yet
-        </p>
-      `;
+    } else {
 
-      return;
+      await navigator.clipboard.writeText(
+        window.location.href
+      );
+
+      toast('Link copied');
+
     }
-
-    const data = await r.json();
-
-    if (!data.messages || data.messages.length === 0) {
-
-      list.innerHTML = `
-        <p class="muted" style="padding:20px;text-align:center;">
-          No chats yet
-        </p>
-      `;
-
-      return;
-    }
-
-    list.innerHTML = "";
-
-    // Existing chat rendering can be added here.
 
   } catch (error) {
 
-    console.error("Chats error:", error);
+    console.log(
+      'Share cancelled or unavailable:',
+      error
+    );
+
+  }
+
+};
+
+
+// ============================================================
+// SAVE
+// ============================================================
+
+window.savePost = function(button) {
+
+  if (!button) return;
+
+  button.classList.toggle('saved');
+
+  toast(
+    button.classList.contains('saved')
+      ? 'Post saved'
+      : 'Post removed from saved'
+  );
+
+};
+
+
+// ============================================================
+// DISCOVERY
+// ============================================================
+
+async function loadDiscovery() {
+
+  try {
+
+    const response =
+      await fetch(
+        `${API}/api/discovery`
+      );
+
+    if (!response.ok) return;
+
+    const data =
+      await safeJson(response);
+
+    const grid =
+      $('#discovery-grid');
+
+    if (!grid) return;
+
+    grid.innerHTML = '';
+
+    (data.cards || []).forEach(card => {
+
+      const element =
+        document.createElement('div');
+
+      element.className =
+        'disc-card';
+
+      element.innerHTML = `
+        <span class="icon">
+          ${escape(card.icon || '')}
+        </span>
+
+        <div class="title">
+          ${escape(card.title || '')}
+        </div>
+
+        <div class="desc">
+          ${escape(card.desc || '')}
+        </div>
+      `;
+
+      element.addEventListener(
+        'click',
+        () => {
+          handleDiscoveryCard(
+            card.id,
+            card.title
+          );
+        }
+      );
+
+      grid.appendChild(element);
+
+    });
+
+  } catch (error) {
+
+    console.error(
+      'Discovery loading error:',
+      error
+    );
+
+  }
+
+}
+
+
+// ============================================================
+// DISCOVERY HANDLER
+// ============================================================
+
+function handleDiscoveryCard(id, title) {
+
+  const handlers = {
+
+    'ai-council':
+      showAICouncil,
+
+    'creative-studio':
+      showStudio,
+
+    'market':
+      showMarket,
+
+    'world-map':
+      showWorldMap,
+
+    'channels':
+      showChannels,
+
+    'communities':
+      showCommunities,
+
+    'videos':
+      showVideos,
+
+    'settings':
+      showSettings
+
+  };
+
+  const handler =
+    handlers[id];
+
+  if (handler) {
+
+    handler(title);
+
+  } else {
+
+    toast('Coming soon');
+
+  }
+
+}
+
+
+// ============================================================
+// AI COUNCIL
+// ============================================================
+
+async function showAICouncil() {
+
+  showSubPage(
+    'AI Council',
+    async content => {
+
+      content.innerHTML = `
+        <h2>AI Council</h2>
+
+        <p class="muted"
+           style="margin-bottom:16px;">
+          Choose an AI assistant
+        </p>
+      `;
+
+      try {
+
+        const response =
+          await fetch(
+            `${API}/api/ai-council`
+          );
+
+        const data =
+          await safeJson(response);
+
+        (data.ais || []).forEach(ai => {
+
+          const element =
+            document.createElement('div');
+
+          element.className =
+            'sub-item';
+
+          element.innerHTML = `
+            <span class="icon">
+              ${escape(ai.icon || '🤖')}
+            </span>
+
+            <div class="text">
+
+              <strong>
+                ${escape(ai.title || '')}
+              </strong>
+
+              <span>
+                ${escape(ai.desc || '')}
+              </span>
+
+            </div>
+          `;
+
+          element.addEventListener(
+            'click',
+            () => {
+
+              if (ai.id === 'education') {
+
+                showEducationAICountries();
+
+              } else {
+
+                showAIChat(ai.id);
+
+              }
+
+            }
+          );
+
+          content.appendChild(element);
+
+        });
+
+      } catch (error) {
+
+        content.innerHTML += `
+          <p class="muted">
+            Failed to load AI Council.
+          </p>
+        `;
+
+      }
+
+    }
+  );
+
+}
+
+
+// ============================================================
+// EDUCATION AI — COUNTRIES
+// ============================================================
+
+async function showEducationAICountries() {
+
+  showSubPage(
+    'Education AI',
+    async content => {
+
+      content.innerHTML = `
+        <h2>Step 1 — Choose Country</h2>
+
+        <p class="muted"
+           style="margin-bottom:16px;">
+          Select your country
+        </p>
+      `;
+
+      try {
+
+        const response =
+          await fetch(
+            `${API}/api/ai-council/countries`
+          );
+
+        const data =
+          await safeJson(response);
+
+        (data.countries || []).forEach(country => {
+
+          const element =
+            document.createElement('div');
+
+          element.className =
+            'sub-item';
+
+          element.innerHTML = `
+            <span class="icon">🌍</span>
+
+            <div class="text">
+              <strong>
+                ${escape(country)}
+              </strong>
+            </div>
+          `;
+
+          element.addEventListener(
+            'click',
+            () => {
+              showEducationAILevels(
+                country
+              );
+            }
+          );
+
+          content.appendChild(element);
+
+        });
+
+      } catch {
+
+        content.innerHTML += `
+          <p class="muted">
+            Failed to load countries.
+          </p>
+        `;
+
+      }
+
+    }
+  );
+
+}
+
+
+// ============================================================
+// EDUCATION AI — LEVELS
+// ============================================================
+
+async function showEducationAILevels(country) {
+
+  showSubPage(
+    `Education — ${country}`,
+    async content => {
+
+      content.innerHTML = `
+        <h2>Step 2 — Choose Level</h2>
+
+        <p class="muted"
+           style="margin-bottom:16px;">
+          ${escape(country)}
+        </p>
+      `;
+
+      try {
+
+        const response =
+          await fetch(
+            `${API}/api/ai-council/levels`
+          );
+
+        const data =
+          await safeJson(response);
+
+        (data.levels || []).forEach(level => {
+
+          const element =
+            document.createElement('div');
+
+          element.className =
+            'sub-item';
+
+          element.innerHTML = `
+            <span class="icon">🎓</span>
+
+            <div class="text">
+              <strong>
+                ${escape(level)}
+              </strong>
+            </div>
+          `;
+
+          element.addEventListener(
+            'click',
+            () => {
+              showEducationAIContent(
+                country,
+                level
+              );
+            }
+          );
+
+          content.appendChild(element);
+
+        });
+
+      } catch {
+
+        content.innerHTML += `
+          <p class="muted">
+            Failed to load levels.
+          </p>
+        `;
+
+      }
+
+    }
+  );
+
+}
+
+
+// ============================================================
+// EDUCATION AI — CONTENT TYPES
+// ============================================================
+
+async function showEducationAIContent(
+  country,
+  level
+) {
+
+  showSubPage(
+    `Education — ${level}`,
+    async content => {
+
+      content.innerHTML = `
+        <h2>Step 3 — Choose Content</h2>
+
+        <p class="muted"
+           style="margin-bottom:16px;">
+          ${escape(country)} •
+          ${escape(level)}
+        </p>
+      `;
+
+      try {
+
+        const response =
+          await fetch(
+            `${API}/api/ai-council/content-types`
+          );
+
+        const data =
+          await safeJson(response);
+
+        (data.content_types || []).forEach(
+          contentType => {
+
+            const element =
+              document.createElement('div');
+
+            element.className =
+              'sub-item';
+
+            element.innerHTML = `
+              <span class="icon">📄</span>
+
+              <div class="text">
+                <strong>
+                  ${escape(contentType)}
+                </strong>
+              </div>
+            `;
+
+            element.addEventListener(
+              'click',
+              () => {
+
+                showAIChat(
+                  'education',
+                  {
+                    country,
+                    level,
+                    content: contentType
+                  }
+                );
+
+              }
+            );
+
+            content.appendChild(element);
+
+          }
+        );
+
+      } catch {
+
+        content.innerHTML += `
+          <p class="muted">
+            Failed to load content types.
+          </p>
+        `;
+
+      }
+
+    }
+  );
+
+}
+
+
+// ============================================================
+// AI CHAT
+// ============================================================
+
+function showAIChat(
+  ai,
+  context = {}
+) {
+
+  showSubPage(
+    'AI Chat',
+    content => {
+
+      const aiName =
+        ai.charAt(0).toUpperCase() +
+        ai.slice(1);
+
+      content.innerHTML = `
+
+        <h2>
+          ${escape(aiName)} AI
+        </h2>
+
+        <div
+          id="chat-msgs"
+          class="chat-msgs">
+
+          <div class="msg ai">
+            Hello! I'm your
+            ${escape(context.content || '')}
+            assistant for
+            ${escape(context.level || '')}
+            curriculum in
+            ${escape(context.country || '')}.
+            Ask me anything.
+          </div>
+
+        </div>
+
+        <div
+          class="search-bar"
+          style="
+            display:flex;
+            gap:8px;
+            margin-top:12px;
+          ">
+
+          <input
+            type="text"
+            id="ai-input"
+            placeholder="Ask a question..."
+            style="flex:1;">
+
+          <button
+            class="btn-primary"
+            id="ai-send"
+            style="padding:12px 20px;">
+            Send
+          </button>
+
+        </div>
+
+      `;
+
+      const sendMessage =
+        async () => {
+
+          const input =
+            $('#ai-input');
+
+          if (!input) return;
+
+          const question =
+            input.value.trim();
+
+          if (!question) return;
+
+          const messages =
+            $('#chat-msgs');
+
+          if (!messages) return;
+
+          messages.innerHTML += `
+            <div class="msg user">
+              ${escape(question)}
+            </div>
+          `;
+
+          input.value = '';
+
+          messages.scrollTop =
+            messages.scrollHeight;
+
+          try {
+
+            const params =
+              new URLSearchParams();
+
+            params.set(
+              'ai',
+              ai
+            );
+
+            params.set(
+              'country',
+              context.country || 'Tanzania'
+            );
+
+            params.set(
+              'level',
+              context.level || 'Degree'
+            );
+
+            params.set(
+              'content',
+              context.content || 'Notes'
+            );
+
+            params.set(
+              'q',
+              question
+            );
+
+            const response =
+              await fetch(
+                `${API}/api/ai-council/chat?${params.toString()}`
+              );
+
+            const data =
+              await safeJson(response);
+
+            messages.innerHTML += `
+              <div class="msg ai">
+                ${escape(
+                  data.reply ||
+                  'No response available.'
+                )}
+              </div>
+            `;
+
+            messages.scrollTop =
+              messages.scrollHeight;
+
+          } catch {
+
+            messages.innerHTML += `
+              <div class="msg ai">
+                Error reaching AI.
+              </div>
+            `;
+
+          }
+
+        };
+
+      const sendButton =
+        $('#ai-send');
+
+      if (sendButton) {
+        sendButton.addEventListener(
+          'click',
+          sendMessage
+        );
+      }
+
+      const input =
+        $('#ai-input');
+
+      if (input) {
+
+        input.addEventListener(
+          'keypress',
+          event => {
+
+            if (
+              event.key === 'Enter'
+            ) {
+
+              event.preventDefault();
+
+              sendMessage();
+
+            }
+
+          }
+        );
+
+      }
+
+    }
+  );
+
+}
+
+
+// ============================================================
+// CREATIVE STUDIO
+// ============================================================
+
+async function showStudio() {
+
+  showSubPage(
+    'Creative Studio',
+    async content => {
+
+      content.innerHTML = `
+        <h2>Creative Studio</h2>
+
+        <p class="muted"
+           style="margin-bottom:16px;">
+          Canva-style tools
+        </p>
+      `;
+
+      try {
+
+        const response =
+          await fetch(
+            `${API}/api/studio`
+          );
+
+        const data =
+          await safeJson(response);
+
+        (data.tools || []).forEach(tool => {
+
+          const element =
+            document.createElement('div');
+
+          element.className =
+            'sub-item';
+
+          element.innerHTML = `
+            <span class="icon">
+              ${escape(tool.icon || '✨')}
+            </span>
+
+            <div class="text">
+
+              <strong>
+                ${escape(tool.title || '')}
+              </strong>
+
+              <span>
+                ${escape(tool.desc || '')}
+              </span>
+
+            </div>
+          `;
+
+          element.addEventListener(
+            'click',
+            () => {
+              toast(
+                `${tool.title} coming soon`
+              );
+            }
+          );
+
+          content.appendChild(element);
+
+        });
+
+      } catch {
+
+        content.innerHTML += `
+          <p class="muted">
+            Failed to load Creative Studio.
+          </p>
+        `;
+
+      }
+
+    }
+  );
+
+}
+
+
+// ============================================================
+// MARKET
+// ============================================================
+
+async function showMarket() {
+
+  showSubPage(
+    'Market',
+    async content => {
+
+      content.innerHTML = `
+        <h2>Market</h2>
+
+        <p class="muted"
+           style="margin-bottom:16px;">
+          Buy and sell
+        </p>
+      `;
+
+      try {
+
+        const response =
+          await fetch(
+            `${API}/api/market/categories`
+          );
+
+        const data =
+          await safeJson(response);
+
+        (data.categories || []).forEach(category => {
+
+          const element =
+            document.createElement('div');
+
+          element.className =
+            'sub-item';
+
+          element.innerHTML = `
+            <span class="icon">🛍️</span>
+
+            <div class="text">
+
+              <strong>
+                ${escape(category.title || '')}
+              </strong>
+
+              <span>
+                ${escape(category.desc || '')}
+              </span>
+
+            </div>
+          `;
+
+          element.addEventListener(
+            'click',
+            () => {
+
+              toast(
+                `${category.title} — coming soon`
+              );
+
+            }
+          );
+
+          content.appendChild(element);
+
+        });
+
+      } catch {
+
+        content.innerHTML += `
+          <p class="muted">
+            Failed to load Market.
+          </p>
+        `;
+
+      }
+
+    }
+  );
+
+}
+
+
+// ============================================================
+// WORLD MAP
+// ============================================================
+
+async function showWorldMap() {
+
+  showSubPage(
+    'World Map',
+    async content => {
+
+      content.innerHTML = `
+        <h2>World Map</h2>
+
+        <p class="muted"
+           style="margin-bottom:16px;">
+          Explore the world
+        </p>
+      `;
+
+      try {
+
+        const response =
+          await fetch(
+            `${API}/api/world-map/countries`
+          );
+
+        const data =
+          await safeJson(response);
+
+        (data.countries || []).forEach(country => {
+
+          const element =
+            document.createElement('div');
+
+          element.className =
+            'sub-item';
+
+          element.innerHTML = `
+            <span class="icon">🌍</span>
+
+            <div class="text">
+
+              <strong>
+                ${escape(country.name)}
+              </strong>
+
+              <span>
+                ${Number(country.users || 0)}
+                users •
+                ${Number(country.posts || 0)}
+                posts
+              </span>
+
+            </div>
+          `;
+
+          element.addEventListener(
+            'click',
+            () => {
+              toast(
+                `${country.name} — coming soon`
+              );
+            }
+          );
+
+          content.appendChild(element);
+
+        });
+
+      } catch {
+
+        content.innerHTML += `
+          <p class="muted">
+            Failed to load World Map.
+          </p>
+        `;
+
+      }
+
+    }
+  );
+
+}
+
+
+// ============================================================
+// CHANNELS
+// ============================================================
+
+async function showChannels() {
+
+  showSubPage(
+    'Channels',
+    async content => {
+
+      content.innerHTML = `
+        <h2>Channels</h2>
+
+        <p class="muted"
+           style="margin-bottom:16px;">
+          News and media
+        </p>
+      `;
+
+      try {
+
+        const response =
+          await fetch(
+            `${API}/api/channels`
+          );
+
+        const data =
+          await safeJson(response);
+
+        (data.channels || []).forEach(channel => {
+
+          const element =
+            document.createElement('div');
+
+          element.className =
+            'sub-item';
+
+          element.innerHTML = `
+            <span class="icon">📺</span>
+
+            <div class="text">
+
+              <strong>
+                ${escape(channel.name)}
+              </strong>
+
+              <span>
+                ${escape(channel.desc || '')}
+              </span>
+
+            </div>
+          `;
+
+          element.addEventListener(
+            'click',
+            () => {
+
+              toast(
+                `${channel.name} — coming soon`
+              );
+
+            }
+          );
+
+          content.appendChild(element);
+
+        });
+
+      } catch {
+
+        content.innerHTML += `
+          <p class="muted">
+            Failed to load Channels.
+          </p>
+        `;
+
+      }
+
+    }
+  );
+
+}
+
+
+// ============================================================
+// COMMUNITIES
+// ============================================================
+
+async function showCommunities() {
+
+  showSubPage(
+    'Communities',
+    async content => {
+
+      content.innerHTML = `
+        <h2>Communities</h2>
+
+        <p class="muted"
+           style="margin-bottom:16px;">
+          Join groups
+        </p>
+      `;
+
+      try {
+
+        const response =
+          await fetch(
+            `${API}/api/communities/categories`
+          );
+
+        const data =
+          await safeJson(response);
+
+        (data.categories || []).forEach(category => {
+
+          const element =
+            document.createElement('div');
+
+          element.className =
+            'sub-item';
+
+          element.innerHTML = `
+            <span class="icon">👥</span>
+
+            <div class="text">
+
+              <strong>
+                ${escape(category.title)}
+              </strong>
+
+              <span>
+                ${escape(category.desc || '')}
+              </span>
+
+            </div>
+          `;
+
+          element.addEventListener(
+            'click',
+            () => {
+
+              toast(
+                `${category.title} — coming soon`
+              );
+
+            }
+          );
+
+          content.appendChild(element);
+
+        });
+
+      } catch {
+
+        content.innerHTML += `
+          <p class="muted">
+            Failed to load Communities.
+          </p>
+        `;
+
+      }
+
+    }
+  );
+
+}
+
+
+// ============================================================
+// VIDEOS
+// ============================================================
+
+async function showVideos() {
+
+  showSubPage(
+    'Videos',
+    content => {
+
+      content.innerHTML = `
+
+        <h2>Videos</h2>
+
+        <p class="muted"
+           style="margin-bottom:16px;">
+          Short video feed
+        </p>
+
+        <div class="sub-item">
+
+          <span class="icon">
+            ▶️
+          </span>
+
+          <div class="text">
+
+            <strong>
+              Coming soon
+            </strong>
+
+            <span>
+              TikTok-style feed
+            </span>
+
+          </div>
+
+        </div>
+
+      `;
+
+    }
+  );
+
+}
+
+
+// ============================================================
+// SETTINGS
+// ============================================================
+
+function showSettings() {
+
+  showSubPage(
+    'Settings',
+    content => {
+
+      content.innerHTML = `
+
+        <h2>Settings</h2>
+
+        <div
+          class="sub-item"
+          id="s-manual">
+
+          <span class="icon">
+            📖
+          </span>
+
+          <div class="text">
+            <strong>
+              User Manual
+            </strong>
+
+            <span>
+              How to use the app
+            </span>
+          </div>
+
+        </div>
+
+        <div
+          class="sub-item"
+          id="s-theme">
+
+          <span class="icon">
+            🌓
+          </span>
+
+          <div class="text">
+            <strong>
+              Theme
+            </strong>
+
+            <span>
+              Light / Dark
+            </span>
+          </div>
+
+        </div>
+
+        <div class="sub-item">
+
+          <span class="icon">
+            ℹ️
+          </span>
+
+          <div class="text">
+            <strong>
+              Version
+            </strong>
+
+            <span>
+              MSAFIRI GLOBAL MEDIA V6.0.0-PHASE2
+            </span>
+          </div>
+
+        </div>
+
+        <div
+          class="sub-item"
+          id="s-logout">
+
+          <span class="icon">
+            🚪
+          </span>
+
+          <div class="text">
+            <strong>
+              Logout
+            </strong>
+
+            <span>
+              Sign out of your account
+            </span>
+          </div>
+
+        </div>
+
+      `;
+
+      const manual =
+        $('#s-manual');
+
+      if (manual) {
+        manual.addEventListener(
+          'click',
+          showUserManual
+        );
+      }
+
+      const theme =
+        $('#s-theme');
+
+      if (theme) {
+        theme.addEventListener(
+          'click',
+          toggleTheme
+        );
+      }
+
+      const logoutButton =
+        $('#s-logout');
+
+      if (logoutButton) {
+        logoutButton.addEventListener(
+          'click',
+          logout
+        );
+      }
+
+    }
+  );
+
+}
+
+
+// ============================================================
+// USER MANUAL
+// ============================================================
+
+async function showUserManual() {
+
+  showSubPage(
+    'User Manual',
+    async content => {
+
+      content.innerHTML = `
+        <p class="muted">
+          Loading user manual...
+        </p>
+      `;
+
+      try {
+
+        const response =
+          await fetch(
+            `${API}/api/user-manual`
+          );
+
+        const manual =
+          await safeJson(response);
+
+        content.innerHTML = `
+
+          <div
+            style="
+              text-align:center;
+              margin-bottom:20px;
+            ">
+
+            <div
+              class="auth-logo"
+              style="margin:0 auto 12px;">
+              M
+            </div>
+
+            <h2>
+              ${escape(manual.app || '')}
+            </h2>
+
+            <p class="muted">
+              ${escape(manual.tagline || '')}
+            </p>
+
+            <p
+              class="muted"
+              style="margin-top:4px;">
+
+              Founder:
+              ${escape(manual.founder || '')}
+
+            </p>
+
+            <p class="muted">
+              ${escape(manual.company || '')}
+            </p>
+
+            <p class="muted">
+              Version:
+              ${escape(manual.version || '')}
+            </p>
+
+          </div>
+
+          <div class="manual-section">
+
+            <h3>
+              About
+            </h3>
+
+            <p>
+              ${escape(manual.about || '')}
+            </p>
+
+          </div>
+
+          <div class="manual-section">
+
+            <h3>
+              Sections
+            </h3>
+
+            <ul>
+
+              ${Object.entries(
+                manual.sections || {}
+              )
+                .map(
+                  ([key, value]) => `
+                    <li>
+                      <strong>
+                        ${escape(key)}:
+                      </strong>
+                      ${escape(value)}
+                    </li>
+                  `
+                )
+                .join('')}
+
+            </ul>
+
+          </div>
+
+          <div class="manual-section">
+
+            <h3>
+              How to Use
+            </h3>
+
+            <ul>
+
+              ${Object.entries(
+                manual.how_to_use || {}
+              )
+                .map(
+                  ([key, value]) => `
+                    <li>
+                      <strong>
+                        ${escape(
+                          key.replaceAll('_', ' ')
+                        )}:
+                      </strong>
+                      ${escape(value)}
+                    </li>
+                  `
+                )
+                .join('')}
+
+            </ul>
+
+          </div>
+
+          <div class="manual-section">
+
+            <h3>
+              Support
+            </h3>
+
+            <p>
+              ${escape(manual.support || '')}
+            </p>
+
+          </div>
+
+          <button
+            class="btn-primary"
+            id="dl-manual"
+            style="
+              width:100%;
+              margin-top:16px;
+            ">
+
+            📥 Download User Manual
+
+          </button>
+
+        `;
+
+        const downloadButton =
+          $('#dl-manual');
+
+        if (downloadButton) {
+
+          downloadButton.addEventListener(
+            'click',
+            () => {
+
+              const text = `MSAFIRI GLOBAL MEDIA
+${manual.tagline || ''}
+
+Founder: ${manual.founder || ''}
+Company: ${manual.company || ''}
+Version: ${manual.version || ''}
+
+ABOUT
+${manual.about || ''}
+
+SECTIONS
+${Object.entries(
+  manual.sections || {}
+)
+  .map(
+    ([key, value]) =>
+      `- ${key}: ${value}`
+  )
+  .join('\n')}
+
+HOW TO USE
+${Object.entries(
+  manual.how_to_use || {}
+)
+  .map(
+    ([key, value]) =>
+      `- ${key}: ${value}`
+  )
+  .join('\n')}
+
+SUPPORT
+${manual.support || ''}
+`;
+
+              const blob =
+                new Blob(
+                  [text],
+                  {
+                    type:
+                      'text/plain;charset=utf-8'
+                  }
+                );
+
+              const url =
+                URL.createObjectURL(blob);
+
+              const anchor =
+                document.createElement('a');
+
+              anchor.href = url;
+
+              anchor.download =
+                'MSAFIRI-UserManual.txt';
+
+              document.body.appendChild(
+                anchor
+              );
+
+              anchor.click();
+
+              anchor.remove();
+
+              URL.revokeObjectURL(url);
+
+              toast('Downloaded!');
+
+            }
+          );
+
+        }
+
+      } catch (error) {
+
+        console.error(
+          'Manual error:',
+          error
+        );
+
+        content.innerHTML = `
+          <p class="muted">
+            Failed to load User Manual.
+          </p>
+        `;
+
+      }
+
+    }
+  );
+
+}
+
+
+// ============================================================
+// DOTS MENU
+// ============================================================
+
+function setupDotsMenu() {
+
+  const dotsButton =
+    $('#dots-btn');
+
+  const dotsMenu =
+    $('#dots-menu');
+
+  if (!dotsButton || !dotsMenu) {
+    return;
+  }
+
+  dotsButton.addEventListener(
+    'click',
+    event => {
+
+      event.stopPropagation();
+
+      dotsMenu.classList.toggle(
+        'hidden'
+      );
+
+    }
+  );
+
+  document.addEventListener(
+    'click',
+    () => {
+
+      dotsMenu.classList.add(
+        'hidden'
+      );
+
+    }
+  );
+
+  $all(
+    '#dots-menu button'
+  ).forEach(button => {
+
+    button.addEventListener(
+      'click',
+      event => {
+
+        event.stopPropagation();
+
+        const action =
+          button.dataset.action;
+
+        if (action === 'manual') {
+          showUserManual();
+        }
+
+        if (action === 'settings') {
+          showSettings();
+        }
+
+        if (action === 'logout') {
+          logout();
+        }
+
+        dotsMenu.classList.add(
+          'hidden'
+        );
+
+      }
+    );
+
+  });
+
+}
+
+
+// ============================================================
+// CHATS
+// ============================================================
+
+async function loadChats() {
+
+  const list =
+    $('#chat-list');
+
+  if (!list) return;
+
+  list.innerHTML = `
+    <p class="muted"
+       style="padding:20px;text-align:center;">
+      Loading chats...
+    </p>
+  `;
+
+  try {
+
+    const response =
+      await authFetch(
+        `${API}/api/messages`
+      );
+
+    if (response.status === 401) {
+
+      handleUnauthorized();
+
+      return;
+    }
+
+    if (!response.ok) {
+
+      list.innerHTML = `
+        <p class="muted"
+           style="padding:20px;text-align:center;">
+          No chats yet
+        </p>
+      `;
+
+      return;
+    }
+
+    const data =
+      await safeJson(response);
+
+    if (
+      !data.messages ||
+      data.messages.length === 0
+    ) {
+
+      list.innerHTML = `
+        <p class="muted"
+           style="padding:20px;text-align:center;">
+          No chats yet
+        </p>
+      `;
+
+      return;
+    }
+
+    list.innerHTML = '';
+
+    data.messages.forEach(message => {
+
+      const element =
+        document.createElement('div');
+
+      element.className =
+        'sub-item';
+
+      element.innerHTML = `
+        <span class="icon">
+          💬
+        </span>
+
+        <div class="text">
+
+          <strong>
+            ${escape(
+              message.username ||
+              message.sender_username ||
+              'User'
+            )}
+          </strong>
+
+          <span>
+            ${escape(
+              message.content ||
+              message.text ||
+              ''
+            )}
+          </span>
+
+        </div>
+      `;
+
+      list.appendChild(element);
+
+    });
+
+  } catch (error) {
+
+    console.error(
+      'Chats loading error:',
+      error
+    );
 
     list.innerHTML = `
-      <p class="muted" style="padding:20px;text-align:center;">
+      <p class="muted"
+         style="padding:20px;text-align:center;">
         No chats yet
       </p>
     `;
+
   }
+
 }
 
-// ============================================
+
+// ============================================================
 // PROFILE
-// ============================================
+// ============================================================
 
 async function loadProfile() {
 
   try {
 
-    const r = await apiFetch(
-      `${API}/api/auth/me`
-    );
+    let user =
+      currentUser;
 
-    if (!r.ok) return;
+    if (!user) {
 
-    const u = await r.json();
+      const response =
+        await authFetch(
+          `${API}/api/auth/me`
+        );
 
-    currentUser = u;
+      if (!response.ok) {
 
-    const name = document.getElementById("profile-name");
-    const username = document.getElementById("profile-username");
-    const bio = document.getElementById("profile-bio");
-    const avatar = document.getElementById("profile-avatar");
+        if (
+          response.status === 401
+        ) {
+          handleUnauthorized();
+        }
 
-    if (name) {
-      name.textContent =
-        u.full_name ||
-        u.username ||
-        "User";
+        return;
+      }
+
+      user =
+        await safeJson(response);
+
+      currentUser =
+        user;
     }
 
-    if (username) {
-      username.textContent =
-        "@" + (u.username || "user");
-    }
-
-    if (bio) {
-      bio.textContent =
-        u.bio ||
-        "Welcome to Msafiri";
-    }
-
-    if (avatar) {
-      avatar.textContent =
-        (
-          u.full_name ||
-          u.username ||
-          "U"
-        )
-          .charAt(0)
-          .toUpperCase();
-    }
+    updateCurrentUserUI();
 
   } catch (error) {
 
-    console.error("Profile error:", error);
+    console.error(
+      'Profile loading error:',
+      error
+    );
 
   }
+
 }
 
-// ============================================
-// UTILS
-// ============================================
 
-function toast(msg) {
+// ============================================================
+// UNAUTHORIZED HANDLER
+// ============================================================
 
-  const t = document.createElement("div");
+function handleUnauthorized() {
 
-  t.className = "toast";
+  removeToken();
 
-  t.textContent = msg;
+  currentUser = null;
 
-  document.body.appendChild(t);
+  showAuth();
 
-  setTimeout(() => {
-    t.remove();
-  }, 2500);
-}
-
-function escape(str) {
-
-  const d = document.createElement("div");
-
-  d.textContent = str || "";
-
-  return d.innerHTML;
-}
-
-function timeAgo(iso) {
-
-  if (!iso) return "now";
-
-  const s = Math.floor(
-    (Date.now() - new Date(iso).getTime()) / 1000
+  toast(
+    'Your session has expired. Please login again.'
   );
 
-  if (s < 60) return s + "s";
-
-  if (s < 3600) {
-    return Math.floor(s / 60) + "m";
-  }
-
-  if (s < 86400) {
-    return Math.floor(s / 3600) + "h";
-  }
-
-  return Math.floor(s / 86400) + "d";
 }
 
-// ============================================
-// THEME
-// ============================================
 
-function toggleTheme() {
-
-  document.body.style.filter =
-    document.body.style.filter
-      ? ""
-      : "invert(1) hue-rotate(180deg)";
-
-  toast("Theme toggled");
-}
-
-// ============================================
+// ============================================================
 // LOGOUT
-// ============================================
+// ============================================================
 
 async function logout() {
 
   try {
 
-    await fetch(
+    await authFetch(
       `${API}/api/auth/logout`,
       {
-        method: "POST",
-        headers: authHeaders()
+        method: 'POST'
       }
     );
 
   } catch (error) {
 
-    console.error("Logout error:", error);
+    console.log(
+      'Logout request failed:',
+      error
+    );
 
   } finally {
 
-    clearToken();
+    removeToken();
 
     currentUser = null;
+
+    navStack = [];
 
     location.reload();
 
   }
+
 }
+
+
+// ============================================================
+// THEME
+// ============================================================
+
+function toggleTheme() {
+
+  const body =
+    document.body;
+
+  const isInverted =
+    body.dataset.themeInverted === 'true';
+
+  if (isInverted) {
+
+    body.style.filter = '';
+
+    body.dataset.themeInverted =
+      'false';
+
+    localStorage.setItem(
+      'msafiri_theme',
+      'normal'
+    );
+
+    toast('Light mode');
+
+  } else {
+
+    body.style.filter =
+      'invert(1) hue-rotate(180deg)';
+
+    body.dataset.themeInverted =
+      'true';
+
+    localStorage.setItem(
+      'msafiri_theme',
+      'inverted'
+    );
+
+    toast('Dark mode');
+
+  }
+
+}
+
+
+// ============================================================
+// RESTORE THEME
+// ============================================================
+
+function restoreTheme() {
+
+  const theme =
+    localStorage.getItem(
+      'msafiri_theme'
+    );
+
+  if (
+    theme === 'inverted'
+  ) {
+
+    document.body.style.filter =
+      'invert(1) hue-rotate(180deg)';
+
+    document.body.dataset.themeInverted =
+      'true';
+
+  }
+
+}
+
+restoreTheme();
+
+
+// ============================================================
+// TOAST
+// ============================================================
+
+function toast(message) {
+
+  const element =
+    document.createElement('div');
+
+  element.className =
+    'toast';
+
+  element.textContent =
+    String(message);
+
+  document.body.appendChild(
+    element
+  );
+
+  setTimeout(
+    () => {
+
+      element.remove();
+
+    },
+    2500
+  );
+
+}
+
+
+// ============================================================
+// HTML ESCAPING
+// ============================================================
+
+function escape(value) {
+
+  const element =
+    document.createElement('div');
+
+  element.textContent =
+    value == null
+      ? ''
+      : String(value);
+
+  return element.innerHTML;
+
+}
+
+
+function escapeAttr(value) {
+
+  return escape(value)
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+}
+
+
+// ============================================================
+// TIME AGO
+// ============================================================
+
+function timeAgo(iso) {
+
+  if (!iso) {
+    return 'now';
+  }
+
+  const timestamp =
+    new Date(iso).getTime();
+
+  if (
+    Number.isNaN(timestamp)
+  ) {
+    return 'now';
+  }
+
+  const seconds =
+    Math.floor(
+      (Date.now() - timestamp) / 1000
+    );
+
+  if (seconds < 0) {
+    return 'now';
+  }
+
+  if (seconds < 60) {
+    return `${seconds}s`;
+  }
+
+  if (seconds < 3600) {
+    return `${Math.floor(
+      seconds / 60
+    )}m`;
+  }
+
+  if (seconds < 86400) {
+    return `${Math.floor(
+      seconds / 3600
+    )}h`;
+  }
+
+  if (seconds < 604800) {
+    return `${Math.floor(
+      seconds / 86400
+    )}d`;
+  }
+
+  return new Date(
+    iso
+  ).toLocaleDateString();
+
+}
+
+
+// ============================================================
+// GLOBAL ERROR HANDLERS
+// ============================================================
+
+window.addEventListener(
+  'unhandledrejection',
+  event => {
+
+    console.error(
+      'Unhandled promise rejection:',
+      event.reason
+    );
+
+  }
+);
+
+
+window.addEventListener(
+  'error',
+  event => {
+
+    console.error(
+      'Application error:',
+      event.error || event.message
+    );
+
+  }
+);
+
+
+// ============================================================
+// DEBUG HELPERS
+// ============================================================
+
+window.MSAFIRI = {
+
+  getCurrentUser() {
+    return currentUser;
+  },
+
+  getToken() {
+    return getToken();
+  },
+
+  clearSession() {
+    removeToken();
+    currentUser = null;
+    location.reload();
+  },
+
+  async checkAuth() {
+    return checkAuth();
+  },
+
+  async health() {
+
+    try {
+
+      const response =
+        await fetch(
+          `${API}/api/health`
+        );
+
+      return await safeJson(
+        response
+      );
+
+    } catch (error) {
+
+      console.error(
+        'Health check failed:',
+        error
+      );
+
+      return null;
+    }
+
+  }
+
+};
+
+
+// ============================================================
+// END OF MSAFIRI GLOBAL MEDIA APP.JS
+// ============================================================

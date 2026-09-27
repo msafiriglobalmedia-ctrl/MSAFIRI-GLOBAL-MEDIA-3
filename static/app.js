@@ -1,3765 +1,3770 @@
-// ============================================================
-// MSAFIRI GLOBAL MEDIA
-// APP.JS — PHASE 2
-// AUTH + POSTS + MEDIA + LIKE + COMMENT + SAVE + SHARE
-// ============================================================
+/* ============================================================
+   MSAFIRI GLOBAL MEDIA
+   APP.JS — PHASE 2
+   ------------------------------------------------------------
+   Compatible with:
+   - FastAPI main.py
+   - /api/posts
+   - /api/profile
+   - /api/messages
+   - /api/discovery
+   - /api/ai-council
+   - /api/studio
+   - /api/market
+   - /api/world-map
+   - /api/channels
+   - /api/communities
+   - /api/user-manual
+   - /api/settings
+   - /api/health
+   ============================================================ */
 
-"use strict";
+'use strict';
 
-const API = "";
+/* ============================================================
+   GLOBAL CONFIG
+   ============================================================ */
 
-let currentUser = null;
-let currentFeed = "for-you";
-let navStack = [];
+const API = window.location.origin;
+
+const APP_NAME = 'MSAFIRI GLOBAL MEDIA';
+const APP_VERSION = '6.0.0-PHASE2';
+const APP_TAGLINE = 'Connect beyond — Media V0.0.1';
+
+const STORAGE = {
+    TOKEN: 'msafiri_token',
+    USER: 'msafiri_user',
+    THEME: 'msafiri_theme',
+    VIEW: 'msafiri_view'
+};
+
+let TOKEN = localStorage.getItem(STORAGE.TOKEN) || '';
+let CURRENT_USER = readJSON(STORAGE.USER, null);
+
+let CURRENT_VIEW =
+    localStorage.getItem(STORAGE.VIEW) || 'home';
+
+let CURRENT_POSTS = [];
+let CURRENT_CHATS = [];
+let CURRENT_PROFILE = null;
+
+let DISCOVERY_DATA = [];
+let SEARCH_RESULTS = [];
+
+let CURRENT_CHAT_USER = null;
+
+let AI_STATE = {
+    ai: 'education',
+    country: 'Tanzania',
+    level: 'Degree',
+    content: 'Notes'
+};
 
 
-// ============================================================
-// DOM HELPER
-// ============================================================
+/* ============================================================
+   DOM HELPERS
+   ============================================================ */
 
-const $ = (selector) =>
-    document.querySelector(selector);
+const $ = (selector, root = document) =>
+    root.querySelector(selector);
 
-const $$ = (selector) =>
-    document.querySelectorAll(selector);
+const $$ = (selector, root = document) =>
+    Array.from(root.querySelectorAll(selector));
 
-
-// ============================================================
-// API HELPER
-// ============================================================
-
-async function apiFetch(url, options = {}) {
-
-    const token =
-        localStorage.getItem("token");
-
-    const headers =
-        new Headers(
-            options.headers || {}
-        );
-
-    if (
-        !(options.body instanceof FormData) &&
-        !headers.has("Content-Type") &&
-        options.body
-    ) {
-        headers.set(
-            "Content-Type",
-            "application/json"
-        );
-    }
-
-    if (token) {
-        headers.set(
-            "Authorization",
-            `Bearer ${token}`
-        );
-    }
-
-    return fetch(
-        `${API}${url}`,
-        {
-            ...options,
-            headers,
-            credentials: "include",
-        }
-    );
+function byId(id) {
+    return document.getElementById(id);
 }
 
-
-// ============================================================
-// INIT
-// ============================================================
-
-document.addEventListener(
-    "DOMContentLoaded",
-    () => {
-
-        setTimeout(
-            () => {
-
-                const splash =
-                    $("#splash");
-
-                if (splash) {
-                    splash.classList.add(
-                        "hidden"
-                    );
-                }
-
-                checkAuth();
-
-            },
-            1500
-        );
-
-        setupAuthForms();
-        setupNavigation();
-        setupFeedTabs();
-        setupDotsMenu();
-        setupCreateButtons();
-    }
-);
-
-
-// ============================================================
-// AUTH CHECK
-// ============================================================
-
-async function checkAuth() {
-
-    const token =
-        localStorage.getItem("token");
-
-    if (!token) {
-        showAuth();
-        return;
+function safeText(value) {
+    if (value === null || value === undefined) {
+        return '';
     }
 
+    return String(value);
+}
+
+function escapeHTML(value) {
+    return safeText(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function readJSON(key, fallback = null) {
     try {
+        const value = localStorage.getItem(key);
 
-        const response =
-            await apiFetch(
-                "/api/auth/me"
-            );
-
-        if (!response.ok) {
-
-            localStorage.removeItem(
-                "token"
-            );
-
-            currentUser = null;
-
-            showAuth();
-
-            return;
+        if (!value) {
+            return fallback;
         }
 
-        currentUser =
-            await response.json();
-
-        showApp();
-
+        return JSON.parse(value);
     } catch (error) {
-
-        console.error(
-            "Auth error:",
-            error
-        );
-
-        showAuth();
+        console.warn('JSON storage error:', error);
+        return fallback;
     }
 }
 
-
-// ============================================================
-// SHOW AUTH
-// ============================================================
-
-function showAuth() {
-
-    const auth =
-        $("#auth-screen");
-
-    const app =
-        $("#app");
-
-    if (auth) {
-        auth.classList.remove(
-            "hidden"
+function saveJSON(key, value) {
+    try {
+        localStorage.setItem(
+            key,
+            JSON.stringify(value)
         );
-    }
-
-    if (app) {
-        app.classList.add(
-            "hidden"
-        );
+    } catch (error) {
+        console.warn('Storage save error:', error);
     }
 }
 
-
-// ============================================================
-// SHOW APP
-// ============================================================
-
-function showApp() {
-
-    const auth =
-        $("#auth-screen");
-
-    const app =
-        $("#app");
-
-    if (auth) {
-        auth.classList.add(
-            "hidden"
-        );
-    }
-
-    if (app) {
-        app.classList.remove(
-            "hidden"
-        );
-    }
-
-    loadHome();
-    loadDiscovery();
-    loadProfile();
-}
-
-
-// ============================================================
-// AUTH FORMS
-// ============================================================
-
-function setupAuthForms() {
-
-    $$(".auth-tab").forEach(
-        tab => {
-
-            tab.addEventListener(
-                "click",
-                () => {
-
-                    $$(".auth-tab")
-                        .forEach(
-                            t =>
-                                t.classList.remove(
-                                    "active"
-                                )
-                        );
-
-                    tab.classList.add(
-                        "active"
-                    );
-
-                    const target =
-                        tab.dataset.tab;
-
-                    const login =
-                        $("#login-form");
-
-                    const register =
-                        $("#register-form");
-
-                    if (login) {
-                        login.classList.toggle(
-                            "hidden",
-                            target !== "login"
-                        );
-                    }
-
-                    if (register) {
-                        register.classList.toggle(
-                            "hidden",
-                            target !== "register"
-                        );
-                    }
-                }
-            );
-        }
-    );
-
-
-    const loginForm =
-        $("#login-form");
-
-    if (loginForm) {
-
-        loginForm.addEventListener(
-            "submit",
-            async event => {
-
-                event.preventDefault();
-
-                const username =
-                    $("#login-username")
-                        ?.value
-                        ?.trim();
-
-                const password =
-                    $("#login-password")
-                        ?.value;
-
-                if (!username || !password) {
-                    toast(
-                        "Enter username and password"
-                    );
-                    return;
-                }
-
-                try {
-
-                    const response =
-                        await apiFetch(
-                            "/api/auth/login",
-                            {
-                                method: "POST",
-                                body: JSON.stringify({
-                                    username,
-                                    password,
-                                }),
-                            }
-                        );
-
-                    const data =
-                        await response.json();
-
-                    if (!response.ok) {
-
-                        toast(
-                            data.detail ||
-                            "Login failed"
-                        );
-
-                        return;
-                    }
-
-                    if (data.access_token) {
-
-                        localStorage.setItem(
-                            "token",
-                            data.access_token
-                        );
-                    }
-
-                    currentUser =
-                        data.user || null;
-
-                    toast(
-                        "Login successful"
-                    );
-
-                    showApp();
-
-                } catch (error) {
-
-                    console.error(error);
-
-                    toast(
-                        "Network error"
-                    );
-                }
-            }
-        );
-    }
-
-
-    const registerForm =
-        $("#register-form");
-
-    if (registerForm) {
-
-        registerForm.addEventListener(
-            "submit",
-            async event => {
-
-                event.preventDefault();
-
-                const username =
-                    $("#reg-username")
-                        ?.value
-                        ?.trim();
-
-                const email =
-                    $("#reg-email")
-                        ?.value
-                        ?.trim();
-
-                const full_name =
-                    $("#reg-fullname")
-                        ?.value
-                        ?.trim();
-
-                const password =
-                    $("#reg-password")
-                        ?.value;
-
-                if (
-                    !username ||
-                    !email ||
-                    !password
-                ) {
-
-                    toast(
-                        "Fill all required fields"
-                    );
-
-                    return;
-                }
-
-                try {
-
-                    const response =
-                        await apiFetch(
-                            "/api/auth/register",
-                            {
-                                method: "POST",
-                                body: JSON.stringify({
-                                    username,
-                                    email,
-                                    full_name,
-                                    password,
-                                }),
-                            }
-                        );
-
-                    const data =
-                        await response.json();
-
-                    if (!response.ok) {
-
-                        toast(
-                            data.detail ||
-                            "Registration failed"
-                        );
-
-                        return;
-                    }
-
-                    if (
-                        data.access_token
-                    ) {
-
-                        localStorage.setItem(
-                            "token",
-                            data.access_token
-                        );
-
-                        currentUser =
-                            data.user;
-
-                        toast(
-                            "Account created successfully"
-                        );
-
-                        showApp();
-
-                        return;
-                    }
-
-                    toast(
-                        "Account created. Please login."
-                    );
-
-                    const loginTab =
-                        $('[data-tab="login"]');
-
-                    if (loginTab) {
-                        loginTab.click();
-                    }
-
-                } catch (error) {
-
-                    console.error(error);
-
-                    toast(
-                        "Network error"
-                    );
-                }
-            }
-        );
+function removeStorage(key) {
+    try {
+        localStorage.removeItem(key);
+    } catch (error) {
+        console.warn(error);
     }
 }
 
-
-// ============================================================
-// NAVIGATION
-// ============================================================
-
-function setupNavigation() {
-
-    $$(".nav-btn").forEach(
-        btn => {
-
-            btn.addEventListener(
-                "click",
-                () => {
-
-                    const nav =
-                        btn.dataset.nav;
-
-                    $$(".nav-btn")
-                        .forEach(
-                            b =>
-                                b.classList.remove(
-                                    "active"
-                                )
-                        );
-
-                    btn.classList.add(
-                        "active"
-                    );
-
-                    $$(".page")
-                        .forEach(
-                            page =>
-                                page.classList.remove(
-                                    "active"
-                                )
-                        );
-
-                    const page =
-                        $(`#page-${nav}`);
-
-                    if (page) {
-                        page.classList.add(
-                            "active"
-                        );
-                    }
-
-                    const titles = {
-                        home: "MSAFIRI",
-                        discovery: "Discovery",
-                        chats: "Chats",
-                        profile: "Profile",
-                    };
-
-                    const title =
-                        $("#page-title");
-
-                    if (title) {
-                        title.textContent =
-                            titles[nav] ||
-                            "MSAFIRI";
-                    }
-
-                    navStack = [];
-
-                    if (
-                        nav === "home"
-                    ) {
-                        loadHome();
-                    }
-
-                    if (
-                        nav === "chats"
-                    ) {
-                        loadChats();
-                    }
-
-                    if (
-                        nav === "profile"
-                    ) {
-                        loadProfile();
-                    }
-
-                    if (
-                        nav === "discovery"
-                    ) {
-                        loadDiscovery();
-                    }
-                }
-            );
-        }
-    );
-
-
-    const back =
-        $("#back-btn");
-
-    if (back) {
-
-        back.addEventListener(
-            "click",
-            () => {
-
-                if (
-                    navStack.length > 0
-                ) {
-
-                    const previous =
-                        navStack.pop();
-
-                    previous();
-                }
-            }
-        );
-    }
+function sleep(ms) {
+    return new Promise(resolve => {
+        setTimeout(resolve, ms);
+    });
 }
 
 
-// ============================================================
-// SUB PAGE
-// ============================================================
+/* ============================================================
+   NOTIFICATION / TOAST
+   ============================================================ */
 
-function showSubPage(
-    title,
-    renderFn
+function showToast(message, type = 'info') {
+
+    let container =
+        byId('msafiri-toast-container');
+
+    if (!container) {
+        container = document.createElement('div');
+
+        container.id =
+            'msafiri-toast-container';
+
+        container.style.position = 'fixed';
+        container.style.left = '50%';
+        container.style.bottom = '85px';
+        container.style.transform = 'translateX(-50%)';
+        container.style.zIndex = '999999';
+        container.style.display = 'flex';
+        container.style.flexDirection = 'column';
+        container.style.gap = '8px';
+        container.style.pointerEvents = 'none';
+
+        document.body.appendChild(container);
+    }
+
+    const toast =
+        document.createElement('div');
+
+    toast.textContent = message;
+
+    toast.style.padding = '12px 18px';
+    toast.style.borderRadius = '14px';
+    toast.style.background =
+        type === 'error'
+            ? '#dc3545'
+            : type === 'success'
+                ? '#198754'
+                : '#212529';
+
+    toast.style.color = '#fff';
+    toast.style.fontSize = '14px';
+    toast.style.maxWidth = '90vw';
+    toast.style.boxShadow =
+        '0 8px 25px rgba(0,0,0,.25)';
+
+    container.appendChild(toast);
+
+    setTimeout(() => {
+        toast.remove();
+    }, 3500);
+}
+
+
+/* ============================================================
+   API REQUEST HELPER
+   ============================================================ */
+
+async function apiRequest(
+    path,
+    options = {}
 ) {
 
-    const current =
-        document.querySelector(
-            ".page.active"
-        );
-
-    navStack.push(
-        () => {
-
-            const sub =
-                $("#page-sub");
-
-            if (sub) {
-                sub.classList.remove(
-                    "active"
-                );
-            }
-
-            if (current) {
-                current.classList.add(
-                    "active"
-                );
-            }
-
-            const back =
-                $("#back-btn");
-
-            if (back) {
-                back.classList.add(
-                    "hidden"
-                );
-            }
-
-            const pageTitle =
-                $("#page-title");
-
-            if (pageTitle) {
-                pageTitle.textContent =
-                    "MSAFIRI";
-            }
+    const config = {
+        ...options,
+        headers: {
+            ...(options.headers || {})
         }
-    );
+    };
 
-    $$(".page")
-        .forEach(
-            p =>
-                p.classList.remove(
-                    "active"
-                )
-        );
-
-    const sub =
-        $("#page-sub");
-
-    if (!sub) return;
-
-    sub.classList.add(
-        "active"
-    );
-
-    const pageTitle =
-        $("#page-title");
-
-    if (pageTitle) {
-        pageTitle.textContent =
-            title;
+    if (!(config.body instanceof FormData)) {
+        config.headers['Content-Type'] =
+            config.headers['Content-Type'] ||
+            'application/json';
     }
 
-    const back =
-        $("#back-btn");
-
-    if (back) {
-        back.classList.remove(
-            "hidden"
-        );
+    if (TOKEN) {
+        config.headers.Authorization =
+            `Bearer ${TOKEN}`;
     }
 
-    const content =
-        $("#sub-content");
+    const response =
+        await fetch(`${API}${path}`, config);
 
-    if (content) {
-        renderFn(content);
-    }
-}
+    let data = null;
 
+    const contentType =
+        response.headers.get('content-type') || '';
 
-// ============================================================
-// HOME
-// ============================================================
-
-async function loadHome() {
-
-    await loadStories();
-    await loadFeed();
-}
-
-
-// ============================================================
-// FEED TABS
-// ============================================================
-
-function setupFeedTabs() {
-
-    $$(".feed-tab").forEach(
-        tab => {
-
-            tab.addEventListener(
-                "click",
-                () => {
-
-                    $$(".feed-tab")
-                        .forEach(
-                            t =>
-                                t.classList.remove(
-                                    "active"
-                                )
-                        );
-
-                    tab.classList.add(
-                        "active"
-                    );
-
-                    currentFeed =
-                        tab.dataset.feed ||
-                        "for-you";
-
-                    loadFeed();
-                }
-            );
+    if (contentType.includes('application/json')) {
+        try {
+            data = await response.json();
+        } catch {
+            data = null;
         }
-    );
+    } else {
+        try {
+            data = await response.text();
+        } catch {
+            data = null;
+        }
+    }
+
+    if (!response.ok) {
+
+        let message =
+            data?.detail ||
+            data?.message ||
+            `Request failed (${response.status})`;
+
+        if (response.status === 401) {
+            message =
+                'Your session has expired. Please login again.';
+        }
+
+        if (response.status === 405) {
+            message =
+                'This action is not allowed by the current backend route.';
+        }
+
+        const error =
+            new Error(message);
+
+        error.status = response.status;
+        error.data = data;
+
+        throw error;
+    }
+
+    return data;
 }
 
 
-// ============================================================
-// STORIES
-// ============================================================
+/* ============================================================
+   API SHORTCUTS
+   ============================================================ */
 
-async function loadStories() {
+async function GET(path) {
+    return apiRequest(path, {
+        method: 'GET'
+    });
+}
 
-    try {
+async function POST(path, body = null) {
 
-        const response =
-            await apiFetch(
-                "/api/stories"
-            );
+    const options = {
+        method: 'POST'
+    };
 
-        if (!response.ok) return;
+    if (body instanceof FormData) {
+        options.body = body;
+    } else if (body !== null) {
+        options.body = JSON.stringify(body);
+    }
 
-        const data =
-            await response.json();
+    return apiRequest(path, options);
+}
 
-        const bar =
-            $("#stories-bar");
+async function PATCH(path, body = {}) {
+    return apiRequest(path, {
+        method: 'PATCH',
+        body: JSON.stringify(body)
+    });
+}
 
-        if (!bar) return;
+async function DELETE(path) {
+    return apiRequest(path, {
+        method: 'DELETE'
+    });
+}
 
-        bar.querySelectorAll(
-            ".story-item:not(.add-story)"
-        ).forEach(
-            item => item.remove()
+
+/* ============================================================
+   AUTH STATE
+   ============================================================ */
+
+function setAuth(token, user = null) {
+
+    TOKEN = token || '';
+
+    if (TOKEN) {
+        localStorage.setItem(
+            STORAGE.TOKEN,
+            TOKEN
         );
+    } else {
+        removeStorage(STORAGE.TOKEN);
+    }
 
-        (data.stories || [])
-            .forEach(
-                story => {
+    if (user) {
+        CURRENT_USER = user;
 
-                    const item =
-                        document.createElement(
-                            "div"
-                        );
-
-                    item.className =
-                        "story-item";
-
-                    const name =
-                        story.username ||
-                        "User";
-
-                    item.innerHTML = `
-                        <div class="story-avatar">
-                            ${escapeHtml(
-                                name
-                                    .charAt(0)
-                                    .toUpperCase()
-                            )}
-                        </div>
-                        <span>
-                            ${escapeHtml(name)}
-                        </span>
-                    `;
-
-                    bar.appendChild(
-                        item
-                    );
-                }
-            );
-
-    } catch (error) {
-
-        console.error(
-            "Stories:",
-            error
+        saveJSON(
+            STORAGE.USER,
+            CURRENT_USER
         );
+    }
+
+    updateAuthUI();
+}
+
+function clearAuth() {
+
+    TOKEN = '';
+    CURRENT_USER = null;
+
+    removeStorage(STORAGE.TOKEN);
+    removeStorage(STORAGE.USER);
+
+    updateAuthUI();
+}
+
+function isLoggedIn() {
+    return Boolean(TOKEN);
+}
+
+function updateAuthUI() {
+
+    document.body.classList.toggle(
+        'msafiri-authenticated',
+        isLoggedIn()
+    );
+
+    document.body.classList.toggle(
+        'msafiri-guest',
+        !isLoggedIn()
+    );
+
+    const userName =
+        CURRENT_USER?.full_name ||
+        CURRENT_USER?.username ||
+        'User';
+
+    $$('[data-current-user-name]')
+        .forEach(el => {
+            el.textContent = userName;
+        });
+
+    $$('[data-current-username]')
+        .forEach(el => {
+            el.textContent =
+                CURRENT_USER?.username
+                    ? `@${CURRENT_USER.username}`
+                    : '';
+        });
+
+    $$('[data-current-avatar]')
+        .forEach(el => {
+
+            const avatar =
+                CURRENT_USER?.avatar_url || '';
+
+            if (avatar) {
+                el.src = absoluteURL(avatar);
+            }
+        });
+}
+
+
+/* ============================================================
+   URL HELPERS
+   ============================================================ */
+
+function absoluteURL(url) {
+
+    if (!url) {
+        return '';
+    }
+
+    if (
+        url.startsWith('http://') ||
+        url.startsWith('https://') ||
+        url.startsWith('data:')
+    ) {
+        return url;
+    }
+
+    if (url.startsWith('/')) {
+        return `${API}${url}`;
+    }
+
+    return `${API}/${url}`;
+}
+
+
+/* ============================================================
+   VIEW NAVIGATION
+   ============================================================ */
+
+function setView(view) {
+
+    CURRENT_VIEW = view;
+
+    localStorage.setItem(
+        STORAGE.VIEW,
+        view
+    );
+
+    $$('[data-view]').forEach(el => {
+
+        const target =
+            el.dataset.view;
+
+        el.classList.toggle(
+            'active',
+            target === view
+        );
+    });
+
+    $$(
+        '[data-page]'
+    ).forEach(page => {
+
+        const pageName =
+            page.dataset.page;
+
+        page.hidden =
+            pageName !== view;
+    });
+
+    if (view === 'home') {
+        loadFeed();
+    }
+
+    if (view === 'discovery') {
+        loadDiscovery();
+    }
+
+    if (view === 'chats') {
+        loadChats();
+    }
+
+    if (view === 'profile') {
+        loadOwnProfile();
     }
 }
 
 
-// ============================================================
-// FEED
-// ============================================================
+/* ============================================================
+   FIND OR CREATE APP CONTAINER
+   ============================================================ */
+
+function getAppContainer() {
+
+    let app =
+        byId('app');
+
+    if (!app) {
+        app =
+            document.querySelector(
+                '[data-app]'
+            );
+    }
+
+    return app || document.body;
+}
+
+
+/* ============================================================
+   FEED
+   ============================================================ */
 
 async function loadFeed() {
 
-    const feed =
-        $("#feed");
-
-    if (!feed) return;
-
-    feed.innerHTML = `
-        <p class="muted"
-           style="text-align:center;padding:20px;">
-            Loading posts...
-        </p>
-    `;
-
-    try {
-
-        const response =
-            await apiFetch(
-                `/api/feed?type=${encodeURIComponent(
-                    currentFeed
-                )}`
-            );
-
-        if (!response.ok) {
-
-            throw new Error(
-                "Feed request failed"
-            );
-        }
-
-        const data =
-            await response.json();
-
-        const posts =
-            data.posts || [];
-
-        if (
-            posts.length === 0
-        ) {
-
-            feed.innerHTML = `
-                <div class="empty-state"
-                     style="text-align:center;padding:40px 20px;">
-                    <div style="font-size:40px;">
-                        📝
-                    </div>
-                    <h3>No posts yet</h3>
-                    <p class="muted">
-                        Be the first to share something.
-                    </p>
-                    <button
-                        class="btn-primary"
-                        id="empty-create-post">
-                        Create Post
-                    </button>
-                </div>
-            `;
-
-            const button =
-                $("#empty-create-post");
-
-            if (button) {
-                button.addEventListener(
-                    "click",
-                    openPostComposer
-                );
-            }
-
-            return;
-        }
-
-        feed.innerHTML = "";
-
-        posts.forEach(
-            post => {
-
-                feed.appendChild(
-                    renderPost(post)
-                );
-            }
+    const container =
+        byId('feed') ||
+        document.querySelector(
+            '[data-feed]'
         );
 
-    } catch (error) {
+    if (!container) {
+        return;
+    }
 
-        console.error(
-            "Feed error:",
-            error
-        );
+    container.innerHTML =
+        '<div class="loading">Loading posts...</div>';
 
-        feed.innerHTML = `
-            <div style="text-align:center;padding:30px;">
-                <p class="muted">
-                    Failed to load posts.
-                </p>
-                <button
-                    class="btn-primary"
-                    id="retry-feed">
-                    Retry
-                </button>
-            </div>
-        `;
+    const possibleEndpoints = [
+        '/api/feed',
+        '/api/posts',
+        '/api/posts/feed'
+    ];
 
-        const retry =
-            $("#retry-feed");
+    let result = null;
 
-        if (retry) {
-            retry.addEventListener(
-                "click",
-                loadFeed
-            );
+    for (const endpoint of possibleEndpoints) {
+
+        try {
+            result = await GET(endpoint);
+
+            if (result) {
+                break;
+            }
+
+        } catch (error) {
+
+            if (
+                error.status !== 404 &&
+                error.status !== 405
+            ) {
+                console.warn(
+                    endpoint,
+                    error
+                );
+            }
         }
     }
+
+    if (!result) {
+        container.innerHTML =
+            emptyState(
+                'No posts available yet.'
+            );
+        return;
+    }
+
+    const posts =
+        normalizePosts(result);
+
+    CURRENT_POSTS = posts;
+
+    renderPosts(
+        posts,
+        container
+    );
 }
 
+function normalizePosts(data) {
 
-// ============================================================
-// RENDER POST
-// ============================================================
+    if (Array.isArray(data)) {
+        return data;
+    }
+
+    if (Array.isArray(data?.posts)) {
+        return data.posts;
+    }
+
+    if (Array.isArray(data?.items)) {
+        return data.items;
+    }
+
+    if (Array.isArray(data?.feed)) {
+        return data.feed;
+    }
+
+    return [];
+}
+
+function renderPosts(posts, container) {
+
+    if (!posts.length) {
+        container.innerHTML =
+            emptyState(
+                'No posts yet. Be the first to post.'
+            );
+
+        return;
+    }
+
+    container.innerHTML =
+        posts
+            .map(renderPost)
+            .join('');
+
+    bindPostEvents(container);
+}
 
 function renderPost(post) {
 
-    const card =
-        document.createElement(
-            "article"
+    const avatar =
+        absoluteURL(
+            post.avatar_url
         );
-
-    card.className =
-        "post-card";
-
-    card.dataset.postId =
-        post.id;
 
     const name =
         post.full_name ||
         post.username ||
-        `User ${post.user_id}`;
+        'User';
 
-    const initial =
-        name
-            .charAt(0)
-            .toUpperCase();
+    const username =
+        post.username
+            ? `@${post.username}`
+            : '';
 
-    const avatar =
-        post.avatar_url
-            ? `
-                <img
-                    src="${escapeAttribute(
-                        post.avatar_url
-                    )}"
-                    alt=""
-                    class="post-avatar-img"
-                >
-              `
-            : `
-                <div class="post-avatar">
-                    ${escapeHtml(initial)}
-                </div>
-              `;
+    const media =
+        renderPostMedia(post);
 
-    let media = "";
+    return `
+        <article
+            class="msafiri-post"
+            data-post-id="${escapeHTML(post.id)}"
+        >
 
-    if (
-        post.media_url &&
-        post.media_type === "image"
-    ) {
+            <header class="post-header">
 
-        media = `
-            <div class="post-media-wrap">
-                <img
-                    class="post-media"
-                    src="${escapeAttribute(
-                        post.media_url
-                    )}"
-                    alt="Post image"
-                    loading="lazy"
-                >
-            </div>
-        `;
-    }
-
-    if (
-        post.media_url &&
-        post.media_type === "video"
-    ) {
-
-        media = `
-            <div class="post-media-wrap">
-                <video
-                    class="post-video"
-                    src="${escapeAttribute(
-                        post.media_url
-                    )}"
-                    controls
-                    playsinline
-                    preload="metadata">
-                </video>
-            </div>
-        `;
-    }
-
-    const liked =
-        post.liked
-            ? "liked"
-            : "";
-
-    const saved =
-        post.saved
-            ? "saved"
-            : "";
-
-    const deleteButton =
-        currentUser &&
-        Number(currentUser.id) ===
-            Number(post.user_id)
-            ? `
                 <button
-                    class="post-menu-delete"
-                    data-action="delete-post">
-                    Delete
-                </button>
-              `
-            : "";
-
-    card.innerHTML = `
-        <div class="post-header">
-
-            ${avatar}
-
-            <div class="post-user">
-                <strong>
-                    ${escapeHtml(name)}
-                </strong>
-
-                <span>
-                    @${escapeHtml(
-                        post.username ||
-                        "user"
-                    )}
-                    ·
-                    ${timeAgo(
-                        post.created_at
-                    )}
-                </span>
-            </div>
-
-            <div class="post-more">
-                ${deleteButton}
-            </div>
-
-        </div>
-
-        ${
-            post.caption
-                ? `
-                    <p class="post-caption">
-                        ${escapeHtml(
-                            post.caption
-                        )}
-                    </p>
-                  `
-                : ""
-        }
-
-        ${media}
-
-        <div class="post-actions">
-
-            <button
-                class="post-action like-btn ${liked}"
-                data-action="like">
-                ❤️
-                <span class="like-count">
-                    ${post.likes || 0}
-                </span>
-            </button>
-
-            <button
-                class="post-action comment-btn"
-                data-action="comments">
-                💬
-                <span class="comment-count">
-                    ${post.comments || 0}
-                </span>
-            </button>
-
-            <button
-                class="post-action share-btn"
-                data-action="share">
-                ↗️
-                <span class="share-count">
-                    ${post.shares || 0}
-                </span>
-            </button>
-
-            <button
-                class="post-action save-btn ${saved}"
-                data-action="save">
-                🔖
-                <span class="save-count">
-                    ${post.saves || 0}
-                </span>
-            </button>
-
-        </div>
-
-        <div
-            class="comments-area"
-            data-comments-area>
-        </div>
-    `;
-
-    card.addEventListener(
-        "click",
-        event => {
-
-            const actionButton =
-                event.target.closest(
-                    "[data-action]"
-                );
-
-            if (!actionButton) {
-                return;
-            }
-
-            const action =
-                actionButton.dataset.action;
-
-            if (action === "like") {
-                handleLike(
-                    post.id,
-                    card,
-                    actionButton
-                );
-            }
-
-            if (
-                action === "comments"
-            ) {
-                toggleComments(
-                    post.id,
-                    card
-                );
-            }
-
-            if (
-                action === "share"
-            ) {
-                handleShare(
-                    post.id,
-                    actionButton
-                );
-            }
-
-            if (
-                action === "save"
-            ) {
-                handleSave(
-                    post.id,
-                    actionButton
-                );
-            }
-
-            if (
-                action === "delete-post"
-            ) {
-                handleDeletePost(
-                    post.id
-                );
-            }
-        }
-    );
-
-    return card;
-}
-
-
-// ============================================================
-// LIKE
-// ============================================================
-
-async function handleLike(
-    postId,
-    card,
-    button
-) {
-
-    if (!ensureLoggedIn()) {
-        return;
-    }
-
-    try {
-
-        const response =
-            await apiFetch(
-                `/api/posts/${postId}/like`,
-                {
-                    method: "POST",
-                }
-            );
-
-        const data =
-            await response.json();
-
-        if (!response.ok) {
-
-            toast(
-                data.detail ||
-                "Unable to like post"
-            );
-
-            return;
-        }
-
-        button.classList.toggle(
-            "liked",
-            Boolean(data.liked)
-        );
-
-        const count =
-            button.querySelector(
-                ".like-count"
-            );
-
-        if (count) {
-            count.textContent =
-                data.likes;
-        }
-
-    } catch (error) {
-
-        console.error(error);
-
-        toast(
-            "Network error"
-        );
-    }
-}
-
-
-// ============================================================
-// SAVE
-// ============================================================
-
-async function handleSave(
-    postId,
-    button
-) {
-
-    if (!ensureLoggedIn()) {
-        return;
-    }
-
-    try {
-
-        const response =
-            await apiFetch(
-                `/api/posts/${postId}/save`,
-                {
-                    method: "POST",
-                }
-            );
-
-        const data =
-            await response.json();
-
-        if (!response.ok) {
-
-            toast(
-                data.detail ||
-                "Unable to save post"
-            );
-
-            return;
-        }
-
-        button.classList.toggle(
-            "saved",
-            Boolean(data.saved)
-        );
-
-        const count =
-            button.querySelector(
-                ".save-count"
-            );
-
-        if (count) {
-            count.textContent =
-                data.saves;
-        }
-
-        toast(
-            data.saved
-                ? "Post saved"
-                : "Removed from saved"
-        );
-
-    } catch (error) {
-
-        console.error(error);
-
-        toast(
-            "Network error"
-        );
-    }
-}
-
-
-// ============================================================
-// SHARE
-// ============================================================
-
-async function handleShare(
-    postId,
-    button
-) {
-
-    if (!ensureLoggedIn()) {
-        return;
-    }
-
-    try {
-
-        const response =
-            await apiFetch(
-                `/api/posts/${postId}/share`,
-                {
-                    method: "POST",
-                }
-            );
-
-        const data =
-            await response.json();
-
-        if (!response.ok) {
-
-            toast(
-                data.detail ||
-                "Unable to share"
-            );
-
-            return;
-        }
-
-        const count =
-            button.querySelector(
-                ".share-count"
-            );
-
-        if (count) {
-            count.textContent =
-                data.shares;
-        }
-
-        const shareUrl =
-            `${window.location.origin}/?post=${postId}`;
-
-        if (
-            navigator.clipboard &&
-            navigator.clipboard.writeText
-        ) {
-
-            await navigator.clipboard.writeText(
-                shareUrl
-            );
-
-            toast(
-                "Post shared and link copied"
-            );
-
-        } else {
-
-            toast(
-                "Post shared"
-            );
-        }
-
-    } catch (error) {
-
-        console.error(error);
-
-        toast(
-            "Network error"
-        );
-    }
-}
-
-
-// ============================================================
-// COMMENTS
-// ============================================================
-
-async function toggleComments(
-    postId,
-    card
-) {
-
-    const area =
-        card.querySelector(
-            "[data-comments-area]"
-        );
-
-    if (!area) return;
-
-    if (
-        area.classList.contains(
-            "open"
-        )
-    ) {
-
-        area.classList.remove(
-            "open"
-        );
-
-        area.innerHTML = "";
-
-        return;
-    }
-
-    area.classList.add(
-        "open"
-    );
-
-    area.innerHTML = `
-        <div class="comments-loading">
-            Loading comments...
-        </div>
-    `;
-
-    try {
-
-        const response =
-            await apiFetch(
-                `/api/posts/${postId}/comments`
-            );
-
-        const data =
-            await response.json();
-
-        if (!response.ok) {
-
-            area.innerHTML = `
-                <p class="muted">
-                    Failed to load comments.
-                </p>
-            `;
-
-            return;
-        }
-
-        renderComments(
-            postId,
-            area,
-            data.comments || []
-        );
-
-    } catch (error) {
-
-        console.error(error);
-
-        area.innerHTML = `
-            <p class="muted">
-                Failed to load comments.
-            </p>
-        `;
-    }
-}
-
-
-function renderComments(
-    postId,
-    area,
-    comments
-) {
-
-    const list =
-        comments.length
-            ? comments
-                .map(
-                    comment => `
-                        <div class="comment-item">
-
-                            <div class="comment-avatar">
-                                ${escapeHtml(
-                                    (
-                                        comment.full_name ||
-                                        comment.username ||
-                                        "U"
-                                    )
-                                        .charAt(0)
-                                        .toUpperCase()
+                    class="post-user"
+                    data-open-profile="${escapeHTML(post.user_id || '')}"
+                >
+
+                    ${
+                        avatar
+                            ? `<img
+                                src="${escapeHTML(avatar)}"
+                                alt=""
+                                class="post-avatar"
+                              >`
+                            : `<div class="post-avatar placeholder">
+                                ${escapeHTML(
+                                    name.charAt(0).toUpperCase()
                                 )}
-                            </div>
-
-                            <div class="comment-body">
-                                <strong>
-                                    ${escapeHtml(
-                                        comment.full_name ||
-                                        comment.username ||
-                                        "User"
-                                    )}
-                                </strong>
-
-                                <p>
-                                    ${escapeHtml(
-                                        comment.text
-                                    )}
-                                </p>
-
-                                <small>
-                                    ${timeAgo(
-                                        comment.created_at
-                                    )}
-                                </small>
-                            </div>
-
-                        </div>
-                    `
-                )
-                .join("")
-            : `
-                <p class="muted">
-                    No comments yet.
-                </p>
-              `;
-
-    area.innerHTML = `
-        <div class="comments-list">
-            ${list}
-        </div>
-
-        ${
-            currentUser
-                ? `
-                    <form
-                        class="comment-form"
-                        data-comment-form>
-
-                        <input
-                            type="text"
-                            name="comment"
-                            placeholder="Write a comment..."
-                            autocomplete="off"
-                            required
-                        >
-
-                        <button
-                            type="submit"
-                            class="btn-primary">
-                            Send
-                        </button>
-
-                    </form>
-                  `
-                : ""
-        }
-    `;
-
-    const form =
-        area.querySelector(
-            "[data-comment-form]"
-        );
-
-    if (form) {
-
-        form.addEventListener(
-            "submit",
-            async event => {
-
-                event.preventDefault();
-
-                const input =
-                    form.querySelector(
-                        'input[name="comment"]'
-                    );
-
-                const text =
-                    input.value.trim();
-
-                if (!text) return;
-
-                const formData =
-                    new FormData();
-
-                formData.append(
-                    "text",
-                    text
-                );
-
-                try {
-
-                    const response =
-                        await apiFetch(
-                            `/api/posts/${postId}/comments`,
-                            {
-                                method: "POST",
-                                body: formData,
-                            }
-                        );
-
-                    const data =
-                        await response.json();
-
-                    if (!response.ok) {
-
-                        toast(
-                            data.detail ||
-                            "Comment failed"
-                        );
-
-                        return;
+                              </div>`
                     }
 
-                    input.value = "";
-
-                    await refreshComments(
-                        postId,
-                        area
-                    );
-
-                    const card =
-                        area.closest(
-                            ".post-card"
-                        );
-
-                    const count =
-                        card?.querySelector(
-                            ".comment-count"
-                        );
-
-                    if (count) {
-                        count.textContent =
-                            data.comments;
-                    }
-
-                } catch (error) {
-
-                    console.error(error);
-
-                    toast(
-                        "Network error"
-                    );
-                }
-            }
-        );
-    }
-}
-
-
-async function refreshComments(
-    postId,
-    area
-) {
-
-    const response =
-        await apiFetch(
-            `/api/posts/${postId}/comments`
-        );
-
-    const data =
-        await response.json();
-
-    if (response.ok) {
-
-        renderComments(
-            postId,
-            area,
-            data.comments || []
-        );
-    }
-}
-
-
-// ============================================================
-// DELETE POST
-// ============================================================
-
-async function handleDeletePost(
-    postId
-) {
-
-    if (
-        !confirm(
-            "Delete this post?"
-        )
-    ) {
-        return;
-    }
-
-    try {
-
-        const response =
-            await apiFetch(
-                `/api/posts/${postId}`,
-                {
-                    method: "DELETE",
-                }
-            );
-
-        const data =
-            await response.json();
-
-        if (!response.ok) {
-
-            toast(
-                data.detail ||
-                "Unable to delete post"
-            );
-
-            return;
-        }
-
-        const card =
-            document.querySelector(
-                `[data-post-id="${postId}"]`
-            );
-
-        if (card) {
-            card.remove();
-        }
-
-        toast(
-            "Post deleted"
-        );
-
-    } catch (error) {
-
-        console.error(error);
-
-        toast(
-            "Network error"
-        );
-    }
-}
-
-
-// ============================================================
-// CREATE BUTTON SETUP
-// ============================================================
-
-function setupCreateButtons() {
-
-    const selectors = [
-        "#create-btn",
-        "#add-post-btn",
-        ".create-btn",
-        ".fab-create",
-        '[data-action="create"]',
-        '[data-nav="create"]'
-    ];
-
-    selectors.forEach(
-        selector => {
-
-            $$(selector).forEach(
-                button => {
-
-                    button.addEventListener(
-                        "click",
-                        event => {
-
-                            event.preventDefault();
-
-                            openPostComposer();
-                        }
-                    );
-                }
-            );
-        }
-    );
-
-
-    /*
-     * Kama HTML yako haina create button,
-     * tunatengeneza floating button.
-     */
-
-    if (
-        !document.querySelector(
-            "#dynamic-create-post"
-        )
-    ) {
-
-        const button =
-            document.createElement(
-                "button"
-            );
-
-        button.id =
-            "dynamic-create-post";
-
-        button.type =
-            "button";
-
-        button.textContent =
-            "+";
-
-        button.title =
-            "Create Post";
-
-        button.style.cssText = `
-            position:fixed;
-            right:20px;
-            bottom:85px;
-            width:58px;
-            height:58px;
-            border-radius:50%;
-            border:none;
-            background:linear-gradient(
-                135deg,
-                #6c5ce7,
-                #8e44ad
-            );
-            color:white;
-            font-size:30px;
-            font-weight:bold;
-            z-index:9999;
-            cursor:pointer;
-            box-shadow:0 8px 25px rgba(0,0,0,.25);
-        `;
-
-        button.addEventListener(
-            "click",
-            openPostComposer
-        );
-
-        document.body.appendChild(
-            button
-        );
-    }
-}
-
-
-// ============================================================
-// POST COMPOSER
-// ============================================================
-
-function openPostComposer() {
-
-    if (!ensureLoggedIn()) {
-        return;
-    }
-
-    let modal =
-        $("#post-composer-modal");
-
-    if (modal) {
-
-        modal.classList.remove(
-            "hidden"
-        );
-
-        return;
-    }
-
-    modal =
-        document.createElement(
-            "div"
-        );
-
-    modal.id =
-        "post-composer-modal";
-
-    modal.innerHTML = `
-        <div class="post-composer-overlay">
-
-            <div class="post-composer-card">
-
-                <div class="composer-header">
-
-                    <h2>
-                        Create Post
-                    </h2>
-
-                    <button
-                        type="button"
-                        id="close-composer">
-                        ×
-                    </button>
-
-                </div>
-
-                <div class="composer-user">
-
-                    <div class="composer-avatar">
-                        ${escapeHtml(
-                            (
-                                currentUser?.full_name ||
-                                currentUser?.username ||
-                                "U"
-                            )
-                                .charAt(0)
-                                .toUpperCase()
-                        )}
-                    </div>
-
-                    <div>
+                    <span>
                         <strong>
-                            ${escapeHtml(
-                                currentUser?.full_name ||
-                                currentUser?.username ||
-                                "User"
-                            )}
+                            ${escapeHTML(name)}
                         </strong>
 
                         <small>
-                            Public
+                            ${escapeHTML(username)}
                         </small>
-                    </div>
-
-                </div>
-
-                <textarea
-                    id="post-caption-input"
-                    placeholder="What's happening?"
-                    maxlength="5000"></textarea>
-
-                <div
-                    id="post-media-preview"
-                    class="media-preview">
-                </div>
-
-                <div class="composer-tools">
-
-                    <label
-                        class="composer-tool">
-
-                        🖼️ Photo
-
-                        <input
-                            type="file"
-                            id="post-image-input"
-                            accept="image/*"
-                            hidden>
-
-                    </label>
-
-                    <label
-                        class="composer-tool">
-
-                        🎬 Video
-
-                        <input
-                            type="file"
-                            id="post-video-input"
-                            accept="video/*"
-                            hidden>
-
-                    </label>
-
-                    <button
-                        type="button"
-                        id="remove-media"
-                        class="composer-tool hidden">
-                        ✕ Remove
-                    </button>
-
-                </div>
-
-                <div class="composer-footer">
-
-                    <span
-                        id="upload-status"
-                        class="muted">
                     </span>
 
-                    <button
-                        type="button"
-                        id="publish-post"
-                        class="btn-primary">
-                        Post
-                    </button>
+                </button>
 
-                </div>
+                <button
+                    class="post-more"
+                    data-post-menu="${escapeHTML(post.id)}"
+                >
+                    ⋯
+                </button>
+
+            </header>
+
+            ${
+                post.caption
+                    ? `<div class="post-caption">
+                        ${escapeHTML(post.caption)}
+                       </div>`
+                    : ''
+            }
+
+            ${media}
+
+            <div class="post-actions">
+
+                <button
+                    data-like-post="${post.id}"
+                    class="${post.liked ? 'active' : ''}"
+                >
+                    ❤️
+                    <span>${post.likes || 0}</span>
+                </button>
+
+                <button
+                    data-comment-post="${post.id}"
+                >
+                    💬
+                    <span>${post.comments || 0}</span>
+                </button>
+
+                <button
+                    data-save-post="${post.id}"
+                    class="${post.saved ? 'active' : ''}"
+                >
+                    🔖
+                    <span>${post.saves || 0}</span>
+                </button>
+
+                <button
+                    data-share-post="${post.id}"
+                >
+                    ↗️
+                    <span>${post.shares || 0}</span>
+                </button>
 
             </div>
 
-        </div>
+        </article>
     `;
-
-    document.body.appendChild(
-        modal
-    );
-
-    injectComposerStyles();
-
-    setupComposerEvents(
-        modal
-    );
 }
 
+function renderPostMedia(post) {
 
-function setupComposerEvents(
-    modal
-) {
-
-    const close =
-        modal.querySelector(
-            "#close-composer"
-        );
-
-    const imageInput =
-        modal.querySelector(
-            "#post-image-input"
-        );
-
-    const videoInput =
-        modal.querySelector(
-            "#post-video-input"
-        );
-
-    const remove =
-        modal.querySelector(
-            "#remove-media"
-        );
-
-    const publish =
-        modal.querySelector(
-            "#publish-post"
-        );
-
-    if (close) {
-
-        close.addEventListener(
-            "click",
-            closePostComposer
-        );
+    if (!post.media_url) {
+        return '';
     }
-
-    imageInput?.addEventListener(
-        "change",
-        () => {
-
-            if (
-                imageInput.files &&
-                imageInput.files[0]
-            ) {
-
-                videoInput.value =
-                    "";
-
-                showMediaPreview(
-                    imageInput.files[0]
-                );
-            }
-        }
-    );
-
-    videoInput?.addEventListener(
-        "change",
-        () => {
-
-            if (
-                videoInput.files &&
-                videoInput.files[0]
-            ) {
-
-                imageInput.value =
-                    "";
-
-                showMediaPreview(
-                    videoInput.files[0]
-                );
-            }
-        }
-    );
-
-    remove?.addEventListener(
-        "click",
-        () => {
-
-            imageInput.value =
-                "";
-
-            videoInput.value =
-                "";
-
-            clearMediaPreview();
-        }
-    );
-
-    publish?.addEventListener(
-        "click",
-        publishPost
-    );
-
-
-    modal.addEventListener(
-        "click",
-        event => {
-
-            if (
-                event.target.classList.contains(
-                    "post-composer-overlay"
-                )
-            ) {
-
-                closePostComposer();
-            }
-        }
-    );
-}
-
-
-// ============================================================
-// MEDIA PREVIEW
-// ============================================================
-
-function showMediaPreview(
-    file
-) {
-
-    const preview =
-        $("#post-media-preview");
-
-    const remove =
-        $("#remove-media");
-
-    if (!preview) return;
 
     const url =
-        URL.createObjectURL(
-            file
+        absoluteURL(
+            post.media_url
         );
 
-    if (
-        file.type.startsWith(
-            "image/"
-        )
-    ) {
+    if (post.media_type === 'video') {
 
-        preview.innerHTML = `
-            <img
-                src="${url}"
-                alt="Preview">
-        `;
-
-    } else if (
-        file.type.startsWith(
-            "video/"
-        )
-    ) {
-
-        preview.innerHTML = `
+        return `
             <video
-                src="${url}"
+                class="post-media"
+                src="${escapeHTML(url)}"
                 controls
-                playsinline>
-            </video>
+                playsinline
+                preload="metadata"
+            ></video>
         `;
     }
 
-    remove?.classList.remove(
-        "hidden"
-    );
-}
+    if (post.media_type === 'image') {
 
-
-function clearMediaPreview() {
-
-    const preview =
-        $("#post-media-preview");
-
-    const remove =
-        $("#remove-media");
-
-    if (preview) {
-        preview.innerHTML =
-            "";
+        return `
+            <img
+                class="post-media"
+                src="${escapeHTML(url)}"
+                alt="Post media"
+                loading="lazy"
+            >
+        `;
     }
 
-    remove?.classList.add(
-        "hidden"
-    );
+    return '';
+}
+
+function bindPostEvents(container) {
+
+    $$(
+        '[data-like-post]',
+        container
+    ).forEach(button => {
+
+        button.addEventListener(
+            'click',
+            () => toggleLike(
+                button.dataset.likePost,
+                button
+            )
+        );
+    });
+
+    $$(
+        '[data-save-post]',
+        container
+    ).forEach(button => {
+
+        button.addEventListener(
+            'click',
+            () => toggleSave(
+                button.dataset.savePost,
+                button
+            )
+        );
+    });
+
+    $$(
+        '[data-share-post]',
+        container
+    ).forEach(button => {
+
+        button.addEventListener(
+            'click',
+            () => sharePost(
+                button.dataset.sharePost
+            )
+        );
+    });
+
+    $$(
+        '[data-comment-post]',
+        container
+    ).forEach(button => {
+
+        button.addEventListener(
+            'click',
+            () => openComments(
+                button.dataset.commentPost
+            )
+        );
+    });
+
+    $$(
+        '[data-open-profile]',
+        container
+    ).forEach(button => {
+
+        button.addEventListener(
+            'click',
+            () => openProfile(
+                button.dataset.openProfile
+            )
+        );
+    });
+
+    $$(
+        '[data-post-menu]',
+        container
+    ).forEach(button => {
+
+        button.addEventListener(
+            'click',
+            () => postMenu(
+                button.dataset.postMenu
+            )
+        );
+    });
 }
 
 
-// ============================================================
-// PUBLISH POST
-// ============================================================
+/* ============================================================
+   CREATE POST
+   ============================================================ */
 
-async function publishPost() {
+async function createPost(form) {
 
-    if (!ensureLoggedIn()) {
+    if (!isLoggedIn()) {
+        showToast(
+            'Please login before posting.',
+            'error'
+        );
         return;
     }
+
+    const captionInput =
+        form.querySelector(
+            '[name="caption"]'
+        );
+
+    const fileInput =
+        form.querySelector(
+            '[name="media"]'
+        );
 
     const caption =
-        $("#post-caption-input")
-            ?.value
-            ?.trim() ||
-        "";
+        captionInput?.value?.trim() || '';
 
-    const image =
-        $("#post-image-input")
-            ?.files?.[0] ||
-        null;
+    const file =
+        fileInput?.files?.[0] || null;
 
-    const video =
-        $("#post-video-input")
-            ?.files?.[0] ||
-        null;
-
-    if (
-        !caption &&
-        !image &&
-        !video
-    ) {
-
-        toast(
-            "Write something or select media."
+    if (!caption && !file) {
+        showToast(
+            'Write a caption or select an image/video.',
+            'error'
         );
-
         return;
     }
 
-    if (
-        image &&
-        image.size >
-            15 * 1024 * 1024
-    ) {
+    const data =
+        new FormData();
 
-        toast(
-            "Image is too large. Maximum 15MB."
+    data.append(
+        'caption',
+        caption
+    );
+
+    if (file) {
+        data.append(
+            'media',
+            file
         );
-
-        return;
-    }
-
-    if (
-        video &&
-        video.size >
-            100 * 1024 * 1024
-    ) {
-
-        toast(
-            "Video is too large. Maximum 100MB."
-        );
-
-        return;
-    }
-
-    const button =
-        $("#publish-post");
-
-    const status =
-        $("#upload-status");
-
-    if (button) {
-        button.disabled =
-            true;
-
-        button.textContent =
-            "Posting...";
-    }
-
-    if (status) {
-        status.textContent =
-            "Uploading...";
     }
 
     try {
 
-        const formData =
-            new FormData();
+        const result =
+            await POST(
+                '/api/posts/create',
+                data
+            );
 
-        formData.append(
-            "caption",
-            caption
+        showToast(
+            result?.message ||
+            'Post created successfully.',
+            'success'
         );
 
-        if (image) {
+        form.reset();
 
-            formData.append(
-                "media",
-                image
-            );
-        }
-
-        if (video) {
-
-            formData.append(
-                "media",
-                video
-            );
-        }
-
-        const response =
-            await apiFetch(
-                "/api/posts/create",
-                {
-                    method: "POST",
-                    body: formData,
-                }
-            );
-
-        const data =
-            await response.json();
-
-        if (!response.ok) {
-
-            toast(
-                data.detail ||
-                "Post failed"
-            );
-
-            return;
-        }
-
-        toast(
-            "Post published successfully!"
-        );
-
-        closePostComposer();
+        closeCreatePost();
 
         await loadFeed();
 
     } catch (error) {
 
         console.error(
-            "Publish error:",
+            'Create post error:',
             error
         );
 
-        toast(
-            "Network error while posting"
+        showToast(
+            error.message ||
+            'Could not create post.',
+            'error'
         );
-
-    } finally {
-
-        if (button) {
-            button.disabled =
-                false;
-
-            button.textContent =
-                "Post";
-        }
-
-        if (status) {
-            status.textContent =
-                "";
-        }
     }
 }
 
 
-// ============================================================
-// CLOSE COMPOSER
-// ============================================================
+/* ============================================================
+   CREATE POST MODAL
+   ============================================================ */
 
-function closePostComposer() {
+function openCreatePost() {
+
+    let modal =
+        byId('create-post-modal');
+
+    if (!modal) {
+
+        modal =
+            document.createElement('div');
+
+        modal.id =
+            'create-post-modal';
+
+        modal.className =
+            'msafiri-modal';
+
+        modal.innerHTML = `
+            <div class="msafiri-modal-card">
+
+                <button
+                    class="modal-close"
+                    data-close-create
+                >
+                    ×
+                </button>
+
+                <h2>Create Post</h2>
+
+                <form
+                    id="dynamic-create-post-form"
+                >
+
+                    <textarea
+                        name="caption"
+                        placeholder="What's on your mind?"
+                        rows="5"
+                    ></textarea>
+
+                    <input
+                        type="file"
+                        name="media"
+                        accept="image/*,video/*"
+                    >
+
+                    <button
+                        type="submit"
+                    >
+                        Post
+                    </button>
+
+                </form>
+
+            </div>
+        `;
+
+        document.body.appendChild(
+            modal
+        );
+
+        modal.querySelector(
+            '[data-close-create]'
+        ).addEventListener(
+            'click',
+            closeCreatePost
+        );
+
+        modal.querySelector(
+            'form'
+        ).addEventListener(
+            'submit',
+            event => {
+
+                event.preventDefault();
+
+                createPost(
+                    event.currentTarget
+                );
+            }
+        );
+    }
+
+    modal.hidden = false;
+}
+
+function closeCreatePost() {
 
     const modal =
-        $("#post-composer-modal");
+        byId('create-post-modal');
 
-    if (!modal) return;
-
-    modal.remove();
+    if (modal) {
+        modal.hidden = true;
+    }
 }
 
 
-// ============================================================
-// DISCOVERY
-// ============================================================
+/* ============================================================
+   LIKE
+   ============================================================ */
 
-async function loadDiscovery() {
-
-    const grid =
-        $("#discovery-grid");
-
-    if (!grid) return;
+async function toggleLike(
+    postId,
+    button
+) {
 
     try {
 
-        const response =
-            await apiFetch(
-                "/api/discovery"
+        const result =
+            await POST(
+                `/api/posts/${postId}/like`
             );
 
-        if (!response.ok) return;
+        button.classList.toggle(
+            'active',
+            Boolean(result?.liked)
+        );
 
-        const data =
-            await response.json();
+        const count =
+            button.querySelector('span');
 
-        grid.innerHTML =
-            "";
+        if (count) {
+            count.textContent =
+                result?.likes ?? 0;
+        }
 
-        (data.cards || [])
-            .forEach(
-                card => {
+    } catch (error) {
 
-                    const element =
-                        document.createElement(
-                            "div"
-                        );
+        showToast(
+            error.message ||
+            'Unable to like post.',
+            'error'
+        );
+    }
+}
 
-                    element.className =
-                        "disc-card";
 
-                    element.innerHTML = `
-                        <span class="icon">
-                            ${escapeHtml(
-                                card.icon
-                            )}
+/* ============================================================
+   SAVE
+   ============================================================ */
+
+async function toggleSave(
+    postId,
+    button
+) {
+
+    try {
+
+        const result =
+            await POST(
+                `/api/posts/${postId}/save`
+            );
+
+        button.classList.toggle(
+            'active',
+            Boolean(result?.saved)
+        );
+
+        const count =
+            button.querySelector('span');
+
+        if (count) {
+            count.textContent =
+                result?.saves ?? 0;
+        }
+
+    } catch (error) {
+
+        showToast(
+            error.message ||
+            'Unable to save post.',
+            'error'
+        );
+    }
+}
+
+
+/* ============================================================
+   SHARE
+   ============================================================ */
+
+async function sharePost(postId) {
+
+    try {
+
+        const result =
+            await POST(
+                `/api/posts/${postId}/share`
+            );
+
+        const shareURL =
+            `${window.location.origin}/?post=${postId}`;
+
+        if (
+            navigator.share
+        ) {
+
+            try {
+
+                await navigator.share({
+                    title: APP_NAME,
+                    text: 'Check out this post on MSAFIRI GLOBAL MEDIA.',
+                    url: shareURL
+                });
+
+            } catch {
+                /* User cancelled native share */
+            }
+
+        } else if (
+            navigator.clipboard
+        ) {
+
+            await navigator.clipboard.writeText(
+                shareURL
+            );
+
+            showToast(
+                'Post link copied.',
+                'success'
+            );
+        }
+
+        console.log(
+            'Share result:',
+            result
+        );
+
+    } catch (error) {
+
+        showToast(
+            error.message ||
+            'Unable to share post.',
+            'error'
+        );
+    }
+}
+
+
+/* ============================================================
+   COMMENTS
+   ============================================================ */
+
+async function openComments(postId) {
+
+    try {
+
+        const result =
+            await GET(
+                `/api/posts/${postId}/comments`
+            );
+
+        const comments =
+            result?.comments || [];
+
+        let modal =
+            byId('comments-modal');
+
+        if (!modal) {
+
+            modal =
+                document.createElement('div');
+
+            modal.id =
+                'comments-modal';
+
+            modal.className =
+                'msafiri-modal';
+
+            document.body.appendChild(
+                modal
+            );
+        }
+
+        modal.innerHTML = `
+            <div class="msafiri-modal-card">
+
+                <button
+                    class="modal-close"
+                    data-close-comments
+                >
+                    ×
+                </button>
+
+                <h2>Comments</h2>
+
+                <div
+                    class="comments-list"
+                    id="comments-list"
+                >
+                    ${
+                        comments.length
+                            ? comments
+                                .map(renderComment)
+                                .join('')
+                            : '<p>No comments yet.</p>'
+                    }
+                </div>
+
+                <form
+                    id="comment-form"
+                    data-post-id="${postId}"
+                >
+
+                    <input
+                        name="text"
+                        type="text"
+                        placeholder="Write a comment..."
+                        required
+                    >
+
+                    <button type="submit">
+                        Send
+                    </button>
+
+                </form>
+
+            </div>
+        `;
+
+        modal.hidden = false;
+
+        modal.querySelector(
+            '[data-close-comments]'
+        ).onclick = () => {
+            modal.hidden = true;
+        };
+
+        modal.querySelector(
+            '#comment-form'
+        ).addEventListener(
+            'submit',
+            event => {
+
+                event.preventDefault();
+
+                createComment(
+                    postId,
+                    event.currentTarget
+                );
+            }
+        );
+
+    } catch (error) {
+
+        showToast(
+            error.message ||
+            'Unable to load comments.',
+            'error'
+        );
+    }
+}
+
+function renderComment(comment) {
+
+    return `
+        <div class="comment-item">
+
+            <strong>
+                ${escapeHTML(
+                    comment.full_name ||
+                    comment.username ||
+                    'User'
+                )}
+            </strong>
+
+            <p>
+                ${escapeHTML(
+                    comment.text
+                )}
+            </p>
+
+        </div>
+    `;
+}
+
+async function createComment(
+    postId,
+    form
+) {
+
+    const text =
+        form.querySelector(
+            '[name="text"]'
+        )?.value?.trim();
+
+    if (!text) {
+        return;
+    }
+
+    const data =
+        new FormData();
+
+    data.append(
+        'text',
+        text
+    );
+
+    try {
+
+        await POST(
+            `/api/posts/${postId}/comments`,
+            data
+        );
+
+        form.reset();
+
+        await openComments(
+            postId
+        );
+
+        showToast(
+            'Comment added.',
+            'success'
+        );
+
+    } catch (error) {
+
+        showToast(
+            error.message ||
+            'Unable to comment.',
+            'error'
+        );
+    }
+}
+
+
+/* ============================================================
+   POST MENU
+   ============================================================ */
+
+function postMenu(postId) {
+
+    const post =
+        CURRENT_POSTS.find(
+            item =>
+                String(item.id) ===
+                String(postId)
+        );
+
+    if (!post) {
+        return;
+    }
+
+    const own =
+        CURRENT_USER &&
+        Number(post.user_id) ===
+        Number(CURRENT_USER.id);
+
+    const choice =
+        window.prompt(
+            own
+                ? 'Type DELETE to delete this post, or Cancel.'
+                : 'Post options: type SHARE to share.'
+        );
+
+    if (
+        own &&
+        choice &&
+        choice.toUpperCase() === 'DELETE'
+    ) {
+
+        deletePost(
+            postId
+        );
+    }
+}
+
+
+/* ============================================================
+   DELETE POST
+   ============================================================ */
+
+async function deletePost(postId) {
+
+    if (
+        !window.confirm(
+            'Delete this post?'
+        )
+    ) {
+        return;
+    }
+
+    try {
+
+        await DELETE(
+            `/api/posts/${postId}`
+        );
+
+        showToast(
+            'Post deleted.',
+            'success'
+        );
+
+        await loadFeed();
+
+    } catch (error) {
+
+        showToast(
+            error.message ||
+            'Unable to delete post.',
+            'error'
+        );
+    }
+}
+
+
+/* ============================================================
+   PROFILE
+   ============================================================ */
+
+async function openProfile(userId) {
+
+    if (!userId) {
+        return;
+    }
+
+    try {
+
+        const result =
+            await GET(
+                `/api/profile/${userId}`
+            );
+
+        CURRENT_PROFILE =
+            result;
+
+        renderProfilePage(
+            result
+        );
+
+        setView('profile');
+
+    } catch (error) {
+
+        showToast(
+            error.message ||
+            'User not found.',
+            'error'
+        );
+    }
+}
+
+async function loadOwnProfile() {
+
+    if (!CURRENT_USER?.id) {
+        return;
+    }
+
+    await openProfile(
+        CURRENT_USER.id
+    );
+}
+
+function renderProfilePage(user) {
+
+    const container =
+        byId('profile-content') ||
+        document.querySelector(
+            '[data-profile-content]'
+        );
+
+    if (!container) {
+        return;
+    }
+
+    const avatar =
+        absoluteURL(
+            user.avatar_url
+        );
+
+    container.innerHTML = `
+
+        <section class="profile-header">
+
+            ${
+                avatar
+                    ? `<img
+                        src="${escapeHTML(avatar)}"
+                        class="profile-avatar"
+                        alt=""
+                      >`
+                    : `<div class="profile-avatar placeholder">
+                        ${escapeHTML(
+                            (
+                                user.full_name ||
+                                user.username ||
+                                'U'
+                            ).charAt(0)
+                        )}
+                      </div>`
+            }
+
+            <h2>
+                ${escapeHTML(
+                    user.full_name ||
+                    user.username ||
+                    'User'
+                )}
+            </h2>
+
+            <p>
+                @${escapeHTML(
+                    user.username || ''
+                )}
+            </p>
+
+            <p>
+                ${escapeHTML(
+                    user.bio || ''
+                )}
+            </p>
+
+            <p>
+                📍 ${escapeHTML(
+                    user.location || ''
+                )}
+            </p>
+
+            ${
+                CURRENT_USER &&
+                Number(user.id) ===
+                Number(CURRENT_USER.id)
+                    ? `
+                        <button
+                            data-edit-profile
+                        >
+                            Edit Profile
+                        </button>
+                      `
+                    : `
+                        <button
+                            data-message-user="${user.id}"
+                        >
+                            💬 Message
+                        </button>
+                      `
+            }
+
+        </section>
+    `;
+
+    const editButton =
+        container.querySelector(
+            '[data-edit-profile]'
+        );
+
+    if (editButton) {
+        editButton.onclick =
+            openEditProfile;
+    }
+
+    const messageButton =
+        container.querySelector(
+            '[data-message-user]'
+        );
+
+    if (messageButton) {
+
+        messageButton.onclick =
+            () => openChatWithUser(
+                user
+            );
+    }
+}
+
+
+/* ============================================================
+   EDIT PROFILE
+   ============================================================ */
+
+function openEditProfile() {
+
+    if (!CURRENT_USER) {
+        return;
+    }
+
+    const fullName =
+        window.prompt(
+            'Full name:',
+            CURRENT_USER.full_name || ''
+        );
+
+    if (fullName === null) {
+        return;
+    }
+
+    const bio =
+        window.prompt(
+            'Bio:',
+            CURRENT_USER.bio || ''
+        );
+
+    if (bio === null) {
+        return;
+    }
+
+    const location =
+        window.prompt(
+            'Location:',
+            CURRENT_USER.location || ''
+        );
+
+    if (location === null) {
+        return;
+    }
+
+    updateProfile({
+        full_name: fullName,
+        bio,
+        location
+    });
+}
+
+async function updateProfile(data) {
+
+    try {
+
+        const result =
+            await PATCH(
+                '/api/profile',
+                data
+            );
+
+        CURRENT_USER =
+            result;
+
+        saveJSON(
+            STORAGE.USER,
+            CURRENT_USER
+        );
+
+        updateAuthUI();
+
+        renderProfilePage(
+            result
+        );
+
+        showToast(
+            'Profile updated.',
+            'success'
+        );
+
+    } catch (error) {
+
+        showToast(
+            error.message ||
+            'Unable to update profile.',
+            'error'
+        );
+    }
+}
+
+
+/* ============================================================
+   USER SEARCH
+   ============================================================ */
+
+/*
+   IMPORTANT:
+   The current backend supplied by the user does NOT contain
+   a search endpoint.
+
+   This function tries several possible endpoints safely.
+   When none exists, it tells the user instead of crashing.
+*/
+
+async function searchUsers(query) {
+
+    query =
+        safeText(query).trim();
+
+    if (!query) {
+        SEARCH_RESULTS = [];
+        renderSearchResults([]);
+        return;
+    }
+
+    const endpoints = [
+
+        `/api/profile/search?q=${encodeURIComponent(query)}`,
+
+        `/api/users/search?q=${encodeURIComponent(query)}`,
+
+        `/api/auth/users?q=${encodeURIComponent(query)}`
+
+    ];
+
+    for (const endpoint of endpoints) {
+
+        try {
+
+            const result =
+                await GET(endpoint);
+
+            const users =
+                Array.isArray(result)
+                    ? result
+                    : (
+                        result?.users ||
+                        result?.results ||
+                        []
+                    );
+
+            SEARCH_RESULTS =
+                users;
+
+            renderSearchResults(
+                users
+            );
+
+            return;
+
+        } catch (error) {
+
+            if (
+                error.status !== 404 &&
+                error.status !== 405
+            ) {
+                console.warn(
+                    'Search error:',
+                    error
+                );
+            }
+        }
+    }
+
+    SEARCH_RESULTS = [];
+
+    renderSearchResults([]);
+
+    showToast(
+        'User search endpoint is not yet available in the backend.',
+        'error'
+    );
+}
+
+function renderSearchResults(users) {
+
+    const container =
+        byId('search-results') ||
+        document.querySelector(
+            '[data-search-results]'
+        );
+
+    if (!container) {
+        return;
+    }
+
+    if (!users.length) {
+
+        container.innerHTML =
+            '<div class="search-empty">No users found.</div>';
+
+        return;
+    }
+
+    container.innerHTML =
+        users
+            .map(user => {
+
+                const avatar =
+                    absoluteURL(
+                        user.avatar_url
+                    );
+
+                return `
+                    <button
+                        class="search-user"
+                        data-search-user="${escapeHTML(user.id)}"
+                    >
+
+                        ${
+                            avatar
+                                ? `<img
+                                    src="${escapeHTML(avatar)}"
+                                    alt=""
+                                  >`
+                                : '👤'
+                        }
+
+                        <span>
+                            <strong>
+                                ${escapeHTML(
+                                    user.full_name ||
+                                    user.username ||
+                                    'User'
+                                )}
+                            </strong>
+
+                            <small>
+                                @${escapeHTML(
+                                    user.username || ''
+                                )}
+                            </small>
                         </span>
 
-                        <div class="title">
-                            ${escapeHtml(
-                                card.title
-                            )}
-                        </div>
+                    </button>
+                `;
+            })
+            .join('');
 
-                        <div class="desc">
-                            ${escapeHtml(
-                                card.desc
-                            )}
-                        </div>
-                    `;
+    $$(
+        '[data-search-user]',
+        container
+    ).forEach(button => {
 
-                    element.addEventListener(
-                        "click",
-                        () =>
-                            handleDiscoveryCard(
-                                card.id
-                            )
-                    );
-
-                    grid.appendChild(
-                        element
-                    );
-                }
+        button.onclick =
+            () => openProfile(
+                button.dataset.searchUser
             );
+    });
+}
+
+
+/* ============================================================
+   CHAT
+   ============================================================ */
+
+async function loadChats() {
+
+    const container =
+        byId('chat-list') ||
+        document.querySelector(
+            '[data-chat-list]'
+        );
+
+    if (!container) {
+        return;
+    }
+
+    container.innerHTML =
+        '<div class="loading">Loading chats...</div>';
+
+    try {
+
+        const result =
+            await GET(
+                '/api/messages'
+            );
+
+        CURRENT_CHATS =
+            result?.chats || [];
+
+        renderChatList(
+            CURRENT_CHATS,
+            container
+        );
 
     } catch (error) {
 
         console.error(
-            "Discovery:",
+            'Chat loading error:',
             error
         );
+
+        container.innerHTML =
+            emptyState(
+                'Unable to load chats.'
+            );
     }
 }
 
-
-// ============================================================
-// DISCOVERY ROUTER
-// ============================================================
-
-function handleDiscoveryCard(
-    id
+function renderChatList(
+    chats,
+    container
 ) {
 
-    const handlers = {
+    if (!chats.length) {
 
-        "ai-council":
-            showAICouncil,
+        container.innerHTML = `
+            <div class="chat-empty">
 
-        "creative-studio":
-            showStudio,
+                <div style="font-size:40px;">
+                    💬
+                </div>
 
-        "market":
-            showMarket,
+                <h3>No chats yet</h3>
 
-        "world-map":
-            showWorldMap,
+                <p>
+                    Search for another user and
+                    start a conversation.
+                </p>
 
-        "channels":
-            showChannels,
+            </div>
+        `;
 
-        "communities":
-            showCommunities,
+        return;
+    }
 
-        "videos":
-            showVideos,
+    container.innerHTML =
+        chats
+            .map(chat => {
 
-        "settings":
-            showSettings,
+                const user =
+                    chat.user ||
+                    chat.other_user ||
+                    chat;
+
+                return `
+                    <button
+                        class="chat-item"
+                        data-chat-user="${escapeHTML(
+                            user.id || ''
+                        )}"
+                    >
+
+                        <div class="chat-avatar">
+                            ${
+                                user.avatar_url
+                                    ? `<img
+                                        src="${escapeHTML(
+                                            absoluteURL(
+                                                user.avatar_url
+                                            )
+                                        )}"
+                                        alt=""
+                                      >`
+                                    : '👤'
+                            }
+                        </div>
+
+                        <div>
+                            <strong>
+                                ${escapeHTML(
+                                    user.full_name ||
+                                    user.username ||
+                                    'User'
+                                )}
+                            </strong>
+
+                            <p>
+                                ${escapeHTML(
+                                    chat.last_message ||
+                                    ''
+                                )}
+                            </p>
+                        </div>
+
+                    </button>
+                `;
+            })
+            .join('');
+
+    $$(
+        '[data-chat-user]',
+        container
+    ).forEach(button => {
+
+        button.onclick =
+            async () => {
+
+                const userId =
+                    button.dataset.chatUser;
+
+                try {
+
+                    const user =
+                        await GET(
+                            `/api/profile/${userId}`
+                        );
+
+                    openChatWithUser(
+                        user
+                    );
+
+                } catch (error) {
+
+                    showToast(
+                        error.message,
+                        'error'
+                    );
+                }
+            };
+    });
+}
+
+
+/* ============================================================
+   OPEN CHAT
+   ============================================================ */
+
+function openChatWithUser(user) {
+
+    CURRENT_CHAT_USER =
+        user;
+
+    setView('chats');
+
+    renderChatWindow(
+        user
+    );
+}
+
+function renderChatWindow(user) {
+
+    let container =
+        byId('chat-window') ||
+        document.querySelector(
+            '[data-chat-window]'
+        );
+
+    if (!container) {
+
+        container =
+            document.createElement('div');
+
+        container.id =
+            'chat-window';
+
+        container.className =
+            'chat-window';
+
+        document.body.appendChild(
+            container
+        );
+    }
+
+    container.innerHTML = `
+
+        <div class="chat-header">
+
+            <button
+                data-close-chat
+            >
+                ←
+            </button>
+
+            <div>
+
+                <strong>
+                    ${escapeHTML(
+                        user.full_name ||
+                        user.username ||
+                        'User'
+                    )}
+                </strong>
+
+                <small>
+                    @${escapeHTML(
+                        user.username || ''
+                    )}
+                </small>
+
+            </div>
+
+            <div>
+                📞
+                🎥
+            </div>
+
+        </div>
+
+        <div
+            class="chat-messages"
+            id="chat-messages"
+        >
+            <div class="chat-placeholder">
+                Chat messages will appear here.
+            </div>
+        </div>
+
+        <form
+            id="chat-message-form"
+            class="chat-input-area"
+        >
+
+            <button
+                type="button"
+                data-chat-attachment
+            >
+                +
+            </button>
+
+            <input
+                type="text"
+                name="message"
+                placeholder="Message..."
+                autocomplete="off"
+                required
+            >
+
+            <button
+                type="submit"
+            >
+                ➤
+            </button>
+
+        </form>
+
+    `;
+
+    container.hidden = false;
+
+    container.querySelector(
+        '[data-close-chat]'
+    ).onclick = () => {
+
+        container.hidden = true;
+
+        loadChats();
     };
 
-    const handler =
-        handlers[id];
+    container.querySelector(
+        '#chat-message-form'
+    ).addEventListener(
+        'submit',
+        event => {
 
-    if (handler) {
-        handler();
-    } else {
-        toast(
-            "Coming soon"
+            event.preventDefault();
+
+            sendMessage(
+                user,
+                event.currentTarget
+            );
+        }
+    );
+
+    loadConversation(
+        user
+    );
+}
+
+
+/* ============================================================
+   LOAD CONVERSATION
+   ============================================================ */
+
+async function loadConversation(user) {
+
+    const container =
+        byId('chat-messages');
+
+    if (!container) {
+        return;
+    }
+
+    /*
+       The current backend only exposes:
+       GET /api/messages
+
+       Therefore we safely try conversation endpoints
+       but do not crash if they are unavailable.
+    */
+
+    const endpoints = [
+
+        `/api/messages/${user.id}`,
+
+        `/api/messages/chat/${user.id}`,
+
+        `/api/messages/conversation/${user.id}`
+
+    ];
+
+    for (const endpoint of endpoints) {
+
+        try {
+
+            const result =
+                await GET(endpoint);
+
+            const messages =
+                result?.messages ||
+                result?.chat ||
+                (
+                    Array.isArray(result)
+                        ? result
+                        : []
+                );
+
+            renderMessages(
+                messages,
+                container
+            );
+
+            return;
+
+        } catch (error) {
+
+            if (
+                error.status !== 404 &&
+                error.status !== 405
+            ) {
+                console.warn(
+                    error
+                );
+            }
+        }
+    }
+
+    container.innerHTML = `
+        <div class="chat-placeholder">
+
+            <div style="font-size:40px;">
+                💬
+            </div>
+
+            <p>
+                Conversation is ready,
+                but the message conversation
+                endpoint has not been added
+                to the backend yet.
+            </p>
+
+        </div>
+    `;
+}
+
+function renderMessages(
+    messages,
+    container
+) {
+
+    if (!messages.length) {
+
+        container.innerHTML =
+            '<div class="chat-placeholder">No messages yet.</div>';
+
+        return;
+    }
+
+    container.innerHTML =
+        messages
+            .map(message => {
+
+                const mine =
+                    Number(message.sender_id) ===
+                    Number(CURRENT_USER?.id);
+
+                return `
+                    <div
+                        class="chat-message ${
+                            mine
+                                ? 'mine'
+                                : 'theirs'
+                        }"
+                    >
+                        ${escapeHTML(
+                            message.text ||
+                            message.content ||
+                            message.message ||
+                            ''
+                        )}
+                    </div>
+                `;
+            })
+            .join('');
+}
+
+
+/* ============================================================
+   SEND MESSAGE
+   ============================================================ */
+
+async function sendMessage(
+    user,
+    form
+) {
+
+    const input =
+        form.querySelector(
+            '[name="message"]'
+        );
+
+    const text =
+        input?.value?.trim();
+
+    if (!text) {
+        return;
+    }
+
+    /*
+       Current backend does not yet have
+       POST /api/messages.
+
+       Try common endpoints safely.
+    */
+
+    const endpoints = [
+        '/api/messages',
+        `/api/messages/${user.id}`
+    ];
+
+    let sent = false;
+
+    for (const endpoint of endpoints) {
+
+        try {
+
+            const result =
+                await POST(
+                    endpoint,
+                    {
+                        recipient_id: user.id,
+                        receiver_id: user.id,
+                        text
+                    }
+                );
+
+            sent = true;
+
+            input.value = '';
+
+            appendLocalMessage(
+                text,
+                true
+            );
+
+            console.log(
+                'Message sent:',
+                result
+            );
+
+            break;
+
+        } catch (error) {
+
+            if (
+                error.status !== 404 &&
+                error.status !== 405
+            ) {
+                console.warn(
+                    endpoint,
+                    error
+                );
+            }
+        }
+    }
+
+    if (!sent) {
+
+        showToast(
+            'Message sending is not available yet because the backend has no POST message route.',
+            'error'
         );
     }
 }
 
+function appendLocalMessage(
+    text,
+    mine
+) {
 
-// ============================================================
-// AI COUNCIL
-// ============================================================
+    const container =
+        byId('chat-messages');
 
-async function showAICouncil() {
+    if (!container) {
+        return;
+    }
 
-    showSubPage(
-        "AI Council",
-        async content => {
+    const placeholder =
+        container.querySelector(
+            '.chat-placeholder'
+        );
 
-            content.innerHTML = `
-                <h2>AI Council</h2>
-                <p class="muted">
-                    Choose an AI assistant
+    if (placeholder) {
+        placeholder.remove();
+    }
+
+    const message =
+        document.createElement('div');
+
+    message.className =
+        `chat-message ${
+            mine
+                ? 'mine'
+                : 'theirs'
+        }`;
+
+    message.textContent =
+        text;
+
+    container.appendChild(
+        message
+    );
+
+    container.scrollTop =
+        container.scrollHeight;
+}
+
+
+/* ============================================================
+   DISCOVERY
+   ============================================================ */
+
+async function loadDiscovery() {
+
+    const container =
+        byId('discovery-content') ||
+        document.querySelector(
+            '[data-discovery]'
+        );
+
+    if (!container) {
+        return;
+    }
+
+    container.innerHTML =
+        '<div class="loading">Loading Discovery...</div>';
+
+    try {
+
+        const result =
+            await GET(
+                '/api/discovery'
+            );
+
+        DISCOVERY_DATA =
+            result?.cards || [];
+
+        renderDiscovery(
+            DISCOVERY_DATA,
+            container
+        );
+
+    } catch (error) {
+
+        container.innerHTML =
+            emptyState(
+                'Unable to load Discovery.'
+            );
+
+        showToast(
+            error.message,
+            'error'
+        );
+    }
+}
+
+function renderDiscovery(
+    cards,
+    container
+) {
+
+    container.innerHTML = `
+        <section class="discovery-page">
+
+            <header>
+                <h1>Discovery</h1>
+                <p>
+                    Explore MSAFIRI GLOBAL MEDIA
                 </p>
-            `;
+            </header>
 
-            const response =
-                await apiFetch(
-                    "/api/ai-council"
-                );
+            <div class="discovery-grid">
 
-            const data =
-                await response.json();
+                ${
+                    cards
+                        .map(card => `
+                            <button
+                                class="discovery-card"
+                                data-discovery-id="${escapeHTML(
+                                    card.id
+                                )}"
+                            >
 
-            (data.ais || [])
-                .forEach(
-                    ai => {
+                                <div class="discovery-icon">
+                                    ${escapeHTML(
+                                        card.icon
+                                    )}
+                                </div>
 
-                        const item =
-                            document.createElement(
-                                "div"
-                            );
-
-                        item.className =
-                            "sub-item";
-
-                        item.innerHTML = `
-                            <span class="icon">
-                                ${escapeHtml(
-                                    ai.icon
-                                )}
-                            </span>
-
-                            <div class="text">
                                 <strong>
-                                    ${escapeHtml(
-                                        ai.title
+                                    ${escapeHTML(
+                                        card.title
                                     )}
                                 </strong>
 
                                 <span>
-                                    ${escapeHtml(
-                                        ai.desc
+                                    ${escapeHTML(
+                                        card.desc
                                     )}
                                 </span>
-                            </div>
-                        `;
 
-                        item.addEventListener(
-                            "click",
-                            () => {
+                            </button>
+                        `)
+                        .join('')
+                }
 
-                                if (
-                                    ai.id ===
-                                    "education"
-                                ) {
+            </div>
 
-                                    showEducationAICountries();
+        </section>
+    `;
 
-                                } else {
+    $$(
+        '[data-discovery-id]',
+        container
+    ).forEach(card => {
 
-                                    showAIChat(
-                                        ai.id
-                                    );
-                                }
-                            }
-                        );
-
-                        content.appendChild(
-                            item
-                        );
-                    }
-                );
-        }
-    );
+        card.onclick =
+            () => openDiscoveryFeature(
+                card.dataset.discoveryId
+            );
+    });
 }
 
 
-// ============================================================
-// EDUCATION COUNTRIES
-// ============================================================
+/* ============================================================
+   DISCOVERY ROUTER
+   ============================================================ */
 
-async function showEducationAICountries() {
+async function openDiscoveryFeature(id) {
 
-    showSubPage(
-        "Education AI",
-        async content => {
+    switch (id) {
 
-            content.innerHTML = `
-                <h2>
-                    Step 1 — Choose Country
-                </h2>
+        case 'ai-council':
+            await openAICouncil();
+            break;
 
-                <p class="muted">
-                    Select your country
-                </p>
-            `;
+        case 'creative-studio':
+            await openStudio();
+            break;
 
-            const response =
-                await apiFetch(
-                    "/api/ai-council/countries"
+        case 'market':
+            await openMarket();
+            break;
+
+        case 'world-map':
+            await openWorldMap();
+            break;
+
+        case 'channels':
+            await openChannels();
+            break;
+
+        case 'communities':
+            await openCommunities();
+            break;
+
+        case 'videos':
+            setView('videos');
+            break;
+
+        case 'settings':
+            openSettings();
+            break;
+
+        default:
+            showToast(
+                'Feature not available.',
+                'error'
+            );
+    }
+}
+
+
+/* ============================================================
+   DISCOVERY SUBPAGE
+   ============================================================ */
+
+function openDiscoveryPage(
+    title,
+    content,
+    onBack = null
+) {
+
+    let page =
+        byId('discovery-subpage');
+
+    if (!page) {
+
+        page =
+            document.createElement('div');
+
+        page.id =
+            'discovery-subpage';
+
+        page.className =
+            'msafiri-discovery-subpage';
+
+        document.body.appendChild(
+            page
+        );
+    }
+
+    page.innerHTML = `
+
+        <div class="subpage-header">
+
+            <button
+                data-subpage-back
+            >
+                ←
+            </button>
+
+            <h2>
+                ${escapeHTML(title)}
+            </h2>
+
+        </div>
+
+        <div class="subpage-content">
+            ${content}
+        </div>
+
+    `;
+
+    page.hidden = false;
+
+    page.querySelector(
+        '[data-subpage-back]'
+    ).onclick = () => {
+
+        page.hidden = true;
+
+        if (typeof onBack === 'function') {
+            onBack();
+        }
+    };
+}
+
+
+/* ============================================================
+   AI COUNCIL
+   ============================================================ */
+
+async function openAICouncil() {
+
+    try {
+
+        const result =
+            await GET(
+                '/api/ai-council'
+            );
+
+        const ais =
+            result?.ais || [];
+
+        openDiscoveryPage(
+            'AI Council',
+            `
+                <div class="option-grid">
+
+                    ${
+                        ais
+                            .map(ai => `
+                                <button
+                                    data-ai="${escapeHTML(
+                                        ai.id
+                                    )}"
+                                >
+
+                                    <span>
+                                        ${escapeHTML(
+                                            ai.icon
+                                        )}
+                                    </span>
+
+                                    <strong>
+                                        ${escapeHTML(
+                                            ai.title
+                                        )}
+                                    </strong>
+
+                                    <small>
+                                        ${escapeHTML(
+                                            ai.desc
+                                        )}
+                                    </small>
+
+                                </button>
+                            `)
+                            .join('')
+                    }
+
+                </div>
+            `
+        );
+
+        $$(
+            '[data-ai]',
+            byId('discovery-subpage')
+        ).forEach(button => {
+
+            button.onclick =
+                () => openAI(
+                    button.dataset.ai
                 );
+        });
 
-            const data =
-                await response.json();
+    } catch (error) {
 
-            (data.countries || [])
-                .forEach(
-                    country => {
+        showToast(
+            error.message,
+            'error'
+        );
+    }
+}
 
-                        const item =
-                            document.createElement(
-                                "div"
-                            );
 
-                        item.className =
-                            "sub-item";
+/* ============================================================
+   EDUCATION AI
+   ============================================================ */
 
-                        item.innerHTML = `
-                            <span class="icon">
-                                🌍
-                            </span>
+async function openAI(ai) {
 
-                            <div class="text">
-                                <strong>
-                                    ${escapeHtml(
+    if (ai !== 'education') {
+
+        openDiscoveryPage(
+            `${ai} AI`,
+            `
+                <div class="ai-placeholder">
+
+                    <h3>
+                        ${escapeHTML(
+                            ai
+                        )} AI
+                    </h3>
+
+                    <p>
+                        AI chat interface prepared
+                        for a future AI integration.
+                    </p>
+
+                </div>
+            `
+        );
+
+        return;
+    }
+
+    try {
+
+        const countryResult =
+            await GET(
+                '/api/ai-council/countries'
+            );
+
+        const countries =
+            countryResult?.countries || [];
+
+        openDiscoveryPage(
+            'Education AI — Choose Country',
+            `
+                <div class="option-grid">
+
+                    ${
+                        countries
+                            .map(country => `
+                                <button
+                                    data-ai-country="${escapeHTML(
+                                        country
+                                    )}"
+                                >
+                                    🌍
+                                    ${escapeHTML(
                                         country
                                     )}
-                                </strong>
-                            </div>
-                        `;
-
-                        item.addEventListener(
-                            "click",
-                            () =>
-                                showEducationAILevels(
-                                    country
-                                )
-                        );
-
-                        content.appendChild(
-                            item
-                        );
+                                </button>
+                            `)
+                            .join('')
                     }
-                );
-        }
-    );
+
+                </div>
+            `
+        );
+
+        $$(
+            '[data-ai-country]',
+            byId('discovery-subpage')
+        ).forEach(button => {
+
+            button.onclick =
+                () => {
+
+                    AI_STATE.country =
+                        button.dataset.aiCountry;
+
+                    openAILevels();
+                };
+        });
+
+    } catch (error) {
+
+        showToast(
+            error.message,
+            'error'
+        );
+    }
 }
 
+async function openAILevels() {
 
-// ============================================================
-// EDUCATION LEVELS
-// ============================================================
+    const result =
+        await GET(
+            '/api/ai-council/levels'
+        );
 
-async function showEducationAILevels(
-    country
-) {
+    const levels =
+        result?.levels || [];
 
-    showSubPage(
-        `Education — ${country}`,
-        async content => {
+    openDiscoveryPage(
+        `Education AI — ${AI_STATE.country}`,
+        `
+            <div class="option-grid">
 
-            content.innerHTML = `
-                <h2>
-                    Step 2 — Choose Level
-                </h2>
-
-                <p class="muted">
-                    ${escapeHtml(country)}
-                </p>
-            `;
-
-            const response =
-                await apiFetch(
-                    "/api/ai-council/levels"
-                );
-
-            const data =
-                await response.json();
-
-            (data.levels || [])
-                .forEach(
-                    level => {
-
-                        const item =
-                            document.createElement(
-                                "div"
-                            );
-
-                        item.className =
-                            "sub-item";
-
-                        item.innerHTML = `
-                            <span class="icon">
-                                🎓
-                            </span>
-
-                            <div class="text">
-                                <strong>
-                                    ${escapeHtml(
-                                        level
-                                    )}
-                                </strong>
-                            </div>
-                        `;
-
-                        item.addEventListener(
-                            "click",
-                            () =>
-                                showEducationAIContent(
-                                    country,
+                ${
+                    levels
+                        .map(level => `
+                            <button
+                                data-ai-level="${escapeHTML(
                                     level
-                                )
-                        );
+                                )}"
+                            >
+                                🎓
+                                ${escapeHTML(
+                                    level
+                                )}
+                            </button>
+                        `)
+                        .join('')
+                }
 
-                        content.appendChild(
-                            item
-                        );
-                    }
-                );
-        }
+            </div>
+        `
     );
+
+    $$(
+        '[data-ai-level]',
+        byId('discovery-subpage')
+    ).forEach(button => {
+
+        button.onclick =
+            () => {
+
+                AI_STATE.level =
+                    button.dataset.aiLevel;
+
+                openAIContentTypes();
+            };
+    });
 }
 
+async function openAIContentTypes() {
 
-// ============================================================
-// EDUCATION CONTENT
-// ============================================================
+    const result =
+        await GET(
+            '/api/ai-council/content-types'
+        );
 
-async function showEducationAIContent(
-    country,
-    level
-) {
+    const types =
+        result?.content_types || [];
 
-    showSubPage(
-        `Education — ${level}`,
-        async content => {
+    openDiscoveryPage(
+        `Choose Content — ${AI_STATE.level}`,
+        `
+            <div class="option-grid">
 
-            content.innerHTML = `
-                <h2>
-                    Step 3 — Choose Content
-                </h2>
+                ${
+                    types
+                        .map(type => `
+                            <button
+                                data-ai-content="${escapeHTML(
+                                    type
+                                )}"
+                            >
+                                📚
+                                ${escapeHTML(
+                                    type
+                                )}
+                            </button>
+                        `)
+                        .join('')
+                }
 
-                <p class="muted">
-                    ${escapeHtml(country)}
-                    •
-                    ${escapeHtml(level)}
-                </p>
-            `;
-
-            const response =
-                await apiFetch(
-                    "/api/ai-council/content-types"
-                );
-
-            const data =
-                await response.json();
-
-            (data.content_types || [])
-                .forEach(
-                    type => {
-
-                        const item =
-                            document.createElement(
-                                "div"
-                            );
-
-                        item.className =
-                            "sub-item";
-
-                        item.innerHTML = `
-                            <span class="icon">
-                                📄
-                            </span>
-
-                            <div class="text">
-                                <strong>
-                                    ${escapeHtml(
-                                        type
-                                    )}
-                                </strong>
-                            </div>
-                        `;
-
-                        item.addEventListener(
-                            "click",
-                            () =>
-                                showAIChat(
-                                    "education",
-                                    {
-                                        country,
-                                        level,
-                                        content:
-                                            type,
-                                    }
-                                )
-                        );
-
-                        content.appendChild(
-                            item
-                        );
-                    }
-                );
-        }
+            </div>
+        `
     );
+
+    $$(
+        '[data-ai-content]',
+        byId('discovery-subpage')
+    ).forEach(button => {
+
+        button.onclick =
+            () => {
+
+                AI_STATE.content =
+                    button.dataset.aiContent;
+
+                openAIChat();
+            };
+    });
 }
 
+function openAIChat() {
 
-// ============================================================
-// AI CHAT
-// ============================================================
+    openDiscoveryPage(
+        'AI Chat',
+        `
 
-function showAIChat(
-    ai,
-    context = {}
-) {
+            <div class="ai-chat">
 
-    showSubPage(
-        "AI Chat",
-        content => {
-
-            content.innerHTML = `
-                <h2>
-                    ${escapeHtml(
-                        ai
-                            .charAt(0)
-                            .toUpperCase() +
-                        ai.slice(1)
+                <div class="ai-message">
+                    Hello! I'm your
+                    ${escapeHTML(
+                        AI_STATE.content
                     )}
-                    AI
-                </h2>
+                    assistant for
+                    ${escapeHTML(
+                        AI_STATE.level
+                    )}
+                    curriculum in
+                    ${escapeHTML(
+                        AI_STATE.country
+                    )}.
+                    Ask me anything about
+                    a subject or topic.
+                </div>
 
                 <div
                     id="ai-chat-messages"
-                    class="chat-msgs">
+                ></div>
 
-                    <div class="msg ai">
-                        Hello! I'm your
-                        ${escapeHtml(
-                            context.content ||
-                            ""
-                        )}
-                        assistant for
-                        ${escapeHtml(
-                            context.level ||
-                            ""
-                        )}
-                        curriculum in
-                        ${escapeHtml(
-                            context.country ||
-                            ""
-                        )}.
-                        Ask me anything.
-                    </div>
-
-                </div>
-
-                <div
-                    style="
-                        display:flex;
-                        gap:8px;
-                        margin-top:12px;
-                    ">
+                <form
+                    id="ai-question-form"
+                >
 
                     <input
-                        id="ai-input"
-                        type="text"
+                        name="question"
                         placeholder="Ask a question..."
-                        style="flex:1;">
+                        required
+                    >
 
-                    <button
-                        id="ai-send"
-                        class="btn-primary">
-                        Send
+                    <button>
+                        Ask
                     </button>
 
+                </form>
+
+            </div>
+
+        `
+    );
+
+    const form =
+        byId('ai-question-form');
+
+    form?.addEventListener(
+        'submit',
+        async event => {
+
+            event.preventDefault();
+
+            const question =
+                form.querySelector(
+                    '[name="question"]'
+                ).value.trim();
+
+            if (!question) {
+                return;
+            }
+
+            await askAI(
+                question
+            );
+
+            form.reset();
+        }
+    );
+}
+
+async function askAI(question) {
+
+    try {
+
+        const params =
+            new URLSearchParams({
+                ai: 'education',
+                country: AI_STATE.country,
+                level: AI_STATE.level,
+                content: AI_STATE.content,
+                q: question
+            });
+
+        const result =
+            await GET(
+                `/api/ai-council/chat?${params}`
+            );
+
+        const container =
+            byId('ai-chat-messages');
+
+        if (!container) {
+            return;
+        }
+
+        container.insertAdjacentHTML(
+            'beforeend',
+            `
+                <div class="ai-question">
+                    ${escapeHTML(
+                        question
+                    )}
                 </div>
-            `;
 
-            const send =
-                async () => {
+                <div class="ai-answer">
+                    ${escapeHTML(
+                        result?.reply ||
+                        'No answer.'
+                    )}
+                </div>
+            `
+        );
 
-                    const input =
-                        $("#ai-input");
+    } catch (error) {
 
-                    const question =
-                        input?.value?.trim();
+        showToast(
+            error.message,
+            'error'
+        );
+    }
+}
 
-                    if (!question) {
-                        return;
+
+/* ============================================================
+   CREATIVE STUDIO
+   ============================================================ */
+
+async function openStudio() {
+
+    try {
+
+        const result =
+            await GET(
+                '/api/studio'
+            );
+
+        const tools =
+            result?.tools || [];
+
+        openDiscoveryPage(
+            'Creative Studio',
+            `
+                <div class="option-grid">
+
+                    ${
+                        tools
+                            .map(tool => `
+                                <button
+                                    data-studio-tool="${escapeHTML(
+                                        tool.id
+                                    )}"
+                                >
+
+                                    <span>
+                                        ${escapeHTML(
+                                            tool.icon
+                                        )}
+                                    </span>
+
+                                    <strong>
+                                        ${escapeHTML(
+                                            tool.title
+                                        )}
+                                    </strong>
+
+                                    <small>
+                                        ${escapeHTML(
+                                            tool.desc
+                                        )}
+                                    </small>
+
+                                </button>
+                            `)
+                            .join('')
                     }
 
-                    const messages =
-                        $("#ai-chat-messages");
+                </div>
+            `
+        );
 
-                    messages.innerHTML += `
-                        <div class="msg user">
-                            ${escapeHtml(
-                                question
-                            )}
-                        </div>
-                    `;
+        $$(
+            '[data-studio-tool]',
+            byId('discovery-subpage')
+        ).forEach(button => {
 
-                    input.value = "";
+            button.onclick =
+                () => {
 
-                    try {
-
-                        const params =
-                            new URLSearchParams({
-                                ai,
-                                ...context,
-                                q: question,
-                            });
-
-                        const response =
-                            await apiFetch(
-                                `/api/ai-council/chat?${params}`
-                            );
-
-                        const data =
-                            await response.json();
-
-                        messages.innerHTML += `
-                            <div class="msg ai">
-                                ${escapeHtml(
-                                    data.reply ||
-                                    "No response."
-                                )}
-                            </div>
-                        `;
-
-                    } catch {
-
-                        messages.innerHTML += `
-                            <div class="msg ai">
-                                Error reaching AI.
-                            </div>
-                        `;
-                    }
-
-                    messages.scrollTop =
-                        messages.scrollHeight;
+                    showToast(
+                        'Creative Studio tool prepared for the next phase.',
+                        'info'
+                    );
                 };
+        });
 
-            $("#ai-send")
-                ?.addEventListener(
-                    "click",
-                    send
-                );
+    } catch (error) {
 
-            $("#ai-input")
-                ?.addEventListener(
-                    "keydown",
-                    event => {
-
-                        if (
-                            event.key ===
-                            "Enter"
-                        ) {
-                            send();
-                        }
-                    }
-                );
-        }
-    );
+        showToast(
+            error.message,
+            'error'
+        );
+    }
 }
 
 
-// ============================================================
-// STUDIO
-// ============================================================
+/* ============================================================
+   MARKET
+   ============================================================ */
 
-async function showStudio() {
+async function openMarket() {
 
-    showSubPage(
-        "Creative Studio",
-        async content => {
+    try {
 
-            content.innerHTML = `
-                <h2>
-                    Creative Studio
-                </h2>
+        const result =
+            await GET(
+                '/api/market/categories'
+            );
 
-                <p class="muted">
-                    Canva-style tools
-                </p>
-            `;
+        const categories =
+            result?.categories || [];
 
-            const response =
-                await apiFetch(
-                    "/api/studio"
+        openDiscoveryPage(
+            'MSAFIRI MARKET',
+            `
+                <div class="option-grid">
+
+                    ${
+                        categories
+                            .map(category => `
+                                <button
+                                    data-market-category="${escapeHTML(
+                                        category.id
+                                    )}"
+                                >
+
+                                    🛍️
+
+                                    <strong>
+                                        ${escapeHTML(
+                                            category.title
+                                        )}
+                                    </strong>
+
+                                    <small>
+                                        ${escapeHTML(
+                                            category.desc
+                                        )}
+                                    </small>
+
+                                </button>
+                            `)
+                            .join('')
+                    }
+
+                </div>
+            `
+        );
+
+        $$(
+            '[data-market-category]',
+            byId('discovery-subpage')
+        ).forEach(button => {
+
+            button.onclick =
+                () => openMarketItems(
+                    button.dataset.marketCategory
                 );
+        });
 
-            const data =
-                await response.json();
+    } catch (error) {
 
-            (data.tools || [])
-                .forEach(
-                    tool => {
+        showToast(
+            error.message,
+            'error'
+        );
+    }
+}
 
-                        const item =
-                            document.createElement(
-                                "div"
-                            );
+async function openMarketItems(category) {
 
-                        item.className =
-                            "sub-item";
+    try {
 
-                        item.innerHTML = `
-                            <span class="icon">
-                                ${escapeHtml(
-                                    tool.icon
+        const result =
+            await GET(
+                `/api/market/items?category=${encodeURIComponent(category)}`
+            );
+
+        const items =
+            result?.items || [];
+
+        openDiscoveryPage(
+            `Market — ${category}`,
+            items.length
+                ? items
+                    .map(item => `
+                        <article class="market-item">
+
+                            <h3>
+                                ${escapeHTML(
+                                    item.name ||
+                                    'Product'
                                 )}
-                            </span>
+                            </h3>
 
-                            <div class="text">
-                                <strong>
-                                    ${escapeHtml(
-                                        tool.title
-                                    )}
-                                </strong>
+                            <p>
+                                ${escapeHTML(
+                                    item.description ||
+                                    ''
+                                )}
+                            </p>
 
-                                <span>
-                                    ${escapeHtml(
-                                        tool.desc
-                                    )}
-                                </span>
-                            </div>
-                        `;
+                        </article>
+                    `)
+                    .join('')
+                : `
+                    <div class="empty-state">
 
-                        item.addEventListener(
-                            "click",
-                            () =>
-                                toast(
-                                    `${tool.title} coming soon`
-                                )
-                        );
+                        <div style="font-size:40px;">
+                            🛍️
+                        </div>
 
-                        content.appendChild(
-                            item
-                        );
-                    }
-                );
-        }
-    );
+                        <h3>
+                            No items yet
+                        </h3>
+
+                        <p>
+                            Market items will appear here
+                            when sellers publish products.
+                        </p>
+
+                    </div>
+                `
+        );
+
+    } catch (error) {
+
+        showToast(
+            error.message,
+            'error'
+        );
+    }
 }
 
 
-// ============================================================
-// MARKET
-// ============================================================
+/* ============================================================
+   WORLD MAP
+   ============================================================ */
 
-async function showMarket() {
+async function openWorldMap() {
 
-    showSubPage(
-        "Market",
-        async content => {
+    try {
 
-            content.innerHTML = `
-                <h2>Market</h2>
-                <p class="muted">
-                    Buy and sell
-                </p>
-            `;
+        const result =
+            await GET(
+                '/api/world-map/countries'
+            );
 
-            const response =
-                await apiFetch(
-                    "/api/market/categories"
-                );
+        const countries =
+            result?.countries || [];
 
-            const data =
-                await response.json();
+        openDiscoveryPage(
+            'World Map',
+            `
+                <div class="world-map-placeholder">
 
-            (data.categories || [])
-                .forEach(
-                    category => {
+                    <div style="font-size:70px;">
+                        🌍
+                    </div>
 
-                        const item =
-                            document.createElement(
-                                "div"
-                            );
+                    <h3>
+                        MSAFIRI World
+                    </h3>
 
-                        item.className =
-                            "sub-item";
+                    <p>
+                        Explore users and content
+                        around the world.
+                    </p>
 
-                        item.innerHTML = `
-                            <span class="icon">
-                                🛍️
-                            </span>
+                </div>
 
-                            <div class="text">
-                                <strong>
-                                    ${escapeHtml(
-                                        category.title
-                                    )}
-                                </strong>
+                <div class="option-grid">
 
-                                <span>
-                                    ${escapeHtml(
-                                        category.desc
-                                    )}
-                                </span>
-                            </div>
-                        `;
+                    ${
+                        countries
+                            .map(country => `
+                                <button
+                                    data-map-country="${escapeHTML(
+                                        country.name
+                                    )}"
+                                >
 
-                        item.addEventListener(
-                            "click",
-                            () =>
-                                toast(
-                                    `${category.title} coming soon`
-                                )
-                        );
-
-                        content.appendChild(
-                            item
-                        );
-                    }
-                );
-        }
-    );
-}
-
-
-// ============================================================
-// WORLD MAP
-// ============================================================
-
-async function showWorldMap() {
-
-    showSubPage(
-        "World Map",
-        async content => {
-
-            content.innerHTML = `
-                <h2>World Map</h2>
-                <p class="muted">
-                    Explore the world
-                </p>
-            `;
-
-            const response =
-                await apiFetch(
-                    "/api/world-map/countries"
-                );
-
-            const data =
-                await response.json();
-
-            (data.countries || [])
-                .forEach(
-                    country => {
-
-                        const item =
-                            document.createElement(
-                                "div"
-                            );
-
-                        item.className =
-                            "sub-item";
-
-                        item.innerHTML = `
-                            <span class="icon">
-                                🌍
-                            </span>
-
-                            <div class="text">
-
-                                <strong>
-                                    ${escapeHtml(
+                                    🌍
+                                    ${escapeHTML(
                                         country.name
                                     )}
-                                </strong>
 
-                                <span>
-                                    ${country.users}
-                                    users •
-                                    ${country.posts}
-                                    posts
-                                </span>
+                                    <small>
+                                        Users:
+                                        ${country.users || 0}
+                                    </small>
 
-                            </div>
-                        `;
+                                    <small>
+                                        Posts:
+                                        ${country.posts || 0}
+                                    </small>
 
-                        content.appendChild(
-                            item
-                        );
+                                </button>
+                            `)
+                            .join('')
                     }
-                );
-        }
-    );
+
+                </div>
+            `
+        );
+
+    } catch (error) {
+
+        showToast(
+            error.message,
+            'error'
+        );
+    }
 }
 
 
-// ============================================================
-// CHANNELS
-// ============================================================
+/* ============================================================
+   CHANNELS
+   ============================================================ */
 
-async function showChannels() {
+async function openChannels() {
 
-    showSubPage(
-        "Channels",
-        async content => {
+    try {
 
-            content.innerHTML = `
-                <h2>Channels</h2>
-                <p class="muted">
-                    News and media
-                </p>
-            `;
+        const result =
+            await GET(
+                '/api/channels'
+            );
 
-            const response =
-                await apiFetch(
-                    "/api/channels"
-                );
+        const channels =
+            result?.channels || [];
 
-            const data =
-                await response.json();
+        openDiscoveryPage(
+            'Channels',
+            `
+                <div class="channel-list">
 
-            (data.channels || [])
-                .forEach(
-                    channel => {
+                    ${
+                        channels
+                            .map(channel => `
+                                <button
+                                    class="channel-item"
+                                    data-channel-id="${escapeHTML(
+                                        channel.id
+                                    )}"
+                                >
 
-                        const item =
-                            document.createElement(
-                                "div"
-                            );
+                                    📺
 
-                        item.className =
-                            "sub-item";
+                                    <strong>
+                                        ${escapeHTML(
+                                            channel.name
+                                        )}
+                                    </strong>
 
-                        item.innerHTML = `
-                            <span class="icon">
-                                📺
-                            </span>
+                                    <small>
+                                        ${escapeHTML(
+                                            channel.desc
+                                        )}
+                                    </small>
 
-                            <div class="text">
-
-                                <strong>
-                                    ${escapeHtml(
-                                        channel.name
-                                    )}
-                                </strong>
-
-                                <span>
-                                    ${escapeHtml(
-                                        channel.desc
-                                    )}
-                                </span>
-
-                            </div>
-                        `;
-
-                        item.addEventListener(
-                            "click",
-                            () =>
-                                toast(
-                                    `${channel.name} coming soon`
-                                )
-                        );
-
-                        content.appendChild(
-                            item
-                        );
+                                </button>
+                            `)
+                            .join('')
                     }
-                );
-        }
-    );
+
+                </div>
+            `
+        );
+
+    } catch (error) {
+
+        showToast(
+            error.message,
+            'error'
+        );
+    }
 }
 
 
-// ============================================================
-// COMMUNITIES
-// ============================================================
+/* ============================================================
+   COMMUNITIES
+   ============================================================ */
 
-async function showCommunities() {
+async function openCommunities() {
 
-    showSubPage(
-        "Communities",
-        async content => {
+    try {
 
-            content.innerHTML = `
-                <h2>Communities</h2>
-                <p class="muted">
-                    Join groups and communities
-                </p>
-            `;
+        const result =
+            await GET(
+                '/api/communities/categories'
+            );
 
-            const response =
-                await apiFetch(
-                    "/api/communities/categories"
-                );
+        const categories =
+            result?.categories || [];
 
-            const data =
-                await response.json();
+        openDiscoveryPage(
+            'Communities',
+            `
+                <div class="option-grid">
 
-            (data.categories || [])
-                .forEach(
-                    category => {
+                    ${
+                        categories
+                            .map(category => `
+                                <button
+                                    data-community-category="${escapeHTML(
+                                        category.id
+                                    )}"
+                                >
 
-                        const item =
-                            document.createElement(
-                                "div"
-                            );
+                                    👥
 
-                        item.className =
-                            "sub-item";
+                                    <strong>
+                                        ${escapeHTML(
+                                            category.title
+                                        )}
+                                    </strong>
 
-                        item.innerHTML = `
-                            <span class="icon">
-                                👥
-                            </span>
+                                    <small>
+                                        ${escapeHTML(
+                                            category.desc
+                                        )}
+                                    </small>
 
-                            <div class="text">
-
-                                <strong>
-                                    ${escapeHtml(
-                                        category.title
-                                    )}
-                                </strong>
-
-                                <span>
-                                    ${escapeHtml(
-                                        category.desc
-                                    )}
-                                </span>
-
-                            </div>
-                        `;
-
-                        item.addEventListener(
-                            "click",
-                            () =>
-                                toast(
-                                    `${category.title} coming soon`
-                                )
-                        );
-
-                        content.appendChild(
-                            item
-                        );
+                                </button>
+                            `)
+                            .join('')
                     }
-                );
-        }
-    );
+
+                </div>
+            `
+        );
+
+    } catch (error) {
+
+        showToast(
+            error.message,
+            'error'
+        );
+    }
 }
 
 
-// ============================================================
-// VIDEOS
-// ============================================================
+/* ============================================================
+   SETTINGS
+   ============================================================ */
 
-async function showVideos() {
+async function openSettings() {
 
-    showSubPage(
-        "Videos",
-        content => {
+    try {
 
-            content.innerHTML = `
-                <h2>Videos</h2>
+        const result =
+            await GET(
+                '/api/settings'
+            );
 
-                <p class="muted">
-                    Short video feed
-                </p>
+        openDiscoveryPage(
+            'Settings',
+            `
 
-                <div class="sub-item">
-
-                    <span class="icon">
-                        ▶️
-                    </span>
-
-                    <div class="text">
-
-                        <strong>
-                            Video Feed
-                        </strong>
-
-                        <span>
-                            TikTok-style feed
-                            coming in next phase
-                        </span>
-
-                    </div>
-
-                </div>
-            `;
-        }
-    );
-}
-
-
-// ============================================================
-// SETTINGS
-// ============================================================
-
-function showSettings() {
-
-    showSubPage(
-        "Settings",
-        content => {
-
-            content.innerHTML = `
-                <h2>Settings</h2>
-
-                <div
-                    class="sub-item"
-                    id="setting-manual">
-
-                    <span class="icon">
-                        📖
-                    </span>
-
-                    <div class="text">
-                        <strong>
-                            User Manual
-                        </strong>
-
-                        <span>
-                            How to use the app
-                        </span>
-                    </div>
-
-                </div>
-
-                <div
-                    class="sub-item"
-                    id="setting-theme">
-
-                    <span class="icon">
-                        🌓
-                    </span>
-
-                    <div class="text">
-                        <strong>
-                            Theme
-                        </strong>
-
-                        <span>
-                            Light / Dark
-                        </span>
-                    </div>
-
-                </div>
-
-                <div
-                    class="sub-item">
-
-                    <span class="icon">
-                        ℹ️
-                    </span>
-
-                    <div class="text">
-                        <strong>
-                            Version
-                        </strong>
-
-                        <span>
-                            MSAFIRI MEDIA V0.0.1
-                        </span>
-                    </div>
-
-                </div>
-
-                <div
-                    class="sub-item"
-                    id="setting-logout">
-
-                    <span class="icon">
-                        🚪
-                    </span>
-
-                    <div class="text">
-                        <strong>
-                            Logout
-                        </strong>
-
-                        <span>
-                            Sign out
-                        </span>
-                    </div>
-
-                </div>
-            `;
-
-            $("#setting-manual")
-                ?.addEventListener(
-                    "click",
-                    showUserManual
-                );
-
-            $("#setting-theme")
-                ?.addEventListener(
-                    "click",
-                    toggleTheme
-                );
-
-            $("#setting-logout")
-                ?.addEventListener(
-                    "click",
-                    logout
-                );
-        }
-    );
-}
-
-
-// ============================================================
-// USER MANUAL
-// ============================================================
-
-async function showUserManual() {
-
-    showSubPage(
-        "User Manual",
-        async content => {
-
-            try {
-
-                const response =
-                    await apiFetch(
-                        "/api/user-manual"
-                    );
-
-                const manual =
-                    await response.json();
-
-                content.innerHTML = `
-                    <div
-                        style="
-                            text-align:center;
-                            margin-bottom:20px;
-                        ">
-
-                        <div
-                            class="auth-logo"
-                            style="
-                                margin:0 auto 12px;
-                            ">
-                            M
-                        </div>
-
-                        <h2>
-                            ${escapeHtml(
-                                manual.app
-                            )}
-                        </h2>
-
-                        <p class="muted">
-                            ${escapeHtml(
-                                manual.tagline
-                            )}
-                        </p>
-
-                        <p class="muted">
-                            Founder:
-                            ${escapeHtml(
-                                manual.founder
-                            )}
-                        </p>
-
-                        <p class="muted">
-                            ${escapeHtml(
-                                manual.company
-                            )}
-                        </p>
-
-                        <p class="muted">
-                            Version:
-                            ${escapeHtml(
-                                manual.version
-                            )}
-                        </p>
-
-                    </div>
-
-                    <div class="manual-section">
-
-                        <h3>
-                            About MSAFIRI
-                        </h3>
-
-                        <p>
-                            ${escapeHtml(
-                                manual.about
-                            )}
-                        </p>
-
-                    </div>
-
-                    <div class="manual-section">
-
-                        <h3>
-                            Sections
-                        </h3>
-
-                        <ul>
-
-                            ${Object.entries(
-                                manual.sections ||
-                                {}
-                            )
-                                .map(
-                                    ([key, value]) =>
-                                        `<li>
-                                            <strong>
-                                                ${escapeHtml(
-                                                    key
-                                                )}:
-                                            </strong>
-                                            ${escapeHtml(
-                                                value
-                                            )}
-                                        </li>`
-                                )
-                                .join("")}
-
-                        </ul>
-
-                    </div>
-
-                    <div class="manual-section">
-
-                        <h3>
-                            How to Use
-                        </h3>
-
-                        <ul>
-
-                            ${Object.entries(
-                                manual.how_to_use ||
-                                {}
-                            )
-                                .map(
-                                    ([key, value]) =>
-                                        `<li>
-                                            <strong>
-                                                ${escapeHtml(
-                                                    key.replace(
-                                                        /_/g,
-                                                        " "
-                                                    )
-                                                )}:
-                                            </strong>
-                                            ${escapeHtml(
-                                                value
-                                            )}
-                                        </li>`
-                                )
-                                .join("")}
-
-                        </ul>
-
-                    </div>
-
-                    <div class="manual-section">
-
-                        <h3>
-                            Support
-                        </h3>
-
-                        <p>
-                            ${escapeHtml(
-                                manual.support
-                            )}
-                        </p>
-
-                    </div>
+                <div class="settings-list">
 
                     <button
-                        class="btn-primary"
-                        id="download-manual"
-                        style="width:100%;margin-top:16px;">
-
-                        📥 Download User Manual
-
+                        data-setting-manual
+                    >
+                        📖
+                        <span>
+                            User Manual
+                        </span>
                     </button>
-                `;
 
-                $("#download-manual")
-                    ?.addEventListener(
-                        "click",
-                        () =>
-                            downloadManual(
-                                manual
-                            )
-                    );
+                    <button
+                        data-setting-theme
+                    >
+                        🌓
+                        <span>
+                            Toggle Theme
+                        </span>
+                    </button>
 
-            } catch (error) {
+                    <button>
+                        ℹ️
+                        <span>
+                            Version
+                            ${escapeHTML(
+                                result?.version ||
+                                APP_VERSION
+                            )}
+                        </span>
+                    </button>
 
-                console.error(error);
+                    <button
+                        data-setting-logout
+                    >
+                        🚪
+                        <span>
+                            Logout
+                        </span>
+                    </button>
 
-                content.innerHTML = `
-                    <p class="muted">
-                        Unable to load manual.
-                    </p>
-                `;
-            }
-        }
-    );
+                </div>
+
+            `
+        );
+
+        const page =
+            byId(
+                'discovery-subpage'
+            );
+
+        page.querySelector(
+            '[data-setting-manual]'
+        )?.addEventListener(
+            'click',
+            openUserManual
+        );
+
+        page.querySelector(
+            '[data-setting-theme]'
+        )?.addEventListener(
+            'click',
+            toggleTheme
+        );
+
+        page.querySelector(
+            '[data-setting-logout]'
+        )?.addEventListener(
+            'click',
+            logout
+        );
+
+    } catch (error) {
+
+        showToast(
+            error.message,
+            'error'
+        );
+    }
 }
 
 
-// ============================================================
-// DOWNLOAD MANUAL
-// ============================================================
+/* ============================================================
+   USER MANUAL
+   ============================================================ */
 
-function downloadManual(
-    manual
-) {
+async function openUserManual() {
+
+    try {
+
+        const manual =
+            await GET(
+                '/api/user-manual'
+            );
+
+        openDiscoveryPage(
+            'User Manual',
+            `
+
+                <div class="user-manual">
+
+                    <div class="manual-logo">
+                        M
+                    </div>
+
+                    <h1>
+                        ${escapeHTML(
+                            manual.app
+                        )}
+                    </h1>
+
+                    <p>
+                        ${escapeHTML(
+                            manual.tagline
+                        )}
+                    </p>
+
+                    <hr>
+
+                    <h2>
+                        About MSAFIRI
+                    </h2>
+
+                    <p>
+                        ${escapeHTML(
+                            manual.about
+                        )}
+                    </p>
+
+                    <h2>
+                        Sections of the App
+                    </h2>
+
+                    ${
+                        Object.entries(
+                            manual.sections || {}
+                        )
+                        .map(
+                            ([key, value]) => `
+                                <p>
+                                    <strong>
+                                        ${escapeHTML(
+                                            key
+                                        )}
+                                    :
+                                    </strong>
+                                    ${escapeHTML(
+                                        value
+                                    )}
+                                </p>
+                            `
+                        )
+                        .join('')
+                    }
+
+                    <h2>
+                        How to Use MSAFIRI
+                    </h2>
+
+                    ${
+                        Object.entries(
+                            manual.how_to_use || {}
+                        )
+                        .map(
+                            ([key, value]) => `
+                                <p>
+                                    <strong>
+                                        ${escapeHTML(
+                                            key
+                                        )}
+                                    :
+                                    </strong>
+                                    ${escapeHTML(
+                                        value
+                                    )}
+                                </p>
+                            `
+                        )
+                        .join('')
+                    }
+
+                    <h2>
+                        Support
+                    </h2>
+
+                    <p>
+                        ${escapeHTML(
+                            manual.support
+                        )}
+                    </p>
+
+                    <button
+                        id="download-manual"
+                    >
+                        📥 Download User Manual
+                    </button>
+
+                </div>
+
+            `
+        );
+
+        byId(
+            'download-manual'
+        )?.addEventListener(
+            'click',
+            () => downloadManual(
+                manual
+            )
+        );
+
+    } catch (error) {
+
+        showToast(
+            error.message,
+            'error'
+        );
+    }
+}
+
+function downloadManual(manual) {
 
     const text = `
 MSAFIRI GLOBAL MEDIA
 ${manual.tagline}
+
+USER MANUAL
+
+ABOUT MSAFIRI
+${manual.about}
+
+SECTIONS OF THE APP
+
+${Object.entries(
+    manual.sections || {}
+)
+.map(
+    ([key, value]) =>
+        `${key}: ${value}`
+)
+.join('\n')}
+
+HOW TO USE MSAFIRI
+
+${Object.entries(
+    manual.how_to_use || {}
+)
+.map(
+    ([key, value]) =>
+        `${key}: ${value}`
+)
+.join('\n')}
+
+SUPPORT
+${manual.support}
+
+Version:
+${manual.version}
 
 Founder:
 ${manual.founder}
 
 Company:
 ${manual.company}
-
-Version:
-${manual.version}
-
-
-ABOUT
-${manual.about}
-
-
-SECTIONS
-${Object.entries(
-    manual.sections || {}
-)
-    .map(
-        ([key, value]) =>
-            `- ${key}: ${value}`
-    )
-    .join("\n")}
-
-
-HOW TO USE
-${Object.entries(
-    manual.how_to_use || {}
-)
-    .map(
-        ([key, value]) =>
-            `- ${key}: ${value}`
-    )
-    .join("\n")}
-
-
-SUPPORT
-${manual.support}
-`;
+`.trim();
 
     const blob =
         new Blob(
             [text],
             {
                 type:
-                    "text/plain;charset=utf-8",
+                    'text/plain;charset=utf-8'
             }
         );
 
@@ -3769,15 +3774,11 @@ ${manual.support}
         );
 
     const anchor =
-        document.createElement(
-            "a"
-        );
+        document.createElement('a');
 
-    anchor.href =
-        url;
-
+    anchor.href = url;
     anchor.download =
-        "MSAFIRI-UserManual.txt";
+        'MSAFIRI-UserManual.txt';
 
     document.body.appendChild(
         anchor
@@ -3791,790 +3792,986 @@ ${manual.support}
         url
     );
 
-    toast(
-        "User Manual downloaded"
+    showToast(
+        'User Manual downloaded.',
+        'success'
     );
 }
 
 
-// ============================================================
-// DOTS MENU
-// ============================================================
+/* ============================================================
+   THEME
+   ============================================================ */
 
-function setupDotsMenu() {
+function applyTheme(theme) {
 
-    const dots =
-        $("#dots-btn");
-
-    const menu =
-        $("#dots-menu");
-
-    if (!dots || !menu) {
-        return;
+    if (
+        theme !== 'light' &&
+        theme !== 'dark'
+    ) {
+        theme = 'dark';
     }
 
-    dots.addEventListener(
-        "click",
-        event => {
+    document.documentElement.dataset.theme =
+        theme;
 
-            event.stopPropagation();
-
-            menu.classList.toggle(
-                "hidden"
-            );
-        }
+    localStorage.setItem(
+        STORAGE.THEME,
+        theme
     );
 
-    document.addEventListener(
-        "click",
-        () => {
-
-            menu.classList.add(
-                "hidden"
-            );
-        }
+    document.body.classList.toggle(
+        'dark-theme',
+        theme === 'dark'
     );
 
-    menu.querySelectorAll(
-        "button"
-    ).forEach(
-        button => {
-
-            button.addEventListener(
-                "click",
-                event => {
-
-                    event.stopPropagation();
-
-                    const action =
-                        button.dataset.action;
-
-                    if (
-                        action ===
-                        "manual"
-                    ) {
-                        showUserManual();
-                    }
-
-                    if (
-                        action ===
-                        "settings"
-                    ) {
-                        showSettings();
-                    }
-
-                    if (
-                        action ===
-                        "logout"
-                    ) {
-                        logout();
-                    }
-
-                    menu.classList.add(
-                        "hidden"
-                    );
-                }
-            );
-        }
+    document.body.classList.toggle(
+        'light-theme',
+        theme === 'light'
     );
 }
-
-
-// ============================================================
-// CHATS
-// ============================================================
-
-async function loadChats() {
-
-    const list =
-        $("#chat-list");
-
-    if (!list) return;
-
-    try {
-
-        const response =
-            await apiFetch(
-                "/api/messages"
-            );
-
-        if (!response.ok) {
-
-            list.innerHTML = `
-                <p class="muted"
-                   style="padding:20px;text-align:center;">
-                    No chats yet
-                </p>
-            `;
-
-            return;
-        }
-
-        const data =
-            await response.json();
-
-        const messages =
-            data.messages || [];
-
-        if (
-            messages.length === 0
-        ) {
-
-            list.innerHTML = `
-                <p class="muted"
-                   style="padding:20px;text-align:center;">
-                    No chats yet
-                </p>
-            `;
-
-            return;
-        }
-
-        list.innerHTML = "";
-
-        messages.forEach(
-            message => {
-
-                const item =
-                    document.createElement(
-                        "div"
-                    );
-
-                item.className =
-                    "sub-item";
-
-                item.innerHTML = `
-                    <span class="icon">
-                        💬
-                    </span>
-
-                    <div class="text">
-
-                        <strong>
-                            ${escapeHtml(
-                                message.username ||
-                                "User"
-                            )}
-                        </strong>
-
-                        <span>
-                            ${escapeHtml(
-                                message.text ||
-                                message.content ||
-                                ""
-                            )}
-                        </span>
-
-                    </div>
-                `;
-
-                list.appendChild(
-                    item
-                );
-            }
-        );
-
-    } catch (error) {
-
-        console.error(
-            "Chats:",
-            error
-        );
-
-        list.innerHTML = `
-            <p class="muted"
-               style="padding:20px;text-align:center;">
-                No chats yet
-            </p>
-        `;
-    }
-}
-
-
-// ============================================================
-// PROFILE
-// ============================================================
-
-async function loadProfile() {
-
-    try {
-
-        const response =
-            await apiFetch(
-                "/api/auth/me"
-            );
-
-        if (!response.ok) {
-            return;
-        }
-
-        const user =
-            await response.json();
-
-        currentUser =
-            user;
-
-        const name =
-            $("#profile-name");
-
-        const username =
-            $("#profile-username");
-
-        const bio =
-            $("#profile-bio");
-
-        const avatar =
-            $("#profile-avatar");
-
-        if (name) {
-
-            name.textContent =
-                user.full_name ||
-                user.username ||
-                "User";
-        }
-
-        if (username) {
-
-            username.textContent =
-                "@" +
-                (
-                    user.username ||
-                    "user"
-                );
-        }
-
-        if (bio) {
-
-            bio.textContent =
-                user.bio ||
-                "Welcome to Msafiri";
-        }
-
-        if (avatar) {
-
-            avatar.textContent =
-                (
-                    user.full_name ||
-                    user.username ||
-                    "U"
-                )
-                    .charAt(0)
-                    .toUpperCase();
-        }
-
-    } catch (error) {
-
-        console.error(
-            "Profile:",
-            error
-        );
-    }
-}
-
-
-// ============================================================
-// THEME
-// ============================================================
 
 function toggleTheme() {
 
-    const html =
-        document.documentElement;
-
     const current =
-        html.dataset.theme ||
-        "dark";
+        localStorage.getItem(
+            STORAGE.THEME
+        ) || 'dark';
 
     const next =
-        current === "dark"
-            ? "light"
-            : "dark";
+        current === 'dark'
+            ? 'light'
+            : 'dark';
 
-    html.dataset.theme =
-        next;
-
-    localStorage.setItem(
-        "theme",
+    applyTheme(
         next
     );
 
-    toast(
-        `Theme: ${next}`
+    showToast(
+        `Theme changed to ${next}.`,
+        'success'
     );
 }
 
 
-function loadSavedTheme() {
-
-    const theme =
-        localStorage.getItem(
-            "theme"
-        );
-
-    if (theme) {
-
-        document.documentElement
-            .dataset
-            .theme = theme;
-    }
-}
-
-
-// ============================================================
-// LOGOUT
-// ============================================================
+/* ============================================================
+   LOGOUT
+   ============================================================ */
 
 async function logout() {
 
     try {
 
-        await apiFetch(
-            "/api/auth/logout",
-            {
-                method: "POST",
-            }
+        await POST(
+            '/api/auth/logout'
         );
 
-    } catch {}
+    } catch {
+        /*
+           Logout endpoint may not exist.
+           Local logout still proceeds.
+        */
+    }
 
-    localStorage.removeItem(
-        "token"
+    clearAuth();
+
+    showToast(
+        'Logged out.',
+        'success'
     );
 
-    currentUser =
-        null;
-
-    location.reload();
-}
-
-
-// ============================================================
-// AUTH CHECK HELPER
-// ============================================================
-
-function ensureLoggedIn() {
-
-    if (!currentUser) {
-
-        toast(
-            "Please login first."
-        );
-
-        showAuth();
-
-        return false;
-    }
-
-    return true;
-}
-
-
-// ============================================================
-// TOAST
-// ============================================================
-
-function toast(
-    message
-) {
-
-    const old =
-        document.querySelectorAll(
-            ".msafiri-toast"
-        );
-
-    if (old.length > 3) {
-        old[0].remove();
-    }
-
-    const element =
-        document.createElement(
-            "div"
-        );
-
-    element.className =
-        "msafiri-toast";
-
-    element.textContent =
-        message;
-
-    element.style.cssText = `
-        position:fixed;
-        left:50%;
-        bottom:30px;
-        transform:translateX(-50%);
-        z-index:100000;
-        padding:12px 18px;
-        border-radius:12px;
-        background:#111827;
-        color:white;
-        font-size:14px;
-        box-shadow:0 10px 30px rgba(0,0,0,.25);
-    `;
-
-    document.body.appendChild(
-        element
+    setView(
+        'home'
     );
 
     setTimeout(
         () => {
-
-            element.remove();
-
+            window.location.reload();
         },
-        2500
+        500
     );
 }
 
 
-// ============================================================
-// ESCAPE HTML
-// ============================================================
+/* ============================================================
+   AUTH FORM HANDLING
+   ============================================================ */
 
-function escapeHtml(
-    value
-) {
+async function handleLogin(form) {
 
-    const div =
-        document.createElement(
-            "div"
+    const username =
+        form.querySelector(
+            '[name="username"]'
+        )?.value?.trim();
+
+    const email =
+        form.querySelector(
+            '[name="email"]'
+        )?.value?.trim();
+
+    const password =
+        form.querySelector(
+            '[name="password"]'
+        )?.value || '';
+
+    if (!password) {
+
+        showToast(
+            'Password is required.',
+            'error'
         );
 
-    div.textContent =
-        value == null
-            ? ""
-            : String(value);
-
-    return div.innerHTML;
-}
-
-
-function escapeAttribute(
-    value
-) {
-
-    return escapeHtml(
-        value
-    )
-        .replace(
-            /"/g,
-            "&quot;"
-        )
-        .replace(
-            /'/g,
-            "&#39;"
-        );
-}
-
-
-// ============================================================
-// TIME AGO
-// ============================================================
-
-function timeAgo(
-    iso
-) {
-
-    if (!iso) {
-        return "now";
-    }
-
-    const date =
-        new Date(iso);
-
-    if (
-        Number.isNaN(
-            date.getTime()
-        )
-    ) {
-        return "now";
-    }
-
-    const seconds =
-        Math.floor(
-            (
-                Date.now() -
-                date.getTime()
-            ) / 1000
-        );
-
-    if (seconds < 10) {
-        return "now";
-    }
-
-    if (seconds < 60) {
-        return `${seconds}s`;
-    }
-
-    if (seconds < 3600) {
-        return `${Math.floor(
-            seconds / 60
-        )}m`;
-    }
-
-    if (seconds < 86400) {
-        return `${Math.floor(
-            seconds / 3600
-        )}h`;
-    }
-
-    return `${Math.floor(
-        seconds / 86400
-    )}d`;
-}
-
-
-// ============================================================
-// COMPOSER CSS
-// ============================================================
-
-function injectComposerStyles() {
-
-    if (
-        document.getElementById(
-            "msafiri-composer-css"
-        )
-    ) {
         return;
     }
 
-    const style =
-        document.createElement(
-            "style"
+    /*
+       Support common OAuth2-style login.
+    */
+
+    const data =
+        new URLSearchParams();
+
+    data.append(
+        'username',
+        username || email || ''
+    );
+
+    data.append(
+        'password',
+        password
+    );
+
+    try {
+
+        const result =
+            await apiRequest(
+                '/api/auth/login',
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type':
+                            'application/x-www-form-urlencoded'
+                    },
+                    body: data
+                }
+            );
+
+        const token =
+            result?.access_token ||
+            result?.token ||
+            result?.accessToken;
+
+        if (!token) {
+
+            throw new Error(
+                'Login succeeded but no access token was returned.'
+            );
+        }
+
+        setAuth(
+            token,
+            result?.user || null
         );
 
-    style.id =
-        "msafiri-composer-css";
+        showToast(
+            'Login successful.',
+            'success'
+        );
 
-    style.textContent = `
+        setView(
+            'home'
+        );
 
-        .post-composer-overlay {
-            position:fixed;
-            inset:0;
-            z-index:99999;
-            background:rgba(0,0,0,.65);
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            padding:20px;
-        }
+    } catch (error) {
 
-        .post-composer-card {
-            width:min(600px, 100%);
-            max-height:90vh;
-            overflow:auto;
-            background:var(
-                --card-bg,
-                #ffffff
+        showToast(
+            error.message ||
+            'Login failed.',
+            'error'
+        );
+    }
+}
+
+
+/* ============================================================
+   REGISTER
+   ============================================================ */
+
+async function handleRegister(form) {
+
+    const payload = {
+
+        username:
+            form.querySelector(
+                '[name="username"]'
+            )?.value?.trim(),
+
+        email:
+            form.querySelector(
+                '[name="email"]'
+            )?.value?.trim(),
+
+        password:
+            form.querySelector(
+                '[name="password"]'
+            )?.value || '',
+
+        full_name:
+            form.querySelector(
+                '[name="full_name"]'
+            )?.value?.trim() || ''
+
+    };
+
+    if (
+        !payload.username ||
+        !payload.email ||
+        !payload.password
+    ) {
+
+        showToast(
+            'Username, email and password are required.',
+            'error'
+        );
+
+        return;
+    }
+
+    try {
+
+        const result =
+            await POST(
+                '/api/auth/register',
+                payload
             );
-            color:var(
-                --text-color,
-                #111827
+
+        showToast(
+            result?.message ||
+            'Account created successfully.',
+            'success'
+        );
+
+        const token =
+            result?.access_token ||
+            result?.token;
+
+        if (token) {
+
+            setAuth(
+                token,
+                result?.user || null
             );
-            border-radius:20px;
-            padding:20px;
-            box-shadow:0 20px 70px rgba(0,0,0,.35);
-        }
 
-        .composer-header {
-            display:flex;
-            align-items:center;
-            justify-content:space-between;
-            margin-bottom:18px;
-        }
-
-        .composer-header h2 {
-            margin:0;
-        }
-
-        .composer-header button {
-            border:0;
-            background:none;
-            font-size:30px;
-            cursor:pointer;
-        }
-
-        .composer-user {
-            display:flex;
-            gap:10px;
-            align-items:center;
-            margin-bottom:14px;
-        }
-
-        .composer-user small {
-            display:block;
-            opacity:.6;
-        }
-
-        .composer-avatar {
-            width:42px;
-            height:42px;
-            border-radius:50%;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            background:linear-gradient(
-                135deg,
-                #6c5ce7,
-                #8e44ad
+            setView(
+                'home'
             );
-            color:white;
-            font-weight:bold;
         }
 
-        #post-caption-input {
-            width:100%;
-            min-height:120px;
-            resize:vertical;
-            border:1px solid #ddd;
-            border-radius:14px;
-            padding:14px;
-            font-size:16px;
-            outline:none;
-            box-sizing:border-box;
-        }
+    } catch (error) {
 
-        .media-preview {
-            margin-top:14px;
-        }
+        showToast(
+            error.message ||
+            'Registration failed.',
+            'error'
+        );
+    }
+}
 
-        .media-preview img,
-        .media-preview video {
-            width:100%;
-            max-height:350px;
-            object-fit:contain;
-            border-radius:14px;
-            background:#000;
-        }
 
-        .composer-tools {
-            display:flex;
-            gap:10px;
-            flex-wrap:wrap;
-            margin-top:14px;
-        }
+/* ============================================================
+   SEARCH BAR
+   ============================================================ */
 
-        .composer-tool {
-            border:1px solid #ddd;
-            padding:10px 14px;
-            border-radius:12px;
-            cursor:pointer;
-            background:transparent;
-        }
+function setupSearch() {
 
-        .composer-footer {
-            display:flex;
-            align-items:center;
-            justify-content:space-between;
-            gap:10px;
-            margin-top:16px;
-        }
+    const inputs =
+        $$(
+            '[data-user-search], #user-search, #search-input'
+        );
 
-        .post-media-wrap {
-            margin-top:10px;
-        }
+    inputs.forEach(input => {
 
-        .post-media,
-        .post-video {
-            width:100%;
-            max-height:650px;
-            object-fit:cover;
-            border-radius:12px;
-        }
+        let timeout = null;
 
-        .post-avatar-img {
-            width:42px;
-            height:42px;
-            border-radius:50%;
-            object-fit:cover;
-        }
+        input.addEventListener(
+            'input',
+            () => {
 
-        .post-action.liked {
-            font-weight:bold;
-        }
+                clearTimeout(
+                    timeout
+                );
 
-        .post-action.saved {
-            font-weight:bold;
-        }
+                const value =
+                    input.value.trim();
 
-        .comments-area {
-            margin-top:10px;
-        }
+                timeout =
+                    setTimeout(
+                        () => {
 
-        .comment-item {
-            display:flex;
-            gap:10px;
-            margin:10px 0;
-        }
+                            if (value) {
+                                searchUsers(
+                                    value
+                                );
+                            } else {
+                                renderSearchResults(
+                                    []
+                                );
+                            }
 
-        .comment-avatar {
-            width:34px;
-            height:34px;
-            min-width:34px;
-            border-radius:50%;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            background:#eee;
-            font-weight:bold;
-        }
+                        },
+                        350
+                    );
+            }
+        );
 
-        .comment-body {
-            flex:1;
-        }
+        input.addEventListener(
+            'keydown',
+            event => {
 
-        .comment-body p {
-            margin:3px 0;
-        }
+                if (
+                    event.key === 'Enter'
+                ) {
 
-        .comment-body small {
-            opacity:.55;
-        }
+                    event.preventDefault();
 
-        .comment-form {
-            display:flex;
-            gap:8px;
-            margin-top:12px;
-        }
+                    searchUsers(
+                        input.value
+                    );
+                }
+            }
+        );
+    });
+}
 
-        .comment-form input {
-            flex:1;
-            min-width:0;
-            padding:10px 12px;
-            border-radius:12px;
-            border:1px solid #ddd;
+
+/* ============================================================
+   BOTTOM NAVIGATION
+   ============================================================ */
+
+function setupNavigation() {
+
+    $$(
+        '[data-view]'
+    ).forEach(button => {
+
+        button.addEventListener(
+            'click',
+            () => {
+
+                const view =
+                    button.dataset.view;
+
+                if (view) {
+                    setView(
+                        view
+                    );
+                }
+            }
+        );
+    });
+
+    $$(
+        '[data-nav-home]'
+    ).forEach(button => {
+
+        button.onclick =
+            () => setView('home');
+    });
+
+    $$(
+        '[data-nav-discovery]'
+    ).forEach(button => {
+
+        button.onclick =
+            () => setView(
+                'discovery'
+            );
+    });
+
+    $$(
+        '[data-nav-chats]'
+    ).forEach(button => {
+
+        button.onclick =
+            () => setView('chats');
+    });
+
+    $$(
+        '[data-nav-profile]'
+    ).forEach(button => {
+
+        button.onclick =
+            () => setView('profile');
+    });
+
+    $$(
+        '[data-create-post]'
+    ).forEach(button => {
+
+        button.onclick =
+            openCreatePost;
+    });
+
+    $$(
+        '#create-button, #post-button'
+    ).forEach(button => {
+
+        button.onclick =
+            openCreatePost;
+    });
+}
+
+
+/* ============================================================
+   3-DOTS MENU
+   ============================================================ */
+
+function setupThreeDots() {
+
+    $$(
+        '[data-menu], #three-dots, #more-menu'
+    ).forEach(button => {
+
+        button.addEventListener(
+            'click',
+            openMainMenu
+        );
+    });
+}
+
+function openMainMenu() {
+
+    let menu =
+        byId('msafiri-main-menu');
+
+    if (!menu) {
+
+        menu =
+            document.createElement('div');
+
+        menu.id =
+            'msafiri-main-menu';
+
+        menu.className =
+            'msafiri-menu';
+
+        menu.innerHTML = `
+
+            <button data-main-manual>
+                📖 User Manual
+            </button>
+
+            <button data-main-settings>
+                ⚙️ Settings
+            </button>
+
+            <button data-main-theme>
+                🌓 Toggle Theme
+            </button>
+
+            <button data-main-logout>
+                🚪 Logout
+            </button>
+
+        `;
+
+        document.body.appendChild(
+            menu
+        );
+
+        menu.querySelector(
+            '[data-main-manual]'
+        ).onclick =
+            openUserManual;
+
+        menu.querySelector(
+            '[data-main-settings]'
+        ).onclick =
+            openSettings;
+
+        menu.querySelector(
+            '[data-main-theme]'
+        ).onclick =
+            toggleTheme;
+
+        menu.querySelector(
+            '[data-main-logout]'
+        ).onclick =
+            logout;
+    }
+
+    menu.hidden =
+        !menu.hidden;
+}
+
+
+/* ============================================================
+   STORY / STATUS
+   ============================================================ */
+
+async function loadStories() {
+
+    const container =
+        byId('stories') ||
+        document.querySelector(
+            '[data-stories]'
+        );
+
+    if (!container) {
+        return;
+    }
+
+    const endpoints = [
+        '/api/stories',
+        '/api/statuses'
+    ];
+
+    for (const endpoint of endpoints) {
+
+        try {
+
+            const result =
+                await GET(
+                    endpoint
+                );
+
+            const stories =
+                result?.stories ||
+                result?.statuses ||
+                [];
+
+            renderStories(
+                stories,
+                container
+            );
+
+            return;
+
+        } catch (error) {
+
+            if (
+                error.status !== 404 &&
+                error.status !== 405
+            ) {
+                console.warn(
+                    error
+                );
+            }
+        }
+    }
+
+    renderStories(
+        [],
+        container
+    );
+}
+
+function renderStories(
+    stories,
+    container
+) {
+
+    container.innerHTML = `
+
+        <div class="story-add"
+             data-story-create>
+
+            <div class="story-avatar">
+                +
+            </div>
+
+            <span>
+                My Story
+            </span>
+
+        </div>
+
+        ${
+            stories
+                .map(story => `
+                    <button
+                        class="story-item"
+                        data-story-id="${escapeHTML(
+                            story.id
+                        )}"
+                    >
+
+                        <div class="story-avatar">
+                            ${
+                                story.media_url
+                                    ? `<img
+                                        src="${escapeHTML(
+                                            absoluteURL(
+                                                story.media_url
+                                            )
+                                        )}"
+                                        alt=""
+                                      >`
+                                    : '👤'
+                            }
+                        </div>
+
+                        <span>
+                            ${escapeHTML(
+                                story.username ||
+                                'User'
+                            )}
+                        </span>
+
+                    </button>
+                `)
+                .join('')
         }
 
     `;
 
-    document.head.appendChild(
-        style
+    container.querySelector(
+        '[data-story-create]'
+    )?.addEventListener(
+        'click',
+        () => {
+
+            showToast(
+                'Story creator will be connected to the status upload route.',
+                'info'
+            );
+        }
     );
 }
 
 
-// ============================================================
-// START SAVED THEME
-// ============================================================
+/* ============================================================
+   HEALTH CHECK
+   ============================================================ */
 
-loadSavedTheme();
+async function checkServer() {
+
+    try {
+
+        const result =
+            await GET(
+                '/api/health'
+            );
+
+        console.log(
+            `${APP_NAME} server:`,
+            result
+        );
+
+        document.body.dataset.server =
+            'online';
+
+        return true;
+
+    } catch (error) {
+
+        console.warn(
+            'Server health check failed:',
+            error
+        );
+
+        document.body.dataset.server =
+            'offline';
+
+        return false;
+    }
+}
 
 
-// ============================================================
-// GLOBAL EXPORTS
-// ============================================================
+/* ============================================================
+   EMPTY STATE
+   ============================================================ */
 
-window.openPostComposer =
-    openPostComposer;
+function emptyState(message) {
 
-window.loadFeed =
-    loadFeed;
+    return `
+        <div class="empty-state">
 
-window.logout =
-    logout;
+            <div style="font-size:42px;">
+                🌍
+            </div>
 
-window.showSettings =
-    showSettings;
+            <p>
+                ${escapeHTML(
+                    message
+                )}
+            </p>
 
-window.showUserManual =
-    showUserManual;
+        </div>
+    `;
+}
+
+
+/* ============================================================
+   GLOBAL CLICK HANDLER
+   ============================================================ */
+
+document.addEventListener(
+    'click',
+    event => {
+
+        const target =
+            event.target.closest(
+                '[data-action]'
+            );
+
+        if (!target) {
+            return;
+        }
+
+        const action =
+            target.dataset.action;
+
+        switch (action) {
+
+            case 'home':
+                setView('home');
+                break;
+
+            case 'discovery':
+                setView('discovery');
+                break;
+
+            case 'chats':
+                setView('chats');
+                break;
+
+            case 'profile':
+                setView('profile');
+                break;
+
+            case 'create-post':
+                openCreatePost();
+                break;
+
+            case 'logout':
+                logout();
+                break;
+
+            case 'theme':
+                toggleTheme();
+                break;
+
+            case 'manual':
+                openUserManual();
+                break;
+
+            default:
+                break;
+        }
+    }
+);
+
+
+/* ============================================================
+   FORM AUTO-DETECTION
+   ============================================================ */
+
+document.addEventListener(
+    'submit',
+    event => {
+
+        const form =
+            event.target;
+
+        if (!(form instanceof HTMLFormElement)) {
+            return;
+        }
+
+        if (
+            form.matches(
+                '#login-form, [data-login-form]'
+            )
+        ) {
+
+            event.preventDefault();
+
+            handleLogin(
+                form
+            );
+
+            return;
+        }
+
+        if (
+            form.matches(
+                '#register-form, [data-register-form]'
+            )
+        ) {
+
+            event.preventDefault();
+
+            handleRegister(
+                form
+            );
+
+            return;
+        }
+
+        if (
+            form.matches(
+                '#create-post-form, [data-create-post-form]'
+            )
+        ) {
+
+            event.preventDefault();
+
+            createPost(
+                form
+            );
+        }
+    }
+);
+
+
+/* ============================================================
+   INITIALIZATION
+   ============================================================ */
+
+async function initializeApp() {
+
+    console.log(
+        '================================================'
+    );
+
+    console.log(
+        `${APP_NAME} ${APP_VERSION}`
+    );
+
+    console.log(
+        APP_TAGLINE
+    );
+
+    console.log(
+        'Initializing application...'
+    );
+
+    console.log(
+        '================================================'
+    );
+
+    applyTheme(
+        localStorage.getItem(
+            STORAGE.THEME
+        ) || 'dark'
+    );
+
+    updateAuthUI();
+
+    setupNavigation();
+
+    setupSearch();
+
+    setupThreeDots();
+
+    await checkServer();
+
+    if (CURRENT_VIEW === 'home') {
+
+        await loadFeed();
+
+        await loadStories();
+
+    } else {
+
+        setView(
+            CURRENT_VIEW
+        );
+    }
+
+    console.log(
+        'MSAFIRI GLOBAL MEDIA initialized successfully.'
+    );
+}
+
+
+/* ============================================================
+   DOM READY
+   ============================================================ */
+
+if (
+    document.readyState === 'loading'
+) {
+
+    document.addEventListener(
+        'DOMContentLoaded',
+        initializeApp
+    );
+
+} else {
+
+    initializeApp();
+}
+
+
+/* ============================================================
+   GLOBAL API
+   ------------------------------------------------------------
+   Useful if index.html has inline buttons or other scripts.
+   ============================================================ */
+
+window.MSAFIRI = {
+
+    API,
+
+    APP_NAME,
+
+    APP_VERSION,
+
+    getToken: () =>
+        TOKEN,
+
+    getCurrentUser: () =>
+        CURRENT_USER,
+
+    isLoggedIn,
+
+    setView,
+
+    loadFeed,
+
+    loadStories,
+
+    loadChats,
+
+    searchUsers,
+
+    openProfile,
+
+    openChatWithUser,
+
+    openCreatePost,
+
+    openAICouncil,
+
+    openStudio,
+
+    openMarket,
+
+    openWorldMap,
+
+    openChannels,
+
+    openCommunities,
+
+    openSettings,
+
+    openUserManual,
+
+    toggleTheme,
+
+    logout,
+
+    createPost,
+
+    toggleLike,
+
+    toggleSave,
+
+    sharePost,
+
+    openComments,
+
+    checkServer
+
+};

@@ -1,567 +1,466 @@
 // ============================================================
-// MSAFIRI GLOBAL MEDIA — APP.JS
-// Version: 6.0.0-PHASE2
-// Authentication + Navigation + Feed + Stories + Discovery
-// AI Council + Studio + Market + World Map + Channels
-// Communities + Videos + Settings + Profile + Chats
+// MSAFIRI GLOBAL MEDIA
+// APP.JS — PHASE 2
+// AUTH + POSTS + MEDIA + LIKE + COMMENT + SAVE + SHARE
 // ============================================================
 
-'use strict';
+"use strict";
 
-// ============================================================
-// CONFIGURATION
-// ============================================================
-
-const API = window.location.origin;
-
-const TOKEN_KEY = 'msafiri_access_token';
-const OLD_TOKEN_KEY = 'token';
+const API = "";
 
 let currentUser = null;
-let currentFeed = 'for-you';
+let currentFeed = "for-you";
 let navStack = [];
-let authLoading = false;
 
 
 // ============================================================
-// DOM HELPERS
+// DOM HELPER
 // ============================================================
 
-function $(selector) {
-  return document.querySelector(selector);
-}
+const $ = (selector) =>
+    document.querySelector(selector);
 
-function $all(selector) {
-  return document.querySelectorAll(selector);
-}
+const $$ = (selector) =>
+    document.querySelectorAll(selector);
 
 
 // ============================================================
-// APP INITIALIZATION
+// API HELPER
 // ============================================================
 
-document.addEventListener('DOMContentLoaded', () => {
-  initializeApp();
-});
+async function apiFetch(url, options = {}) {
 
+    const token =
+        localStorage.getItem("token");
 
-async function initializeApp() {
-  try {
-    setupAuthTabs();
-    setupNavigation();
-    setupFeedTabs();
-    setupDotsMenu();
-    setupBackButton();
+    const headers =
+        new Headers(
+            options.headers || {}
+        );
 
-    const splash = $('#splash');
+    if (
+        !(options.body instanceof FormData) &&
+        !headers.has("Content-Type") &&
+        options.body
+    ) {
+        headers.set(
+            "Content-Type",
+            "application/json"
+        );
+    }
 
-    setTimeout(async () => {
-      if (splash) {
-        splash.classList.add('hidden');
-      }
+    if (token) {
+        headers.set(
+            "Authorization",
+            `Bearer ${token}`
+        );
+    }
 
-      await checkAuth();
-    }, 3000);
-
-  } catch (error) {
-    console.error('Application initialization error:', error);
-    showAuth();
-  }
-}
-
-
-// ============================================================
-// TOKEN MANAGEMENT
-// ============================================================
-
-function getToken() {
-  return (
-    localStorage.getItem(TOKEN_KEY) ||
-    localStorage.getItem(OLD_TOKEN_KEY) ||
-    null
-  );
-}
-
-
-function saveToken(token) {
-  if (!token) return;
-
-  localStorage.setItem(TOKEN_KEY, token);
-  localStorage.setItem(OLD_TOKEN_KEY, token);
-}
-
-
-function removeToken() {
-  localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(OLD_TOKEN_KEY);
+    return fetch(
+        `${API}${url}`,
+        {
+            ...options,
+            headers,
+            credentials: "include",
+        }
+    );
 }
 
 
 // ============================================================
-// AUTHENTICATED FETCH
+// INIT
 // ============================================================
 
-async function authFetch(url, options = {}) {
-  const token = getToken();
+document.addEventListener(
+    "DOMContentLoaded",
+    () => {
 
-  const headers = {
-    ...(options.headers || {})
-  };
+        setTimeout(
+            () => {
 
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
+                const splash =
+                    $("#splash");
 
-  return fetch(url, {
-    ...options,
-    headers
-  });
-}
+                if (splash) {
+                    splash.classList.add(
+                        "hidden"
+                    );
+                }
+
+                checkAuth();
+
+            },
+            1500
+        );
+
+        setupAuthForms();
+        setupNavigation();
+        setupFeedTabs();
+        setupDotsMenu();
+        setupCreateButtons();
+    }
+);
 
 
 // ============================================================
-// SAFE JSON
-// ============================================================
-
-async function safeJson(response) {
-  try {
-    return await response.json();
-  } catch {
-    return {};
-  }
-}
-
-
-// ============================================================
-// AUTHENTICATION CHECK
+// AUTH CHECK
 // ============================================================
 
 async function checkAuth() {
 
-  if (authLoading) return;
-
-  authLoading = true;
-
-  try {
-
-    const token = getToken();
+    const token =
+        localStorage.getItem("token");
 
     if (!token) {
-      currentUser = null;
-      showAuth();
-      return;
+        showAuth();
+        return;
     }
 
-    const response = await authFetch(
-      `${API}/api/auth/me`,
-      {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json'
+    try {
+
+        const response =
+            await apiFetch(
+                "/api/auth/me"
+            );
+
+        if (!response.ok) {
+
+            localStorage.removeItem(
+                "token"
+            );
+
+            currentUser = null;
+
+            showAuth();
+
+            return;
         }
-      }
-    );
 
-    if (response.ok) {
+        currentUser =
+            await response.json();
 
-      const user = await safeJson(response);
+        showApp();
 
-      currentUser = user;
+    } catch (error) {
 
-      showApp();
+        console.error(
+            "Auth error:",
+            error
+        );
 
-    } else {
-
-      console.warn(
-        'Authentication failed:',
-        response.status
-      );
-
-      removeToken();
-
-      currentUser = null;
-
-      showAuth();
+        showAuth();
     }
-
-  } catch (error) {
-
-    console.error(
-      'Authentication check failed:',
-      error
-    );
-
-    showAuth();
-
-  } finally {
-
-    authLoading = false;
-  }
 }
 
 
 // ============================================================
-// SHOW AUTH SCREEN
+// SHOW AUTH
 // ============================================================
 
 function showAuth() {
 
-  const authScreen = $('#auth-screen');
-  const app = $('#app');
+    const auth =
+        $("#auth-screen");
 
-  if (authScreen) {
-    authScreen.classList.remove('hidden');
-  }
+    const app =
+        $("#app");
 
-  if (app) {
-    app.classList.add('hidden');
-  }
+    if (auth) {
+        auth.classList.remove(
+            "hidden"
+        );
+    }
+
+    if (app) {
+        app.classList.add(
+            "hidden"
+        );
+    }
 }
 
 
 // ============================================================
-// SHOW MAIN APP
+// SHOW APP
 // ============================================================
 
 function showApp() {
 
-  const authScreen = $('#auth-screen');
-  const app = $('#app');
+    const auth =
+        $("#auth-screen");
 
-  if (authScreen) {
-    authScreen.classList.add('hidden');
-  }
+    const app =
+        $("#app");
 
-  if (app) {
-    app.classList.remove('hidden');
-  }
+    if (auth) {
+        auth.classList.add(
+            "hidden"
+        );
+    }
 
-  updateCurrentUserUI();
+    if (app) {
+        app.classList.remove(
+            "hidden"
+        );
+    }
 
-  loadHome();
-  loadDiscovery();
-  loadProfile();
+    loadHome();
+    loadDiscovery();
+    loadProfile();
 }
 
 
 // ============================================================
-// AUTH TABS
+// AUTH FORMS
 // ============================================================
 
-function setupAuthTabs() {
+function setupAuthForms() {
 
-  $all('.auth-tab').forEach(tab => {
+    $$(".auth-tab").forEach(
+        tab => {
 
-    tab.addEventListener('click', () => {
+            tab.addEventListener(
+                "click",
+                () => {
 
-      $all('.auth-tab').forEach(t => {
-        t.classList.remove('active');
-      });
+                    $$(".auth-tab")
+                        .forEach(
+                            t =>
+                                t.classList.remove(
+                                    "active"
+                                )
+                        );
 
-      tab.classList.add('active');
+                    tab.classList.add(
+                        "active"
+                    );
 
-      const target = tab.dataset.tab;
+                    const target =
+                        tab.dataset.tab;
 
-      const loginForm = $('#login-form');
-      const registerForm = $('#register-form');
+                    const login =
+                        $("#login-form");
 
-      if (loginForm) {
-        loginForm.classList.toggle(
-          'hidden',
-          target !== 'login'
-        );
-      }
+                    const register =
+                        $("#register-form");
 
-      if (registerForm) {
-        registerForm.classList.toggle(
-          'hidden',
-          target !== 'register'
-        );
-      }
-    });
+                    if (login) {
+                        login.classList.toggle(
+                            "hidden",
+                            target !== "login"
+                        );
+                    }
 
-  });
-}
-
-
-// ============================================================
-// LOGIN
-// ============================================================
-
-const loginForm = $('#login-form');
-
-if (loginForm) {
-
-  loginForm.addEventListener('submit', async event => {
-
-    event.preventDefault();
-
-    const username = $('#login-username')?.value.trim();
-    const password = $('#login-password')?.value;
-
-    if (!username || !password) {
-      toast('Please enter username and password');
-      return;
-    }
-
-    const submitButton =
-      loginForm.querySelector('button[type="submit"]');
-
-    if (submitButton) {
-      submitButton.disabled = true;
-    }
-
-    try {
-
-      const response = await fetch(
-        `${API}/api/auth/login`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify({
-            username,
-            password
-          })
+                    if (register) {
+                        register.classList.toggle(
+                            "hidden",
+                            target !== "register"
+                        );
+                    }
+                }
+            );
         }
-      );
+    );
 
-      const data = await safeJson(response);
 
-      if (!response.ok) {
+    const loginForm =
+        $("#login-form");
 
-        toast(
-          data.detail ||
-          'Login failed. Check your credentials.'
+    if (loginForm) {
+
+        loginForm.addEventListener(
+            "submit",
+            async event => {
+
+                event.preventDefault();
+
+                const username =
+                    $("#login-username")
+                        ?.value
+                        ?.trim();
+
+                const password =
+                    $("#login-password")
+                        ?.value;
+
+                if (!username || !password) {
+                    toast(
+                        "Enter username and password"
+                    );
+                    return;
+                }
+
+                try {
+
+                    const response =
+                        await apiFetch(
+                            "/api/auth/login",
+                            {
+                                method: "POST",
+                                body: JSON.stringify({
+                                    username,
+                                    password,
+                                }),
+                            }
+                        );
+
+                    const data =
+                        await response.json();
+
+                    if (!response.ok) {
+
+                        toast(
+                            data.detail ||
+                            "Login failed"
+                        );
+
+                        return;
+                    }
+
+                    if (data.access_token) {
+
+                        localStorage.setItem(
+                            "token",
+                            data.access_token
+                        );
+                    }
+
+                    currentUser =
+                        data.user || null;
+
+                    toast(
+                        "Login successful"
+                    );
+
+                    showApp();
+
+                } catch (error) {
+
+                    console.error(error);
+
+                    toast(
+                        "Network error"
+                    );
+                }
+            }
         );
-
-        return;
-      }
-
-      if (!data.access_token) {
-
-        toast(
-          'Login succeeded but no access token was returned.'
-        );
-
-        console.error(
-          'Login response missing access_token:',
-          data
-        );
-
-        return;
-      }
-
-      saveToken(data.access_token);
-
-      currentUser = data.user || null;
-
-      toast('Login successful');
-
-      showApp();
-
-    } catch (error) {
-
-      console.error('Login error:', error);
-
-      toast(
-        'Network error. Please check your connection.'
-      );
-
-    } finally {
-
-      if (submitButton) {
-        submitButton.disabled = false;
-      }
     }
 
-  });
 
-}
+    const registerForm =
+        $("#register-form");
 
+    if (registerForm) {
 
-// ============================================================
-// REGISTER
-// ============================================================
+        registerForm.addEventListener(
+            "submit",
+            async event => {
 
-const registerForm = $('#register-form');
+                event.preventDefault();
 
-if (registerForm) {
+                const username =
+                    $("#reg-username")
+                        ?.value
+                        ?.trim();
 
-  registerForm.addEventListener('submit', async event => {
+                const email =
+                    $("#reg-email")
+                        ?.value
+                        ?.trim();
 
-    event.preventDefault();
+                const full_name =
+                    $("#reg-fullname")
+                        ?.value
+                        ?.trim();
 
-    const username =
-      $('#reg-username')?.value.trim();
+                const password =
+                    $("#reg-password")
+                        ?.value;
 
-    const email =
-      $('#reg-email')?.value.trim();
+                if (
+                    !username ||
+                    !email ||
+                    !password
+                ) {
 
-    const fullName =
-      $('#reg-fullname')?.value.trim();
+                    toast(
+                        "Fill all required fields"
+                    );
 
-    const password =
-      $('#reg-password')?.value;
+                    return;
+                }
 
-    if (!username || !email || !password) {
+                try {
 
-      toast(
-        'Username, email and password are required.'
-      );
+                    const response =
+                        await apiFetch(
+                            "/api/auth/register",
+                            {
+                                method: "POST",
+                                body: JSON.stringify({
+                                    username,
+                                    email,
+                                    full_name,
+                                    password,
+                                }),
+                            }
+                        );
 
-      return;
-    }
+                    const data =
+                        await response.json();
 
-    const submitButton =
-      registerForm.querySelector(
-        'button[type="submit"]'
-      );
+                    if (!response.ok) {
 
-    if (submitButton) {
-      submitButton.disabled = true;
-    }
+                        toast(
+                            data.detail ||
+                            "Registration failed"
+                        );
 
-    try {
+                        return;
+                    }
 
-      const response = await fetch(
-        `${API}/api/auth/register`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify({
-            username,
-            email,
-            full_name: fullName || '',
-            password
-          })
-        }
-      );
+                    if (
+                        data.access_token
+                    ) {
 
-      const data = await safeJson(response);
+                        localStorage.setItem(
+                            "token",
+                            data.access_token
+                        );
 
-      if (!response.ok) {
+                        currentUser =
+                            data.user;
 
-        toast(
-          data.detail ||
-          'Registration failed.'
+                        toast(
+                            "Account created successfully"
+                        );
+
+                        showApp();
+
+                        return;
+                    }
+
+                    toast(
+                        "Account created. Please login."
+                    );
+
+                    const loginTab =
+                        $('[data-tab="login"]');
+
+                    if (loginTab) {
+                        loginTab.click();
+                    }
+
+                } catch (error) {
+
+                    console.error(error);
+
+                    toast(
+                        "Network error"
+                    );
+                }
+            }
         );
-
-        return;
-      }
-
-      /*
-       * Backend yako inarudisha access_token
-       * baada ya registration, kwa hiyo hatuhitaji
-       * kumlazimisha user kufanya login tena.
-       */
-
-      if (data.access_token) {
-
-        saveToken(data.access_token);
-
-        currentUser = data.user || null;
-
-        toast(
-          'Account created successfully!'
-        );
-
-        showApp();
-
-      } else {
-
-        toast(
-          'Account created. Please login.'
-        );
-
-        const loginTab =
-          document.querySelector(
-            '[data-tab="login"]'
-          );
-
-        if (loginTab) {
-          loginTab.click();
-        }
-      }
-
-    } catch (error) {
-
-      console.error(
-        'Registration error:',
-        error
-      );
-
-      toast(
-        'Network error. Please check your connection.'
-      );
-
-    } finally {
-
-      if (submitButton) {
-        submitButton.disabled = false;
-      }
     }
-
-  });
-
-}
-
-
-// ============================================================
-// UPDATE USER UI
-// ============================================================
-
-function updateCurrentUserUI() {
-
-  if (!currentUser) return;
-
-  const name =
-    currentUser.full_name ||
-    currentUser.username ||
-    'User';
-
-  const username =
-    currentUser.username ||
-    'user';
-
-  const avatarLetter =
-    name.charAt(0).toUpperCase();
-
-  const profileName = $('#profile-name');
-
-  if (profileName) {
-    profileName.textContent = name;
-  }
-
-  const profileUsername =
-    $('#profile-username');
-
-  if (profileUsername) {
-    profileUsername.textContent =
-      `@${username}`;
-  }
-
-  const profileBio =
-    $('#profile-bio');
-
-  if (profileBio) {
-    profileBio.textContent =
-      currentUser.bio ||
-      'Welcome to Msafiri Global Media';
-  }
-
-  const profileAvatar =
-    $('#profile-avatar');
-
-  if (profileAvatar) {
-    profileAvatar.textContent =
-      avatarLetter;
-  }
 }
 
 
@@ -571,101 +470,113 @@ function updateCurrentUserUI() {
 
 function setupNavigation() {
 
-  $all('.nav-btn').forEach(button => {
+    $$(".nav-btn").forEach(
+        btn => {
 
-    button.addEventListener('click', () => {
+            btn.addEventListener(
+                "click",
+                () => {
 
-      const nav = button.dataset.nav;
+                    const nav =
+                        btn.dataset.nav;
 
-      $all('.nav-btn').forEach(btn => {
-        btn.classList.remove('active');
-      });
+                    $$(".nav-btn")
+                        .forEach(
+                            b =>
+                                b.classList.remove(
+                                    "active"
+                                )
+                        );
 
-      button.classList.add('active');
+                    btn.classList.add(
+                        "active"
+                    );
 
-      $all('.page').forEach(page => {
-        page.classList.remove('active');
-      });
+                    $$(".page")
+                        .forEach(
+                            page =>
+                                page.classList.remove(
+                                    "active"
+                                )
+                        );
 
-      const targetPage =
-        $(`#page-${nav}`);
+                    const page =
+                        $(`#page-${nav}`);
 
-      if (targetPage) {
-        targetPage.classList.add('active');
-      }
+                    if (page) {
+                        page.classList.add(
+                            "active"
+                        );
+                    }
 
-      const titles = {
-        home: 'MSAFIRI',
-        discovery: 'Discovery',
-        chats: 'Chats',
-        profile: 'Profile'
-      };
+                    const titles = {
+                        home: "MSAFIRI",
+                        discovery: "Discovery",
+                        chats: "Chats",
+                        profile: "Profile",
+                    };
 
-      const pageTitle =
-        $('#page-title');
+                    const title =
+                        $("#page-title");
 
-      if (pageTitle) {
-        pageTitle.textContent =
-          titles[nav] || 'MSAFIRI';
-      }
+                    if (title) {
+                        title.textContent =
+                            titles[nav] ||
+                            "MSAFIRI";
+                    }
 
-      navStack = [];
+                    navStack = [];
 
-      const backButton =
-        $('#back-btn');
+                    if (
+                        nav === "home"
+                    ) {
+                        loadHome();
+                    }
 
-      if (backButton) {
-        backButton.classList.add('hidden');
-      }
+                    if (
+                        nav === "chats"
+                    ) {
+                        loadChats();
+                    }
 
-      if (nav === 'home') {
-        loadHome();
-      }
+                    if (
+                        nav === "profile"
+                    ) {
+                        loadProfile();
+                    }
 
-      if (nav === 'chats') {
-        loadChats();
-      }
-
-      if (nav === 'profile') {
-        loadProfile();
-      }
-
-      if (nav === 'discovery') {
-        loadDiscovery();
-      }
-
-    });
-
-  });
-
-}
+                    if (
+                        nav === "discovery"
+                    ) {
+                        loadDiscovery();
+                    }
+                }
+            );
+        }
+    );
 
 
-// ============================================================
-// BACK BUTTON
-// ============================================================
+    const back =
+        $("#back-btn");
 
-function setupBackButton() {
+    if (back) {
 
-  const button = $('#back-btn');
+        back.addEventListener(
+            "click",
+            () => {
 
-  if (!button) return;
+                if (
+                    navStack.length > 0
+                ) {
 
-  button.addEventListener('click', () => {
+                    const previous =
+                        navStack.pop();
 
-    if (navStack.length > 0) {
-
-      const previous =
-        navStack.pop();
-
-      if (typeof previous === 'function') {
-        previous();
-      }
-
+                    previous();
+                }
+            }
+        );
     }
-
-  });
-
 }
 
 
@@ -673,66 +584,93 @@ function setupBackButton() {
 // SUB PAGE
 // ============================================================
 
-function showSubPage(title, renderFn) {
+function showSubPage(
+    title,
+    renderFn
+) {
 
-  const subPage =
-    $('#page-sub');
+    const current =
+        document.querySelector(
+            ".page.active"
+        );
 
-  const subContent =
-    $('#sub-content');
+    navStack.push(
+        () => {
 
-  if (!subPage || !subContent) return;
+            const sub =
+                $("#page-sub");
 
-  const activePage =
-    document.querySelector(
-      '.page.active:not(#page-sub)'
+            if (sub) {
+                sub.classList.remove(
+                    "active"
+                );
+            }
+
+            if (current) {
+                current.classList.add(
+                    "active"
+                );
+            }
+
+            const back =
+                $("#back-btn");
+
+            if (back) {
+                back.classList.add(
+                    "hidden"
+                );
+            }
+
+            const pageTitle =
+                $("#page-title");
+
+            if (pageTitle) {
+                pageTitle.textContent =
+                    "MSAFIRI";
+            }
+        }
     );
 
-  navStack.push(() => {
+    $$(".page")
+        .forEach(
+            p =>
+                p.classList.remove(
+                    "active"
+                )
+        );
 
-    subPage.classList.remove('active');
+    const sub =
+        $("#page-sub");
 
-    if (activePage) {
-      activePage.classList.add('active');
-    }
+    if (!sub) return;
 
-    const backButton =
-      $('#back-btn');
-
-    if (backButton) {
-      backButton.classList.add('hidden');
-    }
+    sub.classList.add(
+        "active"
+    );
 
     const pageTitle =
-      $('#page-title');
+        $("#page-title");
 
     if (pageTitle) {
-      pageTitle.textContent = 'MSAFIRI';
+        pageTitle.textContent =
+            title;
     }
 
-  });
+    const back =
+        $("#back-btn");
 
-  $all('.page').forEach(page => {
-    page.classList.remove('active');
-  });
+    if (back) {
+        back.classList.remove(
+            "hidden"
+        );
+    }
 
-  subPage.classList.add('active');
+    const content =
+        $("#sub-content");
 
-  const pageTitle =
-    $('#page-title');
-
-  if (pageTitle) {
-    pageTitle.textContent = title;
-  }
-
-  const backButton =
-    $('#back-btn');
-
-  if (backButton) {
-    backButton.classList.remove('hidden');
-  }
-
-  renderFn(subContent);
+    if (content) {
+        renderFn(content);
+    }
 }
 
 
@@ -742,10 +680,8 @@ function showSubPage(title, renderFn) {
 
 async function loadHome() {
 
-  await loadStories();
-
-  await loadFeed();
-
+    await loadStories();
+    await loadFeed();
 }
 
 
@@ -755,26 +691,34 @@ async function loadHome() {
 
 function setupFeedTabs() {
 
-  $all('.feed-tab').forEach(tab => {
+    $$(".feed-tab").forEach(
+        tab => {
 
-    tab.addEventListener('click', () => {
+            tab.addEventListener(
+                "click",
+                () => {
 
-      $all('.feed-tab').forEach(t => {
-        t.classList.remove('active');
-      });
+                    $$(".feed-tab")
+                        .forEach(
+                            t =>
+                                t.classList.remove(
+                                    "active"
+                                )
+                        );
 
-      tab.classList.add('active');
+                    tab.classList.add(
+                        "active"
+                    );
 
-      currentFeed =
-        tab.dataset.feed ||
-        'for-you';
+                    currentFeed =
+                        tab.dataset.feed ||
+                        "for-you";
 
-      loadFeed();
-
-    });
-
-  });
-
+                    loadFeed();
+                }
+            );
+        }
+    );
 }
 
 
@@ -784,73 +728,71 @@ function setupFeedTabs() {
 
 async function loadStories() {
 
-  try {
+    try {
 
-    const response =
-      await fetch(
-        `${API}/api/stories`
-      );
+        const response =
+            await apiFetch(
+                "/api/stories"
+            );
 
-    if (!response.ok) return;
+        if (!response.ok) return;
 
-    const data =
-      await safeJson(response);
+        const data =
+            await response.json();
 
-    const bar =
-      $('#stories-bar');
+        const bar =
+            $("#stories-bar");
 
-    if (!bar) return;
+        if (!bar) return;
 
-    bar
-      .querySelectorAll(
-        '.story-item:not(.add-story)'
-      )
-      .forEach(element => {
-        element.remove();
-      });
+        bar.querySelectorAll(
+            ".story-item:not(.add-story)"
+        ).forEach(
+            item => item.remove()
+        );
 
-    (data.stories || []).forEach(story => {
+        (data.stories || [])
+            .forEach(
+                story => {
 
-      const element =
-        document.createElement('div');
+                    const item =
+                        document.createElement(
+                            "div"
+                        );
 
-      element.className =
-        'story-item';
+                    item.className =
+                        "story-item";
 
-      const initial =
-        String(
-          story.username ||
-          story.user_id ||
-          'U'
-        )
-        .charAt(0)
-        .toUpperCase();
+                    const name =
+                        story.username ||
+                        "User";
 
-      element.innerHTML = `
-        <div class="story-avatar">
-          ${escape(initial)}
-        </div>
-        <span>
-          ${escape(
-            story.username ||
-            `User ${story.user_id || ''}`
-          )}
-        </span>
-      `;
+                    item.innerHTML = `
+                        <div class="story-avatar">
+                            ${escapeHtml(
+                                name
+                                    .charAt(0)
+                                    .toUpperCase()
+                            )}
+                        </div>
+                        <span>
+                            ${escapeHtml(name)}
+                        </span>
+                    `;
 
-      bar.appendChild(element);
+                    bar.appendChild(
+                        item
+                    );
+                }
+            );
 
-    });
+    } catch (error) {
 
-  } catch (error) {
-
-    console.error(
-      'Stories loading error:',
-      error
-    );
-
-  }
-
+        console.error(
+            "Stories:",
+            error
+        );
+    }
 }
 
 
@@ -860,81 +802,116 @@ async function loadStories() {
 
 async function loadFeed() {
 
-  const feed =
-    $('#feed');
+    const feed =
+        $("#feed");
 
-  if (!feed) return;
-
-  feed.innerHTML = `
-    <p class="muted"
-       style="text-align:center;padding:20px;">
-      Loading...
-    </p>
-  `;
-
-  try {
-
-    const response =
-      await authFetch(
-        `${API}/api/feed?type=${encodeURIComponent(currentFeed)}`
-      );
-
-    if (!response.ok) {
-
-      if (response.status === 401) {
-        handleUnauthorized();
-        return;
-      }
-
-      throw new Error(
-        `Feed HTTP ${response.status}`
-      );
-    }
-
-    const data =
-      await safeJson(response);
-
-    if (
-      !data.posts ||
-      data.posts.length === 0
-    ) {
-
-      feed.innerHTML = `
-        <p class="muted"
-           style="text-align:center;padding:40px 20px;">
-          No posts yet. Be the first to share!
-        </p>
-      `;
-
-      return;
-    }
-
-    feed.innerHTML = '';
-
-    data.posts.forEach(post => {
-
-      feed.appendChild(
-        renderPost(post)
-      );
-
-    });
-
-  } catch (error) {
-
-    console.error(
-      'Feed loading error:',
-      error
-    );
+    if (!feed) return;
 
     feed.innerHTML = `
-      <p class="muted"
-         style="text-align:center;padding:20px;">
-        Failed to load feed
-      </p>
+        <p class="muted"
+           style="text-align:center;padding:20px;">
+            Loading posts...
+        </p>
     `;
 
-  }
+    try {
 
+        const response =
+            await apiFetch(
+                `/api/feed?type=${encodeURIComponent(
+                    currentFeed
+                )}`
+            );
+
+        if (!response.ok) {
+
+            throw new Error(
+                "Feed request failed"
+            );
+        }
+
+        const data =
+            await response.json();
+
+        const posts =
+            data.posts || [];
+
+        if (
+            posts.length === 0
+        ) {
+
+            feed.innerHTML = `
+                <div class="empty-state"
+                     style="text-align:center;padding:40px 20px;">
+                    <div style="font-size:40px;">
+                        📝
+                    </div>
+                    <h3>No posts yet</h3>
+                    <p class="muted">
+                        Be the first to share something.
+                    </p>
+                    <button
+                        class="btn-primary"
+                        id="empty-create-post">
+                        Create Post
+                    </button>
+                </div>
+            `;
+
+            const button =
+                $("#empty-create-post");
+
+            if (button) {
+                button.addEventListener(
+                    "click",
+                    openPostComposer
+                );
+            }
+
+            return;
+        }
+
+        feed.innerHTML = "";
+
+        posts.forEach(
+            post => {
+
+                feed.appendChild(
+                    renderPost(post)
+                );
+            }
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Feed error:",
+            error
+        );
+
+        feed.innerHTML = `
+            <div style="text-align:center;padding:30px;">
+                <p class="muted">
+                    Failed to load posts.
+                </p>
+                <button
+                    class="btn-primary"
+                    id="retry-feed">
+                    Retry
+                </button>
+            </div>
+        `;
+
+        const retry =
+            $("#retry-feed");
+
+        if (retry) {
+            retry.addEventListener(
+                "click",
+                loadFeed
+            );
+        }
+    }
 }
 
 
@@ -944,121 +921,258 @@ async function loadFeed() {
 
 function renderPost(post) {
 
-  const element =
-    document.createElement('div');
+    const card =
+        document.createElement(
+            "article"
+        );
 
-  element.className =
-    'post-card';
+    card.className =
+        "post-card";
 
-  const userName =
-    post.username ||
-    post.full_name ||
-    `User ${post.user_id || ''}`;
+    card.dataset.postId =
+        post.id;
 
-  const initial =
-    userName
-      .charAt(0)
-      .toUpperCase();
+    const name =
+        post.full_name ||
+        post.username ||
+        `User ${post.user_id}`;
 
-  let mediaHTML = '';
+    const initial =
+        name
+            .charAt(0)
+            .toUpperCase();
 
-  if (post.media_url) {
+    const avatar =
+        post.avatar_url
+            ? `
+                <img
+                    src="${escapeAttribute(
+                        post.avatar_url
+                    )}"
+                    alt=""
+                    class="post-avatar-img"
+                >
+              `
+            : `
+                <div class="post-avatar">
+                    ${escapeHtml(initial)}
+                </div>
+              `;
 
-    const mediaType =
-      post.media_type ||
-      '';
+    let media = "";
 
     if (
-      mediaType === 'video' ||
-      mediaType.startsWith('video')
+        post.media_url &&
+        post.media_type === "image"
     ) {
 
-      mediaHTML = `
-        <video
-          class="post-media"
-          controls
-          playsinline
-          src="${escapeAttr(post.media_url)}">
-        </video>
-      `;
-
-    } else {
-
-      mediaHTML = `
-        <img
-          class="post-media"
-          src="${escapeAttr(post.media_url)}"
-          alt="Post media"
-          loading="lazy">
-      `;
-
+        media = `
+            <div class="post-media-wrap">
+                <img
+                    class="post-media"
+                    src="${escapeAttribute(
+                        post.media_url
+                    )}"
+                    alt="Post image"
+                    loading="lazy"
+                >
+            </div>
+        `;
     }
 
-  }
+    if (
+        post.media_url &&
+        post.media_type === "video"
+    ) {
 
-  element.innerHTML = `
-
-    <div class="post-header">
-
-      <div class="post-avatar">
-        ${escape(initial)}
-      </div>
-
-      <div class="post-user">
-
-        <strong>
-          ${escape(userName)}
-        </strong>
-
-        <span>
-          ${timeAgo(post.created_at)}
-        </span>
-
-      </div>
-
-    </div>
-
-    ${
-      post.caption
-        ? `
-          <p class="post-caption">
-            ${escape(post.caption)}
-          </p>
-        `
-        : ''
+        media = `
+            <div class="post-media-wrap">
+                <video
+                    class="post-video"
+                    src="${escapeAttribute(
+                        post.media_url
+                    )}"
+                    controls
+                    playsinline
+                    preload="metadata">
+                </video>
+            </div>
+        `;
     }
 
-    ${mediaHTML}
+    const liked =
+        post.liked
+            ? "liked"
+            : "";
 
-    <div class="post-actions">
+    const saved =
+        post.saved
+            ? "saved"
+            : "";
 
-      <button
-        type="button"
-        onclick="toggleLike(this)">
-        ❤️ ${Number(post.likes || 0)}
-      </button>
+    const deleteButton =
+        currentUser &&
+        Number(currentUser.id) ===
+            Number(post.user_id)
+            ? `
+                <button
+                    class="post-menu-delete"
+                    data-action="delete-post">
+                    Delete
+                </button>
+              `
+            : "";
 
-      <button type="button">
-        💬 ${Number(post.comments || 0)}
-      </button>
+    card.innerHTML = `
+        <div class="post-header">
 
-      <button
-        type="button"
-        onclick="sharePost(${Number(post.id || 0)})">
-        ↗️ Share
-      </button>
+            ${avatar}
 
-      <button
-        type="button"
-        onclick="savePost(this)">
-        🔖 Save
-      </button>
+            <div class="post-user">
+                <strong>
+                    ${escapeHtml(name)}
+                </strong>
 
-    </div>
+                <span>
+                    @${escapeHtml(
+                        post.username ||
+                        "user"
+                    )}
+                    ·
+                    ${timeAgo(
+                        post.created_at
+                    )}
+                </span>
+            </div>
 
-  `;
+            <div class="post-more">
+                ${deleteButton}
+            </div>
 
-  return element;
+        </div>
+
+        ${
+            post.caption
+                ? `
+                    <p class="post-caption">
+                        ${escapeHtml(
+                            post.caption
+                        )}
+                    </p>
+                  `
+                : ""
+        }
+
+        ${media}
+
+        <div class="post-actions">
+
+            <button
+                class="post-action like-btn ${liked}"
+                data-action="like">
+                ❤️
+                <span class="like-count">
+                    ${post.likes || 0}
+                </span>
+            </button>
+
+            <button
+                class="post-action comment-btn"
+                data-action="comments">
+                💬
+                <span class="comment-count">
+                    ${post.comments || 0}
+                </span>
+            </button>
+
+            <button
+                class="post-action share-btn"
+                data-action="share">
+                ↗️
+                <span class="share-count">
+                    ${post.shares || 0}
+                </span>
+            </button>
+
+            <button
+                class="post-action save-btn ${saved}"
+                data-action="save">
+                🔖
+                <span class="save-count">
+                    ${post.saves || 0}
+                </span>
+            </button>
+
+        </div>
+
+        <div
+            class="comments-area"
+            data-comments-area>
+        </div>
+    `;
+
+    card.addEventListener(
+        "click",
+        event => {
+
+            const actionButton =
+                event.target.closest(
+                    "[data-action]"
+                );
+
+            if (!actionButton) {
+                return;
+            }
+
+            const action =
+                actionButton.dataset.action;
+
+            if (action === "like") {
+                handleLike(
+                    post.id,
+                    card,
+                    actionButton
+                );
+            }
+
+            if (
+                action === "comments"
+            ) {
+                toggleComments(
+                    post.id,
+                    card
+                );
+            }
+
+            if (
+                action === "share"
+            ) {
+                handleShare(
+                    post.id,
+                    actionButton
+                );
+            }
+
+            if (
+                action === "save"
+            ) {
+                handleSave(
+                    post.id,
+                    actionButton
+                );
+            }
+
+            if (
+                action === "delete-post"
+            ) {
+                handleDeletePost(
+                    post.id
+                );
+            }
+        }
+    );
+
+    return card;
 }
 
 
@@ -1066,72 +1180,1184 @@ function renderPost(post) {
 // LIKE
 // ============================================================
 
-window.toggleLike = function(button) {
+async function handleLike(
+    postId,
+    card,
+    button
+) {
 
-  if (!button) return;
-
-  button.classList.toggle('liked');
-
-};
-
-
-// ============================================================
-// SHARE
-// ============================================================
-
-window.sharePost = async function(postId) {
-
-  try {
-
-    if (
-      navigator.share
-    ) {
-
-      await navigator.share({
-        title: 'MSAFIRI GLOBAL MEDIA',
-        text: 'Check out this post on MSAFIRI GLOBAL MEDIA',
-        url: window.location.href
-      });
-
-    } else {
-
-      await navigator.clipboard.writeText(
-        window.location.href
-      );
-
-      toast('Link copied');
-
+    if (!ensureLoggedIn()) {
+        return;
     }
 
-  } catch (error) {
+    try {
 
-    console.log(
-      'Share cancelled or unavailable:',
-      error
-    );
+        const response =
+            await apiFetch(
+                `/api/posts/${postId}/like`,
+                {
+                    method: "POST",
+                }
+            );
 
-  }
+        const data =
+            await response.json();
 
-};
+        if (!response.ok) {
+
+            toast(
+                data.detail ||
+                "Unable to like post"
+            );
+
+            return;
+        }
+
+        button.classList.toggle(
+            "liked",
+            Boolean(data.liked)
+        );
+
+        const count =
+            button.querySelector(
+                ".like-count"
+            );
+
+        if (count) {
+            count.textContent =
+                data.likes;
+        }
+
+    } catch (error) {
+
+        console.error(error);
+
+        toast(
+            "Network error"
+        );
+    }
+}
 
 
 // ============================================================
 // SAVE
 // ============================================================
 
-window.savePost = function(button) {
+async function handleSave(
+    postId,
+    button
+) {
 
-  if (!button) return;
+    if (!ensureLoggedIn()) {
+        return;
+    }
 
-  button.classList.toggle('saved');
+    try {
 
-  toast(
-    button.classList.contains('saved')
-      ? 'Post saved'
-      : 'Post removed from saved'
-  );
+        const response =
+            await apiFetch(
+                `/api/posts/${postId}/save`,
+                {
+                    method: "POST",
+                }
+            );
 
-};
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+
+            toast(
+                data.detail ||
+                "Unable to save post"
+            );
+
+            return;
+        }
+
+        button.classList.toggle(
+            "saved",
+            Boolean(data.saved)
+        );
+
+        const count =
+            button.querySelector(
+                ".save-count"
+            );
+
+        if (count) {
+            count.textContent =
+                data.saves;
+        }
+
+        toast(
+            data.saved
+                ? "Post saved"
+                : "Removed from saved"
+        );
+
+    } catch (error) {
+
+        console.error(error);
+
+        toast(
+            "Network error"
+        );
+    }
+}
+
+
+// ============================================================
+// SHARE
+// ============================================================
+
+async function handleShare(
+    postId,
+    button
+) {
+
+    if (!ensureLoggedIn()) {
+        return;
+    }
+
+    try {
+
+        const response =
+            await apiFetch(
+                `/api/posts/${postId}/share`,
+                {
+                    method: "POST",
+                }
+            );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+
+            toast(
+                data.detail ||
+                "Unable to share"
+            );
+
+            return;
+        }
+
+        const count =
+            button.querySelector(
+                ".share-count"
+            );
+
+        if (count) {
+            count.textContent =
+                data.shares;
+        }
+
+        const shareUrl =
+            `${window.location.origin}/?post=${postId}`;
+
+        if (
+            navigator.clipboard &&
+            navigator.clipboard.writeText
+        ) {
+
+            await navigator.clipboard.writeText(
+                shareUrl
+            );
+
+            toast(
+                "Post shared and link copied"
+            );
+
+        } else {
+
+            toast(
+                "Post shared"
+            );
+        }
+
+    } catch (error) {
+
+        console.error(error);
+
+        toast(
+            "Network error"
+        );
+    }
+}
+
+
+// ============================================================
+// COMMENTS
+// ============================================================
+
+async function toggleComments(
+    postId,
+    card
+) {
+
+    const area =
+        card.querySelector(
+            "[data-comments-area]"
+        );
+
+    if (!area) return;
+
+    if (
+        area.classList.contains(
+            "open"
+        )
+    ) {
+
+        area.classList.remove(
+            "open"
+        );
+
+        area.innerHTML = "";
+
+        return;
+    }
+
+    area.classList.add(
+        "open"
+    );
+
+    area.innerHTML = `
+        <div class="comments-loading">
+            Loading comments...
+        </div>
+    `;
+
+    try {
+
+        const response =
+            await apiFetch(
+                `/api/posts/${postId}/comments`
+            );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+
+            area.innerHTML = `
+                <p class="muted">
+                    Failed to load comments.
+                </p>
+            `;
+
+            return;
+        }
+
+        renderComments(
+            postId,
+            area,
+            data.comments || []
+        );
+
+    } catch (error) {
+
+        console.error(error);
+
+        area.innerHTML = `
+            <p class="muted">
+                Failed to load comments.
+            </p>
+        `;
+    }
+}
+
+
+function renderComments(
+    postId,
+    area,
+    comments
+) {
+
+    const list =
+        comments.length
+            ? comments
+                .map(
+                    comment => `
+                        <div class="comment-item">
+
+                            <div class="comment-avatar">
+                                ${escapeHtml(
+                                    (
+                                        comment.full_name ||
+                                        comment.username ||
+                                        "U"
+                                    )
+                                        .charAt(0)
+                                        .toUpperCase()
+                                )}
+                            </div>
+
+                            <div class="comment-body">
+                                <strong>
+                                    ${escapeHtml(
+                                        comment.full_name ||
+                                        comment.username ||
+                                        "User"
+                                    )}
+                                </strong>
+
+                                <p>
+                                    ${escapeHtml(
+                                        comment.text
+                                    )}
+                                </p>
+
+                                <small>
+                                    ${timeAgo(
+                                        comment.created_at
+                                    )}
+                                </small>
+                            </div>
+
+                        </div>
+                    `
+                )
+                .join("")
+            : `
+                <p class="muted">
+                    No comments yet.
+                </p>
+              `;
+
+    area.innerHTML = `
+        <div class="comments-list">
+            ${list}
+        </div>
+
+        ${
+            currentUser
+                ? `
+                    <form
+                        class="comment-form"
+                        data-comment-form>
+
+                        <input
+                            type="text"
+                            name="comment"
+                            placeholder="Write a comment..."
+                            autocomplete="off"
+                            required
+                        >
+
+                        <button
+                            type="submit"
+                            class="btn-primary">
+                            Send
+                        </button>
+
+                    </form>
+                  `
+                : ""
+        }
+    `;
+
+    const form =
+        area.querySelector(
+            "[data-comment-form]"
+        );
+
+    if (form) {
+
+        form.addEventListener(
+            "submit",
+            async event => {
+
+                event.preventDefault();
+
+                const input =
+                    form.querySelector(
+                        'input[name="comment"]'
+                    );
+
+                const text =
+                    input.value.trim();
+
+                if (!text) return;
+
+                const formData =
+                    new FormData();
+
+                formData.append(
+                    "text",
+                    text
+                );
+
+                try {
+
+                    const response =
+                        await apiFetch(
+                            `/api/posts/${postId}/comments`,
+                            {
+                                method: "POST",
+                                body: formData,
+                            }
+                        );
+
+                    const data =
+                        await response.json();
+
+                    if (!response.ok) {
+
+                        toast(
+                            data.detail ||
+                            "Comment failed"
+                        );
+
+                        return;
+                    }
+
+                    input.value = "";
+
+                    await refreshComments(
+                        postId,
+                        area
+                    );
+
+                    const card =
+                        area.closest(
+                            ".post-card"
+                        );
+
+                    const count =
+                        card?.querySelector(
+                            ".comment-count"
+                        );
+
+                    if (count) {
+                        count.textContent =
+                            data.comments;
+                    }
+
+                } catch (error) {
+
+                    console.error(error);
+
+                    toast(
+                        "Network error"
+                    );
+                }
+            }
+        );
+    }
+}
+
+
+async function refreshComments(
+    postId,
+    area
+) {
+
+    const response =
+        await apiFetch(
+            `/api/posts/${postId}/comments`
+        );
+
+    const data =
+        await response.json();
+
+    if (response.ok) {
+
+        renderComments(
+            postId,
+            area,
+            data.comments || []
+        );
+    }
+}
+
+
+// ============================================================
+// DELETE POST
+// ============================================================
+
+async function handleDeletePost(
+    postId
+) {
+
+    if (
+        !confirm(
+            "Delete this post?"
+        )
+    ) {
+        return;
+    }
+
+    try {
+
+        const response =
+            await apiFetch(
+                `/api/posts/${postId}`,
+                {
+                    method: "DELETE",
+                }
+            );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+
+            toast(
+                data.detail ||
+                "Unable to delete post"
+            );
+
+            return;
+        }
+
+        const card =
+            document.querySelector(
+                `[data-post-id="${postId}"]`
+            );
+
+        if (card) {
+            card.remove();
+        }
+
+        toast(
+            "Post deleted"
+        );
+
+    } catch (error) {
+
+        console.error(error);
+
+        toast(
+            "Network error"
+        );
+    }
+}
+
+
+// ============================================================
+// CREATE BUTTON SETUP
+// ============================================================
+
+function setupCreateButtons() {
+
+    const selectors = [
+        "#create-btn",
+        "#add-post-btn",
+        ".create-btn",
+        ".fab-create",
+        '[data-action="create"]',
+        '[data-nav="create"]'
+    ];
+
+    selectors.forEach(
+        selector => {
+
+            $$(selector).forEach(
+                button => {
+
+                    button.addEventListener(
+                        "click",
+                        event => {
+
+                            event.preventDefault();
+
+                            openPostComposer();
+                        }
+                    );
+                }
+            );
+        }
+    );
+
+
+    /*
+     * Kama HTML yako haina create button,
+     * tunatengeneza floating button.
+     */
+
+    if (
+        !document.querySelector(
+            "#dynamic-create-post"
+        )
+    ) {
+
+        const button =
+            document.createElement(
+                "button"
+            );
+
+        button.id =
+            "dynamic-create-post";
+
+        button.type =
+            "button";
+
+        button.textContent =
+            "+";
+
+        button.title =
+            "Create Post";
+
+        button.style.cssText = `
+            position:fixed;
+            right:20px;
+            bottom:85px;
+            width:58px;
+            height:58px;
+            border-radius:50%;
+            border:none;
+            background:linear-gradient(
+                135deg,
+                #6c5ce7,
+                #8e44ad
+            );
+            color:white;
+            font-size:30px;
+            font-weight:bold;
+            z-index:9999;
+            cursor:pointer;
+            box-shadow:0 8px 25px rgba(0,0,0,.25);
+        `;
+
+        button.addEventListener(
+            "click",
+            openPostComposer
+        );
+
+        document.body.appendChild(
+            button
+        );
+    }
+}
+
+
+// ============================================================
+// POST COMPOSER
+// ============================================================
+
+function openPostComposer() {
+
+    if (!ensureLoggedIn()) {
+        return;
+    }
+
+    let modal =
+        $("#post-composer-modal");
+
+    if (modal) {
+
+        modal.classList.remove(
+            "hidden"
+        );
+
+        return;
+    }
+
+    modal =
+        document.createElement(
+            "div"
+        );
+
+    modal.id =
+        "post-composer-modal";
+
+    modal.innerHTML = `
+        <div class="post-composer-overlay">
+
+            <div class="post-composer-card">
+
+                <div class="composer-header">
+
+                    <h2>
+                        Create Post
+                    </h2>
+
+                    <button
+                        type="button"
+                        id="close-composer">
+                        ×
+                    </button>
+
+                </div>
+
+                <div class="composer-user">
+
+                    <div class="composer-avatar">
+                        ${escapeHtml(
+                            (
+                                currentUser?.full_name ||
+                                currentUser?.username ||
+                                "U"
+                            )
+                                .charAt(0)
+                                .toUpperCase()
+                        )}
+                    </div>
+
+                    <div>
+                        <strong>
+                            ${escapeHtml(
+                                currentUser?.full_name ||
+                                currentUser?.username ||
+                                "User"
+                            )}
+                        </strong>
+
+                        <small>
+                            Public
+                        </small>
+                    </div>
+
+                </div>
+
+                <textarea
+                    id="post-caption-input"
+                    placeholder="What's happening?"
+                    maxlength="5000"></textarea>
+
+                <div
+                    id="post-media-preview"
+                    class="media-preview">
+                </div>
+
+                <div class="composer-tools">
+
+                    <label
+                        class="composer-tool">
+
+                        🖼️ Photo
+
+                        <input
+                            type="file"
+                            id="post-image-input"
+                            accept="image/*"
+                            hidden>
+
+                    </label>
+
+                    <label
+                        class="composer-tool">
+
+                        🎬 Video
+
+                        <input
+                            type="file"
+                            id="post-video-input"
+                            accept="video/*"
+                            hidden>
+
+                    </label>
+
+                    <button
+                        type="button"
+                        id="remove-media"
+                        class="composer-tool hidden">
+                        ✕ Remove
+                    </button>
+
+                </div>
+
+                <div class="composer-footer">
+
+                    <span
+                        id="upload-status"
+                        class="muted">
+                    </span>
+
+                    <button
+                        type="button"
+                        id="publish-post"
+                        class="btn-primary">
+                        Post
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+    `;
+
+    document.body.appendChild(
+        modal
+    );
+
+    injectComposerStyles();
+
+    setupComposerEvents(
+        modal
+    );
+}
+
+
+function setupComposerEvents(
+    modal
+) {
+
+    const close =
+        modal.querySelector(
+            "#close-composer"
+        );
+
+    const imageInput =
+        modal.querySelector(
+            "#post-image-input"
+        );
+
+    const videoInput =
+        modal.querySelector(
+            "#post-video-input"
+        );
+
+    const remove =
+        modal.querySelector(
+            "#remove-media"
+        );
+
+    const publish =
+        modal.querySelector(
+            "#publish-post"
+        );
+
+    if (close) {
+
+        close.addEventListener(
+            "click",
+            closePostComposer
+        );
+    }
+
+    imageInput?.addEventListener(
+        "change",
+        () => {
+
+            if (
+                imageInput.files &&
+                imageInput.files[0]
+            ) {
+
+                videoInput.value =
+                    "";
+
+                showMediaPreview(
+                    imageInput.files[0]
+                );
+            }
+        }
+    );
+
+    videoInput?.addEventListener(
+        "change",
+        () => {
+
+            if (
+                videoInput.files &&
+                videoInput.files[0]
+            ) {
+
+                imageInput.value =
+                    "";
+
+                showMediaPreview(
+                    videoInput.files[0]
+                );
+            }
+        }
+    );
+
+    remove?.addEventListener(
+        "click",
+        () => {
+
+            imageInput.value =
+                "";
+
+            videoInput.value =
+                "";
+
+            clearMediaPreview();
+        }
+    );
+
+    publish?.addEventListener(
+        "click",
+        publishPost
+    );
+
+
+    modal.addEventListener(
+        "click",
+        event => {
+
+            if (
+                event.target.classList.contains(
+                    "post-composer-overlay"
+                )
+            ) {
+
+                closePostComposer();
+            }
+        }
+    );
+}
+
+
+// ============================================================
+// MEDIA PREVIEW
+// ============================================================
+
+function showMediaPreview(
+    file
+) {
+
+    const preview =
+        $("#post-media-preview");
+
+    const remove =
+        $("#remove-media");
+
+    if (!preview) return;
+
+    const url =
+        URL.createObjectURL(
+            file
+        );
+
+    if (
+        file.type.startsWith(
+            "image/"
+        )
+    ) {
+
+        preview.innerHTML = `
+            <img
+                src="${url}"
+                alt="Preview">
+        `;
+
+    } else if (
+        file.type.startsWith(
+            "video/"
+        )
+    ) {
+
+        preview.innerHTML = `
+            <video
+                src="${url}"
+                controls
+                playsinline>
+            </video>
+        `;
+    }
+
+    remove?.classList.remove(
+        "hidden"
+    );
+}
+
+
+function clearMediaPreview() {
+
+    const preview =
+        $("#post-media-preview");
+
+    const remove =
+        $("#remove-media");
+
+    if (preview) {
+        preview.innerHTML =
+            "";
+    }
+
+    remove?.classList.add(
+        "hidden"
+    );
+}
+
+
+// ============================================================
+// PUBLISH POST
+// ============================================================
+
+async function publishPost() {
+
+    if (!ensureLoggedIn()) {
+        return;
+    }
+
+    const caption =
+        $("#post-caption-input")
+            ?.value
+            ?.trim() ||
+        "";
+
+    const image =
+        $("#post-image-input")
+            ?.files?.[0] ||
+        null;
+
+    const video =
+        $("#post-video-input")
+            ?.files?.[0] ||
+        null;
+
+    if (
+        !caption &&
+        !image &&
+        !video
+    ) {
+
+        toast(
+            "Write something or select media."
+        );
+
+        return;
+    }
+
+    if (
+        image &&
+        image.size >
+            15 * 1024 * 1024
+    ) {
+
+        toast(
+            "Image is too large. Maximum 15MB."
+        );
+
+        return;
+    }
+
+    if (
+        video &&
+        video.size >
+            100 * 1024 * 1024
+    ) {
+
+        toast(
+            "Video is too large. Maximum 100MB."
+        );
+
+        return;
+    }
+
+    const button =
+        $("#publish-post");
+
+    const status =
+        $("#upload-status");
+
+    if (button) {
+        button.disabled =
+            true;
+
+        button.textContent =
+            "Posting...";
+    }
+
+    if (status) {
+        status.textContent =
+            "Uploading...";
+    }
+
+    try {
+
+        const formData =
+            new FormData();
+
+        formData.append(
+            "caption",
+            caption
+        );
+
+        if (image) {
+
+            formData.append(
+                "media",
+                image
+            );
+        }
+
+        if (video) {
+
+            formData.append(
+                "media",
+                video
+            );
+        }
+
+        const response =
+            await apiFetch(
+                "/api/posts/create",
+                {
+                    method: "POST",
+                    body: formData,
+                }
+            );
+
+        const data =
+            await response.json();
+
+        if (!response.ok) {
+
+            toast(
+                data.detail ||
+                "Post failed"
+            );
+
+            return;
+        }
+
+        toast(
+            "Post published successfully!"
+        );
+
+        closePostComposer();
+
+        await loadFeed();
+
+    } catch (error) {
+
+        console.error(
+            "Publish error:",
+            error
+        );
+
+        toast(
+            "Network error while posting"
+        );
+
+    } finally {
+
+        if (button) {
+            button.disabled =
+                false;
+
+            button.textContent =
+                "Post";
+        }
+
+        if (status) {
+            status.textContent =
+                "";
+        }
+    }
+}
+
+
+// ============================================================
+// CLOSE COMPOSER
+// ============================================================
+
+function closePostComposer() {
+
+    const modal =
+        $("#post-composer-modal");
+
+    if (!modal) return;
+
+    modal.remove();
+}
 
 
 // ============================================================
@@ -1140,120 +2366,127 @@ window.savePost = function(button) {
 
 async function loadDiscovery() {
 
-  try {
-
-    const response =
-      await fetch(
-        `${API}/api/discovery`
-      );
-
-    if (!response.ok) return;
-
-    const data =
-      await safeJson(response);
-
     const grid =
-      $('#discovery-grid');
+        $("#discovery-grid");
 
     if (!grid) return;
 
-    grid.innerHTML = '';
+    try {
 
-    (data.cards || []).forEach(card => {
+        const response =
+            await apiFetch(
+                "/api/discovery"
+            );
 
-      const element =
-        document.createElement('div');
+        if (!response.ok) return;
 
-      element.className =
-        'disc-card';
+        const data =
+            await response.json();
 
-      element.innerHTML = `
-        <span class="icon">
-          ${escape(card.icon || '')}
-        </span>
+        grid.innerHTML =
+            "";
 
-        <div class="title">
-          ${escape(card.title || '')}
-        </div>
+        (data.cards || [])
+            .forEach(
+                card => {
 
-        <div class="desc">
-          ${escape(card.desc || '')}
-        </div>
-      `;
+                    const element =
+                        document.createElement(
+                            "div"
+                        );
 
-      element.addEventListener(
-        'click',
-        () => {
-          handleDiscoveryCard(
-            card.id,
-            card.title
-          );
-        }
-      );
+                    element.className =
+                        "disc-card";
 
-      grid.appendChild(element);
+                    element.innerHTML = `
+                        <span class="icon">
+                            ${escapeHtml(
+                                card.icon
+                            )}
+                        </span>
 
-    });
+                        <div class="title">
+                            ${escapeHtml(
+                                card.title
+                            )}
+                        </div>
 
-  } catch (error) {
+                        <div class="desc">
+                            ${escapeHtml(
+                                card.desc
+                            )}
+                        </div>
+                    `;
 
-    console.error(
-      'Discovery loading error:',
-      error
-    );
+                    element.addEventListener(
+                        "click",
+                        () =>
+                            handleDiscoveryCard(
+                                card.id
+                            )
+                    );
 
-  }
+                    grid.appendChild(
+                        element
+                    );
+                }
+            );
 
+    } catch (error) {
+
+        console.error(
+            "Discovery:",
+            error
+        );
+    }
 }
 
 
 // ============================================================
-// DISCOVERY HANDLER
+// DISCOVERY ROUTER
 // ============================================================
 
-function handleDiscoveryCard(id, title) {
+function handleDiscoveryCard(
+    id
+) {
 
-  const handlers = {
+    const handlers = {
 
-    'ai-council':
-      showAICouncil,
+        "ai-council":
+            showAICouncil,
 
-    'creative-studio':
-      showStudio,
+        "creative-studio":
+            showStudio,
 
-    'market':
-      showMarket,
+        "market":
+            showMarket,
 
-    'world-map':
-      showWorldMap,
+        "world-map":
+            showWorldMap,
 
-    'channels':
-      showChannels,
+        "channels":
+            showChannels,
 
-    'communities':
-      showCommunities,
+        "communities":
+            showCommunities,
 
-    'videos':
-      showVideos,
+        "videos":
+            showVideos,
 
-    'settings':
-      showSettings
+        "settings":
+            showSettings,
+    };
 
-  };
+    const handler =
+        handlers[id];
 
-  const handler =
-    handlers[id];
-
-  if (handler) {
-
-    handler(title);
-
-  } else {
-
-    toast('Coming soon');
-
-  }
-
+    if (handler) {
+        handler();
+    } else {
+        toast(
+            "Coming soon"
+        );
+    }
 }
 
 
@@ -1263,331 +2496,316 @@ function handleDiscoveryCard(id, title) {
 
 async function showAICouncil() {
 
-  showSubPage(
-    'AI Council',
-    async content => {
+    showSubPage(
+        "AI Council",
+        async content => {
 
-      content.innerHTML = `
-        <h2>AI Council</h2>
+            content.innerHTML = `
+                <h2>AI Council</h2>
+                <p class="muted">
+                    Choose an AI assistant
+                </p>
+            `;
 
-        <p class="muted"
-           style="margin-bottom:16px;">
-          Choose an AI assistant
-        </p>
-      `;
+            const response =
+                await apiFetch(
+                    "/api/ai-council"
+                );
 
-      try {
+            const data =
+                await response.json();
 
-        const response =
-          await fetch(
-            `${API}/api/ai-council`
-          );
+            (data.ais || [])
+                .forEach(
+                    ai => {
 
-        const data =
-          await safeJson(response);
+                        const item =
+                            document.createElement(
+                                "div"
+                            );
 
-        (data.ais || []).forEach(ai => {
+                        item.className =
+                            "sub-item";
 
-          const element =
-            document.createElement('div');
+                        item.innerHTML = `
+                            <span class="icon">
+                                ${escapeHtml(
+                                    ai.icon
+                                )}
+                            </span>
 
-          element.className =
-            'sub-item';
+                            <div class="text">
+                                <strong>
+                                    ${escapeHtml(
+                                        ai.title
+                                    )}
+                                </strong>
 
-          element.innerHTML = `
-            <span class="icon">
-              ${escape(ai.icon || '🤖')}
-            </span>
+                                <span>
+                                    ${escapeHtml(
+                                        ai.desc
+                                    )}
+                                </span>
+                            </div>
+                        `;
 
-            <div class="text">
+                        item.addEventListener(
+                            "click",
+                            () => {
 
-              <strong>
-                ${escape(ai.title || '')}
-              </strong>
+                                if (
+                                    ai.id ===
+                                    "education"
+                                ) {
 
-              <span>
-                ${escape(ai.desc || '')}
-              </span>
+                                    showEducationAICountries();
 
-            </div>
-          `;
+                                } else {
 
-          element.addEventListener(
-            'click',
-            () => {
+                                    showAIChat(
+                                        ai.id
+                                    );
+                                }
+                            }
+                        );
 
-              if (ai.id === 'education') {
-
-                showEducationAICountries();
-
-              } else {
-
-                showAIChat(ai.id);
-
-              }
-
-            }
-          );
-
-          content.appendChild(element);
-
-        });
-
-      } catch (error) {
-
-        content.innerHTML += `
-          <p class="muted">
-            Failed to load AI Council.
-          </p>
-        `;
-
-      }
-
-    }
-  );
-
+                        content.appendChild(
+                            item
+                        );
+                    }
+                );
+        }
+    );
 }
 
 
 // ============================================================
-// EDUCATION AI — COUNTRIES
+// EDUCATION COUNTRIES
 // ============================================================
 
 async function showEducationAICountries() {
 
-  showSubPage(
-    'Education AI',
-    async content => {
+    showSubPage(
+        "Education AI",
+        async content => {
 
-      content.innerHTML = `
-        <h2>Step 1 — Choose Country</h2>
+            content.innerHTML = `
+                <h2>
+                    Step 1 — Choose Country
+                </h2>
 
-        <p class="muted"
-           style="margin-bottom:16px;">
-          Select your country
-        </p>
-      `;
+                <p class="muted">
+                    Select your country
+                </p>
+            `;
 
-      try {
+            const response =
+                await apiFetch(
+                    "/api/ai-council/countries"
+                );
 
-        const response =
-          await fetch(
-            `${API}/api/ai-council/countries`
-          );
+            const data =
+                await response.json();
 
-        const data =
-          await safeJson(response);
+            (data.countries || [])
+                .forEach(
+                    country => {
 
-        (data.countries || []).forEach(country => {
+                        const item =
+                            document.createElement(
+                                "div"
+                            );
 
-          const element =
-            document.createElement('div');
+                        item.className =
+                            "sub-item";
 
-          element.className =
-            'sub-item';
+                        item.innerHTML = `
+                            <span class="icon">
+                                🌍
+                            </span>
 
-          element.innerHTML = `
-            <span class="icon">🌍</span>
+                            <div class="text">
+                                <strong>
+                                    ${escapeHtml(
+                                        country
+                                    )}
+                                </strong>
+                            </div>
+                        `;
 
-            <div class="text">
-              <strong>
-                ${escape(country)}
-              </strong>
-            </div>
-          `;
+                        item.addEventListener(
+                            "click",
+                            () =>
+                                showEducationAILevels(
+                                    country
+                                )
+                        );
 
-          element.addEventListener(
-            'click',
-            () => {
-              showEducationAILevels(
-                country
-              );
-            }
-          );
-
-          content.appendChild(element);
-
-        });
-
-      } catch {
-
-        content.innerHTML += `
-          <p class="muted">
-            Failed to load countries.
-          </p>
-        `;
-
-      }
-
-    }
-  );
-
+                        content.appendChild(
+                            item
+                        );
+                    }
+                );
+        }
+    );
 }
 
 
 // ============================================================
-// EDUCATION AI — LEVELS
+// EDUCATION LEVELS
 // ============================================================
 
-async function showEducationAILevels(country) {
+async function showEducationAILevels(
+    country
+) {
 
-  showSubPage(
-    `Education — ${country}`,
-    async content => {
+    showSubPage(
+        `Education — ${country}`,
+        async content => {
 
-      content.innerHTML = `
-        <h2>Step 2 — Choose Level</h2>
+            content.innerHTML = `
+                <h2>
+                    Step 2 — Choose Level
+                </h2>
 
-        <p class="muted"
-           style="margin-bottom:16px;">
-          ${escape(country)}
-        </p>
-      `;
+                <p class="muted">
+                    ${escapeHtml(country)}
+                </p>
+            `;
 
-      try {
+            const response =
+                await apiFetch(
+                    "/api/ai-council/levels"
+                );
 
-        const response =
-          await fetch(
-            `${API}/api/ai-council/levels`
-          );
+            const data =
+                await response.json();
 
-        const data =
-          await safeJson(response);
+            (data.levels || [])
+                .forEach(
+                    level => {
 
-        (data.levels || []).forEach(level => {
+                        const item =
+                            document.createElement(
+                                "div"
+                            );
 
-          const element =
-            document.createElement('div');
+                        item.className =
+                            "sub-item";
 
-          element.className =
-            'sub-item';
+                        item.innerHTML = `
+                            <span class="icon">
+                                🎓
+                            </span>
 
-          element.innerHTML = `
-            <span class="icon">🎓</span>
+                            <div class="text">
+                                <strong>
+                                    ${escapeHtml(
+                                        level
+                                    )}
+                                </strong>
+                            </div>
+                        `;
 
-            <div class="text">
-              <strong>
-                ${escape(level)}
-              </strong>
-            </div>
-          `;
+                        item.addEventListener(
+                            "click",
+                            () =>
+                                showEducationAIContent(
+                                    country,
+                                    level
+                                )
+                        );
 
-          element.addEventListener(
-            'click',
-            () => {
-              showEducationAIContent(
-                country,
-                level
-              );
-            }
-          );
-
-          content.appendChild(element);
-
-        });
-
-      } catch {
-
-        content.innerHTML += `
-          <p class="muted">
-            Failed to load levels.
-          </p>
-        `;
-
-      }
-
-    }
-  );
-
+                        content.appendChild(
+                            item
+                        );
+                    }
+                );
+        }
+    );
 }
 
 
 // ============================================================
-// EDUCATION AI — CONTENT TYPES
+// EDUCATION CONTENT
 // ============================================================
 
 async function showEducationAIContent(
-  country,
-  level
+    country,
+    level
 ) {
 
-  showSubPage(
-    `Education — ${level}`,
-    async content => {
+    showSubPage(
+        `Education — ${level}`,
+        async content => {
 
-      content.innerHTML = `
-        <h2>Step 3 — Choose Content</h2>
+            content.innerHTML = `
+                <h2>
+                    Step 3 — Choose Content
+                </h2>
 
-        <p class="muted"
-           style="margin-bottom:16px;">
-          ${escape(country)} •
-          ${escape(level)}
-        </p>
-      `;
-
-      try {
-
-        const response =
-          await fetch(
-            `${API}/api/ai-council/content-types`
-          );
-
-        const data =
-          await safeJson(response);
-
-        (data.content_types || []).forEach(
-          contentType => {
-
-            const element =
-              document.createElement('div');
-
-            element.className =
-              'sub-item';
-
-            element.innerHTML = `
-              <span class="icon">📄</span>
-
-              <div class="text">
-                <strong>
-                  ${escape(contentType)}
-                </strong>
-              </div>
+                <p class="muted">
+                    ${escapeHtml(country)}
+                    •
+                    ${escapeHtml(level)}
+                </p>
             `;
 
-            element.addEventListener(
-              'click',
-              () => {
-
-                showAIChat(
-                  'education',
-                  {
-                    country,
-                    level,
-                    content: contentType
-                  }
+            const response =
+                await apiFetch(
+                    "/api/ai-council/content-types"
                 );
 
-              }
-            );
+            const data =
+                await response.json();
 
-            content.appendChild(element);
+            (data.content_types || [])
+                .forEach(
+                    type => {
 
-          }
-        );
+                        const item =
+                            document.createElement(
+                                "div"
+                            );
 
-      } catch {
+                        item.className =
+                            "sub-item";
 
-        content.innerHTML += `
-          <p class="muted">
-            Failed to load content types.
-          </p>
-        `;
+                        item.innerHTML = `
+                            <span class="icon">
+                                📄
+                            </span>
 
-      }
+                            <div class="text">
+                                <strong>
+                                    ${escapeHtml(
+                                        type
+                                    )}
+                                </strong>
+                            </div>
+                        `;
 
-    }
-  );
+                        item.addEventListener(
+                            "click",
+                            () =>
+                                showAIChat(
+                                    "education",
+                                    {
+                                        country,
+                                        level,
+                                        content:
+                                            type,
+                                    }
+                                )
+                        );
 
+                        content.appendChild(
+                            item
+                        );
+                    }
+                );
+        }
+    );
 }
 
 
@@ -1596,277 +2814,238 @@ async function showEducationAIContent(
 // ============================================================
 
 function showAIChat(
-  ai,
-  context = {}
+    ai,
+    context = {}
 ) {
 
-  showSubPage(
-    'AI Chat',
-    content => {
+    showSubPage(
+        "AI Chat",
+        content => {
 
-      const aiName =
-        ai.charAt(0).toUpperCase() +
-        ai.slice(1);
+            content.innerHTML = `
+                <h2>
+                    ${escapeHtml(
+                        ai
+                            .charAt(0)
+                            .toUpperCase() +
+                        ai.slice(1)
+                    )}
+                    AI
+                </h2>
 
-      content.innerHTML = `
+                <div
+                    id="ai-chat-messages"
+                    class="chat-msgs">
 
-        <h2>
-          ${escape(aiName)} AI
-        </h2>
+                    <div class="msg ai">
+                        Hello! I'm your
+                        ${escapeHtml(
+                            context.content ||
+                            ""
+                        )}
+                        assistant for
+                        ${escapeHtml(
+                            context.level ||
+                            ""
+                        )}
+                        curriculum in
+                        ${escapeHtml(
+                            context.country ||
+                            ""
+                        )}.
+                        Ask me anything.
+                    </div>
 
-        <div
-          id="chat-msgs"
-          class="chat-msgs">
+                </div>
 
-          <div class="msg ai">
-            Hello! I'm your
-            ${escape(context.content || '')}
-            assistant for
-            ${escape(context.level || '')}
-            curriculum in
-            ${escape(context.country || '')}.
-            Ask me anything.
-          </div>
+                <div
+                    style="
+                        display:flex;
+                        gap:8px;
+                        margin-top:12px;
+                    ">
 
-        </div>
+                    <input
+                        id="ai-input"
+                        type="text"
+                        placeholder="Ask a question..."
+                        style="flex:1;">
 
-        <div
-          class="search-bar"
-          style="
-            display:flex;
-            gap:8px;
-            margin-top:12px;
-          ">
+                    <button
+                        id="ai-send"
+                        class="btn-primary">
+                        Send
+                    </button>
 
-          <input
-            type="text"
-            id="ai-input"
-            placeholder="Ask a question..."
-            style="flex:1;">
-
-          <button
-            class="btn-primary"
-            id="ai-send"
-            style="padding:12px 20px;">
-            Send
-          </button>
-
-        </div>
-
-      `;
-
-      const sendMessage =
-        async () => {
-
-          const input =
-            $('#ai-input');
-
-          if (!input) return;
-
-          const question =
-            input.value.trim();
-
-          if (!question) return;
-
-          const messages =
-            $('#chat-msgs');
-
-          if (!messages) return;
-
-          messages.innerHTML += `
-            <div class="msg user">
-              ${escape(question)}
-            </div>
-          `;
-
-          input.value = '';
-
-          messages.scrollTop =
-            messages.scrollHeight;
-
-          try {
-
-            const params =
-              new URLSearchParams();
-
-            params.set(
-              'ai',
-              ai
-            );
-
-            params.set(
-              'country',
-              context.country || 'Tanzania'
-            );
-
-            params.set(
-              'level',
-              context.level || 'Degree'
-            );
-
-            params.set(
-              'content',
-              context.content || 'Notes'
-            );
-
-            params.set(
-              'q',
-              question
-            );
-
-            const response =
-              await fetch(
-                `${API}/api/ai-council/chat?${params.toString()}`
-              );
-
-            const data =
-              await safeJson(response);
-
-            messages.innerHTML += `
-              <div class="msg ai">
-                ${escape(
-                  data.reply ||
-                  'No response available.'
-                )}
-              </div>
+                </div>
             `;
 
-            messages.scrollTop =
-              messages.scrollHeight;
+            const send =
+                async () => {
 
-          } catch {
+                    const input =
+                        $("#ai-input");
 
-            messages.innerHTML += `
-              <div class="msg ai">
-                Error reaching AI.
-              </div>
-            `;
+                    const question =
+                        input?.value?.trim();
 
-          }
+                    if (!question) {
+                        return;
+                    }
 
-        };
+                    const messages =
+                        $("#ai-chat-messages");
 
-      const sendButton =
-        $('#ai-send');
+                    messages.innerHTML += `
+                        <div class="msg user">
+                            ${escapeHtml(
+                                question
+                            )}
+                        </div>
+                    `;
 
-      if (sendButton) {
-        sendButton.addEventListener(
-          'click',
-          sendMessage
-        );
-      }
+                    input.value = "";
 
-      const input =
-        $('#ai-input');
+                    try {
 
-      if (input) {
+                        const params =
+                            new URLSearchParams({
+                                ai,
+                                ...context,
+                                q: question,
+                            });
 
-        input.addEventListener(
-          'keypress',
-          event => {
+                        const response =
+                            await apiFetch(
+                                `/api/ai-council/chat?${params}`
+                            );
 
-            if (
-              event.key === 'Enter'
-            ) {
+                        const data =
+                            await response.json();
 
-              event.preventDefault();
+                        messages.innerHTML += `
+                            <div class="msg ai">
+                                ${escapeHtml(
+                                    data.reply ||
+                                    "No response."
+                                )}
+                            </div>
+                        `;
 
-              sendMessage();
+                    } catch {
 
-            }
+                        messages.innerHTML += `
+                            <div class="msg ai">
+                                Error reaching AI.
+                            </div>
+                        `;
+                    }
 
-          }
-        );
+                    messages.scrollTop =
+                        messages.scrollHeight;
+                };
 
-      }
+            $("#ai-send")
+                ?.addEventListener(
+                    "click",
+                    send
+                );
 
-    }
-  );
+            $("#ai-input")
+                ?.addEventListener(
+                    "keydown",
+                    event => {
 
+                        if (
+                            event.key ===
+                            "Enter"
+                        ) {
+                            send();
+                        }
+                    }
+                );
+        }
+    );
 }
 
 
 // ============================================================
-// CREATIVE STUDIO
+// STUDIO
 // ============================================================
 
 async function showStudio() {
 
-  showSubPage(
-    'Creative Studio',
-    async content => {
+    showSubPage(
+        "Creative Studio",
+        async content => {
 
-      content.innerHTML = `
-        <h2>Creative Studio</h2>
+            content.innerHTML = `
+                <h2>
+                    Creative Studio
+                </h2>
 
-        <p class="muted"
-           style="margin-bottom:16px;">
-          Canva-style tools
-        </p>
-      `;
+                <p class="muted">
+                    Canva-style tools
+                </p>
+            `;
 
-      try {
+            const response =
+                await apiFetch(
+                    "/api/studio"
+                );
 
-        const response =
-          await fetch(
-            `${API}/api/studio`
-          );
+            const data =
+                await response.json();
 
-        const data =
-          await safeJson(response);
+            (data.tools || [])
+                .forEach(
+                    tool => {
 
-        (data.tools || []).forEach(tool => {
+                        const item =
+                            document.createElement(
+                                "div"
+                            );
 
-          const element =
-            document.createElement('div');
+                        item.className =
+                            "sub-item";
 
-          element.className =
-            'sub-item';
+                        item.innerHTML = `
+                            <span class="icon">
+                                ${escapeHtml(
+                                    tool.icon
+                                )}
+                            </span>
 
-          element.innerHTML = `
-            <span class="icon">
-              ${escape(tool.icon || '✨')}
-            </span>
+                            <div class="text">
+                                <strong>
+                                    ${escapeHtml(
+                                        tool.title
+                                    )}
+                                </strong>
 
-            <div class="text">
+                                <span>
+                                    ${escapeHtml(
+                                        tool.desc
+                                    )}
+                                </span>
+                            </div>
+                        `;
 
-              <strong>
-                ${escape(tool.title || '')}
-              </strong>
+                        item.addEventListener(
+                            "click",
+                            () =>
+                                toast(
+                                    `${tool.title} coming soon`
+                                )
+                        );
 
-              <span>
-                ${escape(tool.desc || '')}
-              </span>
-
-            </div>
-          `;
-
-          element.addEventListener(
-            'click',
-            () => {
-              toast(
-                `${tool.title} coming soon`
-              );
-            }
-          );
-
-          content.appendChild(element);
-
-        });
-
-      } catch {
-
-        content.innerHTML += `
-          <p class="muted">
-            Failed to load Creative Studio.
-          </p>
-        `;
-
-      }
-
-    }
-  );
-
+                        content.appendChild(
+                            item
+                        );
+                    }
+                );
+        }
+    );
 }
 
 
@@ -1876,81 +3055,72 @@ async function showStudio() {
 
 async function showMarket() {
 
-  showSubPage(
-    'Market',
-    async content => {
+    showSubPage(
+        "Market",
+        async content => {
 
-      content.innerHTML = `
-        <h2>Market</h2>
+            content.innerHTML = `
+                <h2>Market</h2>
+                <p class="muted">
+                    Buy and sell
+                </p>
+            `;
 
-        <p class="muted"
-           style="margin-bottom:16px;">
-          Buy and sell
-        </p>
-      `;
+            const response =
+                await apiFetch(
+                    "/api/market/categories"
+                );
 
-      try {
+            const data =
+                await response.json();
 
-        const response =
-          await fetch(
-            `${API}/api/market/categories`
-          );
+            (data.categories || [])
+                .forEach(
+                    category => {
 
-        const data =
-          await safeJson(response);
+                        const item =
+                            document.createElement(
+                                "div"
+                            );
 
-        (data.categories || []).forEach(category => {
+                        item.className =
+                            "sub-item";
 
-          const element =
-            document.createElement('div');
+                        item.innerHTML = `
+                            <span class="icon">
+                                🛍️
+                            </span>
 
-          element.className =
-            'sub-item';
+                            <div class="text">
+                                <strong>
+                                    ${escapeHtml(
+                                        category.title
+                                    )}
+                                </strong>
 
-          element.innerHTML = `
-            <span class="icon">🛍️</span>
+                                <span>
+                                    ${escapeHtml(
+                                        category.desc
+                                    )}
+                                </span>
+                            </div>
+                        `;
 
-            <div class="text">
+                        item.addEventListener(
+                            "click",
+                            () =>
+                                toast(
+                                    `${category.title} coming soon`
+                                )
+                        );
 
-              <strong>
-                ${escape(category.title || '')}
-              </strong>
-
-              <span>
-                ${escape(category.desc || '')}
-              </span>
-
-            </div>
-          `;
-
-          element.addEventListener(
-            'click',
-            () => {
-
-              toast(
-                `${category.title} — coming soon`
-              );
-
-            }
-          );
-
-          content.appendChild(element);
-
-        });
-
-      } catch {
-
-        content.innerHTML += `
-          <p class="muted">
-            Failed to load Market.
-          </p>
-        `;
-
-      }
-
-    }
-  );
-
+                        content.appendChild(
+                            item
+                        );
+                    }
+                );
+        }
+    );
 }
 
 
@@ -1960,82 +3130,67 @@ async function showMarket() {
 
 async function showWorldMap() {
 
-  showSubPage(
-    'World Map',
-    async content => {
+    showSubPage(
+        "World Map",
+        async content => {
 
-      content.innerHTML = `
-        <h2>World Map</h2>
+            content.innerHTML = `
+                <h2>World Map</h2>
+                <p class="muted">
+                    Explore the world
+                </p>
+            `;
 
-        <p class="muted"
-           style="margin-bottom:16px;">
-          Explore the world
-        </p>
-      `;
+            const response =
+                await apiFetch(
+                    "/api/world-map/countries"
+                );
 
-      try {
+            const data =
+                await response.json();
 
-        const response =
-          await fetch(
-            `${API}/api/world-map/countries`
-          );
+            (data.countries || [])
+                .forEach(
+                    country => {
 
-        const data =
-          await safeJson(response);
+                        const item =
+                            document.createElement(
+                                "div"
+                            );
 
-        (data.countries || []).forEach(country => {
+                        item.className =
+                            "sub-item";
 
-          const element =
-            document.createElement('div');
+                        item.innerHTML = `
+                            <span class="icon">
+                                🌍
+                            </span>
 
-          element.className =
-            'sub-item';
+                            <div class="text">
 
-          element.innerHTML = `
-            <span class="icon">🌍</span>
+                                <strong>
+                                    ${escapeHtml(
+                                        country.name
+                                    )}
+                                </strong>
 
-            <div class="text">
+                                <span>
+                                    ${country.users}
+                                    users •
+                                    ${country.posts}
+                                    posts
+                                </span>
 
-              <strong>
-                ${escape(country.name)}
-              </strong>
+                            </div>
+                        `;
 
-              <span>
-                ${Number(country.users || 0)}
-                users •
-                ${Number(country.posts || 0)}
-                posts
-              </span>
-
-            </div>
-          `;
-
-          element.addEventListener(
-            'click',
-            () => {
-              toast(
-                `${country.name} — coming soon`
-              );
-            }
-          );
-
-          content.appendChild(element);
-
-        });
-
-      } catch {
-
-        content.innerHTML += `
-          <p class="muted">
-            Failed to load World Map.
-          </p>
-        `;
-
-      }
-
-    }
-  );
-
+                        content.appendChild(
+                            item
+                        );
+                    }
+                );
+        }
+    );
 }
 
 
@@ -2045,81 +3200,74 @@ async function showWorldMap() {
 
 async function showChannels() {
 
-  showSubPage(
-    'Channels',
-    async content => {
+    showSubPage(
+        "Channels",
+        async content => {
 
-      content.innerHTML = `
-        <h2>Channels</h2>
+            content.innerHTML = `
+                <h2>Channels</h2>
+                <p class="muted">
+                    News and media
+                </p>
+            `;
 
-        <p class="muted"
-           style="margin-bottom:16px;">
-          News and media
-        </p>
-      `;
+            const response =
+                await apiFetch(
+                    "/api/channels"
+                );
 
-      try {
+            const data =
+                await response.json();
 
-        const response =
-          await fetch(
-            `${API}/api/channels`
-          );
+            (data.channels || [])
+                .forEach(
+                    channel => {
 
-        const data =
-          await safeJson(response);
+                        const item =
+                            document.createElement(
+                                "div"
+                            );
 
-        (data.channels || []).forEach(channel => {
+                        item.className =
+                            "sub-item";
 
-          const element =
-            document.createElement('div');
+                        item.innerHTML = `
+                            <span class="icon">
+                                📺
+                            </span>
 
-          element.className =
-            'sub-item';
+                            <div class="text">
 
-          element.innerHTML = `
-            <span class="icon">📺</span>
+                                <strong>
+                                    ${escapeHtml(
+                                        channel.name
+                                    )}
+                                </strong>
 
-            <div class="text">
+                                <span>
+                                    ${escapeHtml(
+                                        channel.desc
+                                    )}
+                                </span>
 
-              <strong>
-                ${escape(channel.name)}
-              </strong>
+                            </div>
+                        `;
 
-              <span>
-                ${escape(channel.desc || '')}
-              </span>
+                        item.addEventListener(
+                            "click",
+                            () =>
+                                toast(
+                                    `${channel.name} coming soon`
+                                )
+                        );
 
-            </div>
-          `;
-
-          element.addEventListener(
-            'click',
-            () => {
-
-              toast(
-                `${channel.name} — coming soon`
-              );
-
-            }
-          );
-
-          content.appendChild(element);
-
-        });
-
-      } catch {
-
-        content.innerHTML += `
-          <p class="muted">
-            Failed to load Channels.
-          </p>
-        `;
-
-      }
-
-    }
-  );
-
+                        content.appendChild(
+                            item
+                        );
+                    }
+                );
+        }
+    );
 }
 
 
@@ -2129,81 +3277,74 @@ async function showChannels() {
 
 async function showCommunities() {
 
-  showSubPage(
-    'Communities',
-    async content => {
+    showSubPage(
+        "Communities",
+        async content => {
 
-      content.innerHTML = `
-        <h2>Communities</h2>
+            content.innerHTML = `
+                <h2>Communities</h2>
+                <p class="muted">
+                    Join groups and communities
+                </p>
+            `;
 
-        <p class="muted"
-           style="margin-bottom:16px;">
-          Join groups
-        </p>
-      `;
+            const response =
+                await apiFetch(
+                    "/api/communities/categories"
+                );
 
-      try {
+            const data =
+                await response.json();
 
-        const response =
-          await fetch(
-            `${API}/api/communities/categories`
-          );
+            (data.categories || [])
+                .forEach(
+                    category => {
 
-        const data =
-          await safeJson(response);
+                        const item =
+                            document.createElement(
+                                "div"
+                            );
 
-        (data.categories || []).forEach(category => {
+                        item.className =
+                            "sub-item";
 
-          const element =
-            document.createElement('div');
+                        item.innerHTML = `
+                            <span class="icon">
+                                👥
+                            </span>
 
-          element.className =
-            'sub-item';
+                            <div class="text">
 
-          element.innerHTML = `
-            <span class="icon">👥</span>
+                                <strong>
+                                    ${escapeHtml(
+                                        category.title
+                                    )}
+                                </strong>
 
-            <div class="text">
+                                <span>
+                                    ${escapeHtml(
+                                        category.desc
+                                    )}
+                                </span>
 
-              <strong>
-                ${escape(category.title)}
-              </strong>
+                            </div>
+                        `;
 
-              <span>
-                ${escape(category.desc || '')}
-              </span>
+                        item.addEventListener(
+                            "click",
+                            () =>
+                                toast(
+                                    `${category.title} coming soon`
+                                )
+                        );
 
-            </div>
-          `;
-
-          element.addEventListener(
-            'click',
-            () => {
-
-              toast(
-                `${category.title} — coming soon`
-              );
-
-            }
-          );
-
-          content.appendChild(element);
-
-        });
-
-      } catch {
-
-        content.innerHTML += `
-          <p class="muted">
-            Failed to load Communities.
-          </p>
-        `;
-
-      }
-
-    }
-  );
-
+                        content.appendChild(
+                            item
+                        );
+                    }
+                );
+        }
+    );
 }
 
 
@@ -2213,44 +3354,40 @@ async function showCommunities() {
 
 async function showVideos() {
 
-  showSubPage(
-    'Videos',
-    content => {
+    showSubPage(
+        "Videos",
+        content => {
 
-      content.innerHTML = `
+            content.innerHTML = `
+                <h2>Videos</h2>
 
-        <h2>Videos</h2>
+                <p class="muted">
+                    Short video feed
+                </p>
 
-        <p class="muted"
-           style="margin-bottom:16px;">
-          Short video feed
-        </p>
+                <div class="sub-item">
 
-        <div class="sub-item">
+                    <span class="icon">
+                        ▶️
+                    </span>
 
-          <span class="icon">
-            ▶️
-          </span>
+                    <div class="text">
 
-          <div class="text">
+                        <strong>
+                            Video Feed
+                        </strong>
 
-            <strong>
-              Coming soon
-            </strong>
+                        <span>
+                            TikTok-style feed
+                            coming in next phase
+                        </span>
 
-            <span>
-              TikTok-style feed
-            </span>
+                    </div>
 
-          </div>
-
-        </div>
-
-      `;
-
-    }
-  );
-
+                </div>
+            `;
+        }
+    );
 }
 
 
@@ -2260,127 +3397,112 @@ async function showVideos() {
 
 function showSettings() {
 
-  showSubPage(
-    'Settings',
-    content => {
+    showSubPage(
+        "Settings",
+        content => {
 
-      content.innerHTML = `
+            content.innerHTML = `
+                <h2>Settings</h2>
 
-        <h2>Settings</h2>
+                <div
+                    class="sub-item"
+                    id="setting-manual">
 
-        <div
-          class="sub-item"
-          id="s-manual">
+                    <span class="icon">
+                        📖
+                    </span>
 
-          <span class="icon">
-            📖
-          </span>
+                    <div class="text">
+                        <strong>
+                            User Manual
+                        </strong>
 
-          <div class="text">
-            <strong>
-              User Manual
-            </strong>
+                        <span>
+                            How to use the app
+                        </span>
+                    </div>
 
-            <span>
-              How to use the app
-            </span>
-          </div>
+                </div>
 
-        </div>
+                <div
+                    class="sub-item"
+                    id="setting-theme">
 
-        <div
-          class="sub-item"
-          id="s-theme">
+                    <span class="icon">
+                        🌓
+                    </span>
 
-          <span class="icon">
-            🌓
-          </span>
+                    <div class="text">
+                        <strong>
+                            Theme
+                        </strong>
 
-          <div class="text">
-            <strong>
-              Theme
-            </strong>
+                        <span>
+                            Light / Dark
+                        </span>
+                    </div>
 
-            <span>
-              Light / Dark
-            </span>
-          </div>
+                </div>
 
-        </div>
+                <div
+                    class="sub-item">
 
-        <div class="sub-item">
+                    <span class="icon">
+                        ℹ️
+                    </span>
 
-          <span class="icon">
-            ℹ️
-          </span>
+                    <div class="text">
+                        <strong>
+                            Version
+                        </strong>
 
-          <div class="text">
-            <strong>
-              Version
-            </strong>
+                        <span>
+                            MSAFIRI MEDIA V0.0.1
+                        </span>
+                    </div>
 
-            <span>
-              MSAFIRI GLOBAL MEDIA V6.0.0-PHASE2
-            </span>
-          </div>
+                </div>
 
-        </div>
+                <div
+                    class="sub-item"
+                    id="setting-logout">
 
-        <div
-          class="sub-item"
-          id="s-logout">
+                    <span class="icon">
+                        🚪
+                    </span>
 
-          <span class="icon">
-            🚪
-          </span>
+                    <div class="text">
+                        <strong>
+                            Logout
+                        </strong>
 
-          <div class="text">
-            <strong>
-              Logout
-            </strong>
+                        <span>
+                            Sign out
+                        </span>
+                    </div>
 
-            <span>
-              Sign out of your account
-            </span>
-          </div>
+                </div>
+            `;
 
-        </div>
+            $("#setting-manual")
+                ?.addEventListener(
+                    "click",
+                    showUserManual
+                );
 
-      `;
+            $("#setting-theme")
+                ?.addEventListener(
+                    "click",
+                    toggleTheme
+                );
 
-      const manual =
-        $('#s-manual');
-
-      if (manual) {
-        manual.addEventListener(
-          'click',
-          showUserManual
-        );
-      }
-
-      const theme =
-        $('#s-theme');
-
-      if (theme) {
-        theme.addEventListener(
-          'click',
-          toggleTheme
-        );
-      }
-
-      const logoutButton =
-        $('#s-logout');
-
-      if (logoutButton) {
-        logoutButton.addEventListener(
-          'click',
-          logout
-        );
-      }
-
-    }
-  );
-
+            $("#setting-logout")
+                ?.addEventListener(
+                    "click",
+                    logout
+                );
+        }
+    );
 }
 
 
@@ -2390,260 +3512,288 @@ function showSettings() {
 
 async function showUserManual() {
 
-  showSubPage(
-    'User Manual',
-    async content => {
+    showSubPage(
+        "User Manual",
+        async content => {
 
-      content.innerHTML = `
-        <p class="muted">
-          Loading user manual...
-        </p>
-      `;
+            try {
 
-      try {
+                const response =
+                    await apiFetch(
+                        "/api/user-manual"
+                    );
 
-        const response =
-          await fetch(
-            `${API}/api/user-manual`
-          );
+                const manual =
+                    await response.json();
 
-        const manual =
-          await safeJson(response);
+                content.innerHTML = `
+                    <div
+                        style="
+                            text-align:center;
+                            margin-bottom:20px;
+                        ">
 
-        content.innerHTML = `
+                        <div
+                            class="auth-logo"
+                            style="
+                                margin:0 auto 12px;
+                            ">
+                            M
+                        </div>
 
-          <div
-            style="
-              text-align:center;
-              margin-bottom:20px;
-            ">
+                        <h2>
+                            ${escapeHtml(
+                                manual.app
+                            )}
+                        </h2>
 
-            <div
-              class="auth-logo"
-              style="margin:0 auto 12px;">
-              M
-            </div>
+                        <p class="muted">
+                            ${escapeHtml(
+                                manual.tagline
+                            )}
+                        </p>
 
-            <h2>
-              ${escape(manual.app || '')}
-            </h2>
+                        <p class="muted">
+                            Founder:
+                            ${escapeHtml(
+                                manual.founder
+                            )}
+                        </p>
 
-            <p class="muted">
-              ${escape(manual.tagline || '')}
-            </p>
+                        <p class="muted">
+                            ${escapeHtml(
+                                manual.company
+                            )}
+                        </p>
 
-            <p
-              class="muted"
-              style="margin-top:4px;">
+                        <p class="muted">
+                            Version:
+                            ${escapeHtml(
+                                manual.version
+                            )}
+                        </p>
 
-              Founder:
-              ${escape(manual.founder || '')}
+                    </div>
 
-            </p>
+                    <div class="manual-section">
 
-            <p class="muted">
-              ${escape(manual.company || '')}
-            </p>
+                        <h3>
+                            About MSAFIRI
+                        </h3>
 
-            <p class="muted">
-              Version:
-              ${escape(manual.version || '')}
-            </p>
+                        <p>
+                            ${escapeHtml(
+                                manual.about
+                            )}
+                        </p>
 
-          </div>
+                    </div>
 
-          <div class="manual-section">
+                    <div class="manual-section">
 
-            <h3>
-              About
-            </h3>
+                        <h3>
+                            Sections
+                        </h3>
 
-            <p>
-              ${escape(manual.about || '')}
-            </p>
+                        <ul>
 
-          </div>
+                            ${Object.entries(
+                                manual.sections ||
+                                {}
+                            )
+                                .map(
+                                    ([key, value]) =>
+                                        `<li>
+                                            <strong>
+                                                ${escapeHtml(
+                                                    key
+                                                )}:
+                                            </strong>
+                                            ${escapeHtml(
+                                                value
+                                            )}
+                                        </li>`
+                                )
+                                .join("")}
 
-          <div class="manual-section">
+                        </ul>
 
-            <h3>
-              Sections
-            </h3>
+                    </div>
 
-            <ul>
+                    <div class="manual-section">
 
-              ${Object.entries(
-                manual.sections || {}
-              )
-                .map(
-                  ([key, value]) => `
-                    <li>
-                      <strong>
-                        ${escape(key)}:
-                      </strong>
-                      ${escape(value)}
-                    </li>
-                  `
-                )
-                .join('')}
+                        <h3>
+                            How to Use
+                        </h3>
 
-            </ul>
+                        <ul>
 
-          </div>
+                            ${Object.entries(
+                                manual.how_to_use ||
+                                {}
+                            )
+                                .map(
+                                    ([key, value]) =>
+                                        `<li>
+                                            <strong>
+                                                ${escapeHtml(
+                                                    key.replace(
+                                                        /_/g,
+                                                        " "
+                                                    )
+                                                )}:
+                                            </strong>
+                                            ${escapeHtml(
+                                                value
+                                            )}
+                                        </li>`
+                                )
+                                .join("")}
 
-          <div class="manual-section">
+                        </ul>
 
-            <h3>
-              How to Use
-            </h3>
+                    </div>
 
-            <ul>
+                    <div class="manual-section">
 
-              ${Object.entries(
-                manual.how_to_use || {}
-              )
-                .map(
-                  ([key, value]) => `
-                    <li>
-                      <strong>
-                        ${escape(
-                          key.replaceAll('_', ' ')
-                        )}:
-                      </strong>
-                      ${escape(value)}
-                    </li>
-                  `
-                )
-                .join('')}
+                        <h3>
+                            Support
+                        </h3>
 
-            </ul>
+                        <p>
+                            ${escapeHtml(
+                                manual.support
+                            )}
+                        </p>
 
-          </div>
+                    </div>
 
-          <div class="manual-section">
+                    <button
+                        class="btn-primary"
+                        id="download-manual"
+                        style="width:100%;margin-top:16px;">
 
-            <h3>
-              Support
-            </h3>
+                        📥 Download User Manual
 
-            <p>
-              ${escape(manual.support || '')}
-            </p>
+                    </button>
+                `;
 
-          </div>
+                $("#download-manual")
+                    ?.addEventListener(
+                        "click",
+                        () =>
+                            downloadManual(
+                                manual
+                            )
+                    );
 
-          <button
-            class="btn-primary"
-            id="dl-manual"
-            style="
-              width:100%;
-              margin-top:16px;
-            ">
+            } catch (error) {
 
-            📥 Download User Manual
+                console.error(error);
 
-          </button>
+                content.innerHTML = `
+                    <p class="muted">
+                        Unable to load manual.
+                    </p>
+                `;
+            }
+        }
+    );
+}
 
-        `;
 
-        const downloadButton =
-          $('#dl-manual');
+// ============================================================
+// DOWNLOAD MANUAL
+// ============================================================
 
-        if (downloadButton) {
+function downloadManual(
+    manual
+) {
 
-          downloadButton.addEventListener(
-            'click',
-            () => {
+    const text = `
+MSAFIRI GLOBAL MEDIA
+${manual.tagline}
 
-              const text = `MSAFIRI GLOBAL MEDIA
-${manual.tagline || ''}
+Founder:
+${manual.founder}
 
-Founder: ${manual.founder || ''}
-Company: ${manual.company || ''}
-Version: ${manual.version || ''}
+Company:
+${manual.company}
+
+Version:
+${manual.version}
+
 
 ABOUT
-${manual.about || ''}
+${manual.about}
+
 
 SECTIONS
 ${Object.entries(
-  manual.sections || {}
+    manual.sections || {}
 )
-  .map(
-    ([key, value]) =>
-      `- ${key}: ${value}`
-  )
-  .join('\n')}
+    .map(
+        ([key, value]) =>
+            `- ${key}: ${value}`
+    )
+    .join("\n")}
+
 
 HOW TO USE
 ${Object.entries(
-  manual.how_to_use || {}
+    manual.how_to_use || {}
 )
-  .map(
-    ([key, value]) =>
-      `- ${key}: ${value}`
-  )
-  .join('\n')}
+    .map(
+        ([key, value]) =>
+            `- ${key}: ${value}`
+    )
+    .join("\n")}
+
 
 SUPPORT
-${manual.support || ''}
+${manual.support}
 `;
 
-              const blob =
-                new Blob(
-                  [text],
-                  {
-                    type:
-                      'text/plain;charset=utf-8'
-                  }
-                );
-
-              const url =
-                URL.createObjectURL(blob);
-
-              const anchor =
-                document.createElement('a');
-
-              anchor.href = url;
-
-              anchor.download =
-                'MSAFIRI-UserManual.txt';
-
-              document.body.appendChild(
-                anchor
-              );
-
-              anchor.click();
-
-              anchor.remove();
-
-              URL.revokeObjectURL(url);
-
-              toast('Downloaded!');
-
+    const blob =
+        new Blob(
+            [text],
+            {
+                type:
+                    "text/plain;charset=utf-8",
             }
-          );
-
-        }
-
-      } catch (error) {
-
-        console.error(
-          'Manual error:',
-          error
         );
 
-        content.innerHTML = `
-          <p class="muted">
-            Failed to load User Manual.
-          </p>
-        `;
+    const url =
+        URL.createObjectURL(
+            blob
+        );
 
-      }
+    const anchor =
+        document.createElement(
+            "a"
+        );
 
-    }
-  );
+    anchor.href =
+        url;
 
+    anchor.download =
+        "MSAFIRI-UserManual.txt";
+
+    document.body.appendChild(
+        anchor
+    );
+
+    anchor.click();
+
+    anchor.remove();
+
+    URL.revokeObjectURL(
+        url
+    );
+
+    toast(
+        "User Manual downloaded"
+    );
 }
 
 
@@ -2653,74 +3803,80 @@ ${manual.support || ''}
 
 function setupDotsMenu() {
 
-  const dotsButton =
-    $('#dots-btn');
+    const dots =
+        $("#dots-btn");
 
-  const dotsMenu =
-    $('#dots-menu');
+    const menu =
+        $("#dots-menu");
 
-  if (!dotsButton || !dotsMenu) {
-    return;
-  }
-
-  dotsButton.addEventListener(
-    'click',
-    event => {
-
-      event.stopPropagation();
-
-      dotsMenu.classList.toggle(
-        'hidden'
-      );
-
+    if (!dots || !menu) {
+        return;
     }
-  );
 
-  document.addEventListener(
-    'click',
-    () => {
+    dots.addEventListener(
+        "click",
+        event => {
 
-      dotsMenu.classList.add(
-        'hidden'
-      );
+            event.stopPropagation();
 
-    }
-  );
-
-  $all(
-    '#dots-menu button'
-  ).forEach(button => {
-
-    button.addEventListener(
-      'click',
-      event => {
-
-        event.stopPropagation();
-
-        const action =
-          button.dataset.action;
-
-        if (action === 'manual') {
-          showUserManual();
+            menu.classList.toggle(
+                "hidden"
+            );
         }
-
-        if (action === 'settings') {
-          showSettings();
-        }
-
-        if (action === 'logout') {
-          logout();
-        }
-
-        dotsMenu.classList.add(
-          'hidden'
-        );
-
-      }
     );
 
-  });
+    document.addEventListener(
+        "click",
+        () => {
 
+            menu.classList.add(
+                "hidden"
+            );
+        }
+    );
+
+    menu.querySelectorAll(
+        "button"
+    ).forEach(
+        button => {
+
+            button.addEventListener(
+                "click",
+                event => {
+
+                    event.stopPropagation();
+
+                    const action =
+                        button.dataset.action;
+
+                    if (
+                        action ===
+                        "manual"
+                    ) {
+                        showUserManual();
+                    }
+
+                    if (
+                        action ===
+                        "settings"
+                    ) {
+                        showSettings();
+                    }
+
+                    if (
+                        action ===
+                        "logout"
+                    ) {
+                        logout();
+                    }
+
+                    menu.classList.add(
+                        "hidden"
+                    );
+                }
+            );
+        }
+    );
 }
 
 
@@ -2730,118 +3886,108 @@ function setupDotsMenu() {
 
 async function loadChats() {
 
-  const list =
-    $('#chat-list');
+    const list =
+        $("#chat-list");
 
-  if (!list) return;
+    if (!list) return;
 
-  list.innerHTML = `
-    <p class="muted"
-       style="padding:20px;text-align:center;">
-      Loading chats...
-    </p>
-  `;
+    try {
 
-  try {
+        const response =
+            await apiFetch(
+                "/api/messages"
+            );
 
-    const response =
-      await authFetch(
-        `${API}/api/messages`
-      );
+        if (!response.ok) {
 
-    if (response.status === 401) {
+            list.innerHTML = `
+                <p class="muted"
+                   style="padding:20px;text-align:center;">
+                    No chats yet
+                </p>
+            `;
 
-      handleUnauthorized();
+            return;
+        }
 
-      return;
+        const data =
+            await response.json();
+
+        const messages =
+            data.messages || [];
+
+        if (
+            messages.length === 0
+        ) {
+
+            list.innerHTML = `
+                <p class="muted"
+                   style="padding:20px;text-align:center;">
+                    No chats yet
+                </p>
+            `;
+
+            return;
+        }
+
+        list.innerHTML = "";
+
+        messages.forEach(
+            message => {
+
+                const item =
+                    document.createElement(
+                        "div"
+                    );
+
+                item.className =
+                    "sub-item";
+
+                item.innerHTML = `
+                    <span class="icon">
+                        💬
+                    </span>
+
+                    <div class="text">
+
+                        <strong>
+                            ${escapeHtml(
+                                message.username ||
+                                "User"
+                            )}
+                        </strong>
+
+                        <span>
+                            ${escapeHtml(
+                                message.text ||
+                                message.content ||
+                                ""
+                            )}
+                        </span>
+
+                    </div>
+                `;
+
+                list.appendChild(
+                    item
+                );
+            }
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Chats:",
+            error
+        );
+
+        list.innerHTML = `
+            <p class="muted"
+               style="padding:20px;text-align:center;">
+                No chats yet
+            </p>
+        `;
     }
-
-    if (!response.ok) {
-
-      list.innerHTML = `
-        <p class="muted"
-           style="padding:20px;text-align:center;">
-          No chats yet
-        </p>
-      `;
-
-      return;
-    }
-
-    const data =
-      await safeJson(response);
-
-    if (
-      !data.messages ||
-      data.messages.length === 0
-    ) {
-
-      list.innerHTML = `
-        <p class="muted"
-           style="padding:20px;text-align:center;">
-          No chats yet
-        </p>
-      `;
-
-      return;
-    }
-
-    list.innerHTML = '';
-
-    data.messages.forEach(message => {
-
-      const element =
-        document.createElement('div');
-
-      element.className =
-        'sub-item';
-
-      element.innerHTML = `
-        <span class="icon">
-          💬
-        </span>
-
-        <div class="text">
-
-          <strong>
-            ${escape(
-              message.username ||
-              message.sender_username ||
-              'User'
-            )}
-          </strong>
-
-          <span>
-            ${escape(
-              message.content ||
-              message.text ||
-              ''
-            )}
-          </span>
-
-        </div>
-      `;
-
-      list.appendChild(element);
-
-    });
-
-  } catch (error) {
-
-    console.error(
-      'Chats loading error:',
-      error
-    );
-
-    list.innerHTML = `
-      <p class="muted"
-         style="padding:20px;text-align:center;">
-        No chats yet
-      </p>
-    `;
-
-  }
-
 }
 
 
@@ -2851,103 +3997,79 @@ async function loadChats() {
 
 async function loadProfile() {
 
-  try {
+    try {
 
-    let user =
-      currentUser;
+        const response =
+            await apiFetch(
+                "/api/auth/me"
+            );
 
-    if (!user) {
-
-      const response =
-        await authFetch(
-          `${API}/api/auth/me`
-        );
-
-      if (!response.ok) {
-
-        if (
-          response.status === 401
-        ) {
-          handleUnauthorized();
+        if (!response.ok) {
+            return;
         }
 
-        return;
-      }
+        const user =
+            await response.json();
 
-      user =
-        await safeJson(response);
+        currentUser =
+            user;
 
-      currentUser =
-        user;
+        const name =
+            $("#profile-name");
+
+        const username =
+            $("#profile-username");
+
+        const bio =
+            $("#profile-bio");
+
+        const avatar =
+            $("#profile-avatar");
+
+        if (name) {
+
+            name.textContent =
+                user.full_name ||
+                user.username ||
+                "User";
+        }
+
+        if (username) {
+
+            username.textContent =
+                "@" +
+                (
+                    user.username ||
+                    "user"
+                );
+        }
+
+        if (bio) {
+
+            bio.textContent =
+                user.bio ||
+                "Welcome to Msafiri";
+        }
+
+        if (avatar) {
+
+            avatar.textContent =
+                (
+                    user.full_name ||
+                    user.username ||
+                    "U"
+                )
+                    .charAt(0)
+                    .toUpperCase();
+        }
+
+    } catch (error) {
+
+        console.error(
+            "Profile:",
+            error
+        );
     }
-
-    updateCurrentUserUI();
-
-  } catch (error) {
-
-    console.error(
-      'Profile loading error:',
-      error
-    );
-
-  }
-
-}
-
-
-// ============================================================
-// UNAUTHORIZED HANDLER
-// ============================================================
-
-function handleUnauthorized() {
-
-  removeToken();
-
-  currentUser = null;
-
-  showAuth();
-
-  toast(
-    'Your session has expired. Please login again.'
-  );
-
-}
-
-
-// ============================================================
-// LOGOUT
-// ============================================================
-
-async function logout() {
-
-  try {
-
-    await authFetch(
-      `${API}/api/auth/logout`,
-      {
-        method: 'POST'
-      }
-    );
-
-  } catch (error) {
-
-    console.log(
-      'Logout request failed:',
-      error
-    );
-
-  } finally {
-
-    removeToken();
-
-    currentUser = null;
-
-    navStack = [];
-
-    location.reload();
-
-  }
-
 }
 
 
@@ -2957,130 +4079,191 @@ async function logout() {
 
 function toggleTheme() {
 
-  const body =
-    document.body;
+    const html =
+        document.documentElement;
 
-  const isInverted =
-    body.dataset.themeInverted === 'true';
+    const current =
+        html.dataset.theme ||
+        "dark";
 
-  if (isInverted) {
+    const next =
+        current === "dark"
+            ? "light"
+            : "dark";
 
-    body.style.filter = '';
-
-    body.dataset.themeInverted =
-      'false';
-
-    localStorage.setItem(
-      'msafiri_theme',
-      'normal'
-    );
-
-    toast('Light mode');
-
-  } else {
-
-    body.style.filter =
-      'invert(1) hue-rotate(180deg)';
-
-    body.dataset.themeInverted =
-      'true';
+    html.dataset.theme =
+        next;
 
     localStorage.setItem(
-      'msafiri_theme',
-      'inverted'
+        "theme",
+        next
     );
 
-    toast('Dark mode');
+    toast(
+        `Theme: ${next}`
+    );
+}
 
-  }
 
+function loadSavedTheme() {
+
+    const theme =
+        localStorage.getItem(
+            "theme"
+        );
+
+    if (theme) {
+
+        document.documentElement
+            .dataset
+            .theme = theme;
+    }
 }
 
 
 // ============================================================
-// RESTORE THEME
+// LOGOUT
 // ============================================================
 
-function restoreTheme() {
+async function logout() {
 
-  const theme =
-    localStorage.getItem(
-      'msafiri_theme'
+    try {
+
+        await apiFetch(
+            "/api/auth/logout",
+            {
+                method: "POST",
+            }
+        );
+
+    } catch {}
+
+    localStorage.removeItem(
+        "token"
     );
 
-  if (
-    theme === 'inverted'
-  ) {
+    currentUser =
+        null;
 
-    document.body.style.filter =
-      'invert(1) hue-rotate(180deg)';
-
-    document.body.dataset.themeInverted =
-      'true';
-
-  }
-
+    location.reload();
 }
 
-restoreTheme();
+
+// ============================================================
+// AUTH CHECK HELPER
+// ============================================================
+
+function ensureLoggedIn() {
+
+    if (!currentUser) {
+
+        toast(
+            "Please login first."
+        );
+
+        showAuth();
+
+        return false;
+    }
+
+    return true;
+}
 
 
 // ============================================================
 // TOAST
 // ============================================================
 
-function toast(message) {
+function toast(
+    message
+) {
 
-  const element =
-    document.createElement('div');
+    const old =
+        document.querySelectorAll(
+            ".msafiri-toast"
+        );
 
-  element.className =
-    'toast';
+    if (old.length > 3) {
+        old[0].remove();
+    }
 
-  element.textContent =
-    String(message);
+    const element =
+        document.createElement(
+            "div"
+        );
 
-  document.body.appendChild(
-    element
-  );
+    element.className =
+        "msafiri-toast";
 
-  setTimeout(
-    () => {
+    element.textContent =
+        message;
 
-      element.remove();
+    element.style.cssText = `
+        position:fixed;
+        left:50%;
+        bottom:30px;
+        transform:translateX(-50%);
+        z-index:100000;
+        padding:12px 18px;
+        border-radius:12px;
+        background:#111827;
+        color:white;
+        font-size:14px;
+        box-shadow:0 10px 30px rgba(0,0,0,.25);
+    `;
 
-    },
-    2500
-  );
+    document.body.appendChild(
+        element
+    );
 
+    setTimeout(
+        () => {
+
+            element.remove();
+
+        },
+        2500
+    );
 }
 
 
 // ============================================================
-// HTML ESCAPING
+// ESCAPE HTML
 // ============================================================
 
-function escape(value) {
+function escapeHtml(
+    value
+) {
 
-  const element =
-    document.createElement('div');
+    const div =
+        document.createElement(
+            "div"
+        );
 
-  element.textContent =
-    value == null
-      ? ''
-      : String(value);
+    div.textContent =
+        value == null
+            ? ""
+            : String(value);
 
-  return element.innerHTML;
-
+    return div.innerHTML;
 }
 
 
-function escapeAttr(value) {
+function escapeAttribute(
+    value
+) {
 
-  return escape(value)
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-
+    return escapeHtml(
+        value
+    )
+        .replace(
+            /"/g,
+            "&quot;"
+        )
+        .replace(
+            /'/g,
+            "&#39;"
+        );
 }
 
 
@@ -3088,141 +4271,310 @@ function escapeAttr(value) {
 // TIME AGO
 // ============================================================
 
-function timeAgo(iso) {
-
-  if (!iso) {
-    return 'now';
-  }
-
-  const timestamp =
-    new Date(iso).getTime();
-
-  if (
-    Number.isNaN(timestamp)
-  ) {
-    return 'now';
-  }
-
-  const seconds =
-    Math.floor(
-      (Date.now() - timestamp) / 1000
-    );
-
-  if (seconds < 0) {
-    return 'now';
-  }
-
-  if (seconds < 60) {
-    return `${seconds}s`;
-  }
-
-  if (seconds < 3600) {
-    return `${Math.floor(
-      seconds / 60
-    )}m`;
-  }
-
-  if (seconds < 86400) {
-    return `${Math.floor(
-      seconds / 3600
-    )}h`;
-  }
-
-  if (seconds < 604800) {
-    return `${Math.floor(
-      seconds / 86400
-    )}d`;
-  }
-
-  return new Date(
+function timeAgo(
     iso
-  ).toLocaleDateString();
+) {
 
+    if (!iso) {
+        return "now";
+    }
+
+    const date =
+        new Date(iso);
+
+    if (
+        Number.isNaN(
+            date.getTime()
+        )
+    ) {
+        return "now";
+    }
+
+    const seconds =
+        Math.floor(
+            (
+                Date.now() -
+                date.getTime()
+            ) / 1000
+        );
+
+    if (seconds < 10) {
+        return "now";
+    }
+
+    if (seconds < 60) {
+        return `${seconds}s`;
+    }
+
+    if (seconds < 3600) {
+        return `${Math.floor(
+            seconds / 60
+        )}m`;
+    }
+
+    if (seconds < 86400) {
+        return `${Math.floor(
+            seconds / 3600
+        )}h`;
+    }
+
+    return `${Math.floor(
+        seconds / 86400
+    )}d`;
 }
 
 
 // ============================================================
-// GLOBAL ERROR HANDLERS
+// COMPOSER CSS
 // ============================================================
 
-window.addEventListener(
-  'unhandledrejection',
-  event => {
+function injectComposerStyles() {
 
-    console.error(
-      'Unhandled promise rejection:',
-      event.reason
-    );
-
-  }
-);
-
-
-window.addEventListener(
-  'error',
-  event => {
-
-    console.error(
-      'Application error:',
-      event.error || event.message
-    );
-
-  }
-);
-
-
-// ============================================================
-// DEBUG HELPERS
-// ============================================================
-
-window.MSAFIRI = {
-
-  getCurrentUser() {
-    return currentUser;
-  },
-
-  getToken() {
-    return getToken();
-  },
-
-  clearSession() {
-    removeToken();
-    currentUser = null;
-    location.reload();
-  },
-
-  async checkAuth() {
-    return checkAuth();
-  },
-
-  async health() {
-
-    try {
-
-      const response =
-        await fetch(
-          `${API}/api/health`
-        );
-
-      return await safeJson(
-        response
-      );
-
-    } catch (error) {
-
-      console.error(
-        'Health check failed:',
-        error
-      );
-
-      return null;
+    if (
+        document.getElementById(
+            "msafiri-composer-css"
+        )
+    ) {
+        return;
     }
 
-  }
+    const style =
+        document.createElement(
+            "style"
+        );
 
-};
+    style.id =
+        "msafiri-composer-css";
+
+    style.textContent = `
+
+        .post-composer-overlay {
+            position:fixed;
+            inset:0;
+            z-index:99999;
+            background:rgba(0,0,0,.65);
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            padding:20px;
+        }
+
+        .post-composer-card {
+            width:min(600px, 100%);
+            max-height:90vh;
+            overflow:auto;
+            background:var(
+                --card-bg,
+                #ffffff
+            );
+            color:var(
+                --text-color,
+                #111827
+            );
+            border-radius:20px;
+            padding:20px;
+            box-shadow:0 20px 70px rgba(0,0,0,.35);
+        }
+
+        .composer-header {
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            margin-bottom:18px;
+        }
+
+        .composer-header h2 {
+            margin:0;
+        }
+
+        .composer-header button {
+            border:0;
+            background:none;
+            font-size:30px;
+            cursor:pointer;
+        }
+
+        .composer-user {
+            display:flex;
+            gap:10px;
+            align-items:center;
+            margin-bottom:14px;
+        }
+
+        .composer-user small {
+            display:block;
+            opacity:.6;
+        }
+
+        .composer-avatar {
+            width:42px;
+            height:42px;
+            border-radius:50%;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            background:linear-gradient(
+                135deg,
+                #6c5ce7,
+                #8e44ad
+            );
+            color:white;
+            font-weight:bold;
+        }
+
+        #post-caption-input {
+            width:100%;
+            min-height:120px;
+            resize:vertical;
+            border:1px solid #ddd;
+            border-radius:14px;
+            padding:14px;
+            font-size:16px;
+            outline:none;
+            box-sizing:border-box;
+        }
+
+        .media-preview {
+            margin-top:14px;
+        }
+
+        .media-preview img,
+        .media-preview video {
+            width:100%;
+            max-height:350px;
+            object-fit:contain;
+            border-radius:14px;
+            background:#000;
+        }
+
+        .composer-tools {
+            display:flex;
+            gap:10px;
+            flex-wrap:wrap;
+            margin-top:14px;
+        }
+
+        .composer-tool {
+            border:1px solid #ddd;
+            padding:10px 14px;
+            border-radius:12px;
+            cursor:pointer;
+            background:transparent;
+        }
+
+        .composer-footer {
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:10px;
+            margin-top:16px;
+        }
+
+        .post-media-wrap {
+            margin-top:10px;
+        }
+
+        .post-media,
+        .post-video {
+            width:100%;
+            max-height:650px;
+            object-fit:cover;
+            border-radius:12px;
+        }
+
+        .post-avatar-img {
+            width:42px;
+            height:42px;
+            border-radius:50%;
+            object-fit:cover;
+        }
+
+        .post-action.liked {
+            font-weight:bold;
+        }
+
+        .post-action.saved {
+            font-weight:bold;
+        }
+
+        .comments-area {
+            margin-top:10px;
+        }
+
+        .comment-item {
+            display:flex;
+            gap:10px;
+            margin:10px 0;
+        }
+
+        .comment-avatar {
+            width:34px;
+            height:34px;
+            min-width:34px;
+            border-radius:50%;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            background:#eee;
+            font-weight:bold;
+        }
+
+        .comment-body {
+            flex:1;
+        }
+
+        .comment-body p {
+            margin:3px 0;
+        }
+
+        .comment-body small {
+            opacity:.55;
+        }
+
+        .comment-form {
+            display:flex;
+            gap:8px;
+            margin-top:12px;
+        }
+
+        .comment-form input {
+            flex:1;
+            min-width:0;
+            padding:10px 12px;
+            border-radius:12px;
+            border:1px solid #ddd;
+        }
+
+    `;
+
+    document.head.appendChild(
+        style
+    );
+}
 
 
 // ============================================================
-// END OF MSAFIRI GLOBAL MEDIA APP.JS
+// START SAVED THEME
 // ============================================================
+
+loadSavedTheme();
+
+
+// ============================================================
+// GLOBAL EXPORTS
+// ============================================================
+
+window.openPostComposer =
+    openPostComposer;
+
+window.loadFeed =
+    loadFeed;
+
+window.logout =
+    logout;
+
+window.showSettings =
+    showSettings;
+
+window.showUserManual =
+    showUserManual;

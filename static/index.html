@@ -1,155 +1,250 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="theme-color" content="#0a0e27">
-<title>MSAFIRI GLOBAL MEDIA</title>
-<link rel="stylesheet" href="/static/style.css">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌍</text></svg>">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0a0e17">
+    <title>MSAFIRI GLOBAL MEDIA</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
 
-<!-- SPLASH SCREEN -->
-<div id="splash">
-  <div class="splash-logo">M</div>
-  <h1>MSAFIRI GLOBAL MEDIA</h1>
-  <p>Connect beyond — Media V0.0.1</p>
-  <div class="splash-loader"><span></span><span></span><span></span></div>
-</div>
-
-<!-- AUTH SCREEN -->
-<div id="auth-screen" class="hidden">
-  <div class="auth-box">
-    <div class="auth-logo">M</div>
-    <h1>MSAFIRI GLOBAL MEDIA</h1>
-    <p class="muted">Connect beyond</p>
-    <div class="auth-tabs">
-      <button class="auth-tab active" data-tab="login">Login</button>
-      <button class="auth-tab" data-tab="register">Register</button>
-    </div>
-    <form id="login-form" class="auth-form">
-      <input type="text" id="login-username" placeholder="Username or Email" required>
-      <input type="password" id="login-password" placeholder="Password" required>
-      <button type="submit" class="btn-primary">Login</button>
-    </form>
-    <form id="register-form" class="auth-form hidden">
-      <input type="text" id="reg-username" placeholder="Username" required>
-      <input type="email" id="reg-email" placeholder="Email" required>
-      <input type="text" id="reg-fullname" placeholder="Full Name" required>
-      <input type="password" id="reg-password" placeholder="Password" required>
-      <button type="submit" class="btn-primary">Create Account</button>
-    </form>
-  </div>
-</div>
-
-<!-- MAIN APP -->
-<div id="app" class="hidden">
-
-  <!-- TOP BAR -->
-  <header id="topbar">
-    <div class="topbar-left">
-      <button id="back-btn" class="icon-btn hidden">←</button>
-      <span class="logo-sm">M</span>
-      <span id="page-title">MSAFIRI</span>
-    </div>
-    <div class="topbar-right">
-      <button id="dots-btn" class="icon-btn">⋮</button>
-    </div>
-  </header>
-
-  <!-- DROPDOWN MENU -->
-  <div id="dots-menu" class="dropdown hidden">
-    <button data-action="manual">📖 User Manual</button>
-    <button data-action="settings">⚙️ Settings</button>
-    <button data-action="logout">🚪 Logout</button>
-  </div>
-
-  <!-- PAGES -->
-  <main id="pages">
-
-    <!-- HOME PAGE -->
-    <section id="page-home" class="page active">
-      <div class="search-bar">
-        <input type="text" id="search-input" placeholder="🔍 Search people...">
-      </div>
-      <div class="feed-tabs">
-        <button class="feed-tab active" data-feed="for-you">For You</button>
-        <button class="feed-tab" data-feed="following">Following</button>
-      </div>
-      <div id="stories-bar" class="stories-bar">
-        <div class="story-item add-story" id="add-story-btn">
-          <div class="story-avatar add-avatar">+</div>
-          <span>My Story</span>
+    <!-- ============================================
+         APP HEADER (Top Bar)
+         ============================================ -->
+    <header class="app-header">
+        <div class="header-left">
+            <i class="fas fa-bars" onclick="toggleSidebar()"></i>
+            <h1 class="app-title">MSAFIRI</h1>
         </div>
-      </div>
-      <div id="feed" class="feed"></div>
-      <button id="fab-create" class="fab">+</button>
-    </section>
-
-    <!-- DISCOVERY PAGE -->
-    <section id="page-discovery" class="page">
-      <h2 class="page-h">Discovery</h2>
-      <div class="discovery-grid" id="discovery-grid"></div>
-    </section>
-
-    <!-- CHATS PAGE -->
-    <section id="page-chats" class="page">
-      <h2 class="page-h">Chats</h2>
-      <div id="chat-list" class="chat-list"></div>
-    </section>
-
-    <!-- PROFILE PAGE -->
-    <section id="page-profile" class="page">
-      <div class="profile-cover"></div>
-      <div class="profile-info">
-        <div class="profile-avatar" id="profile-avatar">M</div>
-        <h2 id="profile-name">User</h2>
-        <p id="profile-username" class="muted">@user</p>
-        <p id="profile-bio" class="muted">Welcome to Msafiri</p>
-        <div class="profile-stats">
-          <div><strong id="stat-posts">0</strong><span>Posts</span></div>
-          <div><strong id="stat-followers">0</strong><span>Followers</span></div>
-          <div><strong id="stat-following">0</strong><span>Following</span></div>
+        <div class="header-right">
+            <i class="fas fa-search" onclick="focusSearch()"></i>
+            <i class="fas fa-ellipsis-v" onclick="openUserManual()"></i>
         </div>
-        <button id="edit-profile-btn" class="btn-secondary">Edit Profile</button>
-      </div>
-      <div id="profile-posts" class="feed"></div>
-    </section>
+    </header>
 
-    <!-- SUB PAGE (dynamic) -->
-    <section id="page-sub" class="page">
-      <div id="sub-content"></div>
-    </section>
+    <!-- ============================================
+         SIDEBAR (Desktop Navigation)
+         ============================================ -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-logo">
+            <div class="logo-circle">M</div>
+            <h2>MSAFIRI</h2>
+            <p class="logo-tagline">Global Media</p>
+        </div>
+        <ul class="nav-links">
+            <li onclick="loadPage('feed')" class="nav-link active" data-page="feed">
+                <i class="fas fa-home"></i> <span>Home</span>
+            </li>
+            <li onclick="loadPage('discovery')" class="nav-link" data-page="discovery">
+                <i class="fas fa-compass"></i> <span>Discovery</span>
+            </li>
+            <li onclick="loadPage('chats')" class="nav-link" data-page="chats">
+                <i class="fas fa-comment"></i> <span>Chats</span>
+            </li>
+            <li onclick="loadPage('profile')" class="nav-link" data-page="profile">
+                <i class="fas fa-user"></i> <span>Profile</span>
+            </li>
+        </ul>
+        <div class="sidebar-footer">
+            <p>Media V0.0.1</p>
+            <p class="tiny">© ZetroLink Technology</p>
+        </div>
+    </aside>
 
-  </main>
+    <!-- ============================================
+         MAIN CONTENT AREA
+         ============================================ -->
+    <main class="main-content" id="main-content">
 
-  <!-- BOTTOM NAV -->
-  <nav id="bottom-nav">
-    <button class="nav-btn active" data-nav="home">
-      <span class="nav-icon">🏠</span><span>Home</span>
-    </button>
-    <button class="nav-btn" data-nav="discovery">
-      <span class="nav-icon">🧭</span><span>Discovery</span>
-    </button>
-    <button class="nav-btn" data-nav="chats">
-      <span class="nav-icon">💬</span><span>Chats</span>
-    </button>
-    <button class="nav-btn" data-nav="profile">
-      <span class="nav-icon">👤</span><span>Profile</span>
-    </button>
-  </nav>
+        <!-- =========================
+             PAGE 1: HOME (Feed)
+             ========================= -->
+        <section id="page-feed" class="page active">
+            <!-- Search Bar -->
+            <div class="search-bar-container">
+                <i class="fas fa-search"></i>
+                <input type="text" id="home-search" placeholder="Search people, posts..." 
+                       onkeyup="searchUsers(this.value)">
+            </div>
 
-</div>
+            <!-- Feed Tabs -->
+            <div class="feed-tabs">
+                <button class="tab active" onclick="switchFeedTab('foryou', this)">For You</button>
+                <button class="tab" onclick="switchFeedTab('following', this)">Following</button>
+            </div>
 
-<!-- MODAL -->
-<div id="modal" class="modal hidden">
-  <div class="modal-content">
-    <button id="modal-close" class="modal-close">✕</button>
-    <div id="modal-body"></div>
-  </div>
-</div>
+            <!-- Stories Bar -->
+            <div class="stories-bar">
+                <div class="story-item my-story" onclick="uploadStory()">
+                    <div class="story-avatar">
+                        <i class="fas fa-plus"></i>
+                    </div>
+                    <span>My Story</span>
+                </div>
+                <div id="stories-list" class="stories-list">
+                    <!-- Stories injected by JS -->
+                </div>
+            </div>
 
-<script src="/static/app.js"></script>
+            <!-- Post Creator -->
+            <div class="post-creator" onclick="openPostCreator()">
+                <div class="creator-avatar">M</div>
+                <span>What's on your mind?</span>
+                <i class="fas fa-image"></i>
+            </div>
+
+            <!-- Feed Posts -->
+            <div id="feed-posts" class="feed-posts">
+                <p class="loading-text">Loading feed...</p>
+            </div>
+        </section>
+
+        <!-- =========================
+             PAGE 2: DISCOVERY
+             ========================= -->
+        <section id="page-discovery" class="page">
+            <!-- This will be populated by discovery.js -->
+        </section>
+
+        <!-- =========================
+             PAGE 3: CHATS
+             ========================= -->
+        <section id="page-chats" class="page">
+            <div class="page-title-bar">
+                <h2>Chats</h2>
+                <i class="fas fa-plus-circle" onclick="openNewChat()"></i>
+            </div>
+            <div class="search-bar-container">
+                <i class="fas fa-search"></i>
+                <input type="text" placeholder="Search conversations..." 
+                       onkeyup="searchChats(this.value)">
+            </div>
+            <div id="chat-list" class="chat-list">
+                <div class="empty-state">
+                    <i class="fas fa-comment-dots"></i>
+                    <h3>No conversations</h3>
+                    <p>Start connecting with people.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- =========================
+             PAGE 4: PROFILE
+             ========================= -->
+        <section id="page-profile" class="page">
+            <!-- This will be populated by profile logic -->
+        </section>
+
+    </main>
+
+    <!-- ============================================
+         BOTTOM NAVIGATION (4 Buttons - Mobile)
+         ============================================ -->
+    <nav class="bottom-nav">
+        <div class="nav-item active" data-page="feed" onclick="loadPage('feed')">
+            <i class="fas fa-home"></i>
+            <span>Home</span>
+        </div>
+        <div class="nav-item" data-page="discovery" onclick="loadPage('discovery')">
+            <i class="fas fa-compass"></i>
+            <span>Discovery</span>
+        </div>
+        <div class="nav-item" data-page="chats" onclick="loadPage('chats')">
+            <i class="fas fa-comment"></i>
+            <span>Chats</span>
+        </div>
+        <div class="nav-item" data-page="profile" onclick="loadPage('profile')">
+            <i class="fas fa-user"></i>
+            <span>Profile</span>
+        </div>
+    </nav>
+
+    <!-- ============================================
+         USER MANUAL MODAL
+         ============================================ -->
+    <div id="user-manual-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-content manual-content">
+            <span class="close-btn" onclick="closeUserManual()">&times;</span>
+
+            <div class="manual-header">
+                <div class="app-logo-large">M</div>
+                <h2>MSAFIRI GLOBAL MEDIA</h2>
+                <p class="tagline">Connect beyond — Media V0.0.1</p>
+            </div>
+
+            <div class="manual-section">
+                <h3><i class="fas fa-info-circle"></i> About MSAFIRI</h3>
+                <p>MSAFIRI GLOBAL MEDIA is a social, communication, and AI app designed to connect people beyond borders.</p>
+                <ul>
+                    <li><strong>Founder:</strong> MSAFIRI WILLIAM MUNGA</li>
+                    <li><strong>Company:</strong> ZetroLink Technology Limited</li>
+                    <li><strong>Version:</strong> Media V0.0.1</li>
+                    <li><strong>Year Founded:</strong> 2025</li>
+                </ul>
+            </div>
+
+            <div class="manual-section">
+                <h3><i class="fas fa-th-large"></i> Sections of the App</h3>
+                <ul>
+                    <li><strong>Home</strong> — Feed, Stories, Posts</li>
+                    <li><strong>Discovery</strong> — AI Council, Studio, Market, World Map, Channels, Communities</li>
+                    <li><strong>Chats</strong> — Messaging (WhatsApp-style)</li>
+                    <li><strong>Profile</strong> — Your profile</li>
+                </ul>
+            </div>
+
+            <div class="manual-section">
+                <h3><i class="fas fa-lightbulb"></i> How to Use MSAFIRI</h3>
+                <ul>
+                    <li><strong>Create account:</strong> Register → Fill details → Create Account</li>
+                    <li><strong>Post content:</strong> Create (+) → Caption → Photo/Video/File → Post</li>
+                    <li><strong>Share story:</strong> "+ My Story" → Media → Post Story</li>
+                    <li><strong>Chat:</strong> Profile → Message icon → Type/Record</li>
+                    <li><strong>Explore AI:</strong> Discovery → AI Council → Choose AI</li>
+                </ul>
+            </div>
+
+            <div class="manual-section">
+                <h3><i class="fas fa-headset"></i> Support</h3>
+                <p>Contact ZetroLink Technology Limited</p>
+            </div>
+
+            <button class="download-btn" onclick="downloadUserManual()">
+                <i class="fas fa-download"></i> Download User Manual
+            </button>
+        </div>
+    </div>
+
+    <!-- ============================================
+         POST CREATOR MODAL
+         ============================================ -->
+    <div id="post-creator-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-content post-creator-content">
+            <span class="close-btn" onclick="closePostCreator()">&times;</span>
+            <h2>Create Post</h2>
+            <textarea id="post-caption" placeholder="What's on your mind?"></textarea>
+            <div class="post-creator-actions">
+                <label for="post-media" class="media-btn">
+                    <i class="fas fa-image"></i> Photo/Video
+                </label>
+                <input type="file" id="post-media" accept="image/*,video/*" style="display:none;">
+                <label for="post-file" class="media-btn">
+                    <i class="fas fa-file"></i> File
+                </label>
+                <input type="file" id="post-file" style="display:none;">
+            </div>
+            <button class="primary-btn" onclick="submitPost()">Post</button>
+        </div>
+    </div>
+
+    <!-- ============================================
+         SCRIPTS
+         ============================================ -->
+    <script src="/static/app.js"></script>
+    <script src="/static/discovery.js"></script>
+    <script src="/static/manual.js"></script>
+    <script src="/static/chat.js"></script>
 </body>
 </html>

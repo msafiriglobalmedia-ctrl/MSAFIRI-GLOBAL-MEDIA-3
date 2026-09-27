@@ -1,57 +1,93 @@
-"""
-routers/feed.py
-MSAFIRI GLOBAL MEDIA — Feed Router
-Inatoa /api/feed?type=for-you na /api/feed?type=following
-"""
-
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy.orm import Session
-from typing import Optional
+from sqlalchemy.orm import Session, joinedload
 
 from database import get_db
-from models import Post, User, Follow
+from models import Post, User
 from auth import get_current_user
 
-router = APIRouter(prefix="/api", tags=["feed"])
+
+router = APIRouter(
+    prefix="/api/feed",
+    tags=["feed"]
+)
 
 
-@router.get("/feed")
+@router.get("")
 def get_feed(
-    type: str = Query("for-you", description="for-you | following"),
-    limit: int = Query(50, ge=1, le=100),
-    offset: int = Query(0, ge=0),
+    type: str = Query(
+        "for-you",
+        pattern="^(for-you|following)$"
+    ),
+    limit: int = Query(
+        30,
+        ge=1,
+        le=100
+    ),
+    offset: int = Query(
+        0,
+        ge=0
+    ),
     db: Session = Depends(get_db),
-    current_user: Optional[User] = Depends(get_current_user),
+    user: User | None = Depends(get_current_user),
 ):
-    """
-    Rudisha feed ya posts.
-    
-    - type=for-you : posts zote (zilizopangwa kwa muda)
-    - type=following : posts za watu unaowafollow
-    """
-    query = db.query(Post)
+    query = (
+        db.query(Post)
+        .options(
+            joinedload(Post.user),
+            joinedload(Post.likes),
+            joinedload(Post.comments),
+            joinedload(Post.saves),
+            joinedload(Post.shares),
+        )
+        .order_by(
+            Post.created_at.desc()
+        )
+    )
 
-    if type == "following" and current_user:
+    # --------------------------------------------------------
+    # FOLLOWING
+    # --------------------------------------------------------
+
+    if type == "following" and user:
+
         following_ids = [
-            f.following_id
-            for f in db.query(Follow).filter(Follow.follower_id == current_user.id).all()
-        ]
+            row.following_id
+            for row in user.following
+        ] if hasattr(user, "following") else []
+
         if following_ids:
-            query = query.filter(Post.user_id.in_(following_ids))
+            query = query.filter(
+                Post.user_id.in_(
+                    following_ids
+                )
+            )
         else:
-            return {"posts": [], "type": type, "total": 0}
+            query = query.filter(
+                Post.user_id == user.id
+            )
 
     posts = (
-        query.order_by(Post.created_at.desc())
-        .limit(limit)
+        query
         .offset(offset)
+        .limit(limit)
         .all()
     )
 
+    current_user_id = (
+        user.id
+        if user
+        else None
+    )
+
     return {
-        "posts": [p.to_dict() if hasattr(p, "to_dict") else p.__dict__ for p in posts],
         "type": type,
-        "total": len(posts),
-        "limit": limit,
+        "posts": [
+            post.to_dict(
+                current_user_id
+            )
+            for post in posts
+        ],
+        "count": len(posts),
         "offset": offset,
+        "limit": limit,
     }
